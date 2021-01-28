@@ -1,0 +1,14 @@
+#
+# Copyright (c) 2021 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+name: connectedhomeip
+
+build:
+    cmake: config/nrfconnect/chip-module
+    kconfig: config/nrfconnect/chip-module/Kconfig
+    depends:
+    - nrfxlib
+    - openthread

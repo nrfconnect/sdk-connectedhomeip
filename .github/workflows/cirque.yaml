@@ -19,10 +19,11 @@ on:
     pull_request:
 
 jobs:
-    build:
+    cirque:
         name: Cirque
 
         runs-on: ubuntu-latest
+        if: github.actor != 'restyled-io[bot]'
 
 # need to run with privilege, which isn't supported by job.XXX.contaner
 #  https://github.com/actions/container-action/issues/2
@@ -43,7 +44,9 @@ jobs:
                   submodules: true
             - name: Bootstrap
               run: |
-                  integrations/docker/images/chip-build-cirque/run.sh scripts/tests/cirque_tests.sh bootstrap
+                  integrations/docker/images/chip-build-cirque/run.sh \
+                    --env GITHUB_ACTION_RUN=1 \
+                    -- scripts/tests/cirque_tests.sh bootstrap
             - name: Artifact suffix
               id: outsuffix
               uses: haya14busa/action-cond@v1.0.0

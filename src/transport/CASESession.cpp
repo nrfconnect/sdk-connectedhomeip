@@ -33,7 +33,6 @@
 #include <protocols/Protocols.h>
 #include <support/CHIPMem.h>
 #include <support/CodeUtils.h>
-#include <support/ReturnMacros.h>
 #include <support/SafeInt.h>
 #include <transport/SecureSessionMgr.h>
 
@@ -67,21 +66,12 @@ CASESession::WaitForSessionEstablishment(NodeId myNodeId, uint16_t myKeyId, Sess
 
 CHIP_ERROR CASESession::AttachHeaderAndSend(Protocols::SecureChannel::MsgType msgType, System::PacketBufferHandle msgBuf)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     PayloadHeader payloadHeader;
 
     payloadHeader.SetMessageType(msgType);
 
-    uint16_t headerSize              = payloadHeader.EncodeSizeBytes();
-    uint16_t actualEncodedHeaderSize = 0;
-
-    VerifyOrExit(msgBuf->EnsureReservedSize(headerSize), err = CHIP_ERROR_NO_MEMORY);
-
-    msgBuf->SetStart(msgBuf->Start() - headerSize);
-    err = payloadHeader.Encode(msgBuf->Start(), msgBuf->DataLength(), &actualEncodedHeaderSize);
+    CHIP_ERROR err = payloadHeader.EncodeBeforeData(msgBuf);
     SuccessOrExit(err);
-    VerifyOrExit(headerSize == actualEncodedHeaderSize, err = CHIP_ERROR_INTERNAL);
 
     err = mDelegate->SendSessionEstablishmentMessage(PacketHeader()
                                                          .SetSourceNodeId(mLocalNodeId)
@@ -99,6 +89,7 @@ CHIP_ERROR CASESession::EstablishSession(const Transport::PeerAddress peerAddres
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
+    mDelegate = delegate;
     mConnectionState.SetPeerAddress(peerAddress);
     mConnectionState.SetPeerNodeId(peerNodeId);
 
@@ -355,20 +346,17 @@ exit:
 CHIP_ERROR CASESession::HandlePeerMessage(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                                           System::PacketBufferHandle msg)
 {
-    CHIP_ERROR err      = CHIP_NO_ERROR;
-    uint16_t headerSize = 0;
+    CHIP_ERROR err = CHIP_NO_ERROR;
     PayloadHeader payloadHeader;
 
     Protocols::SecureChannel::MsgType msgType;
 
     VerifyOrExit(!msg.IsNull(), err = CHIP_ERROR_INVALID_ARGUMENT);
 
-    err = payloadHeader.Decode(msg->Start(), msg->DataLength(), &headerSize);
+    err = payloadHeader.DecodeAndConsume(msg);
     SuccessOrExit(err);
 
-    msg->ConsumeHead(headerSize);
-
-    VerifyOrExit(payloadHeader.GetProtocolID() == Protocols::kProtocol_SecureChannel, err = CHIP_ERROR_INVALID_MESSAGE_TYPE);
+    VerifyOrExit(payloadHeader.HasProtocol(Protocols::SecureChannel::Id), err = CHIP_ERROR_INVALID_MESSAGE_TYPE);
 
     msgType = static_cast<Protocols::SecureChannel::MsgType>(payloadHeader.GetMessageType());
     VerifyOrExit(msgType == mNextExpectedMsg, err = CHIP_ERROR_INVALID_MESSAGE_TYPE);

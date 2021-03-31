@@ -15,7 +15,8 @@
 #
 
 name: connectedhomeip
-
 build:
     cmake: .
     kconfig: Kconfig
+    depends:
+        - openthread

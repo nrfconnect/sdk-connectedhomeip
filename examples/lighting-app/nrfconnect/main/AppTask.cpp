@@ -22,7 +22,7 @@
 #include "AppEvent.h"
 #include "LEDWidget.h"
 #include "LightingManager.h"
-#include "QRCodeUtil.h"
+#include "OnboardingCodesUtil.h"
 #include "Server.h"
 #include "Service.h"
 #include "ThreadUtil.h"
@@ -74,8 +74,6 @@ NFCWidget sNFC;
 
 bool sIsThreadProvisioned     = false;
 bool sIsThreadEnabled         = false;
-bool sIsThreadAttached        = false;
-bool sIsPairedToAccount       = false;
 bool sHaveBLEConnections      = false;
 bool sHaveServiceConnectivity = false;
 
@@ -115,7 +113,7 @@ int AppTask::Init()
     // Init ZCL Data Model and start server
     InitServer();
     ConfigurationMgr().LogDeviceConfig();
-    PrintQRCode(chip::RendezvousInformationFlags::kBLE);
+    PrintOnboardingCodes(chip::RendezvousInformationFlags::kBLE);
 
 #ifdef CONFIG_CHIP_NFC_COMMISSIONING
     ret = sNFC.Init(ConnectivityMgr());
@@ -164,15 +162,10 @@ int AppTask::StartApp()
         {
             sIsThreadProvisioned     = ConnectivityMgr().IsThreadProvisioned();
             sIsThreadEnabled         = ConnectivityMgr().IsThreadEnabled();
-            sIsThreadAttached        = ConnectivityMgr().IsThreadAttached();
             sHaveBLEConnections      = (ConnectivityMgr().NumBLEConnections() != 0);
             sHaveServiceConnectivity = ConnectivityMgr().HaveServiceConnectivity();
             PlatformMgr().UnlockChipStack();
         }
-
-        // Consider the system to be "fully connected" if it has service
-        // connectivity and it is able to interact with the service on a regular basis.
-        bool isFullyConnected = sHaveServiceConnectivity;
 
         // Update the status LED if factory reset has not been initiated.
         //
@@ -188,11 +181,11 @@ int AppTask::StartApp()
         // Otherwise, blink the LED ON for a very short time.
         if (sAppTask.mFunction != kFunction_FactoryReset)
         {
-            if (isFullyConnected)
+            if (sHaveServiceConnectivity)
             {
                 sStatusLED.Set(true);
             }
-            else if (sIsThreadProvisioned && sIsThreadEnabled && sIsPairedToAccount && (!sIsThreadAttached || !isFullyConnected))
+            else if (sIsThreadProvisioned && sIsThreadEnabled)
             {
                 sStatusLED.Blink(950, 50);
             }
@@ -363,7 +356,11 @@ void AppTask::StartThreadHandler(AppEvent * aEvent)
     if (aEvent->ButtonEvent.PinNo != THREAD_START_BUTTON)
         return;
 
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+    if (AddTestPairing() != CHIP_NO_ERROR)
+    {
+        LOG_ERR("Failed to add test pairing");
+    }
+
     if (!chip::DeviceLayer::ConnectivityMgr().IsThreadProvisioned())
     {
         StartDefaultThreadNetwork();
@@ -373,7 +370,6 @@ void AppTask::StartThreadHandler(AppEvent * aEvent)
     {
         LOG_INF("Device is commissioned to a Thread network.");
     }
-#endif
 }
 
 void AppTask::StartBLEAdvertisementHandler(AppEvent * aEvent)
@@ -387,6 +383,7 @@ void AppTask::StartBLEAdvertisementHandler(AppEvent * aEvent)
         return;
     }
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING
     if (!sNFC.IsTagEmulationStarted())
     {
         if (!(GetAppTask().StartNFCTag() < 0))
@@ -402,6 +399,7 @@ void AppTask::StartBLEAdvertisementHandler(AppEvent * aEvent)
     {
         LOG_INF("NFC Tag emulation is already started");
     }
+#endif
 
     if (ConnectivityMgr().IsBLEAdvertisingEnabled())
     {
@@ -409,7 +407,7 @@ void AppTask::StartBLEAdvertisementHandler(AppEvent * aEvent)
         return;
     }
 
-    if (OpenDefaultPairingWindow() == CHIP_NO_ERROR)
+    if (OpenDefaultPairingWindow(chip::ResetAdmins::kNo) == CHIP_NO_ERROR)
     {
         LOG_INF("Enabled BLE Advertisement");
     }

@@ -34,6 +34,7 @@
 
 #include <core/CHIPCore.h>
 #include <core/CHIPEncoding.h>
+#include <core/CHIPKeyIds.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <protocols/Protocols.h>
@@ -48,11 +49,11 @@ using namespace chip::System;
 namespace chip {
 namespace Messaging {
 
-static void DefaultOnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, uint32_t protocolId, uint8_t msgType,
-                                     PacketBufferHandle payload)
+static void DefaultOnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, Protocols::Id protocolId,
+                                     uint8_t msgType, PacketBufferHandle payload)
 {
-    ChipLogError(ExchangeManager, "Dropping unexpected message %08" PRIX32 ":%d %04" PRIX16 " MsgId:%08" PRIX32, protocolId,
-                 msgType, ec->GetExchangeId(), packetHeader.GetMessageId());
+    ChipLogError(ExchangeManager, "Dropping unexpected message %08" PRIX32 ":%d %04" PRIX16 " MsgId:%08" PRIX32,
+                 protocolId.ToFullyQualifiedSpecForm(), msgType, ec->GetExchangeId(), packetHeader.GetMessageId());
 }
 
 bool ExchangeContext::IsInitiator() const
@@ -75,15 +76,56 @@ void ExchangeContext::SetResponseTimeout(Timeout timeout)
     mResponseTimeout = timeout;
 }
 
-CHIP_ERROR ExchangeContext::SendMessage(uint16_t protocolId, uint8_t msgType, PacketBufferHandle msgBuf,
-                                        const SendFlags & sendFlags, void * msgCtxt)
+CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgType, PacketBufferHandle msgBuf,
+                                        const SendFlags & sendFlags)
+{
+    CHIP_ERROR err                         = CHIP_NO_ERROR;
+    Transport::PeerConnectionState * state = nullptr;
+
+    VerifyOrReturnError(mExchangeMgr != nullptr, CHIP_ERROR_INTERNAL);
+
+    state = mExchangeMgr->GetSessionMgr()->GetPeerConnectionState(mSecureSession);
+    VerifyOrReturnError(state != nullptr, CHIP_ERROR_NOT_CONNECTED);
+
+    // If a group message is to be transmitted to a destination node whose message counter is unknown.
+    if (ChipKeyId::IsAppGroupKey(state->GetLocalKeyID()) && !state->IsPeerMsgCounterSynced())
+    {
+        MessageCounterSyncMgr * messageCounterSyncMgr = mExchangeMgr->GetMessageCounterSyncMgr();
+        VerifyOrReturnError(messageCounterSyncMgr != nullptr, CHIP_ERROR_INTERNAL);
+
+        // Queue the message as needed for sync with destination node.
+        err = messageCounterSyncMgr->AddToRetransmissionTable(protocolId, msgType, sendFlags, std::move(msgBuf), this);
+        ReturnErrorOnFailure(err);
+
+        // Initiate message counter synchronization if no message counter synchronization is in progress.
+        if (!state->IsMsgCounterSyncInProgress())
+        {
+            err = mExchangeMgr->GetMessageCounterSyncMgr()->SendMsgCounterSyncReq(mSecureSession);
+        }
+    }
+    else
+    {
+        err = SendMessageImpl(protocolId, msgType, std::move(msgBuf), sendFlags, state);
+    }
+
+    return err;
+}
+
+CHIP_ERROR ExchangeContext::SendMessageImpl(Protocols::Id protocolId, uint8_t msgType, PacketBufferHandle msgBuf,
+                                            const SendFlags & sendFlags, Transport::PeerConnectionState * state)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     PayloadHeader payloadHeader;
-    Transport::PeerConnectionState * state = nullptr;
 
     // Don't let method get called on a freed object.
     VerifyOrDie(mExchangeMgr != nullptr && GetReferenceCount() > 0);
+
+    if (state == nullptr)
+    {
+        state = mExchangeMgr->GetSessionMgr()->GetPeerConnectionState(mSecureSession);
+    }
+
+    VerifyOrExit(state != nullptr, err = CHIP_ERROR_NOT_CONNECTED);
 
     // we hold the exchange context here in case the entity that
     // originally generated it tries to close it as a result of
@@ -100,8 +142,6 @@ CHIP_ERROR ExchangeContext::SendMessage(uint16_t protocolId, uint8_t msgType, Pa
 
     // If sending via UDP and auto-request ACK feature is enabled, automatically request an acknowledgment,
     // UNLESS the NoAutoRequestAck send flag has been specified.
-    state = mExchangeMgr->GetSessionMgr()->GetPeerConnectionState(mSecureSession);
-    VerifyOrExit(state != nullptr, err = CHIP_ERROR_NOT_CONNECTED);
     if ((state->GetPeerAddress().GetTransportType() == Transport::Type::kUdp) && mReliableMessageContext.AutoRequestAck() &&
         !sendFlags.Has(SendMessageFlags::kNoAutoRequestAck))
     {
@@ -139,7 +179,7 @@ CHIP_ERROR ExchangeContext::SendMessage(uint16_t protocolId, uint8_t msgType, Pa
     }
 
     // Send the message.
-    if (payloadHeader.IsNeedsAck())
+    if (payloadHeader.NeedsAck())
     {
         ReliableMessageMgr::RetransTableEntry * entry = nullptr;
 
@@ -289,6 +329,12 @@ void ExchangeContext::Free()
 
     em->DecrementContextsInUse();
 
+    if (mExchangeACL != nullptr)
+    {
+        chip::Platform::Delete(mExchangeACL);
+        mExchangeACL = nullptr;
+    }
+
 #if defined(CHIP_EXCHANGE_CONTEXT_DETAIL_LOGGING)
     ChipLogProgress(ExchangeManager, "ec-- id: %d [%04" PRIX16 "], inUse: %d, addr: 0x%x", (this - em->ContextPool + 1),
                     mExchangeId, em->GetContextsInUse(), this);
@@ -359,10 +405,10 @@ void ExchangeContext::HandleResponseTimeout(System::Layer * aSystemLayer, void *
 CHIP_ERROR ExchangeContext::HandleMessage(const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
                                           PacketBufferHandle msgBuf)
 {
-    CHIP_ERROR err      = CHIP_NO_ERROR;
-    uint32_t messageId  = 0;
-    uint16_t protocolId = 0;
-    uint8_t messageType = 0;
+    CHIP_ERROR err           = CHIP_NO_ERROR;
+    uint32_t messageId       = packetHeader.GetMessageId();
+    Protocols::Id protocolId = payloadHeader.GetProtocolID();
+    uint8_t messageType      = payloadHeader.GetMessageType();
 
     // We hold a reference to the ExchangeContext here to
     // guard against Close() calls(decrementing the reference
@@ -370,17 +416,13 @@ CHIP_ERROR ExchangeContext::HandleMessage(const PacketHeader & packetHeader, con
     // layer has completed its work on the ExchangeContext.
     Retain();
 
-    messageId   = packetHeader.GetMessageId();
-    protocolId  = payloadHeader.GetProtocolID();
-    messageType = payloadHeader.GetMessageType();
-
     if (payloadHeader.IsAckMsg())
     {
         err = mReliableMessageContext.HandleRcvdAck(payloadHeader.GetAckId().Value());
         SuccessOrExit(err);
     }
 
-    if (payloadHeader.IsNeedsAck())
+    if (payloadHeader.NeedsAck())
     {
         MessageFlags msgFlags;
 

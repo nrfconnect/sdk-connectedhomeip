@@ -27,10 +27,14 @@
 #include "CommandHandler.h"
 #include "InteractionModelEngine.h"
 
+#include <protocols/secure_channel/Constants.h>
+
+using GeneralStatusCode = chip::Protocols::SecureChannel::GeneralStatusCode;
+
 namespace chip {
 namespace app {
 
-CHIP_ERROR CommandSender::SendCommandRequest(NodeId aNodeId)
+CHIP_ERROR CommandSender::SendCommandRequest(NodeId aNodeId, Transport::AdminId aAdminId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -42,14 +46,14 @@ CHIP_ERROR CommandSender::SendCommandRequest(NodeId aNodeId)
     // Create a new exchange context.
     // TODO: temprary create a SecureSessionHandle from node id, will be fix in PR 3602
     // TODO: Hard code keyID to 0 to unblock IM end-to-end test. Complete solution is tracked in issue:4451
-    mpExchangeCtx = mpExchangeMgr->NewContext({ aNodeId, 0 }, this);
+    mpExchangeCtx = mpExchangeMgr->NewContext({ aNodeId, 0, aAdminId }, this);
     VerifyOrExit(mpExchangeCtx != nullptr, err = CHIP_ERROR_NO_MEMORY);
-    mpExchangeCtx->SetResponseTimeout(CHIP_INVOKE_COMMAND_RSP_TIMEOUT);
+    mpExchangeCtx->SetResponseTimeout(kImMessageTimeoutMsec);
 
     err = mpExchangeCtx->SendMessage(Protocols::InteractionModel::MsgType::InvokeCommandRequest, std::move(mCommandMessageBuf),
                                      Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse));
     SuccessOrExit(err);
-    MoveToState(kState_Sending);
+    MoveToState(CommandState::Sending);
 
 exit:
     if (err != CHIP_NO_ERROR)
@@ -61,7 +65,7 @@ exit:
     return err;
 }
 
-void CommandSender::OnMessageReceived(Messaging::ExchangeContext * apEc, const PacketHeader & aPacketHeader,
+void CommandSender::OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
                                       const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -70,13 +74,13 @@ void CommandSender::OnMessageReceived(Messaging::ExchangeContext * apEc, const P
     // back-to-back, the second call will call Close() on the first exchange,
     // which clears the OnMessageReceived callback.
 
-    VerifyOrDie(apEc == mpExchangeCtx);
+    VerifyOrDie(apExchangeContext == mpExchangeCtx);
 
     // Verify that the message is an Invoke Command Response.
     // If not, close the exchange and free the payload.
     if (!aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::InvokeCommandResponse))
     {
-        apEc->Close();
+        apExchangeContext->Close();
         mpExchangeCtx = nullptr;
         goto exit;
     }
@@ -87,17 +91,17 @@ void CommandSender::OnMessageReceived(Messaging::ExchangeContext * apEc, const P
     // acknowledged at the transport layer.
     ClearExistingExchangeContext();
 
-    err = ProcessCommandMessage(std::move(aPayload), kCommandSenderId);
+    err = ProcessCommandMessage(std::move(aPayload), CommandRoleId::SenderId);
     SuccessOrExit(err);
 
 exit:
     Reset();
-    return;
 }
 
-void CommandSender::OnResponseTimeout(Messaging::ExchangeContext * apEc)
+void CommandSender::OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext)
 {
-    ChipLogProgress(DataManagement, "Time out! failed to receive invoke command response from Exchange: %d", apEc->GetExchangeId());
+    ChipLogProgress(DataManagement, "Time out! failed to receive invoke command response from Exchange: %d",
+                    apExchangeContext->GetExchangeId());
     Reset();
 }
 
@@ -129,7 +133,7 @@ CHIP_ERROR CommandSender::ProcessCommandDataElement(CommandDataElement::Parser &
         err = aCommandElement.GetCommandPath(&commandPath);
         SuccessOrExit(err);
 
-        err = commandPath.GetNamespacedClusterId(&clusterId);
+        err = commandPath.GetClusterId(&clusterId);
         SuccessOrExit(err);
 
         err = commandPath.GetCommandId(&commandId);
@@ -143,8 +147,8 @@ CHIP_ERROR CommandSender::ProcessCommandDataElement(CommandDataElement::Parser &
         {
             err = CHIP_NO_ERROR;
             ChipLogDetail(DataManagement, "Add Status code for empty command, cluster Id is %d", clusterId);
-            // Todo: Define protocol code for StatusCode
-            AddStatusCode(0, chip::Protocols::kProtocol_Protocol_Common, 0, clusterId);
+            AddStatusCode(static_cast<uint16_t>(GeneralStatusCode::kSuccess), Protocols::SecureChannel::Id,
+                          Protocols::SecureChannel::kProtocolCodeSuccess, clusterId);
         }
         // TODO(#4503): Should call callbacks of cluster that sends the command.
         DispatchSingleClusterCommand(clusterId, commandId, endpointId, commandDataReader, this);

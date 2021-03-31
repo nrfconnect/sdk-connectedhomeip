@@ -26,10 +26,16 @@
 
 #include <array>
 
+#include <messaging/Channel.h>
+#include <messaging/ChannelContext.h>
 #include <messaging/ExchangeContext.h>
+#include <messaging/MessageCounterSync.h>
 #include <messaging/ReliableMessageMgr.h>
+#include <protocols/Protocols.h>
 #include <support/DLLUtil.h>
+#include <support/Pool.h>
 #include <transport/SecureSessionMgr.h>
+#include <transport/TransportMgr.h>
 
 namespace chip {
 namespace Messaging {
@@ -45,7 +51,7 @@ static constexpr int16_t kAnyMessageType = -1;
  *    It works on be behalf of higher layers, creating ExchangeContexts and
  *    handling the registration/unregistration of unsolicited message handlers.
  */
-class DLL_EXPORT ExchangeManager : public SecureSessionMgrDelegate
+class DLL_EXPORT ExchangeManager : public SecureSessionMgrDelegate, public TransportMgrDelegate
 {
 public:
     ExchangeManager();
@@ -107,7 +113,7 @@ public:
      *                                                             is full and a new one cannot be allocated.
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR RegisterUnsolicitedMessageHandlerForProtocol(uint32_t protocolId, ExchangeDelegate * delegate);
+    CHIP_ERROR RegisterUnsolicitedMessageHandlerForProtocol(Protocols::Id protocolId, ExchangeDelegate * delegate);
 
     /**
      *  Register an unsolicited message handler for a given protocol identifier and message type.
@@ -122,7 +128,7 @@ public:
      *                                                             is full and a new one cannot be allocated.
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR RegisterUnsolicitedMessageHandlerForType(uint32_t protocolId, uint8_t msgType, ExchangeDelegate * delegate);
+    CHIP_ERROR RegisterUnsolicitedMessageHandlerForType(Protocols::Id protocolId, uint8_t msgType, ExchangeDelegate * delegate);
 
     /**
      * A strongly-message-typed version of RegisterUnsolicitedMessageHandlerForType.
@@ -131,7 +137,7 @@ public:
     CHIP_ERROR RegisterUnsolicitedMessageHandlerForType(MessageType msgType, ExchangeDelegate * delegate)
     {
         static_assert(std::is_same<std::underlying_type_t<MessageType>, uint8_t>::value, "Enum is wrong size; cast is not safe");
-        return RegisterUnsolicitedMessageHandlerForType(Protocols::MessageTypeTraits<MessageType>::ProtocolId,
+        return RegisterUnsolicitedMessageHandlerForType(Protocols::MessageTypeTraits<MessageType>::ProtocolId(),
                                                         static_cast<uint8_t>(msgType), delegate);
     }
 
@@ -144,7 +150,7 @@ public:
      *                                                       is not found.
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR UnregisterUnsolicitedMessageHandlerForProtocol(uint32_t protocolId);
+    CHIP_ERROR UnregisterUnsolicitedMessageHandlerForProtocol(Protocols::Id protocolId);
 
     /**
      *  Unregister an unsolicited message handler for a given protocol identifier and message type.
@@ -157,7 +163,7 @@ public:
      *                                                       is not found.
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR UnregisterUnsolicitedMessageHandlerForType(uint32_t protocolId, uint8_t msgType);
+    CHIP_ERROR UnregisterUnsolicitedMessageHandlerForType(Protocols::Id protocolId, uint8_t msgType);
 
     /**
      * A strongly-message-typed version of UnregisterUnsolicitedMessageHandlerForType.
@@ -166,8 +172,39 @@ public:
     CHIP_ERROR UnregisterUnsolicitedMessageHandlerForType(MessageType msgType)
     {
         static_assert(std::is_same<std::underlying_type_t<MessageType>, uint8_t>::value, "Enum is wrong size; cast is not safe");
-        return UnregisterUnsolicitedMessageHandlerForType(Protocols::MessageTypeTraits<MessageType>::ProtocolId,
+        return UnregisterUnsolicitedMessageHandlerForType(Protocols::MessageTypeTraits<MessageType>::ProtocolId(),
                                                           static_cast<uint8_t>(msgType));
+    }
+
+    /**
+     * @brief
+     *   Called when a cached group message that was waiting for message counter
+     *   sync shold be reprocessed.
+     *
+     * @param packetHeader  The message header
+     * @param payloadHeader The payload header
+     * @param session       The handle to the secure session
+     * @param msgBuf        The received message
+     */
+    void HandleGroupMessageReceived(const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
+                                    const SecureSessionHandle & session, System::PacketBufferHandle msgBuf);
+
+    // Channel public APIs
+    ChannelHandle EstablishChannel(const ChannelBuilder & builder, ChannelDelegate * delegate);
+
+    // Internal APIs used for channel
+    void ReleaseChannelContext(ChannelContext * channel) { mChannelContexts.ReleaseObject(channel); }
+
+    void ReleaseChannelHandle(ChannelContextHandleAssociation * association) { mChannelHandles.ReleaseObject(association); }
+
+    template <typename Event>
+    void NotifyChannelEvent(ChannelContext * channel, Event event)
+    {
+        mChannelHandles.ForEachActiveObject([&](ChannelContextHandleAssociation * association) {
+            if (association->mChannelContext == channel)
+                event(association->mChannelDelegate);
+            return true;
+        });
     }
 
     void IncrementContextsInUse();
@@ -177,6 +214,10 @@ public:
 
     ReliableMessageMgr * GetReliableMessageMgr() { return &mReliableMessageMgr; };
 
+    MessageCounterSyncMgr * GetMessageCounterSyncMgr() { return &mMessageCounterSyncMgr; };
+    Transport::AdminId GetAdminId() { return mAdminId; }
+
+    uint16_t GetNextKeyId() { return ++mNextKeyId; }
     size_t GetContextsInUse() const { return mContextsInUse; }
 
 private:
@@ -188,33 +229,59 @@ private:
 
     struct UnsolicitedMessageHandler
     {
+        UnsolicitedMessageHandler() : ProtocolId(Protocols::NotSpecified) {}
+
+        constexpr void Reset() { Delegate = nullptr; }
+        constexpr bool IsInUse() const { return Delegate != nullptr; }
+        // Matches() only returns a sensible value if IsInUse() is true.
+        constexpr bool Matches(Protocols::Id aProtocolId, int16_t aMessageType) const
+        {
+            return ProtocolId == aProtocolId && MessageType == aMessageType;
+        }
+
         ExchangeDelegate * Delegate;
-        uint32_t ProtocolId;
+        Protocols::Id ProtocolId;
+        // Message types are normally 8-bit unsigned ints, but we use
+        // kAnyMessageType, which is negative, to represent a wildcard handler,
+        // so need a type that can store both that and all valid message type
+        // values.
         int16_t MessageType;
     };
 
     uint16_t mNextExchangeId;
+    uint16_t mNextKeyId;
     State mState;
     SecureSessionMgr * mSessionMgr;
     ReliableMessageMgr mReliableMessageMgr;
+    MessageCounterSyncMgr mMessageCounterSyncMgr;
+
+    Transport::AdminId mAdminId = 0;
 
     std::array<ExchangeContext, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS> mContextPool;
     size_t mContextsInUse;
 
     UnsolicitedMessageHandler UMHandlerPool[CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS];
-    void (*OnExchangeContextChanged)(size_t numContextsInUse);
+    BitMapObjectPool<ChannelContext, CHIP_CONFIG_MAX_ACTIVE_CHANNELS> mChannelContexts;
+    BitMapObjectPool<ChannelContextHandleAssociation, CHIP_CONFIG_MAX_CHANNEL_HANDLES> mChannelHandles;
 
     ExchangeContext * AllocContext(uint16_t ExchangeId, SecureSessionHandle session, bool Initiator, ExchangeDelegate * delegate);
 
-    CHIP_ERROR RegisterUMH(uint32_t protocolId, int16_t msgType, ExchangeDelegate * delegate);
-    CHIP_ERROR UnregisterUMH(uint32_t protocolId, int16_t msgType);
+    CHIP_ERROR RegisterUMH(Protocols::Id protocolId, int16_t msgType, ExchangeDelegate * delegate);
+    CHIP_ERROR UnregisterUMH(Protocols::Id protocolId, int16_t msgType);
+
+    static bool IsMsgCounterSyncMessage(const PayloadHeader & payloadHeader);
 
     void OnReceiveError(CHIP_ERROR error, const Transport::PeerAddress & source, SecureSessionMgr * msgLayer) override;
 
     void OnMessageReceived(const PacketHeader & packetHeader, const PayloadHeader & payloadHeader, SecureSessionHandle session,
                            System::PacketBufferHandle msgBuf, SecureSessionMgr * msgLayer) override;
 
+    void OnNewConnection(SecureSessionHandle session, SecureSessionMgr * mgr) override;
     void OnConnectionExpired(SecureSessionHandle session, SecureSessionMgr * mgr) override;
+
+    // TransportMgrDelegate interface for rendezvous sessions
+    void OnMessageReceived(const PacketHeader & header, const Transport::PeerAddress & source,
+                           System::PacketBufferHandle msgBuf) override;
 };
 
 } // namespace Messaging

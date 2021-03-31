@@ -19,16 +19,20 @@ get_filename_component(CHIP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/connect
 get_filename_component(NRFCONNECT_COMMON ${CHIP_ROOT}/examples/platform/nrfconnect REALPATH)
 get_filename_component(LIGHTING_COMMON ${CHIP_ROOT}/examples/lighting-app/lighting-common REALPATH)
 
-set(CONF_FILE ${CHIP_ROOT}/config/nrfconnect/app/sample-defaults.conf prj.conf)
+include(${CHIP_ROOT}/config/nrfconnect/app/check-nrfconnect-version.cmake)
 
 # Load NCS/Zephyr build system
+set(CONF_FILE ${CHIP_ROOT}/config/nrfconnect/app/sample-defaults.conf prj.conf)
 list(APPEND ZEPHYR_EXTRA_MODULES ${CHIP_ROOT}/config/nrfconnect/chip-module)
 find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
 
-project(chip-nrf52840-lighting-example)
+project(chip-nrfconnect-lighting-example)
+
+target_compile_options(app PRIVATE -Werror)
 
 target_include_directories(app PRIVATE
                            main/include
+                           ${CHIP_ROOT}/src/app
                            ${LIGHTING_COMMON}
                            ${NRFCONNECT_COMMON}/util/include
                            ${NRFCONNECT_COMMON}/app/include)
@@ -41,7 +45,6 @@ target_sources(app PRIVATE
                ${LIGHTING_COMMON}/gen/call-command-handler.cpp
                ${LIGHTING_COMMON}/gen/callback-stub.cpp
                ${NRFCONNECT_COMMON}/util/LEDWidget.cpp
-               ${NRFCONNECT_COMMON}/util/NFCWidget.cpp
                ${NRFCONNECT_COMMON}/util/ThreadUtil.cpp
                ${NRFCONNECT_COMMON}/app/Service.cpp
                ${CHIP_ROOT}/src/app/server/DataModelHandler.cpp
@@ -63,7 +66,15 @@ target_sources(app PRIVATE
                ${CHIP_ROOT}/src/app/clusters/bindings/bindings.cpp
                ${CHIP_ROOT}/src/app/clusters/on-off-server/on-off.cpp
                ${CHIP_ROOT}/src/app/clusters/level-control/level-control.cpp
+               ${CHIP_ROOT}/src/app/clusters/network-commissioning/network-commissioning-ember.cpp
+               ${CHIP_ROOT}/src/app/clusters/network-commissioning/network-commissioning.cpp
                )
+
+if (CONFIG_CHIP_NFC_COMMISSIONING)
+target_sources(app PRIVATE
+               ${NRFCONNECT_COMMON}/util/NFCWidget.cpp
+)
+endif(CONFIG_CHIP_NFC_COMMISSIONING)
 
 if (CONFIG_CHIP_PW_RPC)
 
@@ -88,6 +99,7 @@ pw_proto_library(pigweed_lighting_protolib
 target_sources(app PRIVATE
   main/Rpc.cpp
   ../../common/pigweed/RpcService.cpp
+  ../../common/pigweed/nrfconnect/PigweedLoggerMutex.cpp
   ${NRFCONNECT_COMMON}/util/PigweedLogger.cpp
 )
 
@@ -96,10 +108,12 @@ target_include_directories(app PRIVATE
   ${PIGWEED_ROOT}/pw_sys_io/public
   ${CHIP_ROOT}/src/lib/support
   ${CHIP_ROOT}/src/system
-  ../../common)
+  ../../common
+  ../../common/pigweed/nrfconnect)
 
 target_link_libraries(app PRIVATE
   pigweed_lighting_protolib.nanopb_rpc
+  pw_checksum
   pw_hdlc
   pw_log
   pw_rpc.server

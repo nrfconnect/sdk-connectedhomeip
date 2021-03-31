@@ -21,7 +21,7 @@
 #include "Server.h"
 #include "support/ErrorStr.h"
 
-#include "QRCodeUtil.h"
+#include "OnboardingCodesUtil.h"
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 
@@ -36,11 +36,8 @@
 #include "TimersManager.h"
 #include "app_config.h"
 
-#define FACTORY_RESET_TRIGGER_TIMEOUT 6000
-#define FACTORY_RESET_CANCEL_WINDOW_TIMEOUT 3000
-#define APP_TASK_STACK_SIZE (4096)
-#define APP_TASK_PRIORITY 2
-#define APP_EVENT_QUEUE_SIZE 10
+constexpr uint32_t kFactoryResetTriggerTimeout = 6000;
+constexpr uint8_t kAppEventQueueSize           = 10;
 
 TimerHandle_t sFunctionTimer; // FreeRTOS app sw timer.
 
@@ -52,8 +49,6 @@ static LEDWidget sLockLED;
 
 static bool sIsThreadProvisioned     = false;
 static bool sIsThreadEnabled         = false;
-static bool sIsThreadAttached        = false;
-static bool sIsPairedToAccount       = false;
 static bool sHaveBLEConnections      = false;
 static bool sHaveServiceConnectivity = false;
 
@@ -67,12 +62,11 @@ int AppTask::StartAppTask()
 {
     int err = CHIP_NO_ERROR;
 
-    sAppEventQueue = xQueueCreate(APP_EVENT_QUEUE_SIZE, sizeof(AppEvent));
+    sAppEventQueue = xQueueCreate(kAppEventQueueSize, sizeof(AppEvent));
     if (sAppEventQueue == NULL)
     {
-        err = CHIP_ERROR_MAX;
         K32W_LOG("Failed to allocate app event queue");
-        assert(err == CHIP_NO_ERROR);
+        assert(false);
     }
 
     return err;
@@ -86,7 +80,7 @@ int AppTask::Init()
     InitServer();
 
     // QR code will be used with CHIP Tool
-    PrintQRCode(chip::RendezvousInformationFlags::kBLE);
+    PrintOnboardingCodes(chip::RendezvousInformationFlags::kBLE);
 
     TMR_Init();
 
@@ -176,16 +170,10 @@ void AppTask::AppTaskMain(void * pvParameter)
         {
             sIsThreadProvisioned     = ConnectivityMgr().IsThreadProvisioned();
             sIsThreadEnabled         = ConnectivityMgr().IsThreadEnabled();
-            sIsThreadAttached        = ConnectivityMgr().IsThreadAttached();
             sHaveBLEConnections      = (ConnectivityMgr().NumBLEConnections() != 0);
-            sIsPairedToAccount       = ConfigurationMgr().IsPairedToAccount();
             sHaveServiceConnectivity = ConnectivityMgr().HaveServiceConnectivity();
             PlatformMgr().UnlockChipStack();
         }
-
-        // Consider the system to be "fully connected" if it has service
-        // connectivity and it is able to interact with the service on a regular basis.
-        bool isFullyConnected = sHaveServiceConnectivity;
 
         // Update the status LED if factory reset has not been initiated.
         //
@@ -201,11 +189,11 @@ void AppTask::AppTaskMain(void * pvParameter)
         // Otherwise, blink the LED ON for a very short time.
         if (sAppTask.mFunction != kFunction_FactoryReset)
         {
-            if (isFullyConnected)
+            if (sHaveServiceConnectivity)
             {
                 sStatusLED.Set(true);
             }
-            else if (sIsThreadProvisioned && sIsThreadEnabled && sIsPairedToAccount && (!sIsThreadAttached || !isFullyConnected))
+            else if (sIsThreadProvisioned && sIsThreadEnabled)
             {
                 sStatusLED.Blink(950, 50);
             }
@@ -337,7 +325,7 @@ void AppTask::ResetActionEventHandler(AppEvent * aEvent)
     }
     else
     {
-        uint32_t resetTimeout = FACTORY_RESET_TRIGGER_TIMEOUT;
+        uint32_t resetTimeout = kFactoryResetTriggerTimeout;
 
         if (sAppTask.mFunction != kFunction_NoneSelected)
         {
@@ -355,7 +343,7 @@ void AppTask::ResetActionEventHandler(AppEvent * aEvent)
         sStatusLED.Blink(500);
         sLockLED.Blink(500);
 
-        sAppTask.StartTimer(FACTORY_RESET_TRIGGER_TIMEOUT);
+        sAppTask.StartTimer(kFactoryResetTriggerTimeout);
     }
 }
 

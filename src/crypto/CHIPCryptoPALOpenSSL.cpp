@@ -421,7 +421,8 @@ CHIP_ERROR pbkdf2_sha256(const uint8_t * password, size_t plen, const uint8_t * 
     VerifyOrExit(password != nullptr, error = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(plen > 0, error = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(salt != nullptr, error = CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrExit(slen > 0, error = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrExit(slen >= kMin_Salt_Length, error = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrExit(slen <= kMax_Salt_Length, error = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(key_length > 0, error = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(output != nullptr, error = CHIP_ERROR_INVALID_ARGUMENT);
 
@@ -965,7 +966,7 @@ CHIP_ERROR P256Keypair::Serialize(P256SerializedKeypair & output)
 
     {
         size_t len = output.Length() == 0 ? output.Capacity() : output.Length();
-        Encoding::LittleEndian::BufferWriter bbuf(output, len);
+        Encoding::BufferWriter bbuf(output, len);
         bbuf.Put(mPublicKey, mPublicKey.Length());
         bbuf.Put(privkey, sizeof(privkey));
         VerifyOrExit(bbuf.Fit(), error = CHIP_ERROR_NO_MEMORY);
@@ -980,7 +981,7 @@ exit:
 
 CHIP_ERROR P256Keypair::Deserialize(P256SerializedKeypair & input)
 {
-    Encoding::LittleEndian::BufferWriter bbuf(mPublicKey, mPublicKey.Length());
+    Encoding::BufferWriter bbuf(mPublicKey, mPublicKey.Length());
 
     BIGNUM * pvt_key     = nullptr;
     EC_GROUP * group     = nullptr;

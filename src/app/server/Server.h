@@ -19,6 +19,7 @@
 
 #include <app/server/AppDelegate.h>
 #include <inet/InetConfig.h>
+#include <transport/AdminPairingTable.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/UDP.h>
 
@@ -36,7 +37,21 @@ using DemoTransportMgr = chip::TransportMgr<chip::Transport::UDP>;
  */
 void InitServer(AppDelegate * delegate = nullptr);
 
+CHIP_ERROR AddTestPairing();
+
+chip::Transport::AdminPairingTable & GetGlobalAdminPairingTable();
+
+namespace chip {
+
+enum class ResetAdmins
+{
+    kYes,
+    kNo,
+};
+
+} // namespace chip
+
 /**
  * Open the pairing window using default configured parameters.
  */
-CHIP_ERROR OpenDefaultPairingWindow();
+CHIP_ERROR OpenDefaultPairingWindow(chip::ResetAdmins resetAdmins);

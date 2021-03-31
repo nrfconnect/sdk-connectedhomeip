@@ -125,7 +125,7 @@ public:
     void SendOperationalCredentials() override;
 
     //////////// NetworkProvisioningDelegate Implementation ///////////////
-    CHIP_ERROR SendSecureMessage(Protocols::CHIPProtocolId protocol, uint8_t msgType, System::PacketBufferHandle msgBug) override;
+    CHIP_ERROR SendSecureMessage(Protocols::Id protocol, uint8_t msgType, System::PacketBufferHandle msgBug) override;
     void OnNetworkProvisioningError(CHIP_ERROR error) override;
     void OnNetworkProvisioningComplete() override;
 
@@ -142,11 +142,18 @@ public:
      */
     const Inet::IPAddress & GetIPAddress() const { return mNetworkProvision.GetIPAddress(); }
 
+    Transport::AdminId GetAdminId() const { return (mAdmin != nullptr) ? mAdmin->GetAdminId() : Transport::kUndefinedAdminId; }
+
+    uint16_t GetNextKeyId() const { return mNextKeyId; }
+    void SetNextKeyId(uint16_t id) { mNextKeyId = id; }
+
 private:
     CHIP_ERROR HandlePairingMessage(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                                     System::PacketBufferHandle msgBuf);
-    CHIP_ERROR Pair(Optional<NodeId> nodeId, uint32_t setupPINCode);
-    CHIP_ERROR WaitForPairing(Optional<NodeId> nodeId, uint32_t setupPINCode);
+    CHIP_ERROR Pair(uint32_t setupPINCode);
+    CHIP_ERROR Pair(const PASEVerifier & verifier);
+    CHIP_ERROR WaitForPairing(uint32_t setupPINCode);
+    CHIP_ERROR WaitForPairing(const PASEVerifier & verifier);
 
     CHIP_ERROR HandleSecureMessage(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                                    System::PacketBufferHandle msgBuf);

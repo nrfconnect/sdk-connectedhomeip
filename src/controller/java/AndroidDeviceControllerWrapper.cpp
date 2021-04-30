@@ -20,8 +20,12 @@
 
 #include <memory>
 
+#include <support/ThreadOperationalDataset.h>
+
 using chip::PersistentStorageResultDelegate;
 using chip::Controller::DeviceCommissioner;
+
+extern chip::Ble::BleLayer * GetJNIBleLayer();
 
 namespace {
 
@@ -185,7 +189,16 @@ AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(Jav
 
     wrapper->SetJavaObjectRef(vm, deviceControllerObj);
     wrapper->Controller()->SetUdpListenPort(CHIP_PORT + 1);
-    *errInfoOnFailure = wrapper->Controller()->Init(nodeId, wrapper.get(), wrapper.get(), systemLayer, inetLayer);
+
+    chip::Controller::CommissionerInitParams initParams;
+
+    initParams.storageDelegate = wrapper.get();
+    initParams.pairingDelegate = wrapper.get();
+    initParams.systemLayer     = systemLayer;
+    initParams.inetLayer       = inetLayer;
+    initParams.bleLayer        = GetJNIBleLayer();
+
+    *errInfoOnFailure = wrapper->Controller()->Init(nodeId, initParams);
 
     if (*errInfoOnFailure != CHIP_NO_ERROR)
     {
@@ -200,71 +213,6 @@ AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(Jav
     }
 
     return wrapper.release();
-}
-
-void AndroidDeviceControllerWrapper::SendNetworkCredentials(const char * ssid, const char * password)
-{
-    if (mCredentialsDelegate == nullptr)
-    {
-        ChipLogError(Controller, "No credential callback available to send Wi-Fi credentials.");
-        return;
-    }
-
-    ChipLogProgress(Controller, "Sending network credentials for %s...", ssid);
-    mCredentialsDelegate->SendNetworkCredentials(ssid, password);
-}
-
-void AndroidDeviceControllerWrapper::SendThreadCredentials(const chip::DeviceLayer::Internal::DeviceNetworkInfo & threadData)
-{
-    if (mCredentialsDelegate == nullptr)
-    {
-        ChipLogError(Controller, "No credential callback available to send Thread credentials.");
-        return;
-    }
-
-    ChipLogProgress(Controller, "Sending Thread credentials for channel %u, PAN ID %x...", threadData.ThreadChannel,
-                    threadData.ThreadPANId);
-    mCredentialsDelegate->SendThreadCredentials(threadData);
-}
-
-void AndroidDeviceControllerWrapper::OnNetworkCredentialsRequested(chip::RendezvousDeviceCredentialsDelegate * callback)
-{
-    mCredentialsDelegate = callback;
-
-    JNIEnv * env = GetJavaEnv();
-
-    jmethodID method;
-    if (!FindMethod(env, mJavaObjectRef, "onNetworkCredentialsRequested", "()V", &method))
-    {
-        return;
-    }
-
-    env->ExceptionClear();
-    env->CallVoidMethod(mJavaObjectRef, method);
-}
-
-void AndroidDeviceControllerWrapper::OnOperationalCredentialsRequested(const char * csr, size_t csr_length,
-                                                                       chip::RendezvousDeviceCredentialsDelegate * callback)
-{
-    mCredentialsDelegate = callback;
-
-    JNIEnv * env = GetJavaEnv();
-
-    jbyteArray jCsr;
-    if (!N2J_ByteArray(env, reinterpret_cast<const uint8_t *>(csr), csr_length, jCsr))
-    {
-        ChipLogError(Controller, "Failed to build byte array for operational credential request");
-        return;
-    }
-
-    jmethodID method;
-    if (!FindMethod(env, mJavaObjectRef, "onOperationalCredentialsRequested", "([B)V", &method))
-    {
-        return;
-    }
-
-    env->ExceptionClear();
-    env->CallVoidMethod(mJavaObjectRef, method, jCsr);
 }
 
 void AndroidDeviceControllerWrapper::OnStatusUpdate(chip::RendezvousSessionDelegate::Status status)
@@ -309,17 +257,30 @@ CHIP_ERROR AndroidDeviceControllerWrapper::SyncGetKeyValue(const char * key, cha
 
     if (valueString != NULL)
     {
-        if (value != nullptr)
+        size_t stringLength = GetJavaEnv()->GetStringUTFLength(valueString);
+        if (stringLength > UINT16_MAX - 1)
         {
-            valueChars = GetJavaEnv()->GetStringUTFChars(valueString, 0);
-            size       = strlcpy(value, GetJavaEnv()->GetStringUTFChars(valueString, 0), size);
+            err = CHIP_ERROR_BUFFER_TOO_SMALL;
         }
         else
         {
-            size = GetJavaEnv()->GetStringUTFLength(valueString);
+            if (value != nullptr)
+            {
+                valueChars = GetJavaEnv()->GetStringUTFChars(valueString, 0);
+                size       = strlcpy(value, valueChars, size);
+                if (size < stringLength)
+                {
+                    err = CHIP_ERROR_NO_MEMORY;
+                }
+            }
+            else
+            {
+                size = stringLength;
+                err  = CHIP_ERROR_NO_MEMORY;
+            }
+            // Increment size to account for null termination
+            size += 1;
         }
-        // Increment size to account for null termination
-        size += 1;
     }
     else
     {

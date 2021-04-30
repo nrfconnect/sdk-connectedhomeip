@@ -86,6 +86,8 @@ static_library("support") {
     "SafeInt.h",
     "SerializableIntegerSet.cpp",
     "SerializableIntegerSet.h",
+    "ThreadOperationalDataset.cpp",
+    "ThreadOperationalDataset.h",
     "TimeUtils.cpp",
     "TimeUtils.h",
     "UnitTestRegistration.cpp",
@@ -133,7 +135,7 @@ static_library("support") {
   ]
 
   if (chip_config_memory_management == "simple") {
-    sources += [ "CHIPMem-SimpleAlloc.cpp" ]
+    sources += [ "CHIPMem-Simple.cpp" ]
   }
   if (chip_config_memory_management == "malloc") {
     sources += [ "CHIPMem-Malloc.cpp" ]

@@ -47,9 +47,17 @@ config CHIP_OPENTHREAD_CONFIG
 	  This option can be used to replace Zephyr-supplied OpenThread
 	  configuration file with a custom one.
 
-config CHIP_LIB_SHELL
+config CHIP_ZEPHYR_SHELL
+	bool "Enable Zephyr-based CHIP shell"
+	default n
+	imply SHELL
+	help
+	  Add CHIP commands to the Zephyr shell.
+
+config CHIP_STANDALONE_SHELL
 	bool "Enable CHIP shell library"
 	default n
+	depends on !CHIP_ZEPHYR_SHELL
 	help
 	  Link the application with the library containing CHIP shell commands.
 
@@ -88,12 +96,6 @@ config CHIP_NFC_COMMISSIONING
 	imply NFC_NDEF_URI_MSG
 	help
 	  Enables NFC commissioning by sharing onboarding payload in NFC tag.
-
-config CHIP_ENABLE_RENDEZVOUS_BYPASS
-	bool "Enable Rendezvous bypass"
-	default n
-	help
-	  Enables bypassing rendezvous for the test purposes.
 
 config CHIP_ENABLE_DNSSD_SRP
 	bool "Enable support for service registration"

@@ -10,4 +10,5 @@ build:
     cmake: config/nrfconnect/chip-module
     kconfig: config/nrfconnect/chip-module/Kconfig
     depends:
+    - nrfxlib
     - openthread

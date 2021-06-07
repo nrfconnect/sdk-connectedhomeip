@@ -42,11 +42,15 @@ struct GenericContext
 
 struct RegisterContext : public GenericContext
 {
-    RegisterContext(void * cbContext)
+    char mType[kMdnsTypeMaxSize + 1];
+    RegisterContext(const char * sType, void * cbContext)
     {
-        type    = ContextType::Register;
+        type = ContextType::Register;
+        strncpy(mType, sType, sizeof(mType));
         context = cbContext;
     }
+
+    bool matches(const char * sType) { return (strcmp(mType, sType) == 0); }
 };
 
 struct BrowseContext : public GenericContext
@@ -68,13 +72,15 @@ struct ResolveContext : public GenericContext
 {
     MdnsResolveCallback callback;
     char name[kMdnsNameMaxSize + 1];
+    chip::Inet::IPAddressType addressType;
 
-    ResolveContext(void * cbContext, MdnsResolveCallback cb, const char * cbContextName)
+    ResolveContext(void * cbContext, MdnsResolveCallback cb, const char * cbContextName, chip::Inet::IPAddressType cbAddressType)
     {
         type     = ContextType::Resolve;
         context  = cbContext;
         callback = cb;
         strncpy(name, cbContextName, sizeof(name));
+        addressType = cbAddressType;
     }
 };
 
@@ -83,14 +89,17 @@ struct GetAddrInfoContext : public GenericContext
     MdnsResolveCallback callback;
     std::vector<TextEntry> textEntries;
     char name[kMdnsNameMaxSize + 1];
+    uint32_t interfaceId;
     uint16_t port;
 
-    GetAddrInfoContext(void * cbContext, MdnsResolveCallback cb, const char * cbContextName, uint16_t cbContextPort)
+    GetAddrInfoContext(void * cbContext, MdnsResolveCallback cb, const char * cbContextName, uint32_t cbInterfaceId,
+                       uint16_t cbContextPort)
     {
-        type     = ContextType::GetAddrInfo;
-        context  = cbContext;
-        callback = cb;
-        port     = cbContextPort;
+        type        = ContextType::GetAddrInfo;
+        context     = cbContext;
+        callback    = cb;
+        interfaceId = cbInterfaceId;
+        port        = cbContextPort;
         strncpy(name, cbContextName, sizeof(name));
     }
 };
@@ -109,7 +118,8 @@ public:
     CHIP_ERROR Add(GenericContext * context, DNSServiceRef sdRef);
     CHIP_ERROR Remove(GenericContext * context);
     CHIP_ERROR Removes(ContextType type);
-    CHIP_ERROR Get(ContextType type, GenericContext * context);
+    CHIP_ERROR Get(ContextType type, GenericContext ** context);
+    CHIP_ERROR GetRegisterType(const char * type, GenericContext ** context);
 
     void SetHostname(const char * name) { mHostname = name; }
     const char * GetHostname() { return mHostname.c_str(); }

@@ -20,12 +20,13 @@
 #include <stdlib.h>
 
 #include <lib/core/CHIPCore.h>
-#include <lib/shell/shell_core.h>
+#include <lib/shell/Engine.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
 #include <messaging/ExchangeMgr.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <protocols/echo/Echo.h>
+#include <protocols/secure_channel/MessageCounterManager.h>
 #include <protocols/secure_channel/PASESession.h>
 #include <system/SystemPacketBuffer.h>
 #include <transport/SecureSessionMgr.h>
@@ -57,8 +58,8 @@ public:
 #if INET_CONFIG_ENABLE_TCP_ENDPOINT
         mUsingTCP = false;
 #endif
-        mUsingCRMP = true;
-        mEchoPort  = CHIP_PORT;
+        mUsingMRP = true;
+        mEchoPort = CHIP_PORT;
     }
 
     uint64_t GetLastEchoTime() const { return mLastEchoTime; }
@@ -92,8 +93,8 @@ public:
     void SetUsingTCP(bool value) { mUsingTCP = value; }
 #endif
 
-    bool IsUsingCRMP() const { return mUsingCRMP; }
-    void SetUsingCRMP(bool value) { mUsingCRMP = value; }
+    bool IsUsingMRP() const { return mUsingMRP; }
+    void SetUsingMRP(bool value) { mUsingMRP = value; }
 
 private:
     // The last time a echo request was attempted to be sent.
@@ -124,7 +125,7 @@ private:
     bool mUsingTCP;
 #endif
 
-    bool mUsingCRMP;
+    bool mUsingMRP;
 } gPingArguments;
 
 Protocols::Echo::EchoClient gEchoClient;
@@ -155,7 +156,7 @@ CHIP_ERROR SendEchoRequest(streamer_t * stream)
     payloadBuf = MessagePacketBuffer::NewWithData(requestData, size);
     VerifyOrExit(!payloadBuf.IsNull(), err = CHIP_ERROR_NO_MEMORY);
 
-    if (gPingArguments.IsUsingCRMP())
+    if (gPingArguments.IsUsingMRP())
     {
         sendFlags.Set(Messaging::SendMessageFlags::kNone);
     }
@@ -202,8 +203,8 @@ CHIP_ERROR EstablishSecureSession(streamer_t * stream, Transport::PeerAddress & 
     peerAddr = Optional<Transport::PeerAddress>::Value(peerAddress);
 
     // Attempt to connect to the peer.
-    err = gSessionManager.NewPairing(peerAddr, kTestDeviceNodeId, testSecurePairingSecret,
-                                     SecureSessionMgr::PairingDirection::kInitiator, gAdminId);
+    err = gSessionManager.NewPairing(peerAddr, kTestDeviceNodeId, testSecurePairingSecret, SecureSession::SessionRole::kInitiator,
+                                     gAdminId);
 
 exit:
     if (err != CHIP_NO_ERROR)
@@ -219,7 +220,7 @@ exit:
     return err;
 }
 
-void HandleEchoResponseReceived(Messaging::ExchangeContext * ec, System::PacketBufferHandle payload)
+void HandleEchoResponseReceived(Messaging::ExchangeContext * ec, System::PacketBufferHandle && payload)
 {
     uint32_t respTime    = System::Timer::GetCurrentEpoch();
     uint32_t transitTime = respTime - gPingArguments.GetLastEchoTime();
@@ -269,7 +270,8 @@ void StartPinging(streamer_t * stream, char * destination)
     {
         peerAddress = Transport::PeerAddress::TCP(gDestAddr, gPingArguments.GetEchoPort());
 
-        err = gSessionManager.Init(kTestControllerNodeId, &DeviceLayer::SystemLayer, &gTCPManager, &admins);
+        err =
+            gSessionManager.Init(kTestControllerNodeId, &DeviceLayer::SystemLayer, &gTCPManager, &admins, &gMessageCounterManager);
         SuccessOrExit(err);
 
         err = gExchangeManager.Init(&gSessionManager);
@@ -280,12 +282,16 @@ void StartPinging(streamer_t * stream, char * destination)
     {
         peerAddress = Transport::PeerAddress::UDP(gDestAddr, gPingArguments.GetEchoPort(), INET_NULL_INTERFACEID);
 
-        err = gSessionManager.Init(kTestControllerNodeId, &DeviceLayer::SystemLayer, &gUDPManager, &admins);
+        err =
+            gSessionManager.Init(kTestControllerNodeId, &DeviceLayer::SystemLayer, &gUDPManager, &admins, &gMessageCounterManager);
         SuccessOrExit(err);
 
         err = gExchangeManager.Init(&gSessionManager);
         SuccessOrExit(err);
     }
+
+    err = gMessageCounterManager.Init(&gExchangeManager);
+    SuccessOrExit(err);
 
     // Start the CHIP connection to the CHIP echo responder.
     err = EstablishSecureSession(stream, peerAddress);
@@ -357,7 +363,7 @@ void PrintUsage(streamer_t * stream)
     streamer_printf(stream, "  -p  <port>      echo server port\n");
     streamer_printf(stream, "  -i  <interval>  ping interval time in seconds\n");
     streamer_printf(stream, "  -c  <count>     stop after <count> replies\n");
-    streamer_printf(stream, "  -r  <1|0>       enable or disable CRMP\n");
+    streamer_printf(stream, "  -r  <1|0>       enable or disable MRP\n");
     streamer_printf(stream, "  -s  <size>      payload size in bytes\n");
 }
 
@@ -440,11 +446,11 @@ int cmd_ping(int argc, char ** argv)
 
                 if (arg == 0)
                 {
-                    gPingArguments.SetUsingCRMP(false);
+                    gPingArguments.SetUsingMRP(false);
                 }
                 else if (arg == 1)
                 {
-                    gPingArguments.SetUsingCRMP(true);
+                    gPingArguments.SetUsingMRP(true);
                 }
                 else
                 {
@@ -482,5 +488,5 @@ static shell_command_t cmds_ping[] = {
 
 void cmd_ping_init()
 {
-    shell_register(cmds_ping, ArraySize(cmds_ping));
+    Engine::Root().RegisterCommands(cmds_ping, ArraySize(cmds_ping));
 }

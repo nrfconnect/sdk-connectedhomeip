@@ -21,6 +21,8 @@ on:
 jobs:
     k32w:
         name: K32W
+        timeout-minutes: 60
+
         env:
             BUILD_TYPE: gn_k32w
 
@@ -28,7 +30,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build-k32w:0.4.22
+            image: connectedhomeip/chip-build-k32w:0.4.23
             volumes:
                 - "/tmp/bloat_reports:/tmp/bloat_reports"
                 - "/tmp/output_binaries:/tmp/output_binaries"
@@ -45,9 +47,11 @@ jobs:
 #                  languages: "cpp"
 #                  queries: +security-and-quality
             - name: Build example K32W Lock App
+              timeout-minutes: 5
               run: scripts/examples/k32w_example.sh
                    examples/lock-app/k32w out/lock_app_debug
             - name: Build example K32W Lighting App
+              timeout-minutes: 5
               run: scripts/examples/k32w_example.sh
                    examples/lighting-app/k32w out/lighting_app_debug
             - name: Binary artifact suffix
@@ -66,8 +70,6 @@ jobs:
                   path: |
                       out/lock_app_debug/chip-k32w061-lock-example.out
                       out/lock_app_debug/chip-k32w061-lock-example.out.map
-                      out/lighting_app_debug/chip-k32w061-light-example
-                      out/lighting_app_debug/chip-k32w061-light-example.map
             - name: Remove third_party binaries for CodeQL Analysis
               run: find out -type d -name "third_party" -exec rm -rf {} +
 #            - name: Perform CodeQL Analysis

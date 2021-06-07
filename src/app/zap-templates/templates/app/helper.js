@@ -181,6 +181,8 @@ function asChipUnderlyingType(label, type)
     return 'chip::GroupId';
   } else if (zclHelper.isStrEqual(label, "commandId")) {
     return 'chip::CommandId';
+  } else if (type == 'OCTET_STRING') {
+    return 'chip::ByteSpan';
   } else {
     const options = { 'hash' : {} };
     return zclHelper.asUnderlyingZclType.call(this, type, options);
@@ -193,20 +195,11 @@ function asChipUnderlyingType(label, type)
 // These helpers only works within the endpoint_config iterator
 
 // List of all cluster with generated functions
-var endpointClusterWithInit = [ 'Basic', 'Identify', 'Groups', 'Scenes', 'On/off', 'Level Control', 'Color Control', 'IAS Zone' ];
+var endpointClusterWithInit =
+    [ 'Basic', 'Identify', 'Groups', 'Scenes', 'Occupancy Sensing', 'On/off', 'Level Control', 'Color Control', 'IAS Zone' ];
 var endpointClusterWithAttributeChanged = [ 'Identify', 'Door Lock' ];
 var endpointClusterWithPreAttribute     = [ 'IAS Zone' ];
 var endpointClusterWithMessageSent      = [ 'IAS Zone' ];
-
-/**
- * extract the cluster name from the enpoint cluster comment
- * @param {*} comments
- */
-function extract_cluster_name(comments)
-{
-  let secondPart = comments.split(": ").pop();
-  return secondPart.split(" (")[0];
-}
 
 /**
  * Populate the GENERATED_FUNCTIONS field
@@ -216,7 +209,7 @@ function chip_endpoint_generated_functions()
   let alreadySetCluster = [];
   let ret               = '\\\n';
   this.clusterList.forEach((c) => {
-    let clusterName  = extract_cluster_name(c.comment);
+    let clusterName  = c.clusterName;
     let functionList = '';
     if (alreadySetCluster.includes(clusterName)) {
       // Only one array of Generated functions per cluster across all endpoints
@@ -272,7 +265,7 @@ function chip_endpoint_cluster_list()
   this.clusterList.forEach((c) => {
     let mask          = '';
     let functionArray = c.functions;
-    let clusterName   = extract_cluster_name(c.comment);
+    let clusterName   = c.clusterName;
 
     if (c.comment.includes('server')) {
       let hasFunctionArray = false;

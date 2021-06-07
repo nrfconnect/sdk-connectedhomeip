@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <lib/core/ReferenceCounted.h>
 #include <transport/SecureSessionMgr.h>
 
 namespace chip {
@@ -31,23 +32,24 @@ namespace Messaging {
 class ReliableMessageMgr;
 class ReliableMessageContext;
 
-class ExchangeMessageDispatch
+class ExchangeMessageDispatch : public ReferenceCounted<ExchangeMessageDispatch>
 {
 public:
     ExchangeMessageDispatch() {}
     virtual ~ExchangeMessageDispatch() {}
 
-    CHIP_ERROR Init(ReliableMessageMgr * reliableMessageMgr)
-    {
-        mReliableMessageMgr = reliableMessageMgr;
-        return CHIP_NO_ERROR;
-    }
+    CHIP_ERROR Init() { return CHIP_NO_ERROR; }
 
     CHIP_ERROR SendMessage(SecureSessionHandle session, uint16_t exchangeId, bool isInitiator,
                            ReliableMessageContext * reliableMessageContext, bool isReliableTransmission, Protocols::Id protocol,
-                           uint8_t type, System::PacketBufferHandle message);
+                           uint8_t type, System::PacketBufferHandle && message);
 
-    virtual CHIP_ERROR ResendMessage(SecureSessionHandle session, EncryptedPacketBufferHandle message,
+    /**
+     * The 'message' and 'retainedMessage' arguments may point to the same
+     * handle.  Therefore, callees _must_ ensure that any moving out of
+     * 'message' happens before writing to *retainedMessage.
+     */
+    virtual CHIP_ERROR ResendMessage(SecureSessionHandle session, EncryptedPacketBufferHandle && message,
                                      EncryptedPacketBufferHandle * retainedMessage) const
     {
         return CHIP_ERROR_NOT_IMPLEMENTED;
@@ -63,10 +65,7 @@ protected:
     virtual CHIP_ERROR SendMessageImpl(SecureSessionHandle session, PayloadHeader & payloadHeader,
                                        System::PacketBufferHandle && message, EncryptedPacketBufferHandle * retainedMessage) = 0;
 
-    virtual bool IsTransportReliable() { return false; }
-
-private:
-    ReliableMessageMgr * mReliableMessageMgr = nullptr;
+    virtual bool IsReliableTransmissionAllowed() { return true; }
 };
 
 } // namespace Messaging

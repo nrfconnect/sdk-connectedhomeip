@@ -21,7 +21,6 @@
 // ================================================================================
 
 #include "openthread/platform/logging.h"
-#include "openthread/platform/uart.h"
 #include <mbedtls/platform.h>
 #include <openthread-system.h>
 #include <openthread/cli.h>
@@ -70,11 +69,6 @@ extern "C" void main_task(void const * argument)
     /* Used for HW initializations */
     otSysInit(0, NULL);
 
-    /* UART needs to be enabled so early for getting the Weave Init Logs.
-     * Otherwise, some logs are lost because the UART gets enabled later
-     * during the initialization of the Thread stack */
-    otPlatUartEnable();
-
     K32W_LOG("Welcome to NXP Lighting Demo App");
 
     /* Mbedtls Threading support is needed because both
@@ -98,25 +92,10 @@ extern "C" void main_task(void const * argument)
         goto exit;
     }
 
-    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
+    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
     if (ret != CHIP_NO_ERROR)
     {
         goto exit;
-    }
-
-    // Configure the Thread polling behavior for the device.
-    {
-        ConnectivityManager::ThreadPollingConfig pollingConfig;
-        pollingConfig.Clear();
-        pollingConfig.ActivePollingIntervalMS   = THREAD_ACTIVE_POLLING_INTERVAL_MS;
-        pollingConfig.InactivePollingIntervalMS = THREAD_INACTIVE_POLLING_INTERVAL_MS;
-
-        ret = ConnectivityMgr().SetThreadPollingConfig(pollingConfig);
-        if (ret != CHIP_NO_ERROR)
-        {
-            K32W_LOG("Error during ConnectivityMgr().SetThreadPollingConfig(pollingConfig)");
-            goto exit;
-        }
     }
 
     ret = PlatformMgr().StartEventLoopTask();

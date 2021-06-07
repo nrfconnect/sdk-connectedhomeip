@@ -20,7 +20,7 @@
  *   This file implements the handler for data model messages.
  */
 
-#include <app/server/DataModelHandler.h>
+#include <app/util/DataModelHandler.h>
 
 #if __has_include("gen/endpoint_config.h")
 #define USE_ZAP_CONFIG 1
@@ -32,32 +32,25 @@
 #ifdef EMBER_AF_PLUGIN_REPORTING_SERVER
 void emberAfPluginReportingStackStatusCallback(EmberStatus status);
 #endif
-#ifdef EMBER_AF_PLUGIN_TEMPERATURE_MEASUREMENT_SERVER
-void emberAfPluginTemperatureMeasurementServerStackStatusCallback(EmberStatus status);
-#endif
 #ifdef EMBER_AF_PLUGIN_IAS_ZONE_SERVER
 void emberAfPluginIasZoneServerStackStatusCallback(EmberStatus status);
 #endif
 
 using namespace ::chip;
 
-void InitDataModelHandler()
+void InitDataModelHandler(chip::Messaging::ExchangeManager * exchangeManager)
 {
 #ifdef USE_ZAP_CONFIG
     ChipLogProgress(Zcl, "Using ZAP configuration...");
     emberAfEndpointConfigure();
-    emberAfInit();
+    emberAfInit(exchangeManager);
 
-#if defined(EMBER_AF_PLUGIN_REPORTING_SERVER) || defined(EMBER_AF_PLUGIN_TEMPERATURE_MEASUREMENT_SERVER) ||                        \
-    defined(EMBER_AF_PLUGIN_IAS_ZONE_SERVER)
+#if defined(EMBER_AF_PLUGIN_REPORTING_SERVER) || defined(EMBER_AF_PLUGIN_IAS_ZONE_SERVER)
     EmberStatus status = EMBER_NETWORK_UP;
 #endif
 
 #ifdef EMBER_AF_PLUGIN_REPORTING_SERVER
     emberAfPluginReportingStackStatusCallback(status);
-#endif
-#ifdef EMBER_AF_PLUGIN_TEMPERATURE_MEASUREMENT_SERVER
-    emberAfPluginTemperatureMeasurementServerStackStatusCallback(status);
 #endif
 #ifdef EMBER_AF_PLUGIN_IAS_ZONE_SERVER
     emberAfPluginIasZoneServerStackStatusCallback(status);
@@ -65,7 +58,7 @@ void InitDataModelHandler()
 #endif
 }
 
-void HandleDataModelMessage(NodeId nodeId, System::PacketBufferHandle buffer)
+void HandleDataModelMessage(Messaging::ExchangeContext * exchange, System::PacketBufferHandle && buffer)
 {
 #ifdef USE_ZAP_CONFIG
     EmberApsFrame frame;
@@ -85,7 +78,7 @@ void HandleDataModelMessage(NodeId nodeId, System::PacketBufferHandle buffer)
     ok                  = emberAfProcessMessage(&frame,
                                0, // type
                                message, messageLen,
-                               nodeId, // source identifier
+                               exchange, // source identifier
                                NULL);
 
     if (ok)

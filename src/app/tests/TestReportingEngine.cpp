@@ -32,6 +32,7 @@
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <protocols/secure_channel/MessageCounterManager.h>
 #include <protocols/secure_channel/PASESession.h>
 #include <support/ErrorStr.h>
 #include <support/UnitTestRegistration.h>
@@ -47,6 +48,7 @@ static System::Layer gSystemLayer;
 static SecureSessionMgr gSessionManager;
 static Messaging::ExchangeManager gExchangeManager;
 static TransportMgr<Transport::UDP> gTransportManager;
+static secure_channel::MessageCounterManager gMessageCounterManager;
 static const Transport::AdminId gAdminId = 0;
 constexpr ClusterId kTestClusterId       = 6;
 constexpr EndpointId kTestEndpointId     = 1;
@@ -62,12 +64,12 @@ CHIP_ERROR ReadSingleClusterData(AttributePathParams & aAttributePathParams, TLV
     VerifyOrExit(aAttributePathParams.mClusterId == kTestClusterId && aAttributePathParams.mEndpointId == kTestEndpointId,
                  err = CHIP_ERROR_INVALID_ARGUMENT);
 
-    if (aAttributePathParams.mFieldId == kRootFieldId || aAttributePathParams.mFieldId == kTestFieldId1)
+    if (aAttributePathParams.mFieldId == kTestFieldId1)
     {
         err = aWriter.Put(TLV::ContextTag(kTestFieldId1), kTestFieldValue1);
         SuccessOrExit(err);
     }
-    if (aAttributePathParams.mFieldId == kRootFieldId || aAttributePathParams.mFieldId == kTestFieldId2)
+    if (aAttributePathParams.mFieldId == kTestFieldId2)
     {
         err = aWriter.Put(TLV::ContextTag(kTestFieldId2), kTestFieldValue2);
         SuccessOrExit(err);
@@ -88,7 +90,7 @@ public:
 class TestExchangeDelegate : public Messaging::ExchangeDelegate
 {
     void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle payload) override
+                           System::PacketBufferHandle && payload) override
     {}
 
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override {}
@@ -153,10 +155,14 @@ void InitializeChip(nlTestSuite * apSuite)
 
     chip::gSystemLayer.Init(nullptr);
 
-    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins);
+    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins,
+                                     &chip::gMessageCounterManager);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
     err = chip::gExchangeManager.Init(&chip::gSessionManager);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+
+    err = chip::gMessageCounterManager.Init(&chip::gExchangeManager);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 }
 

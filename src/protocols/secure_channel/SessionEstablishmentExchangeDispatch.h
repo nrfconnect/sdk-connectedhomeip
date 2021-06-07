@@ -40,8 +40,11 @@ public:
     {
         ReturnErrorCodeIf(transportMgr == nullptr, CHIP_ERROR_INVALID_ARGUMENT);
         mTransportMgr = transportMgr;
-        return CHIP_NO_ERROR;
+        return ExchangeMessageDispatch::Init();
     }
+
+    CHIP_ERROR ResendMessage(SecureSessionHandle session, EncryptedPacketBufferHandle && message,
+                             EncryptedPacketBufferHandle * retainedMessage) const override;
 
     CHIP_ERROR OnMessageReceived(const PayloadHeader & payloadHeader, uint32_t messageId,
                                  const Transport::PeerAddress & peerAddress,
@@ -57,10 +60,10 @@ protected:
 
     bool MessagePermitted(uint16_t protocol, uint8_t type) override;
 
-    bool IsTransportReliable() override
+    bool IsReliableTransmissionAllowed() override
     {
-        // If the underlying transport is not UDP.
-        return (mPeerAddress.GetTransportType() != Transport::Type::kUdp);
+        // If the underlying transport is UDP.
+        return (mPeerAddress.GetTransportType() == Transport::Type::kUdp);
     }
 
 private:

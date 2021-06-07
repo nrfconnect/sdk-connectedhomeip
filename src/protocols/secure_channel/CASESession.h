@@ -28,16 +28,19 @@
 #include <credentials/CHIPCert.h>
 #include <credentials/CHIPOperationalCredentials.h>
 #include <crypto/CHIPCryptoPAL.h>
+#if CHIP_CRYPTO_HSM
+#include <crypto/hsm/CHIPCryptoPALHsm.h>
+#endif
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeDelegate.h>
 #include <protocols/secure_channel/Constants.h>
+#include <protocols/secure_channel/SessionEstablishmentDelegate.h>
 #include <protocols/secure_channel/SessionEstablishmentExchangeDispatch.h>
 #include <support/Base64.h>
 #include <system/SystemPacketBuffer.h>
 #include <transport/PairingSession.h>
 #include <transport/PeerConnectionState.h>
 #include <transport/SecureSession.h>
-#include <transport/SessionEstablishmentDelegate.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/PeerAddress.h>
 
@@ -68,7 +71,7 @@ struct CASESessionSerializable
     uint16_t mPeerKeyId;
 };
 
-class DLL_EXPORT CASESession : public Messaging::ExchangeDelegateBase, public PairingSession
+class DLL_EXPORT CASESession : public Messaging::ExchangeDelegate, public PairingSession
 {
 public:
     CASESession();
@@ -90,8 +93,8 @@ public:
      *
      * @return CHIP_ERROR     The result of initialization
      */
-    CHIP_ERROR WaitForSessionEstablishment(OperationalCredentialSet * operationalCredentialSet, uint16_t myKeyId,
-                                           SessionEstablishmentDelegate * delegate);
+    CHIP_ERROR ListenForSessionEstablishment(OperationalCredentialSet * operationalCredentialSet, uint16_t myKeyId,
+                                             SessionEstablishmentDelegate * delegate);
 
     /**
      * @brief
@@ -116,13 +119,12 @@ public:
      *   Derive a secure session from the established session. The API will return error
      *   if called before session is established.
      *
-     * @param info        Information string used for key derivation
-     * @param info_len    Length of info string
      * @param session     Reference to the secure session that will be
      *                    initialized once session establishment is complete
+     * @param role        Role of the new session (initiator or responder)
      * @return CHIP_ERROR The result of session derivation
      */
-    virtual CHIP_ERROR DeriveSecureSession(const uint8_t * info, size_t info_len, SecureSession & session) override;
+    virtual CHIP_ERROR DeriveSecureSession(SecureSession & session, SecureSession::SessionRole role) override;
 
     /**
      * @brief
@@ -178,7 +180,7 @@ public:
 
     //// ExchangeDelegate Implementation ////
     void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle payload) override;
+                           System::PacketBufferHandle && payload) override;
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override;
     Messaging::ExchangeMessageDispatch * GetMessageDispatch(Messaging::ReliableMessageMgr * rmMgr,
                                                             SecureSessionMgr * sessionMgr) override
@@ -222,12 +224,16 @@ private:
     CHIP_ERROR ComputeIPK(const uint16_t sessionID, uint8_t * ipk, size_t ipkLen);
 
     void SendErrorMsg(SigmaErrorType errorCode);
-    void HandleErrorMsg(const System::PacketBufferHandle & msg);
+
+    // This function always returns an error. The error value corresponds to the error in the received message.
+    // The returned error value helps top level message receiver/dispatcher to close the exchange context
+    // in a more seamless manner.
+    CHIP_ERROR HandleErrorMsg(const System::PacketBufferHandle & msg);
+
+    void CloseExchange();
 
     // TODO: Remove this and replace with system method to retrieve current time
     CHIP_ERROR SetEffectiveTime(void);
-
-    CHIP_ERROR AttachHeaderAndSend(Protocols::SecureChannel::MsgType msgType, System::PacketBufferHandle msgBuf);
 
     void Clear();
 

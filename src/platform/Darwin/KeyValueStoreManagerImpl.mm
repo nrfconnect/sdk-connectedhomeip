@@ -21,6 +21,10 @@
  *          Platform-specific key value storage implementation for Darwin
  */
 
+#if !__has_feature(objc_arc)
+#error This file must be compiled with ARC. Use -fobjc-arc flag (or convert project to ARC).
+#endif
+
 #include <platform/KeyValueStoreManager.h>
 
 #include <algorithm>
@@ -202,7 +206,7 @@ namespace DeviceLayer {
             }
 
             if (value != nullptr) {
-                memcpy(value, item.value.bytes, std::min(item.value.length, value_size));
+                memcpy(value, item.value.bytes, std::min<size_t>((item.value.length), value_size));
             }
 
             return CHIP_NO_ERROR;

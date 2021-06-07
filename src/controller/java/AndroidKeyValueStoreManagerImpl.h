@@ -31,10 +31,10 @@ public:
     CHIP_ERROR _Delete(const char * key);
     CHIP_ERROR _Put(const char * key, const void * value, size_t value_size);
 
-    void InitializeMethodForward(JNIEnv * env);
+    void InitializeMethodForward(JavaVM * vm, JNIEnv * env);
 
 private:
-    JNIEnv * mEnv                     = nullptr;
+    JavaVM * mJvm                     = nullptr;
     jclass mKeyValueStoreManagerClass = nullptr;
 
     jmethodID mSetMethod    = nullptr;

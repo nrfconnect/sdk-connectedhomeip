@@ -16,10 +16,13 @@ import("//build_overrides/k32w_sdk.gni")
 import("//build_overrides/mbedtls.gni")
 import("//build_overrides/openthread.gni")
 import("${chip_root}/src/crypto/crypto.gni")
+import("${chip_root}/src/platform/K32W/args.gni")
 
 declare_args() {
   # Location of the k32w SDK.
   k32w_sdk_root = getenv("K32W_SDK_ROOT")
+  chip_with_OM15082 = 0
+  chip_with_ot_cli = 0
 }
 
 assert(k32w_sdk_root != "", "k32w_sdk_root must be specified")
@@ -60,6 +63,10 @@ template("k32w_sdk") {
       "${k32w_sdk_root}/devices/K32W061/utilities/debug_console",
       "${k32w_sdk_root}/devices/K32W061/utilities/str",
       "${k32w_sdk_root}/middleware/mbedtls/port/ksdk",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/HAL_I2C/inc",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/HAL_NTAG/inc",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/inc",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/HAL_TMR/inc",
       "${k32w_sdk_root}/middleware/wireless/ble_controller/interface",
       "${k32w_sdk_root}/middleware/wireless/bluetooth/application/common",
       "${k32w_sdk_root}/middleware/wireless/bluetooth/application/common/gatt_db",
@@ -111,9 +118,11 @@ template("k32w_sdk") {
       "CPU_JN518X_REV=2",
       "JENNIC_CHIP_FAMILY_NAME=_JN518x",
       "gPWR_LDOMEM_0_9V_PD=0",
-      "SDK_DEBUGCONSOLE=1",
+      "SDK_DEBUGCONSOLE=0",
       "NO_SYSCORECLK_UPD=0",
       "USE_RTOS=1",
+      "USE_SDK_OSA=0",
+      "gSerialManagerMaxInterfaces_c=2",
       "FSL_RTOS_FREE_RTOS=1",
       "gTotalHeapSize_c=0xF000",
       "gUartDebugConsole_d=1",
@@ -123,8 +132,6 @@ template("k32w_sdk") {
       "gPdmNbSegments=63",
       "configFRTOS_MEMORY_SCHEME=4",
       "osCustomStartup=1",
-      "OM15082=1",
-      "gKBD_KeysCount_c=4",
       "gLEDsOnTargetBoardCnt_c=2",
       "gLED_InvertedMode_d=1",
       "ENABLE_RAM_VECTOR_TABLE=1",
@@ -151,6 +158,14 @@ template("k32w_sdk") {
       #TODO: move this define in a MBEDTLS specific GN file
       "MBEDTLS_FREESCALE_FREERTOS_CALLOC_ALT=1",
     ]
+
+    if (chip_mdns == "platform") {
+      defines += [
+        "OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE=1",
+        "OPENTHREAD_CONFIG_ECDSA_ENABLE=1",
+      ]
+    }
+
     if (chip_with_se05x == 1) {
       defines += [
         "MBEDTLS_FREESCALE_FREERTOS_CALLOC_ALT=1",
@@ -158,6 +173,18 @@ template("k32w_sdk") {
       ]
     } else {
       defines += [ "gMainThreadStackSize_c=6024" ]
+    }
+    if (chip_with_OM15082 == 1) {
+      defines += [
+        "gKBD_KeysCount_c=4",
+        "OM15082=1",
+      ]
+    } else {
+      defines += [ "gKBD_KeysCount_c=1" ]
+    }
+
+    if (chip_with_ot_cli == 1) {
+      defines += [ "CHIP_DEVICE_CONFIG_THREAD_ENABLE_CLI=1" ]
     }
 
     if (defined(invoker.defines)) {
@@ -169,6 +196,11 @@ template("k32w_sdk") {
       "-Wno-conversion",
       "-Wno-sign-compare",
       "-Wno-clobbered",
+      "-Wno-implicit-fallthrough",
+      "-fno-optimize-strlen",
+      "-mthumb",
+      "-MMD",
+      "-MP",
     ]
 
     # Now add our "system-header" include dirs
@@ -203,6 +235,7 @@ template("k32w_sdk") {
       "${k32w_sdk_root}/devices/K32W061/drivers/fsl_i2c.c",
       "${k32w_sdk_root}/devices/K32W061/drivers/fsl_i2c_freertos.c",
       "${k32w_sdk_root}/devices/K32W061/drivers/fsl_inputmux.c",
+      "${k32w_sdk_root}/devices/K32W061/drivers/fsl_ntag.c",
       "${k32w_sdk_root}/devices/K32W061/drivers/fsl_pint.c",
       "${k32w_sdk_root}/devices/K32W061/drivers/fsl_power.c",
       "${k32w_sdk_root}/devices/K32W061/drivers/fsl_reset.c",
@@ -215,6 +248,9 @@ template("k32w_sdk") {
       "${k32w_sdk_root}/devices/K32W061/system_K32W061.c",
       "${k32w_sdk_root}/devices/K32W061/utilities/debug_console/fsl_debug_console.c",
       "${k32w_sdk_root}/devices/K32W061/utilities/str/fsl_str.c",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/HAL_I2C/i2c_jn_fsl.c",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/HAL_NTAG/ntag_driver.c",
+      "${k32w_sdk_root}/middleware/ntag_i2c_plus/HAL_TMR/timer_driver_jn.c",
       "${k32w_sdk_root}/middleware/wireless/ble_controller/config/controller_config.c",
       "${k32w_sdk_root}/middleware/wireless/bluetooth/application/common/ble_conn_manager.c",
       "${k32w_sdk_root}/middleware/wireless/bluetooth/application/common/ble_host_tasks.c",
@@ -235,6 +271,8 @@ template("k32w_sdk") {
       "${k32w_sdk_root}/middleware/wireless/framework/RNG/Source/RNG.c",
       "${k32w_sdk_root}/middleware/wireless/framework/Reset/Reset.c",
       "${k32w_sdk_root}/middleware/wireless/framework/SecLib/SecLib.c",
+      "${k32w_sdk_root}/middleware/wireless/framework/SerialManager/Source/SerialManager.c",
+      "${k32w_sdk_root}/middleware/wireless/framework/SerialManager/Source/UART_Serial_Adapter.c",
       "${k32w_sdk_root}/middleware/wireless/framework/TimersManager/Source/TMR_Adapter.c",
       "${k32w_sdk_root}/middleware/wireless/framework/TimersManager/Source/TimersManager.c",
       "${k32w_sdk_root}/middleware/wireless/framework/XCVR/DK6/fsl_xcvr.c",

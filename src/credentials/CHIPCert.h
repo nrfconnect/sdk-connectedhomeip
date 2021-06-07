@@ -251,6 +251,15 @@ public:
      **/
     CHIP_ERROR GetCertType(uint8_t & certType) const;
 
+    /**
+     * @brief Retrieve the ID of a CHIP certificate.
+     *
+     * @param certId  A reference to the certificate ID value.
+     *
+     * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
+     **/
+    CHIP_ERROR GetCertChipId(uint64_t & chipId) const;
+
     bool IsEqual(const ChipDN & other) const;
 
     /**
@@ -260,7 +269,6 @@ public:
      **/
     bool IsEmpty() const { return RDNCount() == 0; }
 
-protected:
     ChipRDN rdn[CHIP_CONFIG_CERT_MAX_RDN_ATTRIBUTES];
 
     uint8_t RDNCount() const;
@@ -300,7 +308,9 @@ struct ChipCertificateData
     ~ChipCertificateData();
 
     void Clear();
+    bool IsEqual(const ChipCertificateData & other) const;
 
+    ByteSpan mCertificate;                      /**< Original raw buffer data. */
     ChipDN mSubjectDN;                          /**< Certificate Subject DN. */
     ChipDN mIssuerDN;                           /**< Certificate Issuer DN. */
     CertificateKeyId mSubjectKeyId;             /**< Certificate Subject public key identifier. */
@@ -433,10 +443,12 @@ public:
      *
      * @param reader       A TLVReader positioned at the CHIP certificate TLV structure.
      * @param decodeFlags  Certificate decoding option flags.
+     * @param chipCert     Buffer containing certificate encoded on CHIP format. It is required that this CHIP certificate
+     *                     in chipCert ByteSpan stays valid while the certificate data in the set is used.
      *
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR LoadCert(chip::TLV::TLVReader & reader, BitFlags<CertDecodeFlags> decodeFlags);
+    CHIP_ERROR LoadCert(chip::TLV::TLVReader & reader, BitFlags<CertDecodeFlags> decodeFlags, ByteSpan chipCert = ByteSpan());
 
     /**
      * @brief Load CHIP certificates into set.
@@ -640,6 +652,88 @@ CHIP_ERROR ConvertX509CertToChipCert(const uint8_t * x509Cert, uint32_t x509Cert
  **/
 CHIP_ERROR ConvertChipCertToX509Cert(const uint8_t * chipCert, uint32_t chipCertLen, uint8_t * x509CertBuf,
                                      uint32_t x509CertBufSize, uint32_t & x509CertLen);
+
+/**
+ * @brief Generate a standard X.509 DER encoded certificate using provided CHIP certificate and signing key
+ *
+ * @param chipCert        Buffer containing CHIP certificate.
+ * @param chipCertLen     The length of the CHIP certificate.
+ * @param keypair         The certificate signing key
+ * @param x509CertBuf     Buffer to store signed certificate in X.509 DER format.
+ * @param x509CertBufSize The size of the buffer to store converted certificate.
+ * @param x509CertLen     The length of the converted certificate.
+ *
+ * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
+ **/
+CHIP_ERROR GenerateSignedX509CertFromChipCert(const uint8_t * chipCert, uint32_t chipCertLen, Crypto::P256Keypair & keypair,
+                                              uint8_t * x509CertBuf, uint32_t x509CertBufSize, uint32_t & x509CertLen);
+
+// TODO: Add support for Authentication Tag Attribute
+struct X509CertRequestParams
+{
+    int64_t SerialNumber;
+    uint64_t Issuer;
+    uint32_t ValidityStart;
+    uint32_t ValidityEnd;
+    bool HasFabricID;
+    uint64_t FabricID;
+    bool HasNodeID;
+    uint64_t NodeID;
+};
+
+enum CertificateIssuerLevel
+{
+    kIssuerIsRootCA,
+    kIssuerIsIntermediateCA,
+};
+
+/**
+ * @brief Generate a new X.509 DER encoded Root CA certificate
+ *
+ * @param requestParams   Certificate request parameters.
+ * @param issuerKeypair   The certificate signing key
+ * @param x509CertBuf     Buffer to store signed certificate in X.509 DER format.
+ * @param x509CertBufSize The size of the buffer to store converted certificate.
+ * @param x509CertLen     The length of the converted certificate.
+ *
+ * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
+ **/
+CHIP_ERROR NewRootX509Cert(const X509CertRequestParams & requestParams, Crypto::P256Keypair & issuerKeypair, uint8_t * x509CertBuf,
+                           uint32_t x509CertBufSize, uint32_t & x509CertLen);
+
+/**
+ * @brief Generate a new X.509 DER encoded Intermediate CA certificate
+ *
+ * @param requestParams   Certificate request parameters.
+ * @param subject         The requested subject ID
+ * @param subjectPubkey   The public key of subject
+ * @param issuerKeypair   The certificate signing key
+ * @param x509CertBuf     Buffer to store signed certificate in X.509 DER format.
+ * @param x509CertBufSize The size of the buffer to store converted certificate.
+ * @param x509CertLen     The length of the converted certificate.
+ *
+ * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
+ **/
+CHIP_ERROR NewICAX509Cert(const X509CertRequestParams & requestParams, uint64_t subject,
+                          const Crypto::P256PublicKey & subjectPubkey, Crypto::P256Keypair & issuerKeypair, uint8_t * x509CertBuf,
+                          uint32_t x509CertBufSize, uint32_t & x509CertLen);
+
+/**
+ * @brief Generate a new X.509 DER encoded Node operational certificate
+ *
+ * @param requestParams   Certificate request parameters.
+ * @param issuerLevel     Indicates if the issuer is a root CA or an intermediate CA
+ * @param subjectPubkey   The public key of subject
+ * @param issuerKeypair   The certificate signing key
+ * @param x509CertBuf     Buffer to store signed certificate in X.509 DER format.
+ * @param x509CertBufSize The size of the buffer to store converted certificate.
+ * @param x509CertLen     The length of the converted certificate.
+ *
+ * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
+ **/
+CHIP_ERROR NewNodeOperationalX509Cert(const X509CertRequestParams & requestParams, CertificateIssuerLevel issuerLevel,
+                                      const Crypto::P256PublicKey & subjectPubkey, Crypto::P256Keypair & issuerKeypair,
+                                      uint8_t * x509CertBuf, uint32_t x509CertBufSize, uint32_t & x509CertLen);
 
 /**
  * @brief

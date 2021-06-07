@@ -193,6 +193,17 @@ public:
     INET_ERROR GetLocalInfo(IPAddress * retAddr, uint16_t * retPort);
 
     /**
+     * @brief   Extract the interface id of the TCP endpoint.
+     *
+     * @param[out]  retInterface  The interface id.
+     *
+     * @retval  INET_NO_ERROR           success: address and port extracted.
+     * @retval  INET_ERROR_INCORRECT_STATE  TCP connection not established.
+     * @retval  INET_ERROR_CONNECTION_ABORTED   TCP connection no longer open.
+     */
+    INET_ERROR GetInterfaceId(InterfaceId * retInterface);
+
+    /**
      * @brief   Send message text on TCP connection.
      *
      * @param[out]  data    Message text to send.
@@ -201,7 +212,7 @@ public:
      * @retval  INET_NO_ERROR           success: address and port extracted.
      * @retval  INET_ERROR_INCORRECT_STATE  TCP connection not established.
      */
-    INET_ERROR Send(chip::System::PacketBufferHandle data, bool push = true);
+    INET_ERROR Send(chip::System::PacketBufferHandle && data, bool push = true);
 
     /**
      * @brief   Disable reception.
@@ -322,7 +333,7 @@ public:
      *  This method may only be called by data reception event handlers to
      *  put data on the receive queue for unit test purposes.
      */
-    INET_ERROR SetReceivedDataForTesting(chip::System::PacketBufferHandle data);
+    INET_ERROR SetReceivedDataForTesting(chip::System::PacketBufferHandle && data);
 
     /**
      * @brief   Extract the length of the data awaiting first transmit.
@@ -445,7 +456,7 @@ public:
      *  If this function returns an error, the connection will be closed, since higher layers
      *  are not able to process the data for a better response.
      */
-    typedef INET_ERROR (*OnDataReceivedFunct)(TCPEndPoint * endPoint, chip::System::PacketBufferHandle data);
+    typedef INET_ERROR (*OnDataReceivedFunct)(TCPEndPoint * endPoint, chip::System::PacketBufferHandle && data);
 
     /**
      * The endpoint's message text reception event handling function delegate.
@@ -659,7 +670,7 @@ private:
     BufferOffset FindStartOfUnsent();
     INET_ERROR GetPCB(IPAddressType addrType);
     void HandleDataSent(uint16_t len);
-    void HandleDataReceived(chip::System::PacketBufferHandle buf);
+    void HandleDataReceived(chip::System::PacketBufferHandle && buf);
     void HandleIncomingConnection(TCPEndPoint * pcb);
     void HandleError(INET_ERROR err);
 

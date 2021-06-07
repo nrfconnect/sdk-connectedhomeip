@@ -23,6 +23,7 @@
 #include "commands/pairing/Commands.h"
 #include "commands/payload/Commands.h"
 #include "commands/reporting/Commands.h"
+#include "commands/tests/Commands.h"
 
 #include <protocols/secure_channel/PASESession.h>
 
@@ -31,13 +32,12 @@
 // ================================================================================
 int main(int argc, char * argv[])
 {
-    InitDataModelHandler();
-
     Commands commands;
     registerCommandsDiscover(commands);
     registerCommandsPayload(commands);
     registerCommandsPairing(commands);
     registerCommandsReporting(commands);
+    registerCommandsTests(commands);
     registerClusters(commands);
 
     return commands.Run(chip::kTestControllerNodeId, chip::kTestDeviceNodeId, argc, argv);

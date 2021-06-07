@@ -34,13 +34,13 @@
 #include <messaging/ExchangeDelegate.h>
 #include <messaging/ExchangeMessageDispatch.h>
 #include <protocols/secure_channel/Constants.h>
+#include <protocols/secure_channel/SessionEstablishmentDelegate.h>
 #include <protocols/secure_channel/SessionEstablishmentExchangeDispatch.h>
 #include <support/Base64.h>
 #include <system/SystemPacketBuffer.h>
 #include <transport/PairingSession.h>
 #include <transport/PeerConnectionState.h>
 #include <transport/SecureSession.h>
-#include <transport/SessionEstablishmentDelegate.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/PeerAddress.h>
 
@@ -68,7 +68,7 @@ struct PASESessionSerializable
 
 typedef uint8_t PASEVerifier[2][kSpake2p_WS_Length];
 
-class DLL_EXPORT PASESession : public Messaging::ExchangeDelegateBase, public PairingSession
+class DLL_EXPORT PASESession : public Messaging::ExchangeDelegate, public PairingSession
 {
 public:
     PASESession();
@@ -85,7 +85,7 @@ public:
      *
      * @param mySetUpPINCode  Setup PIN code of the local device
      * @param pbkdf2IterCount Iteration count for PBKDF2 function
-     * @param salt            Salt to be used for SPAKE2P opertation
+     * @param salt            Salt to be used for SPAKE2P operation
      * @param saltLen         Length of salt
      * @param myKeyId         Key ID to be assigned to the secure session on the peer node
      * @param delegate        Callback object
@@ -142,13 +142,12 @@ public:
      *   Derive a secure session from the paired session. The API will return error
      *   if called before pairing is established.
      *
-     * @param info        Information string used for key derivation
-     * @param info_len    Length of info string
-     * @param session     Referene to the sescure session that will be
+     * @param session     Referene to the secure session that will be
      *                    initialized once pairing is complete
+     * @param role        Role of the new session (initiator or responder)
      * @return CHIP_ERROR The result of session derivation
      */
-    CHIP_ERROR DeriveSecureSession(const uint8_t * info, size_t info_len, SecureSession & session) override;
+    CHIP_ERROR DeriveSecureSession(SecureSession & session, SecureSession::SessionRole role) override;
 
     /**
      * @brief
@@ -218,7 +217,7 @@ public:
      *  @param[in]    payload       A handle to the PacketBuffer object holding the message payload.
      */
     void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle payload) override;
+                           System::PacketBufferHandle && payload) override;
 
     /**
      * @brief
@@ -244,6 +243,9 @@ private:
 
     CHIP_ERROR Init(uint16_t myKeyId, uint32_t setupCode, SessionEstablishmentDelegate * delegate);
 
+    CHIP_ERROR ValidateReceivedMessage(Messaging::ExchangeContext * exchange, const PacketHeader & packetHeader,
+                                       const PayloadHeader & payloadHeader, System::PacketBufferHandle && msg);
+
     static CHIP_ERROR ComputePASEVerifier(uint32_t mySetUpPINCode, uint32_t pbkdf2IterCount, const uint8_t * salt, size_t saltLen,
                                           PASEVerifier & verifier);
 
@@ -262,7 +264,9 @@ private:
     CHIP_ERROR HandleMsg3(const System::PacketBufferHandle & msg);
 
     void SendErrorMsg(Spake2pErrorType errorCode);
-    void HandleErrorMsg(const System::PacketBufferHandle & msg);
+    CHIP_ERROR HandleErrorMsg(const System::PacketBufferHandle & msg);
+
+    void CloseExchange();
 
     SessionEstablishmentDelegate * mDelegate = nullptr;
 
@@ -327,14 +331,11 @@ public:
 
     SecurePairingUsingTestSecret(uint16_t peerKeyId, uint16_t localKeyId) : mPeerKeyID(peerKeyId), mLocalKeyID(localKeyId) {}
 
-    CHIP_ERROR DeriveSecureSession(const uint8_t * info, size_t info_len, SecureSession & session) override
+    CHIP_ERROR DeriveSecureSession(SecureSession & session, SecureSession::SessionRole role) override
     {
-        VerifyOrReturnError(info != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-        VerifyOrReturnError(info_len > 0, CHIP_ERROR_INVALID_ARGUMENT);
-
         size_t secretLen = strlen(kTestSecret);
-
-        return session.InitFromSecret(reinterpret_cast<const uint8_t *>(kTestSecret), secretLen, nullptr, 0, info, info_len);
+        return session.InitFromSecret(ByteSpan(reinterpret_cast<const uint8_t *>(kTestSecret), secretLen), ByteSpan(nullptr, 0),
+                                      SecureSession::SessionInfoType::kSessionEstablishment, role);
     }
 
     CHIP_ERROR ToSerializable(PASESessionSerializable & serializable)

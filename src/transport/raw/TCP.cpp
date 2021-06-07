@@ -168,36 +168,24 @@ TCPBase::ActiveConnectionState * TCPBase::FindActiveConnection(const Inet::TCPEn
     return nullptr;
 }
 
-CHIP_ERROR TCPBase::SendMessage(const PacketHeader & header, const Transport::PeerAddress & address,
-                                System::PacketBufferHandle msgBuf)
+CHIP_ERROR TCPBase::SendMessage(const Transport::PeerAddress & address, System::PacketBufferHandle && msgBuf)
 {
     // Sent buffer data format is:
-    //    - packet size as a uint16_t (inludes size of header and actual data)
-    //    - header
+    //    - packet size as a uint16_t
     //    - actual data
-    const size_t prefixSize = header.EncodeSizeBytes() + kPacketSizeBytes;
 
     VerifyOrReturnError(address.GetTransportType() == Type::kTcp, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(mState == State::kInitialized, CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrReturnError(prefixSize + msgBuf->DataLength() <= std::numeric_limits<uint16_t>::max(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(kPacketSizeBytes + msgBuf->DataLength() <= std::numeric_limits<uint16_t>::max(),
+                        CHIP_ERROR_INVALID_ARGUMENT);
 
-    // The check above about prefixSize + msgBuf->DataLength() means prefixSize
-    // definitely fits in uint16_t.
-    VerifyOrReturnError(msgBuf->EnsureReservedSize(static_cast<uint16_t>(prefixSize)), CHIP_ERROR_NO_MEMORY);
+    // The check above about kPacketSizeBytes + msgBuf->DataLength() means it definitely fits in uint16_t.
+    VerifyOrReturnError(msgBuf->EnsureReservedSize(static_cast<uint16_t>(kPacketSizeBytes)), CHIP_ERROR_NO_MEMORY);
 
-    msgBuf->SetStart(msgBuf->Start() - prefixSize);
-
-    // Length is actual data, without considering the length bytes themselves
-    VerifyOrReturnError(msgBuf->DataLength() >= kPacketSizeBytes, CHIP_ERROR_INTERNAL);
+    msgBuf->SetStart(msgBuf->Start() - kPacketSizeBytes);
 
     uint8_t * output = msgBuf->Start();
     LittleEndian::Write16(output, static_cast<uint16_t>(msgBuf->DataLength() - kPacketSizeBytes));
-
-    uint16_t actualEncodedHeaderSize;
-    ReturnErrorOnFailure(header.Encode(output, msgBuf->DataLength(), &actualEncodedHeaderSize));
-
-    // header encoding has to match space that we allocated
-    VerifyOrReturnError(prefixSize == actualEncodedHeaderSize + kPacketSizeBytes, CHIP_ERROR_INTERNAL);
 
     // Reuse existing connection if one exists, otherwise a new one
     // will be established
@@ -213,7 +201,7 @@ CHIP_ERROR TCPBase::SendMessage(const PacketHeader & header, const Transport::Pe
     }
 }
 
-CHIP_ERROR TCPBase::SendAfterConnect(const PeerAddress & addr, System::PacketBufferHandle msg)
+CHIP_ERROR TCPBase::SendAfterConnect(const PeerAddress & addr, System::PacketBufferHandle && msg)
 {
     // This will initiate a connection to the specified peer
     CHIP_ERROR err               = CHIP_NO_ERROR;
@@ -292,7 +280,7 @@ exit:
 }
 
 CHIP_ERROR TCPBase::ProcessReceivedBuffer(Inet::TCPEndPoint * endPoint, const PeerAddress & peerAddress,
-                                          System::PacketBufferHandle buffer)
+                                          System::PacketBufferHandle && buffer)
 {
     ActiveConnectionState * state = FindActiveConnection(endPoint);
     VerifyOrReturnError(state != nullptr, CHIP_ERROR_INTERNAL);
@@ -360,20 +348,19 @@ CHIP_ERROR TCPBase::ProcessSingleMessage(const PeerAddress & peerAddress, Active
         message->SetDataLength(messageSize);
     }
 
-    PacketHeader header;
-    ReturnErrorOnFailure(header.DecodeAndConsume(message));
-
-    HandleMessageReceived(header, peerAddress, std::move(message));
+    HandleMessageReceived(peerAddress, std::move(message));
     return CHIP_NO_ERROR;
 }
 
-INET_ERROR TCPBase::OnTcpReceive(Inet::TCPEndPoint * endPoint, System::PacketBufferHandle buffer)
+INET_ERROR TCPBase::OnTcpReceive(Inet::TCPEndPoint * endPoint, System::PacketBufferHandle && buffer)
 {
     Inet::IPAddress ipAddress;
     uint16_t port;
+    Inet::InterfaceId interfaceId = INET_NULL_INTERFACEID;
 
     endPoint->GetPeerInfo(&ipAddress, &port);
-    PeerAddress peerAddress = PeerAddress::TCP(ipAddress, port);
+    endPoint->GetInterfaceId(&interfaceId);
+    PeerAddress peerAddress = PeerAddress::TCP(ipAddress, port, interfaceId);
 
     TCPBase * tcp  = reinterpret_cast<TCPBase *>(endPoint->AppState);
     CHIP_ERROR err = tcp->ProcessReceivedBuffer(endPoint, peerAddress, std::move(buffer));
@@ -394,9 +381,11 @@ void TCPBase::OnConnectionComplete(Inet::TCPEndPoint * endPoint, INET_ERROR inet
     TCPBase * tcp           = reinterpret_cast<TCPBase *>(endPoint->AppState);
     Inet::IPAddress ipAddress;
     uint16_t port;
+    Inet::InterfaceId interfaceId = INET_NULL_INTERFACEID;
 
     endPoint->GetPeerInfo(&ipAddress, &port);
-    PeerAddress addr = PeerAddress::TCP(ipAddress, port);
+    endPoint->GetInterfaceId(&interfaceId);
+    PeerAddress addr = PeerAddress::TCP(ipAddress, port, interfaceId);
 
     // Send any pending packets
     for (size_t i = 0; i < tcp->mPendingPacketsSize; i++)
@@ -522,9 +511,11 @@ void TCPBase::Disconnect(const PeerAddress & address)
         {
             Inet::IPAddress ipAddress;
             uint16_t port;
+            Inet::InterfaceId interfaceId = INET_NULL_INTERFACEID;
 
             mActiveConnections[i].mEndPoint->GetPeerInfo(&ipAddress, &port);
-            if (address == PeerAddress::TCP(ipAddress, port))
+            mActiveConnections[i].mEndPoint->GetInterfaceId(&interfaceId);
+            if (address == PeerAddress::TCP(ipAddress, port, interfaceId))
             {
                 // NOTE: this leaves the socket in TIME_WAIT.
                 // Calling Abort() would clean it since SO_LINGER would be set to 0,

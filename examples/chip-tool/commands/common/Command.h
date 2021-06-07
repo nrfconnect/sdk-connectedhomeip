@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <app/server/DataModelHandler.h>
 #include <controller/CHIPDeviceController.h>
 #include <inet/InetInterface.h>
+#include <support/Span.h>
 #include <support/logging/CHIPLogging.h>
 
 #include <atomic>
@@ -57,7 +57,8 @@ enum ArgumentType
     Number_int16,
     Number_int32,
     Number_int64,
-    String,
+    CharString,
+    OctetString,
     Attribute,
     Address
 };
@@ -75,6 +76,7 @@ class Command
 {
 public:
     using ChipDeviceCommissioner = ::chip::Controller::DeviceCommissioner;
+    using ChipDeviceController   = ::chip::Controller::DeviceController;
     using ChipSerializedDevice   = ::chip::Controller::SerializedDevice;
     using ChipDevice             = ::chip::Controller::Device;
     using PeerAddress            = ::chip::Transport::PeerAddress;
@@ -100,13 +102,17 @@ public:
     size_t AddArgument(const char * name, const char * value);
     /**
      * @brief
-     *   Add a string command argument
+     *   Add a char string command argument
      *
      * @param name  The name that will be displayed in the command help
      * @param value A pointer to a `char *` where the argv value will be stored
      * @returns The number of arguments currently added to the command
      */
     size_t AddArgument(const char * name, char ** value);
+    /**
+     * Add an octet string command argument
+     */
+    size_t AddArgument(const char * name, chip::ByteSpan * value);
     size_t AddArgument(const char * name, AddressWithInterface * out);
     size_t AddArgument(const char * name, int64_t min, uint64_t max, int8_t * out)
     {
@@ -154,7 +160,7 @@ public:
     void WaitForResponse(uint16_t duration);
 
 private:
-    bool InitArgument(size_t argIndex, const char * argValue);
+    bool InitArgument(size_t argIndex, char * argValue);
     size_t AddArgument(const char * name, int64_t min, uint64_t max, void * out, ArgumentType type);
     size_t AddArgument(const char * name, int64_t min, uint64_t max, void * out);
 

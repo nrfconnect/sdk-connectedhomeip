@@ -26,9 +26,9 @@
 #include <platform/internal/DeviceNetworkInfo.h>
 #include <support/ThreadOperationalDataset.h>
 
-#include "gen/attribute-id.h"
-#include "gen/attribute-type.h"
-#include "gen/cluster-id.h"
+#include <app/common/gen/attribute-id.h>
+#include <app/common/gen/attribute-type.h>
+#include <app/common/gen/cluster-id.h>
 #include <app/util/attribute-storage.h>
 
 #include "Keyboard.h"
@@ -54,6 +54,10 @@ static bool sHaveBLEConnections      = false;
 static bool sHaveServiceConnectivity = false;
 
 static uint32_t eventMask = 0;
+
+#if CHIP_DEVICE_CONFIG_THREAD_ENABLE_CLI
+extern "C" void K32WUartProcess(void);
+#endif
 
 using namespace ::chip::DeviceLayer;
 
@@ -135,6 +139,10 @@ int AppTask::Init()
         assert(err == CHIP_NO_ERROR);
     }
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING
+    PlatformMgr().AddEventHandler(ThreadProvisioningHandler, 0);
+#endif
+
     K32W_LOG("Current Firmware Version: %s", currentFirmwareRev);
 
     return err;
@@ -168,6 +176,10 @@ void AppTask::AppTaskMain(void * pvParameter)
         // task is busy (e.g. with a long crypto operation).
         if (PlatformMgr().TryLockChipStack())
         {
+#if CHIP_DEVICE_CONFIG_THREAD_ENABLE_CLI
+            K32WUartProcess();
+#endif
+
             sIsThreadProvisioned     = ConnectivityMgr().IsThreadProvisioned();
             sIsThreadEnabled         = ConnectivityMgr().IsThreadEnabled();
             sHaveBLEConnections      = (ConnectivityMgr().NumBLEConnections() != 0);
@@ -241,8 +253,14 @@ void AppTask::ButtonEventHandler(uint8_t pin_no, uint8_t button_action)
     else if (pin_no == BLE_BUTTON)
     {
         button_event.Handler = BleHandler;
-    }
 
+#if !(defined OM15082)
+        if (button_action == RESET_BUTTON_PUSH)
+        {
+            button_event.Handler = ResetActionEventHandler;
+        }
+#endif
+    }
     sAppTask.PostEvent(&button_event);
 }
 
@@ -271,8 +289,13 @@ void AppTask::HandleKeyboard(void)
         switch (keyEvent)
         {
         case gKBD_EventPB1_c:
+#if (defined OM15082)
             ButtonEventHandler(RESET_BUTTON, RESET_BUTTON_PUSH);
             break;
+#else
+            ButtonEventHandler(BLE_BUTTON, BLE_BUTTON_PUSH);
+            break;
+#endif
         case gKBD_EventPB2_c:
             ButtonEventHandler(LOCK_BUTTON, LOCK_BUTTON_PUSH);
             break;
@@ -282,6 +305,11 @@ void AppTask::HandleKeyboard(void)
         case gKBD_EventPB4_c:
             ButtonEventHandler(BLE_BUTTON, BLE_BUTTON_PUSH);
             break;
+#if !(defined OM15082)
+        case gKBD_EventLongPB1_c:
+            ButtonEventHandler(BLE_BUTTON, RESET_BUTTON_PUSH);
+            break;
+#endif
         default:
             break;
         }
@@ -310,7 +338,7 @@ void AppTask::FunctionTimerEventHandler(AppEvent * aEvent)
 
 void AppTask::ResetActionEventHandler(AppEvent * aEvent)
 {
-    if (aEvent->ButtonEvent.PinNo != RESET_BUTTON)
+    if (aEvent->ButtonEvent.PinNo != RESET_BUTTON && aEvent->ButtonEvent.PinNo != BLE_BUTTON)
         return;
 
     if (sAppTask.mResetTimerActive)
@@ -468,6 +496,37 @@ void AppTask::BleHandler(AppEvent * aEvent)
         }
     }
 }
+
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING
+void AppTask::ThreadProvisioningHandler(const ChipDeviceEvent * event, intptr_t)
+{
+    if (event->Type == DeviceEventType::kCHIPoBLEAdvertisingChange && event->CHIPoBLEAdvertisingChange.Result == kActivity_Stopped)
+    {
+        if (!NFCMgr().IsTagEmulationStarted())
+        {
+            K32W_LOG("NFC Tag emulation is already stopped!");
+        }
+        else
+        {
+            NFCMgr().StopTagEmulation();
+            K32W_LOG("Stopped NFC Tag Emulation!");
+        }
+    }
+    else if (event->Type == DeviceEventType::kCHIPoBLEAdvertisingChange &&
+             event->CHIPoBLEAdvertisingChange.Result == kActivity_Started)
+    {
+        if (NFCMgr().IsTagEmulationStarted())
+        {
+            K32W_LOG("NFC Tag emulation is already started!");
+        }
+        else
+        {
+            ShareQRCodeOverNFC(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
+            K32W_LOG("Started NFC Tag Emulation!");
+        }
+    }
+}
+#endif
 
 void AppTask::CancelTimer()
 {

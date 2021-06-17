@@ -26,6 +26,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import chip.devicecontroller.ChipDeviceController
 import chip.setuppayload.SetupPayloadParser.UnrecognizedQrCodeException
 import com.google.chip.chiptool.attestation.AttestationTestFragment
 import com.google.chip.chiptool.clusterclient.OnOffClientFragment
@@ -84,6 +85,8 @@ class CHIPToolActivity :
   }
 
   override fun onCommissioningComplete(code: Int) {
+    ChipClient.getDeviceController().close()
+
     if (code == 0) {
       showFragment(OnOffClientFragment.newInstance(), false)
     } else {

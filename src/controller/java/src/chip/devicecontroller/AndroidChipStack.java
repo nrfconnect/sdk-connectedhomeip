@@ -239,12 +239,20 @@ public final class AndroidChipStack {
 
   public static void onNotifyChipConnectionClosed(int connId) {
     ChipDeviceController deviceController = AndroidChipStack.getInstance().getConnection(connId);
+    if (deviceController == null) {
+      return;
+    }
+
     deviceController.onNotifyChipConnectionClosed(connId);
   }
 
   public static boolean onSendCharacteristic(
       int connId, byte[] svcId, byte[] charId, byte[] characteristicData) {
     ChipDeviceController deviceController = AndroidChipStack.getInstance().getConnection(connId);
+    if (deviceController == null) {
+      return false;
+    }
+
     BluetoothGatt bluetoothGatt = deviceController.getBluetoothGatt();
     if (bluetoothGatt == null) {
       return false;
@@ -276,6 +284,10 @@ public final class AndroidChipStack {
 
   public static boolean onSubscribeCharacteristic(int connId, byte[] svcId, byte[] charId) {
     ChipDeviceController deviceController = AndroidChipStack.getInstance().getConnection(connId);
+    if (deviceController == null) {
+      return false;
+    }
+
     BluetoothGatt bluetoothGatt = deviceController.getBluetoothGatt();
     if (bluetoothGatt == null) {
       return false;
@@ -312,6 +324,10 @@ public final class AndroidChipStack {
 
   public static boolean onUnsubscribeCharacteristic(int connId, byte[] svcId, byte[] charId) {
     ChipDeviceController deviceController = AndroidChipStack.getInstance().getConnection(connId);
+    if (deviceController == null) {
+      return false;
+    }
+
     BluetoothGatt bluetoothGatt = deviceController.getBluetoothGatt();
     if (bluetoothGatt == null) {
       return false;
@@ -348,6 +364,9 @@ public final class AndroidChipStack {
 
   public static boolean onCloseConnection(int connId) {
     ChipDeviceController deviceController = AndroidChipStack.getInstance().getConnection(connId);
+    if (deviceController == null) {
+      return false;
+    }
     deviceController.onCloseBleComplete(connId);
     return true;
   }

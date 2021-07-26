@@ -16,6 +16,10 @@ name: Data model directory checks
 
 on:
   pull_request:
+    branches:
+      - '!upmerge-*'
+    paths:
+      - "data_model/**"
 
 jobs:
   check-data_model-updates:

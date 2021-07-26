@@ -1,0 +1,121 @@
+# Copyright (c) 2021 Project CHIP Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Release CHIP Tools
+
+on:
+    workflow_dispatch:
+        inputs:
+            commit:
+                description: "Release tag name or commit SHA:"
+                required: true
+            publishRelease:
+                description: "Publish release packages (if true, 'commit' must contain a release tag name):"
+                required: true
+                default: "false"
+
+jobs:
+    tools:
+        name: Build CHIP Tools
+        timeout-minutes: 60
+
+        runs-on: ubuntu-latest
+
+        env:
+            DEBIAN_FRONTEND: noninteractive
+
+        container:
+            image: connectedhomeip/chip-build:0.6.18
+            volumes:
+                - "/tmp/log_output:/tmp/test_logs"
+                - "/tmp/output_binaries:/tmp/output_binaries"
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  ref: "${{ github.event.inputs.commit }}"
+            - name: Bootstrap
+              timeout-minutes: 10
+              uses: ./.github/actions/checkout-submodules-and-bootstrap
+              with:
+                platform: linux
+            - name: Install CHIP Tool dependencies
+              timeout-minutes: 10
+              run: |
+                  echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted" > /etc/apt/sources.list.d/arm64.list
+                  echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main restricted" >> /etc/apt/sources.list.d/arm64.list
+                  apt update
+                  apt install -y --no-install-recommends -o APT::Immediate-Configure=false g++-aarch64-linux-gnu libgirepository1.0-dev
+                  dpkg --add-architecture arm64
+                  apt install -y --no-install-recommends -o APT::Immediate-Configure=false libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64 libreadline-dev:arm64
+            - name: Build x64 CHIP Tool with debug logs enabled
+              timeout-minutes: 10
+              run: |
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_debug --args='chip_mdns=\"platform\" chip_crypto=\"mbedtls\" symbol_level=0'"
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_debug chip-tool"
+                  mv out/chiptool_x64_debug/chip-tool out/chiptool_x64_debug/chip-tool-debug
+            - name: Build x64 CHIP Tool with debug logs disabled
+              timeout-minutes: 10
+              run: |
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_release --args='chip_mdns=\"platform\" chip_detail_logging=false chip_crypto=\"mbedtls\" symbol_level=0'"
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_release chip-tool"
+                  mv out/chiptool_x64_release/chip-tool out/chiptool_x64_release/chip-tool-release
+            - name: Build arm64 CHIP Tool with debug logs enabled
+              timeout-minutes: 10
+              run: |
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_arm64_debug --args='chip_mdns=\"platform\"
+                      custom_toolchain=\"//build/toolchain/custom\"
+                      target_cc=\"aarch64-linux-gnu-gcc\"
+                      target_cxx=\"aarch64-linux-gnu-g++\"
+                      target_ar=\"aarch64-linux-gnu-ar\"
+                      target_cpu=\"arm64\"
+                      symbol_level=0
+                      chip_crypto=\"mbedtls\"'"
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_debug chip-tool"
+                  mv out/chiptool_arm64_debug/chip-tool out/chiptool_arm64_debug/chip-tool-debug
+            - name: Build arm64 CHIP Tool with debug logs disabled
+              timeout-minutes: 10
+              run: |
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_arm64_release --args='chip_mdns=\"platform\"
+                      chip_detail_logging=false
+                      custom_toolchain=\"//build/toolchain/custom\"
+                      target_cc=\"aarch64-linux-gnu-gcc\"
+                      target_cxx=\"aarch64-linux-gnu-g++\"
+                      target_ar=\"aarch64-linux-gnu-ar\"
+                      target_cpu=\"arm64\"
+                      symbol_level=0
+                      chip_crypto=\"mbedtls\"'"
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_release chip-tool"
+                  mv out/chiptool_arm64_release/chip-tool out/chiptool_arm64_release/chip-tool-release
+            - name: Build x64 OTA Provider
+              timeout-minutes: 10
+              run: |
+                  scripts/run_in_build_env.sh "gn gen out/chipotaprovider_x64 --args='symbol_level=0 chip_crypto=\"mbedtls\"' --root=examples/ota-provider-app/linux"
+                  scripts/run_in_build_env.sh "ninja -C out/chipotaprovider_x64 chip-ota-provider-app"
+                  mv out/chipotaprovider_x64/chip-ota-provider-app /tmp/output_binaries/chip-ota-provider-app-linux_x64
+            - name: Create zip files for CHIP Tool debug and release packages
+              timeout-minutes: 10
+              run: |
+                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-linux_x64.zip out/chiptool_x64_debug/chip-tool-debug out/chiptool_x64_release/chip-tool-release
+                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-linux_aarch64.zip out/chiptool_arm64_debug/chip-tool-debug out/chiptool_arm64_release/chip-tool-release
+            - name: Upload release packages
+              uses: softprops/action-gh-release@v1
+              if: github.event.inputs.publishRelease == 'true'
+              with:
+                  files: /tmp/output_binaries/*
+                  fail_on_unmatched_files: true
+                  tag_name: "${{ github.event.inputs.commit }}"
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

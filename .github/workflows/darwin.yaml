@@ -15,12 +15,6 @@
 name: Darwin
 
 on:
-    push:
-        branches:
-            - master
-            - 'v*-branch'
-    pull_request:
-    merge_group:
     workflow_dispatch:
 
 concurrency:
@@ -37,7 +31,7 @@ jobs:
     framework:
         name: Build framework
         if: github.actor != 'restyled-io[bot]'
-        
+        runs-on: macos-15
         strategy:
             matrix:
                 os: [ macos-14 ]
@@ -81,7 +75,8 @@ jobs:
         name: Run framework tests
         if: github.actor != 'restyled-io[bot]'
         needs: [framework] # serialize to avoid running to many parallel macos runners
-        runs-on: ${{ matrix.os }}
+        runs-on: macos-15
+
         strategy:
             matrix:
                 os: [ macos-14 ]
@@ -138,3 +133,4 @@ jobs:
                   name: darwin-framework-test-logs-${{ matrix.options.flavor }}
                   path: /tmp/darwin/framework-tests
                   retention-days: 5
+                  

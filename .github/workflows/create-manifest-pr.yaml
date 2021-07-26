@@ -1,0 +1,16 @@
+name: Create manifest PR
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, closed]
+    branches:
+      - master
+
+jobs:
+  create-manifest-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create manifest PR
+        uses: nrfconnect/action-manifest-pr@main
+        with:
+          token: ${{ secrets.NCS_GITHUB_TOKEN }}

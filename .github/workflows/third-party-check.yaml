@@ -15,12 +15,7 @@
 name: Check for Unintentional Submodule Updates
 
 on:
-    pull_request:
-        branches-ignore:
-            - "dependabot/**"
-        paths:
-            - "third_party/**"
-            - ".gitmodules"
+    workflow_dispatch:
 
 jobs:
     check-submodule-update-label:

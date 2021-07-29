@@ -17,7 +17,6 @@
  */
 #include "AndroidDeviceControllerWrapper.h"
 #include "CHIPJNIError.h"
-#include "StackLock.h"
 
 #include <algorithm>
 #include <memory>
@@ -33,7 +32,7 @@ AndroidDeviceControllerWrapper::~AndroidDeviceControllerWrapper()
 {
     if ((mJavaVM != nullptr) && (mJavaObjectRef != nullptr))
     {
-        JniReferences::GetEnvForCurrentThread()->DeleteGlobalRef(mJavaObjectRef);
+        GetEnvForCurrentThread()->DeleteGlobalRef(mJavaObjectRef);
     }
     mController->Shutdown();
 }
@@ -41,12 +40,12 @@ AndroidDeviceControllerWrapper::~AndroidDeviceControllerWrapper()
 void AndroidDeviceControllerWrapper::SetJavaObjectRef(JavaVM * vm, jobject obj)
 {
     mJavaVM        = vm;
-    mJavaObjectRef = JniReferences::GetEnvForCurrentThread()->NewGlobalRef(obj);
+    mJavaObjectRef = GetEnvForCurrentThread()->NewGlobalRef(obj);
 }
 
 void AndroidDeviceControllerWrapper::CallJavaMethod(const char * methodName, jint argument)
 {
-    CallVoidInt(JniReferences::GetEnvForCurrentThread(), mJavaObjectRef, methodName, argument);
+    CallVoidInt(GetEnvForCurrentThread(), mJavaObjectRef, methodName, argument);
 }
 
 AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(JavaVM * vm, jobject deviceControllerObj,

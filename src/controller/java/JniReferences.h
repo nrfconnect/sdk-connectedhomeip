@@ -17,29 +17,17 @@
 
 #pragma once
 
-#include <core/CHIPError.h>
 #include <jni.h>
-#include <pthread.h>
-#include <support/CodeUtils.h>
 
-class JniReferences
-{
-public:
-    static pthread_mutex_t * GetStackLock() { return &sStackLock; }
+#include <core/CHIPError.h>
 
-    static void SetJavaVm(JavaVM * jvm);
+namespace {
+JavaVM * sJvm = nullptr;
+} // namespace
 
-    static JNIEnv * GetEnvForCurrentThread();
+void SetJavaVm(JavaVM * jvm);
+JNIEnv * GetEnvForCurrentThread();
 
-    static jclass GetClusterExceptionCls() { return sClusterExceptionCls; }
-
-private:
-    static pthread_mutex_t sStackLock;
-    static JavaVM * sJvm;
-    static jclass sClusterExceptionCls;
-};
-
-jclass GetClusterExceptionCls();
 CHIP_ERROR GetClassRef(JNIEnv * env, const char * clsType, jclass & outCls);
 CHIP_ERROR FindMethod(JNIEnv * env, jobject object, const char * methodName, const char * methodSignature, jmethodID * methodId);
 void CallVoidInt(JNIEnv * env, jobject object, const char * methodName, jint argument);

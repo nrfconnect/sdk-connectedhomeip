@@ -49,29 +49,30 @@ static SecureSessionMgr gSessionManager;
 static Messaging::ExchangeManager gExchangeManager;
 static TransportMgr<Transport::UDP> gTransportManager;
 static secure_channel::MessageCounterManager gMessageCounterManager;
-static const Transport::AdminId gAdminId = 0;
-constexpr ClusterId kTestClusterId       = 6;
-constexpr EndpointId kTestEndpointId     = 1;
-constexpr chip::FieldId kTestFieldId1    = 1;
-constexpr chip::FieldId kTestFieldId2    = 2;
-constexpr uint8_t kTestFieldValue1       = 1;
-constexpr uint8_t kTestFieldValue2       = 2;
+static const FabricIndex gFabricIndex = 0;
+constexpr ClusterId kTestClusterId    = 6;
+constexpr EndpointId kTestEndpointId  = 1;
+constexpr chip::FieldId kTestFieldId1 = 1;
+constexpr chip::FieldId kTestFieldId2 = 2;
+constexpr uint8_t kTestFieldValue1    = 1;
+constexpr uint8_t kTestFieldValue2    = 2;
 
 namespace app {
-CHIP_ERROR ReadSingleClusterData(AttributePathParams & aAttributePathParams, TLV::TLVWriter & aWriter)
+CHIP_ERROR ReadSingleClusterData(AttributePathParams & aAttributePathParams, TLV::TLVWriter * apWriter, bool * apDataExists)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     VerifyOrExit(aAttributePathParams.mClusterId == kTestClusterId && aAttributePathParams.mEndpointId == kTestEndpointId,
                  err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrExit(apWriter != nullptr, /* no op */);
 
     if (aAttributePathParams.mFieldId == kTestFieldId1)
     {
-        err = aWriter.Put(TLV::ContextTag(kTestFieldId1), kTestFieldValue1);
+        err = apWriter->Put(TLV::ContextTag(kTestFieldId1), kTestFieldValue1);
         SuccessOrExit(err);
     }
     if (aAttributePathParams.mFieldId == kTestFieldId2)
     {
-        err = aWriter.Put(TLV::ContextTag(kTestFieldId2), kTestFieldValue2);
+        err = apWriter->Put(TLV::ContextTag(kTestFieldId2), kTestFieldValue2);
         SuccessOrExit(err);
     }
 
@@ -89,9 +90,11 @@ public:
 
 class TestExchangeDelegate : public Messaging::ExchangeDelegate
 {
-    void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle && payload) override
-    {}
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
+                                 const PayloadHeader & payloadHeader, System::PacketBufferHandle && payload) override
+    {
+        return CHIP_NO_ERROR;
+    }
 
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override {}
 };
@@ -145,17 +148,17 @@ void InitializeChip(nlTestSuite * apSuite)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::Optional<chip::Transport::PeerAddress> peer(chip::Transport::Type::kUndefined);
-    chip::Transport::AdminPairingTable admins;
-    chip::Transport::AdminPairingInfo * adminInfo = admins.AssignAdminId(chip::gAdminId, chip::kTestDeviceNodeId);
+    chip::Transport::FabricTable fabrics;
+    chip::Transport::FabricInfo * fabricInfo = fabrics.AssignFabricIndex(chip::gFabricIndex, chip::kTestDeviceNodeId);
 
-    NL_TEST_ASSERT(apSuite, adminInfo != nullptr);
+    NL_TEST_ASSERT(apSuite, fabricInfo != nullptr);
 
     err = chip::Platform::MemoryInit();
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-    chip::gSystemLayer.Init(nullptr);
+    chip::gSystemLayer.Init();
 
-    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins,
+    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &fabrics,
                                      &chip::gMessageCounterManager);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 

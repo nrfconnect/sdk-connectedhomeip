@@ -30,12 +30,6 @@
 
 // ==================== General Platform Adaptations ====================
 
-#define CHIP_CONFIG_ERROR_TYPE uint32_t
-#define CHIP_CONFIG_NO_ERROR (0)
-
-#define ASN1_CONFIG_ERROR_TYPE uint32_t
-#define ASN1_CONFIG_NO_ERROR (0)
-
 #define ChipDie() assert()
 
 #define CHIP_CONFIG_PERSISTED_STORAGE_KEY_TYPE uint16_t
@@ -44,6 +38,8 @@
 
 #define CHIP_CONFIG_LIFETIIME_PERSISTED_COUNTER_KEY 0x01
 #define CHIP_CONFIG_PERSISTED_STORAGE_KEY_GLOBAL_MESSAGE_COUNTER 0x2
+
+#define CHIP_CONFIG_ERROR_CLASS 1
 
 // ==================== Security Adaptations ====================
 

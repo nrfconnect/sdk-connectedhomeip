@@ -173,30 +173,6 @@
 #endif
 
 /**
- *  @def BLE_CONFIG_ERROR_TYPE
- *
- *  @brief
- *    This defines the data type used to represent errors for the
- *    BleLayer subsystem.
- *
- */
-#ifndef BLE_CONFIG_ERROR_TYPE
-#include <stdint.h>
-#define BLE_CONFIG_ERROR_TYPE                              int32_t
-#endif // BLE_CONFIG_ERROR_TYPE
-
-/**
- *  @def BLE_CONFIG_NO_ERROR
- *
- *  @brief
- *    This defines the BleLayer error code for no error or success.
- *
- */
-#ifndef BLE_CONFIG_NO_ERROR
-#define BLE_CONFIG_NO_ERROR                                0
-#endif // BLE_CONFIG_NO_ERROR
-
-/**
  *  @def BLE_CONFIG_ERROR_MIN
  *
  *  @brief
@@ -219,16 +195,16 @@
 #endif // BLE_CONFIG_ERROR_MAX
 
 /**
- *  @def _BLE_CONFIG_ERROR
+ *  @def BLE_CONFIG_ERROR
  *
  *  @brief
  *    This defines a mapping function for BleLayer errors that allows
  *    mapping such errors into a platform- or system-specific range.
  *
  */
-#ifndef _BLE_CONFIG_ERROR
-#define _BLE_CONFIG_ERROR(e)                               (BLE_ERROR_MIN + (e))
-#endif // _BLE_CONFIG_ERROR
+#ifndef BLE_CONFIG_ERROR
+#define BLE_CONFIG_ERROR(e)                               (BLE_CONFIG_ERROR_MIN + (e))
+#endif // BLE_CONFIG_ERROR
 
 // clang-format on
 

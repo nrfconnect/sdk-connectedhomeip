@@ -46,13 +46,13 @@ void emberAfPostAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId
 {
     if (clusterId != ZCL_ON_OFF_CLUSTER_ID)
     {
-        ChipLogProgress(Zcl, "Unknown cluster ID: %d", clusterId);
+        ChipLogProgress(Zcl, "Unknown cluster ID: %" PRIx32, clusterId);
         return;
     }
 
     if (attributeId != ZCL_ON_OFF_ATTRIBUTE_ID)
     {
-        ChipLogProgress(Zcl, "Unknown attribute ID: %d", attributeId);
+        ChipLogProgress(Zcl, "Unknown attribute ID: %" PRIx32, attributeId);
         return;
     }
 
@@ -88,8 +88,13 @@ void emberAfOnOffClusterInitCallback(EndpointId endpoint)
 
 int main(int argc, char * argv[])
 {
-    VerifyOrDie(ChipLinuxAppInit(argc, argv) == 0);
+    if (ChipLinuxAppInit(argc, argv) != 0)
+    {
+        return -1;
+    }
+
     LightingMgr().Init();
     ChipLinuxAppMainLoop();
+
     return 0;
 }

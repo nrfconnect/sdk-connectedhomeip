@@ -20,8 +20,11 @@
 #include <support/CodeUtils.h>
 
 #include <string>
+#include <type_traits>
 
 using namespace chip;
+
+static_assert(std::is_same<uint32_t, ChipError::StorageType>::value, "python assumes CHIP_ERROR maps to c_uint32");
 
 namespace {
 
@@ -34,7 +37,7 @@ void YieldSetupPayloadAttributes(const SetupPayload & payload, AttributeVisitor 
     attrVisitor("Version", std::to_string(payload.version).c_str());
     attrVisitor("VendorID", std::to_string(payload.vendorID).c_str());
     attrVisitor("ProductID", std::to_string(payload.productID).c_str());
-    attrVisitor("RequiresCustomFlow", std::to_string(payload.requiresCustomFlow).c_str());
+    attrVisitor("CommissioningFlow", std::to_string(static_cast<uint8_t>(payload.commissioningFlow)).c_str());
     attrVisitor("RendezvousInformation", std::to_string(payload.rendezvousInformation.Raw()).c_str());
     attrVisitor("Discriminator", std::to_string(payload.discriminator).c_str());
     attrVisitor("SetUpPINCode", std::to_string(payload.setUpPINCode).c_str());
@@ -56,22 +59,25 @@ void YieldSetupPayloadAttributes(const SetupPayload & payload, AttributeVisitor 
 
 } // namespace
 
-extern "C" CHIP_ERROR pychip_SetupPayload_ParseQrCode(const char * qrCode, AttributeVisitor attrVisitor,
-                                                      VendorAttributeVisitor vendorAttrVisitor)
+extern "C" ChipError::StorageType pychip_SetupPayload_ParseQrCode(const char * qrCode, AttributeVisitor attrVisitor,
+                                                                  VendorAttributeVisitor vendorAttrVisitor)
 {
     SetupPayload payload;
-    ReturnErrorOnFailure(QRCodeSetupPayloadParser(qrCode).populatePayload(payload));
+    CHIP_ERROR err = QRCodeSetupPayloadParser(qrCode).populatePayload(payload);
+    VerifyOrReturnError(err == CHIP_NO_ERROR, ChipError::AsInteger(err));
 
     YieldSetupPayloadAttributes(payload, attrVisitor, vendorAttrVisitor);
-    return CHIP_NO_ERROR;
+    return ChipError::AsInteger(CHIP_NO_ERROR);
 }
 
-extern "C" CHIP_ERROR pychip_SetupPayload_ParseManualPairingCode(const char * manualPairingCode, AttributeVisitor attrVisitor,
-                                                                 VendorAttributeVisitor vendorAttrVisitor)
+extern "C" ChipError::StorageType pychip_SetupPayload_ParseManualPairingCode(const char * manualPairingCode,
+                                                                             AttributeVisitor attrVisitor,
+                                                                             VendorAttributeVisitor vendorAttrVisitor)
 {
     SetupPayload payload;
-    ReturnErrorOnFailure(ManualSetupPayloadParser(manualPairingCode).populatePayload(payload));
+    CHIP_ERROR err = ManualSetupPayloadParser(manualPairingCode).populatePayload(payload);
+    VerifyOrReturnError(err == CHIP_NO_ERROR, ChipError::AsInteger(err));
 
     YieldSetupPayloadAttributes(payload, attrVisitor, vendorAttrVisitor);
-    return CHIP_NO_ERROR;
+    return ChipError::AsInteger(CHIP_NO_ERROR);
 }

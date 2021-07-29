@@ -187,7 +187,7 @@ void ChannelContext::EnterAddressResolve()
     }
 }
 
-void ChannelContext::AddressResolveTimeout(System::Layer * aLayer, void * aAppState, System::Error aError)
+void ChannelContext::AddressResolveTimeout(System::Layer * aLayer, void * aAppState, CHIP_ERROR aError)
 {
     ChannelContext * me = static_cast<ChannelContext *>(aAppState);
     me->AddressResolveTimeout();
@@ -264,9 +264,9 @@ void ChannelContext::EnterCasePairingState()
     // TODO: currently only supports IP/UDP paring
     Transport::PeerAddress addr;
     addr.SetTransportType(Transport::Type::kUdp).SetIPAddress(prepare.mAddress);
-    CHIP_ERROR err = prepare.mCasePairingSession->EstablishSession(addr, &prepare.mBuilder.GetOperationalCredentialSet(),
-                                                                   prepare.mBuilder.GetPeerNodeId(),
-                                                                   mExchangeManager->GetNextKeyId(), ctxt, this);
+    CHIP_ERROR err = prepare.mCasePairingSession->EstablishSession(
+        addr, &prepare.mBuilder.GetOperationalCredentialSet(), prepare.mBuilder.GetOperationalCredentialSetIndex(),
+        prepare.mBuilder.GetPeerNodeId(), mExchangeManager->GetNextKeyId(), ctxt, this);
     if (err != CHIP_NO_ERROR)
     {
         ExitCasePairingState();

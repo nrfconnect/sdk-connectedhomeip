@@ -66,6 +66,15 @@ class BaseTestHelper:
         self.logger.info("Device finished key exchange.")
         return True
 
+    def TestCloseSession(self, nodeid: int):
+        self.logger.info(f"Closing sessions with device {nodeid}")
+        try:
+            self.devCtrl.CloseSession(nodeid)
+            return True
+        except Exception as ex:
+            self.logger.exception(f"Failed to close sessions with device {nodeid}: {ex}")
+            return False
+
     def TestNetworkCommissioning(self, nodeid: int, endpoint: int, group: int, dataset: str, network_id: str):
         self.logger.info("Commissioning network to device {}".format(nodeid))
         try:
@@ -76,7 +85,8 @@ class BaseTestHelper:
         except Exception as ex:
             self.logger.exception("Failed to send AddThreadNetwork command")
             return False
-        self.logger.info("Send EnableNetwork command to device {}".format(nodeid))
+        self.logger.info(
+            "Send EnableNetwork command to device {}".format(nodeid))
         try:
             self.devCtrl.ZCLSend("NetworkCommissioning", "EnableNetwork", nodeid, endpoint, group, {
                 "networkID": bytes.fromhex(network_id),
@@ -88,47 +98,80 @@ class BaseTestHelper:
         return True
 
     def TestOnOffCluster(self, nodeid: int, endpoint: int, group: int):
-        self.logger.info("Sending On/Off commands to device {}".format(nodeid))
-        try:
-            self.devCtrl.ZCLSend("OnOff", "On", nodeid, endpoint, group, {}, blocking=True)
-        except Exception as ex:
-            self.logger.exception("Failed to send On command")
+        self.logger.info(
+            "Sending On/Off commands to device {} endpoint {}".format(nodeid, endpoint))
+        err, resp = self.devCtrl.ZCLSend("OnOff", "On", nodeid,
+                                         endpoint, group, {}, blocking=True)
+        if err != 0 or resp is None or resp.ProtocolCode != 0:
+            self.logger.error(
+                "failed to send OnOff.On: error is {} with im response{}".format(err, resp))
             return False
-        try:
-            self.devCtrl.ZCLSend("OnOff", "Off", nodeid, endpoint, group, {}, blocking=True)
-        except Exception as ex:
-            self.logger.exception("Failed to send Off command")
+        err, resp = self.devCtrl.ZCLSend("OnOff", "Off", nodeid,
+                                         endpoint, group, {}, blocking=True)
+        if err != 0 or resp is None or resp.ProtocolCode != 0:
+            self.logger.error(
+                "failed to send OnOff.Off: error is {} with im response {}".format(err, resp))
             return False
         return True
 
     def TestResolve(self, fabricid, nodeid):
-        self.logger.info("Resolve {} with fabric id: {}".format(nodeid, fabricid))
+        self.logger.info(
+            "Resolve {} with fabric id: {}".format(nodeid, fabricid))
         try:
             self.devCtrl.ResolveNode(fabricid=fabricid, nodeid=nodeid)
         except Exception as ex:
             self.logger.exception("Failed to resolve. {}".format(ex))
 
     def TestReadBasicAttribiutes(self, nodeid: int, endpoint: int, group: int):
+        basic_cluster_attrs = {
+            "VendorName": "TEST_VENDOR",
+            "VendorID": 9050,
+            "ProductName": "TEST_PRODUCT",
+            "ProductID": 65279,
+            "UserLabel": "",
+            "Location": "",
+            "HardwareVersion": 1,
+            "HardwareVersionString": "TEST_VERSION",
+            "SoftwareVersion": 1,
+            "SoftwareVersionString": "prerelease",
+        }
+        failed_zcl = {}
+        for basic_attr, expected_value in basic_cluster_attrs.items():
+            try:
+                res = self.devCtrl.ZCLReadAttribute(cluster="Basic",
+                                                    attribute=basic_attr,
+                                                    nodeid=nodeid,
+                                                    endpoint=endpoint,
+                                                    groupid=group)
+                if res is None:
+                    raise Exception("Read {} attribute: no value get".format(basic_attr))
+                elif res.status != 0:
+                    raise Exception(
+                        "Read {} attribute: non-zero status code {}".format(basic_attr, res.status))
+                elif res.value != expected_value:
+                    raise Exception("Read {} attribute: expect {} got {}".format(
+                        basic_attr, repr(expected_value), repr(res.value)))
+                time.sleep(2)
+            except Exception as ex:
+                failed_zcl[basic_attr] = str(ex)
+        if failed_zcl:
+            self.logger.exception(f"Following attributes failed: {failed_zcl}")
+            return False
+        return True
+
+    def TestWriteBasicAttributes(self, nodeid: int, endpoint: int, group: int):
         basic_cluster_attrs = [
-            "VendorName",
-            "VendorID",
-            "ProductName",
-            "ProductID",
-            "UserLabel",
-            "Location",
-            "HardwareVersion",
-            "HardwareVersionString",
-            "SoftwareVersion",
-            "SoftwareVersionString"
+            ("UserLabel", "Test"),
         ]
         failed_zcl = []
         for basic_attr in basic_cluster_attrs:
             try:
-                self.devCtrl.ZCLReadAttribute(cluster="Basic",
-                                              attribute=basic_attr,
-                                              nodeid=nodeid,
-                                              endpoint=endpoint,
-                                              groupid=group)
+                self.devCtrl.ZCLWriteAttribute(cluster="Basic",
+                                               attribute=basic_attr[0],
+                                               nodeid=nodeid,
+                                               endpoint=endpoint,
+                                               groupid=group,
+                                               value=basic_attr[1])
                 time.sleep(2)
             except Exception:
                 failed_zcl.append(basic_attr)
@@ -136,6 +179,3 @@ class BaseTestHelper:
             self.logger.exception(f"Following attributes failed: {failed_zcl}")
             return False
         return True
-
-
-

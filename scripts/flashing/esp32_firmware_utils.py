@@ -231,6 +231,7 @@ ESP32_OPTIONS = {
             'argparse': {
                 'metavar': 'OFFSET'
             },
+            'sdkconfig': 'CONFIG_BOOTLOADER_OFFSET_IN_FLASH',
         },
         'partition': {
             'help': 'Partition table image',

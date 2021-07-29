@@ -89,7 +89,10 @@ static uint16_t vFillBuffer(uint8_t * buffer, uint16_t bufferLen, uint8_t frameC
         buffer[bytes++] = EMBER_HIGH_BYTE(manufacturerCode);
     }
     buffer[bytes++] = emberAfNextSequence();
-    buffer[bytes++] = commandId;
+    buffer[bytes++] = EMBER_BYTE_0(commandId);
+    buffer[bytes++] = EMBER_BYTE_1(commandId);
+    buffer[bytes++] = EMBER_BYTE_2(commandId);
+    buffer[bytes++] = EMBER_BYTE_3(commandId);
 
     // Each argument comes in as an integer value, a pointer to a buffer, or a
     // pointer to a buffer followed by an integer length.
@@ -330,16 +333,15 @@ EmberStatus emberAfSendCommandMulticastToBindings(void)
     return emberAfSendMulticastToBindings(emAfCommandApsFrame, *emAfResponseLengthPtr, emAfZclBuffer);
 }
 
-// EmberStatus emberAfSendCommandUnicastWithCallback(EmberOutgoingMessageType type, uint16_t indexOrDestination,
-//                                                   EmberAfMessageSentFunction callback)
+// EmberStatus emberAfSendCommandUnicastWithCallback(const chip::MessageSendDestination & destination, EmberAfMessageSentFunction
+// callback)
 // {
-//     return emberAfSendUnicastWithCallback(type, indexOrDestination, emAfCommandApsFrame, *emAfResponseLengthPtr, emAfZclBuffer,
-//                                           callback);
+//     return emberAfSendUnicastWithCallback(destination, emAfCommandApsFrame, *emAfResponseLengthPtr, emAfZclBuffer, callback);
 // }
 
-// EmberStatus emberAfSendCommandUnicast(EmberOutgoingMessageType type, uint16_t indexOrDestination)
+// EmberStatus emberAfSendCommandUnicast(const chip::MessageSendDestination & destination)
 // {
-//     return emberAfSendCommandUnicastWithCallback(type, indexOrDestination, NULL);
+//     return emberAfSendCommandUnicastWithCallback(destination, NULL);
 // }
 
 // EmberStatus emberAfSendCommandBroadcastWithCallback(EmberNodeId destination, EmberAfMessageSentFunction callback)

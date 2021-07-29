@@ -43,9 +43,11 @@ namespace chip {
 //       Delete this class when Device::SendMessage() is obsoleted.
 class DeviceExchangeDelegate : public Messaging::ExchangeDelegate
 {
-    void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle && payload) override
-    {}
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
+                                 const PayloadHeader & payloadHeader, System::PacketBufferHandle && payload) override
+    {
+        return CHIP_NO_ERROR;
+    }
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override {}
 };
 
@@ -128,8 +130,12 @@ EmberStatus chipSendUnicast(NodeId destination, EmberApsFrame * apsFrame, uint16
 
     EmberStatus err = chipSendUnicast(exchange, apsFrame, messageLength, message, sendFlags);
 
-    // Make sure we always close the temporary exchange we just created.
-    exchange->Close();
+    // Make sure we always close the temporary exchange we just created, unless
+    // we sent a message successfully.
+    if (err != EMBER_SUCCESS)
+    {
+        exchange->Close();
+    }
 
     return err;
 }

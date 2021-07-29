@@ -18,48 +18,31 @@
 
 #include "TestCommand.h"
 
-constexpr uint16_t kWaitDurationInSeconds = 30;
-
-static void test_os_sleep_ms(uint64_t millisecs)
+CHIP_ERROR TestCommand::Run()
 {
-    struct timespec sleep_time;
-    uint64_t s = millisecs / 1000;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
-    millisecs -= s * 1000;
-    sleep_time.tv_sec  = static_cast<time_t>(s);
-    sleep_time.tv_nsec = static_cast<long>(millisecs * 1000000);
+    auto * ctx = GetExecContext();
 
-    nanosleep(&sleep_time, nullptr);
-}
-
-CHIP_ERROR TestCommand::Run(PersistentStorage & storage, NodeId localId, NodeId remoteId)
-{
-    ReturnErrorOnFailure(mOpCredsIssuer.Initialize(storage));
-
-    chip::Controller::CommissionerInitParams params;
-
-    params.storageDelegate                = &storage;
-    params.operationalCredentialsDelegate = &mOpCredsIssuer;
-
-    ReturnErrorOnFailure(mCommissioner.SetUdpListenPort(storage.GetListenPort()));
-    ReturnErrorOnFailure(mCommissioner.Init(localId, params));
-    ReturnErrorOnFailure(mCommissioner.ServiceEvents());
-    ReturnErrorOnFailure(mCommissioner.GetDevice(remoteId, &mDevice));
-
-    ReturnErrorOnFailure(NextTest());
-
-    UpdateWaitForResponse(true);
-    WaitForResponse(kWaitDurationInSeconds);
-
-    mCommissioner.ServiceEventSignal();
-
-    // Give some time for all the pending messages to flush before shutting down
-    // Note: This is working around racy code in message queues during shutdown
-    // TODO: Remove this workaround once we understand the message queue and shutdown race
-    test_os_sleep_ms(1000);
-    mCommissioner.Shutdown();
-
-    VerifyOrReturnError(GetCommandExitStatus(), CHIP_ERROR_INTERNAL);
+    err = ctx->commissioner->GetConnectedDevice(ctx->remoteId, &mOnDeviceConnectedCallback, &mOnDeviceConnectionFailureCallback);
+    ReturnErrorOnFailure(err);
 
     return CHIP_NO_ERROR;
+}
+
+void TestCommand::OnDeviceConnectedFn(void * context, chip::Controller::Device * device)
+{
+    auto * command = static_cast<TestCommand *>(context);
+    VerifyOrReturn(command != nullptr, ChipLogError(chipTool, "Device connected, but cannot run the test, as the context is null"));
+    command->mDevice = device;
+    command->NextTest();
+}
+
+void TestCommand::OnDeviceConnectionFailureFn(void * context, NodeId deviceId, CHIP_ERROR error)
+{
+    ChipLogError(chipTool, "Failed in connecting to the device %" PRIu64 ". Error %" CHIP_ERROR_FORMAT, deviceId,
+                 chip::ChipError::FormatError(error));
+    auto * command = static_cast<TestCommand *>(context);
+    VerifyOrReturn(command != nullptr, ChipLogError(chipTool, "Test command context is null"));
+    command->SetCommandExitStatus(error);
 }

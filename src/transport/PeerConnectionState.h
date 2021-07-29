@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <transport/AdminPairingTable.h>
+#include <transport/FabricTable.h>
 #include <transport/SecureSession.h>
 #include <transport/SessionMessageCounter.h>
 #include <transport/raw/Base.h>
@@ -62,15 +62,13 @@ public:
     PeerAddress & GetPeerAddress() { return mPeerAddress; }
     void SetPeerAddress(const PeerAddress & address) { mPeerAddress = address; }
 
-    void SetTransport(Transport::Base * transport) { mTransport = transport; }
-    Transport::Base * GetTransport() { return mTransport; }
-
     NodeId GetPeerNodeId() const { return mPeerNodeId; }
     void SetPeerNodeId(NodeId peerNodeId) { mPeerNodeId = peerNodeId; }
 
     uint16_t GetPeerKeyID() const { return mPeerKeyID; }
     void SetPeerKeyID(uint16_t id) { mPeerKeyID = id; }
 
+    // TODO: Rename KeyID to SessionID
     uint16_t GetLocalKeyID() const { return mLocalKeyID; }
     void SetLocalKeyID(uint16_t id) { mLocalKeyID = id; }
 
@@ -79,8 +77,8 @@ public:
 
     SecureSession & GetSecureSession() { return mSecureSession; }
 
-    Transport::AdminId GetAdminId() const { return mAdmin; }
-    void SetAdminId(Transport::AdminId admin) { mAdmin = admin; }
+    FabricIndex GetFabricIndex() const { return mFabric; }
+    void SetFabricIndex(FabricIndex fabricIndex) { mFabric = fabricIndex; }
 
     bool IsInitialized()
     {
@@ -120,10 +118,9 @@ private:
     uint16_t mPeerKeyID          = UINT16_MAX;
     uint16_t mLocalKeyID         = UINT16_MAX;
     uint64_t mLastActivityTimeMs = 0;
-    Transport::Base * mTransport = nullptr;
     SecureSession mSecureSession;
     SessionMessageCounter mSessionMessageCounter;
-    Transport::AdminId mAdmin = kUndefinedAdminId;
+    FabricIndex mFabric = kUndefinedFabricIndex;
 };
 
 } // namespace Transport

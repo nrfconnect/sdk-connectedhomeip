@@ -34,6 +34,7 @@
 #include <protocols/Protocols.h>
 #include <protocols/secure_channel/Constants.h>
 #include <support/CodeUtils.h>
+#include <support/Defer.h>
 
 namespace chip {
 namespace Messaging {
@@ -62,11 +63,6 @@ bool ReliableMessageContext::IsAckPending() const
     return mFlags.Has(Flags::kFlagAckPending);
 }
 
-bool ReliableMessageContext::HasPeerRequestedAck() const
-{
-    return mFlags.Has(Flags::kFlagPeerRequestedAck);
-}
-
 bool ReliableMessageContext::HasRcvdMsgFromPeer() const
 {
     return mFlags.Has(Flags::kFlagMsgRcvdFromPeer);
@@ -85,11 +81,6 @@ void ReliableMessageContext::SetMsgRcvdFromPeer(bool inMsgRcvdFromPeer)
 void ReliableMessageContext::SetAckPending(bool inAckPending)
 {
     mFlags.Set(Flags::kFlagAckPending, inAckPending);
-}
-
-void ReliableMessageContext::SetPeerRequestedAck(bool inPeerRequestedAck)
-{
-    mFlags.Set(Flags::kFlagPeerRequestedAck, inPeerRequestedAck);
 }
 
 void ReliableMessageContext::SetDropAckDebug(bool inDropAckDebug)
@@ -188,45 +179,54 @@ CHIP_ERROR ReliableMessageContext::HandleRcvdAck(uint32_t AckMsgId)
     return err;
 }
 
-CHIP_ERROR ReliableMessageContext::HandleNeedsAck(uint32_t MessageId, BitFlags<MessageFlagValues> MsgFlags)
+CHIP_ERROR ReliableMessageContext::HandleNeedsAck(uint32_t messageId, BitFlags<MessageFlagValues> messageFlags)
 
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     // Skip processing ack if drop ack debug is enabled.
     if (ShouldDropAckDebug())
-        return err;
+        return CHIP_NO_ERROR;
 
     // Expire any virtual ticks that have expired so all wakeup sources reflect the current time
     GetReliableMessageMgr()->ExpireTicks();
 
-    // If the message IS a duplicate.
-    if (MsgFlags.Has(MessageFlagValues::kDuplicateMessage))
+    CHIP_ERROR err = HandleNeedsAckInner(messageId, messageFlags);
+
+    // Schedule next physical wakeup on function exit
+    GetReliableMessageMgr()->StartTimer();
+
+    return err;
+}
+
+CHIP_ERROR ReliableMessageContext::HandleNeedsAckInner(uint32_t messageId, BitFlags<MessageFlagValues> messageFlags)
+
+{
+    // If the message IS a duplicate there will never be a response to it, so we
+    // should not wait for one and just immediately send a standalone ack.
+    if (messageFlags.Has(MessageFlagValues::kDuplicateMessage))
     {
 #if !defined(NDEBUG)
-        ChipLogDetail(ExchangeManager, "Forcing tx of solitary ack for duplicate MsgId:%08" PRIX32, MessageId);
+        ChipLogDetail(ExchangeManager, "Forcing tx of solitary ack for duplicate MsgId:%08" PRIX32, messageId);
 #endif
         // Is there pending ack for a different message id.
-        bool wasAckPending = IsAckPending() && mPendingPeerAckId != MessageId;
+        bool wasAckPending = IsAckPending() && mPendingPeerAckId != messageId;
 
         // Temporary store currently pending ack id (even if there is none).
         uint32_t tempAckId = mPendingPeerAckId;
 
         // Set the pending ack id.
-        mPendingPeerAckId = MessageId;
+        SetPendingPeerAckId(messageId);
 
         // Send the Ack for the duplication message in a SecureChannel::StandaloneAck message.
-        err = SendStandaloneAckMessage();
+        CHIP_ERROR err = SendStandaloneAckMessage();
 
         // If there was pending ack for a different message id.
         if (wasAckPending)
         {
             // Restore previously pending ack id.
-            mPendingPeerAckId = tempAckId;
-            SetAckPending(true);
+            SetPendingPeerAckId(tempAckId);
         }
 
-        SuccessOrExit(err);
+        return err;
     }
     // Otherwise, the message IS NOT a duplicate.
     else
@@ -238,52 +238,52 @@ CHIP_ERROR ReliableMessageContext::HandleNeedsAck(uint32_t MessageId, BitFlags<M
                           mPendingPeerAckId);
 #endif
             // Send the Ack for the currently pending Ack in a SecureChannel::StandaloneAck message.
-            err = SendStandaloneAckMessage();
-            SuccessOrExit(err);
+            ReturnErrorOnFailure(SendStandaloneAckMessage());
         }
 
         // Replace the Pending ack id.
-        mPendingPeerAckId = MessageId;
+        SetPendingPeerAckId(messageId);
         mNextAckTimeTick =
             static_cast<uint16_t>(CHIP_CONFIG_RMP_DEFAULT_ACK_TIMEOUT_TICK +
-                                  GetReliableMessageMgr()->GetTickCounterFromTimeDelta(System::Timer::GetCurrentEpoch()));
-        SetAckPending(true);
+                                  GetReliableMessageMgr()->GetTickCounterFromTimeDelta(System::Clock::GetMonotonicMilliseconds()));
+        return CHIP_NO_ERROR;
     }
-
-exit:
-    // Schedule next physical wakeup
-    GetReliableMessageMgr()->StartTimer();
-    return err;
 }
 
 CHIP_ERROR ReliableMessageContext::SendStandaloneAckMessage()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     // Allocate a buffer for the null message
     System::PacketBufferHandle msgBuf = MessagePacketBuffer::New(0);
-    VerifyOrExit(!msgBuf.IsNull(), err = CHIP_ERROR_NO_MEMORY);
+    if (msgBuf.IsNull())
+    {
+        return CHIP_ERROR_NO_MEMORY;
+    }
 
     // Send the null message
 #if !defined(NDEBUG)
     ChipLogDetail(ExchangeManager, "Sending Standalone Ack for MsgId:%08" PRIX32, mPendingPeerAckId);
 #endif
 
-    err = GetExchangeContext()->SendMessage(Protocols::SecureChannel::MsgType::StandaloneAck, std::move(msgBuf),
-                                            BitFlags<SendMessageFlags>{ SendMessageFlags::kNoAutoRequestAck });
-
-exit:
+    CHIP_ERROR err = GetExchangeContext()->SendMessage(Protocols::SecureChannel::MsgType::StandaloneAck, std::move(msgBuf),
+                                                       BitFlags<SendMessageFlags>{ SendMessageFlags::kNoAutoRequestAck });
     if (IsSendErrorNonCritical(err))
     {
-        ChipLogError(ExchangeManager, "Non-crit err %ld sending solitary ack", long(err));
-        err = CHIP_NO_ERROR;
+        ChipLogError(ExchangeManager, "Non-crit err %" CHIP_ERROR_FORMAT " sending solitary ack", ChipError::FormatError(err));
+        return CHIP_NO_ERROR;
     }
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(ExchangeManager, "Failed to send Solitary ack for MsgId:%08" PRIX32 ":%ld", mPendingPeerAckId, (long) err);
+        ChipLogError(ExchangeManager, "Failed to send Solitary ack for MsgId:%08" PRIX32 ":%" CHIP_ERROR_FORMAT, mPendingPeerAckId,
+                     ChipError::FormatError(err));
     }
 
     return err;
+}
+
+void ReliableMessageContext::SetPendingPeerAckId(uint32_t aPeerAckId)
+{
+    mPendingPeerAckId = aPeerAckId;
+    SetAckPending(true);
 }
 
 } // namespace Messaging

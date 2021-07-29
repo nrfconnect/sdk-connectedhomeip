@@ -307,7 +307,7 @@
  * consists of the final two bytes of the device's primary WiFi MAC address in hex.
  */
 #ifndef CHIP_DEVICE_CONFIG_WIFI_AP_SSID_PREFIX
-#define CHIP_DEVICE_CONFIG_WIFI_AP_SSID_PREFIX "CHIP-"
+#define CHIP_DEVICE_CONFIG_WIFI_AP_SSID_PREFIX "MATTER-"
 #endif
 
 /**
@@ -424,7 +424,7 @@
  * may need to be shorter.
  */
 #ifndef CHIP_DEVICE_CONFIG_BLE_DEVICE_NAME_PREFIX
-#define CHIP_DEVICE_CONFIG_BLE_DEVICE_NAME_PREFIX "CHIP-"
+#define CHIP_DEVICE_CONFIG_BLE_DEVICE_NAME_PREFIX "MATTER-"
 #endif
 
 /**
@@ -633,6 +633,15 @@
 #endif
 
 /**
+ * CHIP_DEVICE_CONFIG_MAX_DISCOVERED_NODES
+ *
+ * Maximum number of CHIP Commissioners or Commissionable Nodes that can be discovered
+ */
+#ifndef CHIP_DEVICE_CONFIG_MAX_DISCOVERED_NODES
+#define CHIP_DEVICE_CONFIG_MAX_DISCOVERED_NODES 10
+#endif
+
+/**
  * CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
  *
  * Enable support to DNS-SD SRP client usage for service advertising and discovery in CHIP.
@@ -648,6 +657,24 @@
  */
 #ifndef CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES
 #define CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES 3
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_ENABLE_THREAD_COMMISSIONABLE_DISCOVERY
+ *
+ * Enable support to Commissionable Discovery for Thread devices.
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_THREAD_COMMISSIONABLE_DISCOVERY
+#define CHIP_DEVICE_CONFIG_ENABLE_THREAD_COMMISSIONABLE_DISCOVERY 0
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_ENABLE_THREAD_DNS_CLIENT
+ *
+ * Enable support to DNS client usage for resolving and browsing services in CHIP.
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_THREAD_DNS_CLIENT
+#define CHIP_DEVICE_CONFIG_ENABLE_THREAD_DNS_CLIENT 0
 #endif
 
 // -------------------- Thread Configuration --------------------
@@ -1083,10 +1110,36 @@
  *
  * Enable or disable whether this device advertises as a commissioner.
  *
+ * Depends upon CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE set to 1
+ *
  * For Video Players, this value will be 1
  */
 #ifndef CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
 #define CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY 0
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
+ *
+ * Enable including commissioner code (CHIPDeviceController.cpp) in the commissionee (Server.cpp) code.
+ *
+ * For Video Players, this value will be 1
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
+#define CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE 0
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
+ *
+ * Enable or disable whether this device will attempt to
+ * discover commissioners and send Uder Directed Commissioning
+ * messages to them.
+ *
+ * For Video Player Clients, this value will be 1
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
+#define CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT 0
 #endif
 
 /**

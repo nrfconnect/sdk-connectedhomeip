@@ -28,6 +28,9 @@ shared_library("jni") {
     "AndroidBleConnectionDelegate.h",
     "AndroidBlePlatformDelegate.cpp",
     "AndroidBlePlatformDelegate.h",
+    "AndroidCallbacks-JNI.cpp",
+    "AndroidCallbacks.cpp",
+    "AndroidCallbacks.h",
     "AndroidDeviceControllerWrapper.cpp",
     "AndroidDeviceControllerWrapper.h",
     "AndroidKeyValueStoreManagerImpl.cpp",
@@ -37,12 +40,18 @@ shared_library("jni") {
     "JniReferences.cpp",
     "JniReferences.h",
     "JniTypeWrappers.h",
+    "MdnsImpl.cpp",
+    "MdnsImpl.h",
+    "StackLock.h",
+    "gen/CHIPClusters-JNI.cpp",
   ]
 
   deps = [
     "${chip_root}/src/controller/data_model",
     "${chip_root}/src/lib",
   ]
+
+  public_configs = [ "${chip_root}/src:includes" ]
 
   output_dir = "${root_out_dir}/lib/jni/${android_abi}"
 }
@@ -56,11 +65,17 @@ android_library("java") {
   ]
 
   sources = [
+    "gen/ChipClusters.java",
     "src/chip/devicecontroller/AndroidChipStack.java",
+    "src/chip/devicecontroller/ChipClusterException.java",
     "src/chip/devicecontroller/ChipCommandType.java",
     "src/chip/devicecontroller/ChipDeviceController.java",
     "src/chip/devicecontroller/ChipDeviceControllerException.java",
+    "src/chip/devicecontroller/GetConnectedDeviceCallbackJni.java",
     "src/chip/devicecontroller/KeyValueStoreManager.java",
+    "src/chip/devicecontroller/NsdManagerServiceResolver.java",
+    "src/chip/devicecontroller/PreferencesKeyValueStoreManager.java",
+    "src/chip/devicecontroller/ServiceResolver.java",
   ]
 
   javac_flags = [ "-Xlint:deprecation" ]

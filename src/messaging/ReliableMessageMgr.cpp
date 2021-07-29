@@ -51,7 +51,7 @@ void ReliableMessageMgr::Init(chip::System::Layer * systemLayer, SecureSessionMg
     mSystemLayer = systemLayer;
     mSessionMgr  = sessionMgr;
 
-    mTimeStampBase      = System::Timer::GetCurrentEpoch();
+    mTimeStampBase      = System::Clock::GetMonotonicMilliseconds();
     mCurrentTimerExpiry = 0;
 }
 
@@ -116,7 +116,6 @@ void ReliableMessageMgr::ExecuteActions()
 #endif
                 // Send the Ack in a SecureChannel::StandaloneAck message
                 rc->SendStandaloneAckMessage();
-                rc->SetAckPending(false);
             }
         }
     });
@@ -151,8 +150,8 @@ void ReliableMessageMgr::ExecuteActions()
         {
             err = CHIP_ERROR_MESSAGE_NOT_ACKNOWLEDGED;
 
-            ChipLogError(ExchangeManager, "Failed to Send CHIP MsgId:%08" PRIX32 " sendCount: %" PRIu8 " max retries: %" PRIu8,
-                         msgId, sendCount, CHIP_CONFIG_RMP_DEFAULT_MAX_RETRANS);
+            ChipLogError(ExchangeManager, "Failed to Send CHIP MsgId:%08" PRIX32 " sendCount: %" PRIu8 " max retries: %d", msgId,
+                         sendCount, CHIP_CONFIG_RMP_DEFAULT_MAX_RETRANS);
 
             // Remove from Table
             ClearRetransTable(entry);
@@ -189,7 +188,7 @@ static void TickProceed(uint16_t & time, uint64_t ticks)
 
 void ReliableMessageMgr::ExpireTicks()
 {
-    uint64_t now = System::Timer::GetCurrentEpoch();
+    uint64_t now = System::Clock::GetMonotonicMilliseconds();
 
     // Number of full ticks elapsed since last timer processing.  We always round down
     // to the previous tick.  If we are between tick boundaries, the extra time since the
@@ -235,7 +234,7 @@ void ReliableMessageMgr::ExpireTicks()
 #endif
 }
 
-void ReliableMessageMgr::Timeout(System::Layer * aSystemLayer, void * aAppState, System::Error aError)
+void ReliableMessageMgr::Timeout(System::Layer * aSystemLayer, void * aAppState, CHIP_ERROR aError)
 {
     ReliableMessageMgr * manager = reinterpret_cast<ReliableMessageMgr *>(aAppState);
 
@@ -300,7 +299,7 @@ void ReliableMessageMgr::StartRetransmision(RetransTableEntry * entry)
                    ChipLogError(ExchangeManager, "StartRetransmission was called for invalid entry"));
 
     entry->nextRetransTimeTick = static_cast<uint16_t>(entry->rc->GetInitialRetransmitTimeoutTick() +
-                                                       GetTickCounterFromTimeDelta(System::Timer::GetCurrentEpoch()));
+                                                       GetTickCounterFromTimeDelta(System::Clock::GetMonotonicMilliseconds()));
 
     // Check if the timer needs to be started and start it.
     StartTimer();
@@ -351,34 +350,35 @@ bool ReliableMessageMgr::CheckAndRemRetransTable(ReliableMessageContext * rc, ui
 
 CHIP_ERROR ReliableMessageMgr::SendFromRetransTable(RetransTableEntry * entry)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
     ReliableMessageContext * rc = entry->rc;
-    uint32_t msgId              = 0; // Not actually used unless we reach the
-                                     // line that initializes it properly.
-
-    VerifyOrReturnError(rc != nullptr, err);
-
-    // Now that we know this is a valid entry, grab the message id from the
-    // retained buffer.  We need to do that now, because we're about to hand it
-    // over to someone else, and on failure it will no longer be available.
-    msgId = entry->retainedBuf.GetMsgId();
+    if (rc == nullptr)
+    {
+        return CHIP_NO_ERROR;
+    }
 
     const ExchangeMessageDispatch * dispatcher = rc->GetExchangeContext()->GetMessageDispatch();
-    VerifyOrExit(dispatcher != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    if (dispatcher == nullptr)
+    {
+        // Using same error message for all errors to reduce code size.
+        ChipLogError(ExchangeManager, "Crit-err %" CHIP_ERROR_FORMAT " when sending CHIP MsgId:%08" PRIX32 ", send tries: %d",
+                     ChipError::FormatError(CHIP_ERROR_INCORRECT_STATE), entry->retainedBuf.GetMsgId(), entry->sendCount);
+        ClearRetransTable(*entry);
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
 
-    err =
-        dispatcher->ResendMessage(rc->GetExchangeContext()->GetSecureSession(), std::move(entry->retainedBuf), &entry->retainedBuf);
-    SuccessOrExit(err);
+    CHIP_ERROR err = dispatcher->SendPreparedMessage(rc->GetExchangeContext()->GetSecureSession(), entry->retainedBuf);
 
-    // Update the counters
-    entry->sendCount++;
-
-exit:
-    if (err != CHIP_NO_ERROR)
+    if (err == CHIP_NO_ERROR)
+    {
+        // Update the counters
+        entry->sendCount++;
+    }
+    else
     {
         // Remove from table
-        ChipLogError(ExchangeManager, "Crit-err %ld when sending CHIP MsgId:%08" PRIX32 ", send tries: %d", long(err), msgId,
-                     entry->sendCount);
+        // Using same error message for all errors to reduce code size.
+        ChipLogError(ExchangeManager, "Crit-err %" CHIP_ERROR_FORMAT " when sending CHIP MsgId:%08" PRIX32 ", send tries: %d",
+                     ChipError::FormatError(err), entry->retainedBuf.GetMsgId(), entry->sendCount);
 
         ClearRetransTable(*entry);
     }
@@ -470,18 +470,18 @@ void ReliableMessageMgr::StartTimer()
     if (foundWake)
     {
         // Set timer for next tick boundary - subtract the elapsed time from the current tick
-        System::Timer::Epoch timerExpiryEpoch = (nextWakeTimeTick << mTimerIntervalShift) + mTimeStampBase;
+        System::Clock::MonotonicMilliseconds timerExpiry = (nextWakeTimeTick << mTimerIntervalShift) + mTimeStampBase;
 
 #if defined(RMP_TICKLESS_DEBUG)
         ChipLogDetail(ExchangeManager, "ReliableMessageMgr::StartTimer wake at %" PRIu64 " ms (%" PRIu64 " %" PRIu64 ")",
-                      timerExpiryEpoch, nextWakeTimeTick, mTimeStampBase);
+                      timerExpiry, nextWakeTimeTick, mTimeStampBase);
 #endif
-        if (timerExpiryEpoch != mCurrentTimerExpiry)
+        if (timerExpiry != mCurrentTimerExpiry)
         {
             // If the tick boundary has expired in the past (delayed processing of event due to other system activity),
             // expire the timer immediately
-            uint64_t now           = System::Timer::GetCurrentEpoch();
-            uint64_t timerArmValue = (timerExpiryEpoch > now) ? timerExpiryEpoch - now : 0;
+            uint64_t now           = System::Clock::GetMonotonicMilliseconds();
+            uint64_t timerArmValue = (timerExpiry > now) ? timerExpiry - now : 0;
 
 #if defined(RMP_TICKLESS_DEBUG)
             ChipLogDetail(ExchangeManager, "ReliableMessageMgr::StartTimer set timer for %" PRIu64, timerArmValue);
@@ -490,19 +490,20 @@ void ReliableMessageMgr::StartTimer()
             res = mSystemLayer->StartTimer((uint32_t) timerArmValue, Timeout, this);
 
             VerifyOrDieWithMsg(res == CHIP_NO_ERROR, ExchangeManager, "Cannot start ReliableMessageMgr::Timeout\n");
-            mCurrentTimerExpiry = timerExpiryEpoch;
+            mCurrentTimerExpiry = timerExpiry;
 #if defined(RMP_TICKLESS_DEBUG)
         }
         else
         {
-            ChipLogDetail(ExchangeManager, "ReliableMessageMgr::StartTimer timer already set for %" PRIu64, timerExpiryEpoch);
+            ChipLogDetail(ExchangeManager, "ReliableMessageMgr::StartTimer timer already set for %" PRIu64, timerExpiry);
 #endif
         }
     }
     else
     {
 #if defined(RMP_TICKLESS_DEBUG)
-        ChipLogDetail(ExchangeManager, "Not setting ReliableMessageProtocol timeout at %" PRIu64, System::Timer::GetCurrentEpoch());
+        ChipLogDetail(ExchangeManager, "Not setting ReliableMessageProtocol timeout at %" PRIu64,
+                      System::Clock::GetMonotonicMilliseconds());
 #endif
         StopTimer();
     }

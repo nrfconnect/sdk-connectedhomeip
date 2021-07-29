@@ -27,6 +27,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "shell_extension/launch.h"
 #include <app/server/Server.h>
 
 #include <cmath>
@@ -35,6 +36,12 @@
 #include <vector>
 
 #include <support/ErrorStr.h>
+
+#if CONFIG_ENABLE_PW_RPC
+#include "PigweedLogger.h"
+#include "Rpc.h"
+#endif
+
 using namespace ::chip;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
@@ -45,39 +52,41 @@ static DeviceCallbacks EchoCallbacks;
 
 extern "C" void app_main()
 {
-    int err = 0;
     // Initialize the ESP NVS layer.
-    err = nvs_flash_init();
-    if (err != CHIP_NO_ERROR)
+    esp_err_t err = nvs_flash_init();
+    if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "nvs_flash_init() failed: %s", ErrorStr(err));
+        ESP_LOGE(TAG, "nvs_flash_init() failed: %s", esp_err_to_name(err));
         return;
     }
+
+#if CONFIG_ENABLE_PW_RPC
+    chip::rpc::Init();
+#endif
 
     ESP_LOGI(TAG, "==================================================");
     ESP_LOGI(TAG, "chip-esp32-lock-example starting");
     ESP_LOGI(TAG, "==================================================");
 
+#if CONFIG_ENABLE_CHIP_SHELL
+    chip::LaunchShell();
+#endif
+
     CHIPDeviceManager & deviceMgr = CHIPDeviceManager::GetInstance();
 
-    err = deviceMgr.Init(&EchoCallbacks);
-    if (err != CHIP_NO_ERROR)
+    CHIP_ERROR error = deviceMgr.Init(&EchoCallbacks);
+    if (error != CHIP_NO_ERROR)
     {
-        ESP_LOGE(TAG, "device.Init() failed: %s", ErrorStr(err));
+        ESP_LOGE(TAG, "device.Init() failed: %s", ErrorStr(error));
         return;
     }
 
     InitServer();
 
     ESP_LOGI(TAG, "------------------------Starting App Task---------------------------");
-    err = GetAppTask().StartAppTask();
-    if (err != CHIP_NO_ERROR)
+    error = GetAppTask().StartAppTask();
+    if (error != CHIP_NO_ERROR)
     {
-        ESP_LOGE(TAG, "GetAppTask().Init() failed");
-    }
-
-    while (true)
-    {
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        ESP_LOGE(TAG, "GetAppTask().Init() failed: %s", ErrorStr(error));
     }
 }

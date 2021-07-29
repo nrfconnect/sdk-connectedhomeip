@@ -26,19 +26,21 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import chip.devicecontroller.ChipDeviceController
+import chip.devicecontroller.NsdManagerServiceResolver
 import chip.setuppayload.SetupPayloadParser.UnrecognizedQrCodeException
 import com.google.chip.chiptool.attestation.AttestationTestFragment
-import com.google.chip.chiptool.clusterclient.OnOffClientFragment
 import com.google.chip.chiptool.echoclient.EchoClientFragment
 import com.google.chip.chiptool.provisioning.DeviceProvisioningFragment
 import com.google.chip.chiptool.provisioning.ProvisionNetworkType
 import com.google.chip.chiptool.setuppayloadscanner.BarcodeFragment
 import com.google.chip.chiptool.setuppayloadscanner.CHIPDeviceDetailsFragment
 import com.google.chip.chiptool.setuppayloadscanner.CHIPDeviceInfo
-import com.google.chip.chiptool.setuppayloadscanner.QrCodeInfo
-import chip.devicecontroller.KeyValueStoreManager
+import chip.devicecontroller.PreferencesKeyValueStoreManager
 import chip.setuppayload.SetupPayload
 import chip.setuppayload.SetupPayloadParser
+import com.google.chip.chiptool.clusterclient.OnOffClientFragment
+import com.google.chip.chiptool.clusterclient.SensorClientFragment
 
 class CHIPToolActivity :
     AppCompatActivity(),
@@ -52,9 +54,9 @@ class CHIPToolActivity :
     super.onCreate(savedInstanceState)
     setContentView(R.layout.top_activity)
 
-    KeyValueStoreManager.initialize(this);
-
     if (savedInstanceState == null) {
+      ChipDeviceController.setKeyValueStoreManager(PreferencesKeyValueStoreManager(this))
+      ChipDeviceController.setServiceResolver(NsdManagerServiceResolver(this))
       val fragment = SelectActionFragment.newInstance()
       supportFragmentManager
           .beginTransaction()
@@ -113,6 +115,10 @@ class CHIPToolActivity :
     showFragment(OnOffClientFragment.newInstance())
   }
 
+  override fun handleSensorClicked() {
+    showFragment(SensorClientFragment.newInstance())
+  }
+
   override fun handleAttestationTestClicked() {
     showFragment(AttestationTestFragment.newInstance())
   }
@@ -146,9 +152,9 @@ class CHIPToolActivity :
     val records = (messages[0] as NdefMessage).records
     if (records.size != 1) return
 
-    // Require NDEF URI record starting with "ch:"
+    // Require NDEF URI record starting with "mt:"
     val uri = records[0].toUri()
-    if (!uri?.scheme.equals("ch", true)) return
+    if (!uri?.scheme.equals("mt", true)) return
 
     lateinit var setupPayload: SetupPayload
     try {
@@ -160,14 +166,7 @@ class CHIPToolActivity :
       return
     }
 
-    val deviceInfo = CHIPDeviceInfo(
-        setupPayload.version,
-        setupPayload.vendorId,
-        setupPayload.productId,
-        setupPayload.discriminator,
-        setupPayload.setupPinCode,
-        setupPayload.optionalQRCodeInfo.mapValues { (_, info) -> QrCodeInfo(info.tag, info.type, info.data, info.int32) }
-    )
+    val deviceInfo = CHIPDeviceInfo.fromSetupPayload(setupPayload)
 
     val buttons = arrayOf(
         getString(R.string.nfc_tag_action_show),

@@ -108,7 +108,7 @@ void TestGetProduct(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, GetProduct(GetSpan(vp)) == 0);
 
     // overflow a uint16
-    sprintf(vp, "123+%u", static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
+    sprintf(vp, "123+%" PRIu32, static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
     NL_TEST_ASSERT(inSuite, GetProduct(GetSpan(vp)) == 0);
 }
 void TestGetVendor(nlTestSuite * inSuite, void * inContext)
@@ -128,7 +128,7 @@ void TestGetVendor(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, GetVendor(GetSpan(vp)) == 123);
 
     // overflow a uint16
-    sprintf(vp, "%u+456", static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
+    sprintf(vp, "%" PRIu32 "+456", static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
     NL_TEST_ASSERT(inSuite, GetVendor(GetSpan(vp)) == 0);
 }
 
@@ -139,7 +139,7 @@ void TestGetLongDiscriminator(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, GetLongDisriminator(GetSpan(ld)) == 1234);
 
     // overflow a uint16
-    sprintf(ld, "%u", static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
+    sprintf(ld, "%" PRIu32, static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
     printf("ld = %s\n", ld);
     NL_TEST_ASSERT(inSuite, GetLongDisriminator(GetSpan(ld)) == 0);
 }
@@ -176,7 +176,7 @@ void TestGetDeviceType(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, GetDeviceType(GetSpan(dt)) == 1234);
 
     // overflow a uint16
-    sprintf(dt, "%u", static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
+    sprintf(dt, "%" PRIu32, static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
     NL_TEST_ASSERT(inSuite, GetDeviceType(GetSpan(dt)) == 0);
 }
 
@@ -249,7 +249,7 @@ void TestGetPairingHint(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, GetPairingHint(GetSpan(ph)) == 9);
 
     // overflow a uint16
-    sprintf(ph, "%u", static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
+    sprintf(ph, "%" PRIu32, static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()) + 1);
     NL_TEST_ASSERT(inSuite, GetPairingHint(GetSpan(ph)) == 0);
 }
 
@@ -279,7 +279,7 @@ void TestGetPairingInstruction(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, strcmp(ret, data) == 0);
 }
 
-bool NodeDataIsEmpty(const CommissionableNodeData & node)
+bool NodeDataIsEmpty(const DiscoveredNodeData & node)
 {
 
     if (node.longDiscriminator != 0 || node.vendorId != 0 || node.productId != 0 || node.additionalPairing != 0 ||
@@ -291,7 +291,7 @@ bool NodeDataIsEmpty(const CommissionableNodeData & node)
     {
         return false;
     }
-    for (size_t i = 0; i < sizeof(CommissionableNodeData::rotatingId); ++i)
+    for (size_t i = 0; i < sizeof(DiscoveredNodeData::rotatingId); ++i)
     {
         if (node.rotatingId[i] != 0)
         {
@@ -306,7 +306,7 @@ void TestFillNodeDataFromTxt(nlTestSuite * inSuite, void * inContext)
 {
     char key[3];
     char val[16];
-    CommissionableNodeData filled;
+    DiscoveredNodeData filled;
 
     // Long discriminator
     sprintf(key, "D");

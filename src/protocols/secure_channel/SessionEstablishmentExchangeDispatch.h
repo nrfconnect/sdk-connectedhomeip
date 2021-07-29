@@ -43,11 +43,12 @@ public:
         return ExchangeMessageDispatch::Init();
     }
 
-    CHIP_ERROR ResendMessage(SecureSessionHandle session, EncryptedPacketBufferHandle && message,
-                             EncryptedPacketBufferHandle * retainedMessage) const override;
+    CHIP_ERROR PrepareMessage(SecureSessionHandle session, PayloadHeader & payloadHeader, System::PacketBufferHandle && message,
+                              EncryptedPacketBufferHandle & out) override;
+    CHIP_ERROR SendPreparedMessage(SecureSessionHandle session, const EncryptedPacketBufferHandle & preparedMessage) const override;
 
-    CHIP_ERROR OnMessageReceived(const PayloadHeader & payloadHeader, uint32_t messageId,
-                                 const Transport::PeerAddress & peerAddress,
+    CHIP_ERROR OnMessageReceived(const Header::Flags & headerFlags, const PayloadHeader & payloadHeader, uint32_t messageId,
+                                 const Transport::PeerAddress & peerAddress, Messaging::MessageFlags msgFlags,
                                  Messaging::ReliableMessageContext * reliableMessageContext) override;
 
     const Transport::PeerAddress & GetPeerAddress() const { return mPeerAddress; }
@@ -55,16 +56,15 @@ public:
     void SetPeerAddress(const Transport::PeerAddress & address) { mPeerAddress = address; }
 
 protected:
-    CHIP_ERROR SendMessageImpl(SecureSessionHandle session, PayloadHeader & payloadHeader, System::PacketBufferHandle && message,
-                               EncryptedPacketBufferHandle * retainedMessage) override;
-
     bool MessagePermitted(uint16_t protocol, uint8_t type) override;
 
-    bool IsReliableTransmissionAllowed() override
+    bool IsReliableTransmissionAllowed() const override
     {
         // If the underlying transport is UDP.
         return (mPeerAddress.GetTransportType() == Transport::Type::kUdp);
     }
+
+    bool IsEncryptionRequired() const override { return false; }
 
 private:
     TransportMgrBase * mTransportMgr = nullptr;

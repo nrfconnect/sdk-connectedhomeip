@@ -77,12 +77,12 @@ bool ToolChipDN::SetCertSubjectDN(X509 * cert) const
 
             if (IsChip64bitDNAttr(rdn[i].mAttrOID))
             {
-                snprintf(chipAttrStr, sizeof(chipAttrStr), "%016" PRIX64 "", rdn[i].mAttrValue.mChipVal);
+                snprintf(chipAttrStr, sizeof(chipAttrStr), "%016" PRIX64 "", rdn[i].mChipVal);
                 chipAttrLen = 16;
             }
             else
             {
-                snprintf(chipAttrStr, sizeof(chipAttrStr), "%08" PRIX32 "", static_cast<uint32_t>(rdn[i].mAttrValue.mChipVal));
+                snprintf(chipAttrStr, sizeof(chipAttrStr), "%08" PRIX32 "", static_cast<uint32_t>(rdn[i].mChipVal));
                 chipAttrLen = 8;
             }
 
@@ -95,8 +95,8 @@ bool ToolChipDN::SetCertSubjectDN(X509 * cert) const
         else
         {
             if (!X509_NAME_add_entry_by_NID(X509_get_subject_name(cert), attrNID, MBSTRING_UTF8,
-                                            (unsigned char *) rdn[i].mAttrValue.mString.mValue,
-                                            (int) rdn[i].mAttrValue.mString.mLen, -1, 0))
+                                            const_cast<uint8_t *>(rdn[i].mString.data()), static_cast<int>(rdn[i].mString.size()),
+                                            -1, 0))
             {
                 ReportOpenSSLErrorAndExit("X509_NAME_add_entry_by_NID", res = false);
             }
@@ -134,20 +134,20 @@ void ToolChipDN::PrintDN(FILE * file, const char * name) const
     {
         if (IsChip64bitDNAttr(rdn[i].mAttrOID))
         {
-            snprintf(valueStr, sizeof(valueStr), "%016" PRIX64, rdn[i].mAttrValue.mChipVal);
+            snprintf(valueStr, sizeof(valueStr), "%016" PRIX64, rdn[i].mChipVal);
         }
         else if (IsChip32bitDNAttr(rdn[i].mAttrOID))
         {
-            snprintf(valueStr, sizeof(valueStr), "%08" PRIX32, static_cast<uint32_t>(rdn[i].mAttrValue.mChipVal));
+            snprintf(valueStr, sizeof(valueStr), "%08" PRIX32, static_cast<uint32_t>(rdn[i].mChipVal));
         }
         else
         {
-            uint32_t len = rdn[i].mAttrValue.mString.mLen;
+            size_t len = rdn[i].mString.size();
             if (len > sizeof(valueStr) - 1)
             {
                 len = sizeof(valueStr) - 1;
             }
-            memcpy(valueStr, rdn[i].mAttrValue.mString.mValue, len);
+            memcpy(valueStr, rdn[i].mString.data(), len);
             valueStr[len] = 0;
         }
 
@@ -163,10 +163,10 @@ namespace {
 
 CertFormat DetectCertFormat(uint8_t * cert, uint32_t certLen)
 {
-    static const uint8_t chipRawPrefix[]   = { 0xD5, 0x00, 0x00, 0x08, 0x00, 0x01, 0x00 };
-    static const char * chipB64Prefix      = "1QAACAAB";
-    static const uint32_t chipB64PrefixLen = sizeof(chipB64Prefix) - 1;
-    static const char * pemMarker          = "-----BEGIN CERTIFICATE-----";
+    static const uint8_t chipRawPrefix[] = { 0x15, 0x30, 0x01 };
+    static const char * chipB64Prefix    = "FTABC";
+    static const size_t chipB64PrefixLen = strlen(chipB64Prefix);
+    static const char * pemMarker        = "-----BEGIN CERTIFICATE-----";
 
     if (certLen > sizeof(chipRawPrefix) && memcmp(cert, chipRawPrefix, sizeof(chipRawPrefix)) == 0)
     {
@@ -216,8 +216,10 @@ bool SetCertTimeField(ASN1_TIME * asn1Time, const struct tm & value)
     char timeStr[16];
 
     // Encode the time as a string in the form YYYYMMDDHHMMSSZ.
-    snprintf(timeStr, sizeof(timeStr), "%04d%02d%02d%02d%02d%02dZ", static_cast<uint16_t>(value.tm_year + 1900) % 9999,
-             static_cast<uint8_t>(value.tm_mon) % kMonthsPerYear + 1, static_cast<uint8_t>(value.tm_mday) % kMaxDaysPerMonth,
+    snprintf(timeStr, sizeof(timeStr), "%04d%02d%02d%02d%02d%02dZ",
+             (value.tm_year == kX509NoWellDefinedExpirationDateYear) ? kX509NoWellDefinedExpirationDateYear
+                                                                     : (static_cast<uint16_t>(value.tm_year + 1900) % 9999),
+             static_cast<uint8_t>(value.tm_mon) % kMonthsPerYear + 1, static_cast<uint8_t>(value.tm_mday) % (kMaxDaysPerMonth + 1),
              static_cast<uint8_t>(value.tm_hour) % kHoursPerDay, static_cast<uint8_t>(value.tm_min) % kMinutesPerHour,
              static_cast<uint8_t>(value.tm_sec) % kSecondsPerMinute);
 
@@ -250,17 +252,31 @@ bool SetValidityTime(X509 * cert, const struct tm & validFrom, uint32_t validDay
     // Note that this computation is done in local time, despite the fact that the certificate validity times are
     // UTC.  This is because the standard posix time functions do not make it easy to convert a struct tm containing
     // UTC to a time_t value without manipulating the TZ environment variable.
-    validTo = validFrom;
-    validTo.tm_mday += validDays;
-    validTo.tm_sec -= 1; // Ensure validity period is exactly a multiple of a day.
-    validTo.tm_isdst = -1;
-    validToTime      = mktime(&validTo);
-    if (validToTime == static_cast<time_t>(-1))
+    if (validDays == kCertValidDays_NoWellDefinedExpiration)
     {
-        fprintf(stderr, "mktime() failed\n");
-        ExitNow(res = false);
+        validTo.tm_year  = kX509NoWellDefinedExpirationDateYear;
+        validTo.tm_mon   = kMonthsPerYear - 1;
+        validTo.tm_mday  = kMaxDaysPerMonth;
+        validTo.tm_hour  = kHoursPerDay - 1;
+        validTo.tm_min   = kMinutesPerHour - 1;
+        validTo.tm_sec   = kSecondsPerMinute - 1;
+        validTo.tm_isdst = -1;
     }
-    localtime_r(&validToTime, &validTo);
+    else
+    {
+        validTo = validFrom;
+        validTo.tm_mday += validDays;
+        validTo.tm_sec -= 1; // Ensure validity period is exactly a multiple of a day.
+        validTo.tm_isdst = -1;
+        validToTime      = mktime(&validTo);
+
+        if (validToTime == static_cast<time_t>(-1))
+        {
+            fprintf(stderr, "mktime() failed\n");
+            ExitNow(res = false);
+        }
+        localtime_r(&validToTime, &validTo);
+    }
 
     // Set the certificate's notBefore date.
     res = SetCertTimeField(X509_get_notBefore(cert), validFrom);
@@ -383,7 +399,7 @@ bool ReadCert(const char * fileName, X509 * cert, CertFormat & certFmt)
     CHIP_ERROR err    = CHIP_NO_ERROR;
     const uint8_t * p = nullptr;
     uint32_t certLen  = 0;
-    std::unique_ptr<uint8_t[]> x509CertBuf(new uint8_t[kMaxX509CertBufSize]);
+    std::unique_ptr<uint8_t[]> x509CertBuf(new uint8_t[kMaxDERCertLength]);
     std::unique_ptr<uint8_t[]> certBuf;
 
     res = ReadFileIntoMem(fileName, nullptr, certLen);
@@ -411,7 +427,7 @@ bool ReadCert(const char * fileName, X509 * cert, CertFormat & certFmt)
 
         if (certFmt == kCertFormat_Chip_Base64 || certFmt == kCertFormat_Chip_Raw)
         {
-            err = ConvertChipCertToX509Cert(certBuf.get(), certLen, x509CertBuf.get(), kMaxX509CertBufSize, certLen);
+            err = ConvertChipCertToX509Cert(ByteSpan(certBuf.get(), certLen), x509CertBuf.get(), kMaxDERCertLength, certLen);
             if (err != CHIP_NO_ERROR)
             {
                 fprintf(stderr, "Error converting certificate: %s\n", chip::ErrorStr(err));
@@ -448,7 +464,9 @@ bool X509ToChipCert(X509 * cert, uint8_t * certBuf, uint32_t certBufSize, uint32
         ReportOpenSSLErrorAndExit("i2d_X509", res = false);
     }
 
-    err = ConvertX509CertToChipCert(derCert, static_cast<uint32_t>(derCertLen), certBuf, certBufSize, certLen);
+    VerifyOrReturnError(chip::CanCastTo<uint32_t>(derCertLen), false);
+
+    err = ConvertX509CertToChipCert(ByteSpan(derCert, static_cast<uint32_t>(derCertLen)), certBuf, certBufSize, certLen);
     if (err != CHIP_NO_ERROR)
     {
         fprintf(stderr, "ConvertX509CertToChipCert() failed\n%s\n", chip::ErrorStr(err));
@@ -521,7 +539,7 @@ bool WriteCert(const char * fileName, X509 * cert, CertFormat certFmt)
     {
         uint8_t * certToWrite      = nullptr;
         uint32_t certToWriteLen    = 0;
-        uint32_t chipCertLen       = kMaxChipCertBufSize;
+        uint32_t chipCertLen       = kMaxCHIPCertLength;
         uint32_t chipCertBase64Len = BASE64_ENCODED_LEN(chipCertLen);
         std::unique_ptr<uint8_t[]> chipCert(new uint8_t[chipCertLen]);
         std::unique_ptr<uint8_t[]> chipCertBase64(new uint8_t[chipCertBase64Len]);
@@ -601,7 +619,7 @@ bool MakeCert(uint8_t certType, const ToolChipDN * subjectDN, X509 * caCert, EVP
     if (certType == kCertType_Node)
     {
         res = AddExtension(newCert, NID_basic_constraints, "critical,CA:FALSE") &&
-            AddExtension(newCert, NID_key_usage, "critical,digitalSignature,keyEncipherment") &&
+            AddExtension(newCert, NID_key_usage, "critical,digitalSignature") &&
             AddExtension(newCert, NID_ext_key_usage, "critical,clientAuth,serverAuth");
     }
     else if (certType == kCertType_FirmwareSigning)
@@ -669,6 +687,112 @@ bool ResignCert(X509 * cert, X509 * caCert, EVP_PKEY * caKey)
     VerifyTrueOrExit(res);
 
     if (!X509_sign(cert, caKey, EVP_sha256()))
+    {
+        ReportOpenSSLErrorAndExit("X509_sign", res = false);
+    }
+
+exit:
+    return res;
+}
+
+bool MakeAttCert(AttCertType attCertType, const char * subjectCN, uint16_t subjectVID, uint16_t subjectPID, X509 * caCert,
+                 EVP_PKEY * caKey, const struct tm & validFrom, uint32_t validDays, X509 * newCert, EVP_PKEY * newKey)
+{
+    bool res = true;
+
+    VerifyOrReturnError(subjectCN != nullptr, false);
+    VerifyOrReturnError(caCert != nullptr, false);
+    VerifyOrReturnError(caKey != nullptr, false);
+    VerifyOrReturnError(newCert != nullptr, false);
+    VerifyOrReturnError(newKey != nullptr, false);
+
+    // Set the certificate version (must be 2, a.k.a. v3).
+    if (!X509_set_version(newCert, 2))
+    {
+        ReportOpenSSLErrorAndExit("X509_set_version", res = false);
+    }
+
+    // Generate a serial number for the cert.
+    res = SetCertSerialNumber(newCert);
+    VerifyTrueOrExit(res);
+
+    // Set the certificate validity time.
+    res = SetValidityTime(newCert, validFrom, validDays);
+    VerifyTrueOrExit(res);
+
+    // Set the certificate's public key.
+    if (!X509_set_pubkey(newCert, newKey))
+    {
+        ReportOpenSSLErrorAndExit("X509_set_pubkey", res = false);
+    }
+
+    // Add common name attribute to the certificate subject DN.
+    if (!X509_NAME_add_entry_by_NID(X509_get_subject_name(newCert), NID_commonName, MBSTRING_UTF8,
+                                    reinterpret_cast<unsigned char *>(const_cast<char *>(subjectCN)),
+                                    static_cast<int>(strlen(subjectCN)), -1, 0))
+    {
+        ReportOpenSSLErrorAndExit("X509_NAME_add_entry_by_NID", res = false);
+    }
+
+    // Add VID attribute to the certificate subject DN.
+    if (subjectVID != 0)
+    {
+        char chipAttrStr[5];
+
+        snprintf(chipAttrStr, sizeof(chipAttrStr), "%04" PRIX16 "", subjectVID);
+
+        if (!X509_NAME_add_entry_by_NID(X509_get_subject_name(newCert), gNIDChipAttAttrVID, MBSTRING_UTF8,
+                                        reinterpret_cast<unsigned char *>(chipAttrStr), 4, -1, 0))
+        {
+            ReportOpenSSLErrorAndExit("X509_NAME_add_entry_by_NID", res = false);
+        }
+    }
+
+    // Add PID attribute to the certificate subject DN.
+    if (subjectPID != 0)
+    {
+        char chipAttrStr[5];
+
+        snprintf(chipAttrStr, sizeof(chipAttrStr), "%04" PRIX16 "", subjectPID);
+
+        if (!X509_NAME_add_entry_by_NID(X509_get_subject_name(newCert), gNIDChipAttAttrPID, MBSTRING_UTF8,
+                                        reinterpret_cast<unsigned char *>(chipAttrStr), 4, -1, 0))
+        {
+            ReportOpenSSLErrorAndExit("X509_NAME_add_entry_by_NID", res = false);
+        }
+    }
+
+    // Set the issuer name for the certificate. In the case of a self-signed cert, this will be
+    // the new cert's subject name.
+    if (!X509_set_issuer_name(newCert, X509_get_subject_name(caCert)))
+    {
+        ReportOpenSSLErrorAndExit("X509_set_issuer_name", res = false);
+    }
+
+    // Add the appropriate certificate extensions.
+    if (attCertType == kAttCertType_DAC)
+    {
+        res = AddExtension(newCert, NID_basic_constraints, "critical,CA:FALSE") &&
+            AddExtension(newCert, NID_key_usage, "critical,digitalSignature");
+    }
+    // otherwise, it is PAI or PAA
+    else
+    {
+        res = AddExtension(newCert, NID_basic_constraints, "critical,CA:TRUE") &&
+            AddExtension(newCert, NID_key_usage, "critical,keyCertSign,cRLSign");
+    }
+    VerifyTrueOrExit(res);
+
+    // Add a subject key id extension for the certificate.
+    res = AddSubjectKeyId(newCert);
+    VerifyTrueOrExit(res);
+
+    // Add the authority key id extension from the signing certificate.
+    res = AddAuthorityKeyId(newCert, caCert);
+    VerifyTrueOrExit(res);
+
+    // Sign the new certificate.
+    if (!X509_sign(newCert, caKey, EVP_sha256()))
     {
         ReportOpenSSLErrorAndExit("X509_sign", res = false);
     }

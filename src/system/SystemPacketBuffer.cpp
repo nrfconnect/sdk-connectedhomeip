@@ -98,7 +98,9 @@ PacketBuffer * PacketBuffer::BuildFreeList()
         lHead          = lCursor;
     }
 
+#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
     Mutex::Init(sBufferPoolMutex);
+#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
 
     return static_cast<PacketBuffer *>(lHead);
 }
@@ -464,7 +466,7 @@ PacketBufferHandle PacketBufferHandle::New(size_t aAvailableSize, uint16_t aRese
 #if CHIP_SYSTEM_PACKETBUFFER_STORE == CHIP_SYSTEM_PACKETBUFFER_STORE_LWIP_POOL ||                                                  \
     CHIP_SYSTEM_PACKETBUFFER_STORE == CHIP_SYSTEM_PACKETBUFFER_STORE_LWIP_CUSTOM
 
-    lPacket = static_cast<PacketBuffer *>(pbuf_alloc(PBUF_RAW, static_cast<uint16_t>(lBlockSize), PBUF_POOL));
+    lPacket = static_cast<PacketBuffer *>(pbuf_alloc(PBUF_RAW, static_cast<uint16_t>(lAllocSize), PBUF_POOL));
 
     SYSTEM_STATS_UPDATE_LWIP_PBUF_COUNTS();
 
@@ -643,7 +645,22 @@ PacketBufferHandle PacketBufferHandle::CloneData() const
     {
         uint16_t originalDataSize     = original->MaxDataLength();
         uint16_t originalReservedSize = original->ReservedSize();
-        PacketBufferHandle clone      = PacketBufferHandle::New(originalDataSize, originalReservedSize);
+
+        if (originalDataSize + originalReservedSize > PacketBuffer::kMaxSizeWithoutReserve)
+        {
+            // The original memory allocation may have provided a larger block than requested (e.g. when using a shared pool),
+            // and in particular may have provided a larger block than we are able to request from PackBufferHandle::New().
+            // It is a genuine error if that extra space has been used.
+            if (originalReservedSize + original->DataLength() > PacketBuffer::kMaxSizeWithoutReserve)
+            {
+                return PacketBufferHandle();
+            }
+            // Otherwise, reduce the requested data size. This subtraction can not underflow because the above test
+            // guarantees originalReservedSize <= PacketBuffer::kMaxSizeWithoutReserve.
+            originalDataSize = static_cast<uint16_t>(PacketBuffer::kMaxSizeWithoutReserve - originalReservedSize);
+        }
+
+        PacketBufferHandle clone = PacketBufferHandle::New(originalDataSize, originalReservedSize);
         if (clone.IsNull())
         {
             return PacketBufferHandle();

@@ -41,7 +41,7 @@
 
 #include "messaging-server.h"
 #include "../../include/af.h"
-#include <app/Command.h>
+#include <app/CommandHandler.h>
 
 using namespace chip;
 
@@ -86,7 +86,7 @@ void emberAfMessagingClusterServerInitCallback(EndpointId endpoint)
     msgTable[ep].messageStatusControl &= ~VALID;
 }
 
-bool emberAfMessagingClusterGetLastMessageCallback(chip::app::Command * commandObj)
+bool emberAfMessagingClusterGetLastMessageCallback(chip::app::CommandHandler * commandObj)
 {
     EndpointId endpoint = emberAfCurrentEndpoint();
     EmberAfPluginMessagingServerMessage message;
@@ -109,10 +109,10 @@ bool emberAfMessagingClusterGetLastMessageCallback(chip::app::Command * commandO
 #if defined(EMBER_AF_HAS_SPEC_VERSIONS_SE_1_0) || defined(EMBER_AF_HAS_SPEC_VERSIONS_SE_1_1B) ||                                   \
     defined(EMBER_AF_HAS_SPEC_VERSIONS_SE_1_0) || defined(EMBER_AF_HAS_SPEC_VERSIONS_SE_1_1) ||                                    \
     defined(EMBER_AF_HAS_SPEC_VERSIONS_SE_1_1A)
-bool emberAfMessagingClusterMessageConfirmationCallback(chip::app::Command * commandObj, uint32_t messageId,
+bool emberAfMessagingClusterMessageConfirmationCallback(chip::app::CommandHandler * commandObj, uint32_t messageId,
                                                         uint32_t confirmationTime)
 #else
-bool emberAfMessagingClusterMessageConfirmationCallback(chip::app::Command * commandObj, uint32_t messageId,
+bool emberAfMessagingClusterMessageConfirmationCallback(chip::app::CommandHandler * commandObj, uint32_t messageId,
                                                         uint32_t confirmationTime, uint8_t messageConfirmationControl,
                                                         uint8_t * messageResponse)
 #endif
@@ -226,7 +226,7 @@ void emberAfPluginMessagingServerDisplayMessage(EmberNodeId nodeId, uint8_t srcE
                               message.startTime, message.durationInMinutes, message.message, message.extendedMessageControl);
     emberAfSetCommandEndpoints(srcEndpoint, dstEndpoint);
     emberAfGetCommandApsFrame()->options |= EMBER_APS_OPTION_SOURCE_EUI64;
-    status = emberAfSendCommandUnicast(EMBER_OUTGOING_DIRECT, nodeId);
+    status = emberAfSendCommandUnicast(MessageSendDestination::Direct(nodeId));
     if (status != EMBER_SUCCESS)
     {
         emberAfMessagingClusterPrintln("Error in display %x", status);
@@ -248,7 +248,7 @@ void emberAfPluginMessagingServerCancelMessage(EmberNodeId nodeId, uint8_t srcEn
                               ZCL_CANCEL_MESSAGE_COMMAND_ID, "wu", message.messageId, message.messageControl);
     emberAfSetCommandEndpoints(srcEndpoint, dstEndpoint);
     emberAfGetCommandApsFrame()->options |= EMBER_APS_OPTION_SOURCE_EUI64;
-    status = emberAfSendCommandUnicast(EMBER_OUTGOING_DIRECT, nodeId);
+    status = emberAfSendCommandUnicast(MessageSendDestination::Direct(nodeId));
     if (status != EMBER_SUCCESS)
     {
         emberAfMessagingClusterPrintln("Error in cancel %x", status);

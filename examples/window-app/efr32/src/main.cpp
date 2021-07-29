@@ -79,6 +79,11 @@ void appError(int err)
         ;
 }
 
+void appError(CHIP_ERROR error)
+{
+    appError(static_cast<int>(chip::ChipError::AsInteger(error)));
+}
+
 // ================================================================================
 // FreeRTOS Callbacks
 // ================================================================================
@@ -95,8 +100,6 @@ extern "C" void vApplicationIdleHook(void)
 // ================================================================================
 int main(void)
 {
-    int ret = CHIP_ERROR_MAX;
-
     init_efrPlatform();
 
 #if PW_RPC_ENABLED
@@ -104,9 +107,6 @@ int main(void)
 #endif
 
     mbedtls_platform_set_calloc_free(CHIPPlatformMemoryCalloc, CHIPPlatformMemoryFree);
-
-    // Initialize mbedtls threading support on EFR32
-    THREADING_setup();
 
     EFR32_LOG("==================================================");
     EFR32_LOG("chip-efr32-window-cover-example starting");
@@ -118,13 +118,22 @@ int main(void)
     chip::Platform::MemoryInit();
     chip::DeviceLayer::PersistedStorage::KeyValueStoreMgrImpl().Init();
 
-    ret = PlatformMgr().InitChipStack();
+    CHIP_ERROR ret = PlatformMgr().InitChipStack();
     if (ret != CHIP_NO_ERROR)
     {
         EFR32_LOG("PlatformMgr().InitChipStack() failed");
         appError(ret);
     }
     chip::DeviceLayer::ConnectivityMgr().SetBLEDeviceName("EFR32_WINDOW");
+
+    EFR32_LOG("Starting Platform Manager Event Loop");
+    ret = PlatformMgr().StartEventLoopTask();
+    if (ret != CHIP_NO_ERROR)
+    {
+        EFR32_LOG("PlatformMgr().StartEventLoopTask() failed");
+        appError(ret);
+    }
+
 #if CHIP_ENABLE_OPENTHREAD
     EFR32_LOG("Initializing OpenThread stack");
     ret = ThreadStackMgr().InitThreadStack();
@@ -140,17 +149,7 @@ int main(void)
         EFR32_LOG("ConnectivityMgr().SetThreadDeviceType() failed");
         appError(ret);
     }
-#endif // CHIP_ENABLE_OPENTHREAD
 
-    EFR32_LOG("Starting Platform Manager Event Loop");
-    ret = PlatformMgr().StartEventLoopTask();
-    if (ret != CHIP_NO_ERROR)
-    {
-        EFR32_LOG("PlatformMgr().StartEventLoopTask() failed");
-        appError(ret);
-    }
-
-#if CHIP_ENABLE_OPENTHREAD
     EFR32_LOG("Starting OpenThread task");
 
     // Start OpenThread task

@@ -32,6 +32,7 @@
 #include <crypto/CHIPCryptoPAL.h>
 #include <stdlib.h>
 #include <support/BufferWriter.h>
+#include <support/BytesToHex.h>
 #include <support/CHIPMem.h>
 
 using namespace chip;
@@ -41,12 +42,13 @@ using namespace chip::Crypto;
 using namespace chip::SetupPayloadData;
 using namespace chip::Encoding::LittleEndian;
 
+using chip::Encoding::BytesToUppercaseHexString;
+
 CHIP_ERROR
 AdditionalDataPayloadGenerator::generateAdditionalDataPayload(uint16_t lifetimeCounter, const char * serialNumberBuffer,
                                                               size_t serialNumberBufferSize, PacketBufferHandle & bufferHandle,
                                                               BitFlags<AdditionalDataFields> additionalDataFields)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferTLVWriter writer;
     TLVWriter innerWriter;
     char rotatingDeviceIdBuffer[RotatingDeviceId::kHexMaxLength];
@@ -55,26 +57,23 @@ AdditionalDataPayloadGenerator::generateAdditionalDataPayload(uint16_t lifetimeC
     // Initialize TLVWriter
     writer.Init(chip::System::PacketBufferHandle::New(chip::System::PacketBuffer::kMaxSize));
 
-    SuccessOrExit(err = writer.OpenContainer(AnonymousTag, kTLVType_Structure, innerWriter));
+    ReturnErrorOnFailure(writer.OpenContainer(AnonymousTag, kTLVType_Structure, innerWriter));
 
     if (additionalDataFields.Has(AdditionalDataFields::RotatingDeviceId))
     {
         // Generating Device Rotating Id
-        SuccessOrExit(err = generateRotatingDeviceId(lifetimeCounter, serialNumberBuffer, serialNumberBufferSize,
-                                                     rotatingDeviceIdBuffer, ArraySize(rotatingDeviceIdBuffer),
-                                                     rotatingDeviceIdBufferSize));
+        ReturnErrorOnFailure(generateRotatingDeviceId(lifetimeCounter, serialNumberBuffer, serialNumberBufferSize,
+                                                      rotatingDeviceIdBuffer, ArraySize(rotatingDeviceIdBuffer),
+                                                      rotatingDeviceIdBufferSize));
 
         // Adding the rotating device id to the TLV data
-        SuccessOrExit(err = innerWriter.PutString(ContextTag(kRotatingDeviceIdTag), rotatingDeviceIdBuffer,
-                                                  static_cast<uint32_t>(rotatingDeviceIdBufferSize)));
+        ReturnErrorOnFailure(innerWriter.PutString(ContextTag(kRotatingDeviceIdTag), rotatingDeviceIdBuffer,
+                                                   static_cast<uint32_t>(rotatingDeviceIdBufferSize)));
     }
 
-    SuccessOrExit(err = writer.CloseContainer(innerWriter));
+    ReturnErrorOnFailure(writer.CloseContainer(innerWriter));
 
-    SuccessOrExit(err = writer.Finalize(&bufferHandle));
-
-exit:
-    return err;
+    return writer.Finalize(&bufferHandle);
 }
 
 CHIP_ERROR AdditionalDataPayloadGenerator::generateRotatingDeviceId(uint16_t lifetimeCounter, const char * serialNumberBuffer,
@@ -82,41 +81,33 @@ CHIP_ERROR AdditionalDataPayloadGenerator::generateRotatingDeviceId(uint16_t lif
                                                                     size_t rotatingDeviceIdBufferSize,
                                                                     size_t & rotatingDeviceIdValueOutputSize)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    Hash_SHA256_stream hash;
     uint8_t outputBuffer[RotatingDeviceId::kMaxLength];
     uint8_t hashOutputBuffer[kSHA256_Hash_Length];
-    BufferWriter outputBufferWriter(outputBuffer, ArraySize(outputBuffer));
-    size_t rotatingDeviceIdBufferIndex = 0;
+    BufferWriter outputBufferWriter(outputBuffer, sizeof(outputBuffer));
     uint8_t lifetimeCounterBuffer[2];
 
     Put16(lifetimeCounterBuffer, lifetimeCounter);
 
-    VerifyOrExit(rotatingDeviceIdBufferSize >= RotatingDeviceId::kHexMaxLength, err = CHIP_ERROR_BUFFER_TOO_SMALL);
+    VerifyOrReturnError(rotatingDeviceIdBufferSize >= RotatingDeviceId::kHexMaxLength, CHIP_ERROR_BUFFER_TOO_SMALL);
 
     // Computing the Rotating Device Id
     // RDI = Lifetime_Counter + SuffixBytes(SHA256(Serial_Number + Lifetime_Counter), 16)
 
-    SuccessOrExit(err = hash.Begin());
-    SuccessOrExit(err = hash.AddData(Uint8::from_const_char(serialNumberBuffer), serialNumberBufferSize));
-    SuccessOrExit(err = hash.AddData(lifetimeCounterBuffer, sizeof(lifetimeCounter)));
-    SuccessOrExit(err = hash.Finish(hashOutputBuffer));
+    Hash_SHA256_stream hash;
+    MutableByteSpan hashOutputSpan(hashOutputBuffer);
+    ReturnErrorOnFailure(hash.Begin());
+    ReturnErrorOnFailure(hash.AddData(ByteSpan{ Uint8::from_const_char(serialNumberBuffer), serialNumberBufferSize }));
+    ReturnErrorOnFailure(hash.AddData(ByteSpan{ lifetimeCounterBuffer, sizeof(lifetimeCounter) }));
+    ReturnErrorOnFailure(hash.Finish(hashOutputSpan));
 
     outputBufferWriter.Put16(lifetimeCounter);
     outputBufferWriter.Put(&hashOutputBuffer[kSHA256_Hash_Length - RotatingDeviceId::kHashSuffixLength],
                            RotatingDeviceId::kHashSuffixLength);
 
-    for (rotatingDeviceIdBufferIndex = 0; rotatingDeviceIdBufferIndex < outputBufferWriter.Needed(); rotatingDeviceIdBufferIndex++)
-    {
-        snprintf(&rotatingDeviceIdBuffer[rotatingDeviceIdBufferIndex * 2],
-                 rotatingDeviceIdBufferSize - rotatingDeviceIdBufferIndex * 2, "%02X",
-                 outputBufferWriter.Buffer()[rotatingDeviceIdBufferIndex]);
-    }
-
-    rotatingDeviceIdBuffer[rotatingDeviceIdBufferIndex * 2] = 0;
-    rotatingDeviceIdValueOutputSize                         = rotatingDeviceIdBufferIndex * 2;
+    ReturnErrorOnFailure(
+        BytesToUppercaseHexString(outputBuffer, outputBufferWriter.Needed(), rotatingDeviceIdBuffer, rotatingDeviceIdBufferSize));
+    rotatingDeviceIdValueOutputSize = outputBufferWriter.Needed() * 2;
     ChipLogDetail(DeviceLayer, "rotatingDeviceId: %s", rotatingDeviceIdBuffer);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }

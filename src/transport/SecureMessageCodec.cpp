@@ -58,7 +58,7 @@ CHIP_ERROR Encode(NodeId localNodeId, Transport::PeerConnectionState * state, Pa
         packetHeader.SetDestinationNodeId(state->GetPeerNodeId());
     }
 
-    packetHeader.GetFlags().Set(Header::FlagValues::kSecure);
+    packetHeader.GetFlags().Set(Header::FlagValues::kEncryptedMessage);
 
     ReturnErrorOnFailure(payloadHeader.EncodeBeforeData(msgBuf));
 
@@ -74,7 +74,7 @@ CHIP_ERROR Encode(NodeId localNodeId, Transport::PeerConnectionState * state, Pa
     VerifyOrReturnError(CanCastTo<uint16_t>(totalLen + taglen), CHIP_ERROR_INTERNAL);
     msgBuf->SetDataLength(static_cast<uint16_t>(totalLen + taglen));
 
-    ChipLogDetail(Inet, "Secure message was encrypted: Msg ID %u", msgId);
+    ChipLogDetail(Inet, "Secure message was encrypted: Msg ID %" PRIu32, msgId);
 
     ReturnErrorOnFailure(counter.Advance());
     return CHIP_NO_ERROR;

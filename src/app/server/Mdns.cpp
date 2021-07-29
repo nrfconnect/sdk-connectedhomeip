@@ -21,6 +21,7 @@
 
 #include <core/Optional.h>
 #include <mdns/Advertiser.h>
+#include <mdns/ServiceNaming.h>
 #include <messaging/ReliableMessageProtocolConfig.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/ConfigurationManager.h>
@@ -28,7 +29,7 @@
 #include <setup_payload/AdditionalDataPayloadGenerator.h>
 #include <support/Span.h>
 #include <support/logging/CHIPLogging.h>
-#include <transport/AdminPairingTable.h>
+#include <transport/FabricTable.h>
 
 #include <app/server/Server.h>
 
@@ -47,10 +48,10 @@ NodeId GetCurrentNodeId()
     // mdns advertises a single node id as parameter.
 
     // Search for one admin pairing and use its node id.
-    auto pairing = GetGlobalAdminPairingTable().cbegin();
-    if (pairing != GetGlobalAdminPairingTable().cend())
+    auto pairing = GetGlobalFabricTable().cbegin();
+    if (pairing != GetGlobalFabricTable().cend())
     {
-        ChipLogProgress(Discovery, "Found admin pairing for admin %" PRIX16 ", node 0x" ChipLogFormatX64, pairing->GetAdminId(),
+        ChipLogProgress(Discovery, "Found admin pairing for admin %" PRIX8 ", node 0x" ChipLogFormatX64, pairing->GetFabricIndex(),
                         ChipLogValueX64(pairing->GetNodeId()));
         return pairing->GetNodeId();
     }
@@ -82,6 +83,12 @@ chip::ByteSpan FillMAC(uint8_t (&mac)[8])
 }
 
 } // namespace
+
+CHIP_ERROR GetCommissionableInstanceName(char * buffer, size_t bufferLen)
+{
+    auto & mdnsAdvertiser = chip::Mdns::ServiceAdvertiser::Instance();
+    return mdnsAdvertiser.GetCommissionableInstanceName(buffer, bufferLen);
+}
 
 /// Set MDNS operational advertisement
 CHIP_ERROR AdvertiseOperational()
@@ -232,7 +239,7 @@ CHIP_ERROR Advertise(bool commissionableNode)
     auto & mdnsAdvertiser = chip::Mdns::ServiceAdvertiser::Instance();
 
     ChipLogProgress(Discovery, "Advertise commission parameter vendorID=%u productID=%u discriminator=%04u/%02u",
-                    advertiseParameters.GetVendorId(), advertiseParameters.GetProductId(),
+                    advertiseParameters.GetVendorId().ValueOr(0), advertiseParameters.GetProductId().ValueOr(0),
                     advertiseParameters.GetLongDiscriminator(), advertiseParameters.GetShortDiscriminator());
     return mdnsAdvertiser.Advertise(advertiseParameters);
 }
@@ -264,7 +271,7 @@ void StartServer()
 
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
     err = app::Mdns::AdvertiseCommisioner();
-#endif
+#endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
 
     if (err != CHIP_NO_ERROR)
     {
@@ -275,20 +282,17 @@ void StartServer()
 #if CHIP_ENABLE_ROTATING_DEVICE_ID
 CHIP_ERROR GenerateRotatingDeviceId(char rotatingDeviceIdHexBuffer[], size_t rotatingDeviceIdHexBufferSize)
 {
-    CHIP_ERROR error = CHIP_NO_ERROR;
     char serialNumber[chip::DeviceLayer::ConfigurationManager::kMaxSerialNumberLength + 1];
     size_t serialNumberSize                = 0;
     uint16_t lifetimeCounter               = 0;
     size_t rotatingDeviceIdValueOutputSize = 0;
 
-    SuccessOrExit(error =
-                      chip::DeviceLayer::ConfigurationMgr().GetSerialNumber(serialNumber, sizeof(serialNumber), serialNumberSize));
-    SuccessOrExit(error = chip::DeviceLayer::ConfigurationMgr().GetLifetimeCounter(lifetimeCounter));
-    SuccessOrExit(error = AdditionalDataPayloadGenerator().generateRotatingDeviceId(
-                      lifetimeCounter, serialNumber, serialNumberSize, rotatingDeviceIdHexBuffer, rotatingDeviceIdHexBufferSize,
-                      rotatingDeviceIdValueOutputSize));
-exit:
-    return error;
+    ReturnErrorOnFailure(
+        chip::DeviceLayer::ConfigurationMgr().GetSerialNumber(serialNumber, sizeof(serialNumber), serialNumberSize));
+    ReturnErrorOnFailure(chip::DeviceLayer::ConfigurationMgr().GetLifetimeCounter(lifetimeCounter));
+    return AdditionalDataPayloadGenerator().generateRotatingDeviceId(lifetimeCounter, serialNumber, serialNumberSize,
+                                                                     rotatingDeviceIdHexBuffer, rotatingDeviceIdHexBufferSize,
+                                                                     rotatingDeviceIdValueOutputSize);
 }
 #endif
 

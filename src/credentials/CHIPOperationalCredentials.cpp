@@ -35,8 +35,7 @@
 namespace chip {
 namespace Credentials {
 
-static constexpr size_t kOperationalCertificatesMax          = 3;
-static constexpr size_t kOperationalCertificateDecodeBufSize = 1024;
+static constexpr size_t kOperationalCertificatesMax = 3;
 
 using namespace chip::Crypto;
 
@@ -102,14 +101,9 @@ void OperationalCredentialSet::Release()
             chip::Platform::MemoryFree(mChipDeviceCredentials[i].nodeCredential.mCredential);
             mChipDeviceCredentials[i].nodeCredential.mCredential = nullptr;
             mChipDeviceCredentials[i].nodeCredential.mLen        = 0;
-            mChipDeviceCredentials[i].trustedRootId.mId          = nullptr;
-            mChipDeviceCredentials[i].trustedRootId.mLen         = 0;
+            mChipDeviceCredentials[i].trustedRootId              = CertificateKeyId();
         }
-        if (mDeviceOpCredKeypair[i].trustedRootId.mId != nullptr)
-        {
-            mDeviceOpCredKeypair[i].trustedRootId.mId  = nullptr;
-            mDeviceOpCredKeypair[i].trustedRootId.mLen = 0;
-        }
+        mDeviceOpCredKeypair[i].trustedRootId = CertificateKeyId();
     }
 
     mChipDeviceCredentialsCount = 0;
@@ -130,13 +124,11 @@ void OperationalCredentialSet::CleanupMaps()
 {
     for (size_t i = 0; i < kOperationalCredentialsMax; ++i)
     {
-        mChipDeviceCredentials[i].trustedRootId.mId          = nullptr;
-        mChipDeviceCredentials[i].trustedRootId.mLen         = 0;
+        mChipDeviceCredentials[i].trustedRootId              = CertificateKeyId();
         mChipDeviceCredentials[i].nodeCredential.mCredential = nullptr;
         mChipDeviceCredentials[i].nodeCredential.mLen        = 0;
 
-        mDeviceOpCredKeypair[i].trustedRootId.mId  = nullptr;
-        mDeviceOpCredKeypair[i].trustedRootId.mLen = 0;
+        mDeviceOpCredKeypair[i].trustedRootId = CertificateKeyId();
     }
 }
 
@@ -149,7 +141,7 @@ ChipCertificateSet * OperationalCredentialSet::FindCertSet(const CertificateKeyI
         for (uint8_t j = 0; j < certSet->GetCertCount(); j++)
         {
             const ChipCertificateData * cert = &certSet->GetCertSet()[j];
-            if (cert->mCertFlags.Has(CertFlags::kIsTrustAnchor) && cert->mAuthKeyId.IsEqual(trustedRootId))
+            if (cert->mCertFlags.Has(CertFlags::kIsTrustAnchor) && cert->mAuthKeyId.data_equal(trustedRootId))
             {
                 return certSet;
             }
@@ -176,8 +168,7 @@ bool OperationalCredentialSet::IsTrustedRootIn(const CertificateKeyId & trustedR
 {
     for (uint16_t i = 0; i < mOpCredCount; ++i)
     {
-        const CertificateKeyId * trustedRootId = GetTrustedRootId(i);
-        if (trustedRootId->IsEqual(trustedRoot))
+        if (GetTrustedRootId(i).data_equal(trustedRoot))
         {
             return true;
         }
@@ -200,14 +191,14 @@ CHIP_ERROR OperationalCredentialSet::ValidateCert(const CertificateKeyId & trust
 
 CHIP_ERROR OperationalCredentialSet::FindValidCert(const CertificateKeyId & trustedRootId, const ChipDN & subjectDN,
                                                    const CertificateKeyId & subjectKeyId, ValidationContext & context,
-                                                   ChipCertificateData *& cert)
+                                                   const ChipCertificateData ** certData)
 {
     ChipCertificateSet * chipCertificateSet;
 
     chipCertificateSet = FindCertSet(trustedRootId);
     VerifyOrReturnError(chipCertificateSet != nullptr, CHIP_ERROR_CERT_NOT_FOUND);
 
-    return chipCertificateSet->FindValidCert(subjectDN, subjectKeyId, context, cert);
+    return chipCertificateSet->FindValidCert(subjectDN, subjectKeyId, context, certData);
 }
 
 CHIP_ERROR OperationalCredentialSet::SignMsg(const CertificateKeyId & trustedRootId, const uint8_t * msg, const size_t msg_length,
@@ -216,9 +207,9 @@ CHIP_ERROR OperationalCredentialSet::SignMsg(const CertificateKeyId & trustedRoo
     return GetNodeKeypairAt(trustedRootId)->ECDSA_sign_msg(msg, msg_length, out_signature);
 }
 
-const CertificateKeyId * OperationalCredentialSet::GetTrustedRootId(uint16_t certSetIndex) const
+CertificateKeyId OperationalCredentialSet::GetTrustedRootId(uint16_t certSetIndex) const
 {
-    VerifyOrReturnError(certSetIndex <= mOpCredCount, nullptr);
+    VerifyOrReturnError(certSetIndex <= mOpCredCount, CertificateKeyId());
 
     const ChipCertificateData * chipCertificateData = mOpCreds[certSetIndex].GetCertSet();
     uint8_t numberCertificates                      = mOpCreds[certSetIndex].GetCertCount();
@@ -227,10 +218,10 @@ const CertificateKeyId * OperationalCredentialSet::GetTrustedRootId(uint16_t cer
     {
         if (chipCertificateData[i].mCertFlags.Has(CertFlags::kIsTrustAnchor))
         {
-            return &chipCertificateData[i].mAuthKeyId;
+            return chipCertificateData[i].mAuthKeyId;
         }
     }
-    return nullptr;
+    return CertificateKeyId();
 }
 
 CHIP_ERROR OperationalCredentialSet::SetDevOpCred(const CertificateKeyId & trustedRootId, const uint8_t * chipDeviceCredentials,
@@ -314,14 +305,13 @@ CHIP_ERROR OperationalCredentialSet::FromSerializable(const OperationalCredentia
     ChipCertificateSet certificateSet;
     CertificateKeyId trustedRootId;
 
-    SuccessOrExit(err = certificateSet.Init(kOperationalCertificatesMax, kOperationalCertificateDecodeBufSize));
+    SuccessOrExit(err = certificateSet.Init(kOperationalCertificatesMax));
 
     err = certificateSet.LoadCert(serializable.mRootCertificate, serializable.mRootCertificateLen,
                                   BitFlags<CertDecodeFlags>(CertDecodeFlags::kIsTrustAnchor));
     SuccessOrExit(err);
 
-    trustedRootId.mId  = certificateSet.GetLastCert()->mAuthKeyId.mId;
-    trustedRootId.mLen = certificateSet.GetLastCert()->mAuthKeyId.mLen;
+    trustedRootId = certificateSet.GetLastCert()->mAuthKeyId;
 
     if (serializable.mCACertificateLen != 0)
     {
@@ -351,9 +341,7 @@ const NodeCredential * OperationalCredentialSet::GetNodeCredentialAt(const Certi
 {
     for (size_t i = 0; i < kOperationalCredentialsMax && mChipDeviceCredentials[i].nodeCredential.mCredential != nullptr; ++i)
     {
-        VerifyOrReturnError(trustedRootId.mLen == mChipDeviceCredentials[i].trustedRootId.mLen, nullptr);
-
-        if (memcmp(trustedRootId.mId, mChipDeviceCredentials[i].trustedRootId.mId, trustedRootId.mLen) == 0)
+        if (trustedRootId.data_equal(mChipDeviceCredentials[i].trustedRootId))
         {
             return &mChipDeviceCredentials[i].nodeCredential;
         }
@@ -364,13 +352,30 @@ const NodeCredential * OperationalCredentialSet::GetNodeCredentialAt(const Certi
 
 P256Keypair * OperationalCredentialSet::GetNodeKeypairAt(const CertificateKeyId & trustedRootId)
 {
-    for (size_t i = 0; i < kOperationalCredentialsMax && mDeviceOpCredKeypair[i].trustedRootId.mId != nullptr; ++i)
+    for (size_t i = 0; i < kOperationalCredentialsMax && !mDeviceOpCredKeypair[i].trustedRootId.empty(); ++i)
     {
-        VerifyOrReturnError(trustedRootId.mLen == mChipDeviceCredentials[i].trustedRootId.mLen, nullptr);
-
-        if (memcmp(trustedRootId.mId, mDeviceOpCredKeypair[i].trustedRootId.mId, trustedRootId.mLen) == 0)
+        if (trustedRootId.data_equal(mDeviceOpCredKeypair[i].trustedRootId))
         {
             return &mDeviceOpCredKeypair[i].keypair;
+        }
+    }
+
+    return nullptr;
+}
+
+const ChipCertificateData * OperationalCredentialSet::GetRootCertificate(const CertificateKeyId & trustedRootId) const
+{
+    for (size_t certChainIdx = 0; certChainIdx < mOpCredCount; certChainIdx++)
+    {
+        ChipCertificateSet * certSet = &mOpCreds[certChainIdx];
+
+        for (size_t ipkIdx = 0; ipkIdx < certSet->GetCertCount(); ipkIdx++)
+        {
+            const ChipCertificateData * cert = &certSet->GetCertSet()[ipkIdx];
+            if (cert->mCertFlags.Has(CertFlags::kIsTrustAnchor) && cert->mAuthKeyId.data_equal(trustedRootId))
+            {
+                return cert;
+            }
         }
     }
 

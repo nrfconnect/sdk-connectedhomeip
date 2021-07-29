@@ -32,6 +32,7 @@
 #include <support/CHIPMem.h>
 #include <support/CodeUtils.h>
 #include <support/UnitTestRegistration.h>
+#include <transport/raw/tests/NetworkTestHelpers.h>
 
 using namespace chip;
 using namespace chip::Inet;
@@ -53,54 +54,29 @@ static void test_os_sleep_ms(uint64_t millisecs)
     nanosleep(&sleep_time, nullptr);
 }
 
-class PASETestLoopbackTransport : public Transport::Base
+class PASETestLoopbackTransport : public Test::LoopbackTransport
 {
-public:
-    CHIP_ERROR SendMessage(const PeerAddress & address, System::PacketBufferHandle && msgBuf) override
+    void MessageDropped() override
     {
-        ReturnErrorOnFailure(mMessageSendError);
-        mSentMessageCount++;
-
-        if (mNumMessagesToDrop == 0)
+        // Trigger a retransmit.
+        if (mContext != nullptr)
         {
-            // The msgBuf is also being used for retransmission. So we cannot hand over the same buffer
-            // to the receive handler. The receive handler modifies the buffer for extracting headers etc.
-            // So the buffer passed to receive handler cannot be used for retransmission afterwards.
-            // Let's clone the message, and provide cloned message to the receive handler.
-            System::PacketBufferHandle receivedMessage = msgBuf.CloneData();
-            HandleMessageReceived(address, std::move(receivedMessage));
+            test_os_sleep_ms(65);
+            ReliableMessageMgr * rm = mContext->GetExchangeManager().GetReliableMessageMgr();
+            ReliableMessageMgr::Timeout(&mContext->GetSystemLayer(), rm, CHIP_NO_ERROR);
         }
-        else
-        {
-            mNumMessagesToDrop--;
-            mDroppedMessageCount++;
-            if (mContext != nullptr)
-            {
-                test_os_sleep_ms(65);
-                ReliableMessageMgr * rm = mContext->GetExchangeManager().GetReliableMessageMgr();
-                ReliableMessageMgr::Timeout(&mContext->GetSystemLayer(), rm, CHIP_SYSTEM_NO_ERROR);
-            }
-        }
-
-        return CHIP_NO_ERROR;
     }
 
+public:
     bool CanSendToPeer(const PeerAddress & address) override { return true; }
 
     void Reset()
     {
-        mNumMessagesToDrop   = 0;
-        mDroppedMessageCount = 0;
-        mSentMessageCount    = 0;
-        mMessageSendError    = CHIP_NO_ERROR;
-        mContext             = nullptr;
+        Test::LoopbackTransport::Reset();
+        mContext = nullptr;
     }
 
-    uint32_t mNumMessagesToDrop   = 0;
-    uint32_t mDroppedMessageCount = 0;
-    uint32_t mSentMessageCount    = 0;
-    CHIP_ERROR mMessageSendError  = CHIP_NO_ERROR;
-    TestContext * mContext        = nullptr;
+    TestContext * mContext = nullptr;
 };
 
 TransportMgrBase gTransportMgr;
@@ -120,10 +96,10 @@ public:
 class MockAppDelegate : public ExchangeDelegate
 {
 public:
-    void OnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle && buffer) override
+    CHIP_ERROR OnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
+                                 System::PacketBufferHandle && buffer) override
     {
-        ec->Close();
+        return CHIP_NO_ERROR;
     }
 
     void OnResponseTimeout(ExchangeContext * ec) override {}
@@ -251,6 +227,55 @@ void SecurePairingHandshakeWithPacketLossTest(nlTestSuite * inSuite, void * inCo
     NL_TEST_ASSERT(inSuite, gLoopback.mNumMessagesToDrop == 0);
 }
 
+void SecurePairingFailedHandshake(nlTestSuite * inSuite, void * inContext)
+{
+    TestSecurePairingDelegate delegateCommissioner;
+    PASESession pairingCommissioner;
+
+    TestSecurePairingDelegate delegateAccessory;
+    PASESession pairingAccessory;
+
+    gLoopback.Reset();
+    gLoopback.mSentMessageCount = 0;
+
+    NL_TEST_ASSERT(inSuite, pairingCommissioner.MessageDispatch().Init(&gTransportMgr) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, pairingAccessory.MessageDispatch().Init(&gTransportMgr) == CHIP_NO_ERROR);
+
+    TestContext & ctx                     = *reinterpret_cast<TestContext *>(inContext);
+    ExchangeContext * contextCommissioner = ctx.NewExchangeToLocal(&pairingCommissioner);
+
+    pairingCommissioner.MessageDispatch().SetPeerAddress(PeerAddress(Type::kUdp));
+    pairingAccessory.MessageDispatch().SetPeerAddress(PeerAddress(Type::kUdp));
+
+    ReliableMessageMgr * rm     = ctx.GetExchangeManager().GetReliableMessageMgr();
+    ReliableMessageContext * rc = contextCommissioner->GetReliableMessageContext();
+    NL_TEST_ASSERT(inSuite, rm != nullptr);
+    NL_TEST_ASSERT(inSuite, rc != nullptr);
+
+    rc->SetConfig({
+        1, // CHIP_CONFIG_MRP_DEFAULT_INITIAL_RETRY_INTERVAL
+        1, // CHIP_CONFIG_MRP_DEFAULT_ACTIVE_RETRY_INTERVAL
+    });
+    gLoopback.mContext = &ctx;
+
+    NL_TEST_ASSERT(inSuite,
+                   ctx.GetExchangeManager().RegisterUnsolicitedMessageHandlerForType(
+                       Protocols::SecureChannel::MsgType::PBKDFParamRequest, &pairingAccessory) == CHIP_NO_ERROR);
+
+    NL_TEST_ASSERT(inSuite,
+                   pairingAccessory.WaitForPairing(1234, 500, (const uint8_t *) "saltSALT", 8, 0, &delegateAccessory) ==
+                       CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite,
+                   pairingCommissioner.Pair(Transport::PeerAddress(Transport::Type::kBle), 4321, 0, contextCommissioner,
+                                            &delegateCommissioner) == CHIP_NO_ERROR);
+
+    gLoopback.mContext = nullptr;
+    NL_TEST_ASSERT(inSuite, delegateAccessory.mNumPairingComplete == 0);
+    NL_TEST_ASSERT(inSuite, delegateAccessory.mNumPairingErrors == 1);
+    NL_TEST_ASSERT(inSuite, delegateCommissioner.mNumPairingComplete == 0);
+    NL_TEST_ASSERT(inSuite, delegateCommissioner.mNumPairingErrors == 1);
+}
+
 void SecurePairingDeserialize(nlTestSuite * inSuite, void * inContext, PASESession & pairingCommissioner,
                               PASESession & deserialized)
 {
@@ -323,6 +348,7 @@ static const nlTest sTests[] =
     NL_TEST_DEF("Start",       SecurePairingStartTest),
     NL_TEST_DEF("Handshake",   SecurePairingHandshakeTest),
     NL_TEST_DEF("Handshake with packet loss", SecurePairingHandshakeWithPacketLossTest),
+    NL_TEST_DEF("Failed Handshake", SecurePairingFailedHandshake),
     NL_TEST_DEF("Serialize",   SecurePairingSerializeTest),
 
     NL_TEST_SENTINEL()
@@ -334,7 +360,7 @@ int TestSecurePairing_Teardown(void * inContext);
 // clang-format off
 static nlTestSuite sSuite =
 {
-    "Test-CHIP-SecurePairing",
+    "Test-CHIP-SecurePairing-PASE",
     &sTests[0],
     TestSecurePairing_Setup,
     TestSecurePairing_Teardown,
@@ -362,11 +388,11 @@ int TestSecurePairing_Setup(void * inContext)
     if (err != CHIP_NO_ERROR)
         return FAILURE;
 
-    ctx.SetSourceNodeId(kAnyNodeId);
-    ctx.SetDestinationNodeId(kAnyNodeId);
+    ctx.SetSourceNodeId(kPlaceholderNodeId);
+    ctx.SetDestinationNodeId(kPlaceholderNodeId);
     ctx.SetLocalKeyId(0);
     ctx.SetPeerKeyId(0);
-    ctx.SetAdminId(kUndefinedAdminId);
+    ctx.SetFabricIndex(kUndefinedFabricIndex);
 
     gTransportMgr.SetSecureSessionMgr(&ctx.GetSecureSessionManager());
 

@@ -94,10 +94,6 @@ const ble_uuid128_t UUID_CHIPoBLEChar_TX   = {
 
 BLEManagerImpl BLEManagerImpl::sInstance;
 
-BLEManagerImpl::BLEManagerImpl() :
-    mAdvertiseTimerCallback(HandleAdvertisementTimer, this), mFastAdvertiseTimerCallback(HandleFastAdvertisementTimer, this)
-{}
-
 const struct ble_gatt_svc_def BLEManagerImpl::CHIPoBLEGATTAttrs[] = {
     { .type = BLE_GATT_SVC_TYPE_PRIMARY,
       .uuid = (ble_uuid_t *) (&ShortUUID_CHIPoBLEService),
@@ -173,9 +169,9 @@ CHIP_ERROR BLEManagerImpl::_SetAdvertisingEnabled(bool val)
 
     if (val)
     {
-        mAdvertiseStartTime = System::Timer::GetCurrentEpoch();
-        SystemLayer.StartTimer(kAdvertiseTimeout, &mAdvertiseTimerCallback);
-        SystemLayer.StartTimer(kFastAdvertiseTimeout, &mFastAdvertiseTimerCallback);
+        mAdvertiseStartTime = System::Clock::GetMonotonicMilliseconds();
+        ReturnErrorOnFailure(SystemLayer.StartTimer(kAdvertiseTimeout, HandleAdvertisementTimer, this));
+        ReturnErrorOnFailure(SystemLayer.StartTimer(kFastAdvertiseTimeout, HandleFastAdvertisementTimer, this));
     }
 
     mFlags.Set(Flags::kFastAdvertisingEnabled, val);
@@ -187,14 +183,14 @@ exit:
     return err;
 }
 
-void BLEManagerImpl::HandleAdvertisementTimer(void * context)
+void BLEManagerImpl::HandleAdvertisementTimer(System::Layer * systemLayer, void * context, CHIP_ERROR aError)
 {
     static_cast<BLEManagerImpl *>(context)->HandleAdvertisementTimer();
 }
 
 void BLEManagerImpl::HandleAdvertisementTimer()
 {
-    uint64_t currentTimestamp = System::Timer::GetCurrentEpoch();
+    uint64_t currentTimestamp = System::Clock::GetMonotonicMilliseconds();
 
     if (currentTimestamp - mAdvertiseStartTime >= kAdvertiseTimeout)
     {
@@ -203,14 +199,14 @@ void BLEManagerImpl::HandleAdvertisementTimer()
     }
 }
 
-void BLEManagerImpl::HandleFastAdvertisementTimer(void * context)
+void BLEManagerImpl::HandleFastAdvertisementTimer(System::Layer * systemLayer, void * context, CHIP_ERROR aError)
 {
     static_cast<BLEManagerImpl *>(context)->HandleFastAdvertisementTimer();
 }
 
 void BLEManagerImpl::HandleFastAdvertisementTimer()
 {
-    uint64_t currentTimestamp = System::Timer::GetCurrentEpoch();
+    uint64_t currentTimestamp = System::Clock::GetMonotonicMilliseconds();
 
     if (currentTimestamp - mAdvertiseStartTime >= kFastAdvertiseTimeout)
     {
@@ -452,7 +448,7 @@ CHIP_ERROR BLEManagerImpl::MapBLEError(int bleErr)
     case ESP_ERR_INVALID_ARG:
         return CHIP_ERROR_INVALID_ARGUMENT;
     default:
-        return CHIP_DEVICE_CONFIG_ESP32_BLE_ERROR_MIN + (CHIP_ERROR) bleErr;
+        return ChipError::Encapsulate(ChipError::Range::kPlatform, CHIP_DEVICE_CONFIG_ESP32_BLE_ERROR_MIN + bleErr);
     }
 }
 void BLEManagerImpl::DriveBLEState(void)
@@ -705,7 +701,7 @@ CHIP_ERROR BLEManagerImpl::ConfigureAdvertisingData(void)
         ExitNow();
     }
 
-    VerifyOrExit(index + sizeof(deviceIdInfo) <= sizeof(advData), err = BLE_ERROR_OUTBOUND_MESSAGE_TOO_BIG);
+    VerifyOrExit(index + sizeof(deviceIdInfo) <= sizeof(advData), err = CHIP_ERROR_OUTBOUND_MESSAGE_TOO_BIG);
     memcpy(&advData[index], &deviceIdInfo, sizeof(deviceIdInfo));
     index = static_cast<uint8_t>(index + sizeof(deviceIdInfo));
 
@@ -883,7 +879,7 @@ exit:
 
 CHIP_ERROR BLEManagerImpl::HandleGAPDisconnect(struct ble_gap_event * gapEvent)
 {
-    ChipLogProgress(DeviceLayer, "BLE GAP connection terminated (con %" PRIu16, " reason 0x%02 " PRIx8 ")",
+    ChipLogProgress(DeviceLayer, "BLE GAP connection terminated (con %" PRIu16 " reason 0x%02" PRIx8 ")",
                     gapEvent->disconnect.conn.conn_handle, gapEvent->disconnect.reason);
 
     // Update the number of GAP connections.
@@ -1025,13 +1021,13 @@ exit:
     // Schedule DriveBLEState() to run.
     PlatformMgr().ScheduleWork(DriveBLEState, 0);
 
-    return err;
+    return ChipError::AsInteger(err);
 }
 
 int BLEManagerImpl::gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt * ctxt, void * arg)
 {
     struct ble_gatt_char_context param;
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    int err = 0;
 
     memset(&param, 0, sizeof(struct ble_gatt_char_context));
 
@@ -1078,8 +1074,11 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
     CHIP_ERROR err;
     ble_gap_adv_params adv_params;
     memset(&adv_params, 0, sizeof(adv_params));
+#ifdef CONFIG_BT_NIMBLE_HOST_BASED_PRIVACY
     uint8_t own_addr_type = BLE_OWN_ADDR_RANDOM;
-
+#else
+    uint8_t own_addr_type = BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT;
+#endif
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
     mFlags.Clear(Flags::kAdvertisingRefreshNeeded);
@@ -1113,19 +1112,21 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
             err = MapBLEError(ble_gap_adv_stop());
             if (err != CHIP_NO_ERROR)
             {
-                ChipLogError(DeviceLayer, "ble_gap_adv_stop() failed: %d, cannot restart", ErrorStr(err));
+                ChipLogError(DeviceLayer, "ble_gap_adv_stop() failed: %s, cannot restart", ErrorStr(err));
                 return err;
             }
         }
+#if CONFIG_BT_NIMBLE_HOST_BASED_PRIVACY
         else
         {
             err = MapBLEError(ble_hs_pvcy_rpa_config(NIMBLE_HOST_ENABLE_RPA));
             if (err != CHIP_NO_ERROR)
             {
-                ChipLogError(DeviceLayer, "RPA not set: %d", ErrorStr(err));
+                ChipLogError(DeviceLayer, "RPA not set: %s", ErrorStr(err));
                 return err;
             }
         }
+#endif
         err = MapBLEError(ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_svr_gap_event, NULL));
         if (err == CHIP_NO_ERROR)
         {
@@ -1133,7 +1134,7 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
         }
         else
         {
-            ChipLogError(DeviceLayer, "ble_gap_adv_start() failed: %d", ErrorStr(err));
+            ChipLogError(DeviceLayer, "ble_gap_adv_start() failed: %s", ErrorStr(err));
             return err;
         }
     }

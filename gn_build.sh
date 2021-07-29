@@ -54,17 +54,19 @@ echo 'To re-create the build environment from scratch, run:'
 echo source "$CHIP_ROOT/scripts/bootstrap.sh"
 
 echo
-echo 'To build a debug build:'
-echo gn gen "$CHIP_ROOT/out/debug" --args=\''target_os="all"'"$extra_args"\'
+echo 'To compile the generated debug build:'
 echo ninja -C "$CHIP_ROOT/out/debug"
 
 echo
-echo 'To run tests (idempotent):'
+echo 'To test the generated debug build (idempotent):'
 echo ninja -C "$CHIP_ROOT/out/debug" check
 
 echo
-echo 'To build & test an optimized build:'
-echo gn gen "$CHIP_ROOT/out/release" --args=\''target_os="all" is_debug=false'"$extra_args"\'
+echo 'To compile the generated release build':
+echo ninja -C "$CHIP_ROOT/out/release"
+
+echo
+echo 'To test the generated release build (idempotent):'
 echo ninja -C "$CHIP_ROOT/out/release" check
 
 echo
@@ -95,8 +97,8 @@ shift $((OPTIND - 1))
 
 for arg; do
     case $arg in
-        enable_qpg6100_builds=true)
-            qpg6100_enabled=1
+        enable_qpg_builds=true)
+            qpg_enabled=1
             ;;
         enable_efr32_builds=true)
             efr32_enabled=1
@@ -145,11 +147,11 @@ else
 fi
 echo
 
-if [[ -z "$qpg6100_enabled" ]]; then
-    echo "Hint: Pass enable_qpg6100_builds=true to this script to enable building for QPG6100"
+if [[ -z "$qpg_enabled" ]]; then
+    echo "Hint: Pass enable_qpg_builds=true to this script to enable building for QPG"
 else
     echo 'To build the QPG6100 lock sample as a standalone project:'
-    echo "(cd $CHIP_ROOT/examples/lock-app/qpg6100; gn gen out/debug; ninja -C out/debug)"
+    echo "(cd $CHIP_ROOT/examples/lock-app/qpg; gn gen out/debug; ninja -C out/debug)"
 fi
 
 echo

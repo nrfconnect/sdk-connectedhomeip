@@ -48,13 +48,18 @@ public:
     /// This function stops publishing the device on mDNS.
     CHIP_ERROR StopPublishDevice() override;
 
+    /// Returns DNS-SD instance name formatted as hex string
+    CHIP_ERROR GetCommissionableInstanceName(char * instanceName, size_t maxLength) override;
+
     /// Registers a resolver delegate if none has been registered before
     CHIP_ERROR SetResolverDelegate(ResolverDelegate * delegate) override;
 
     /// Requests resolution of a node ID to its address
     CHIP_ERROR ResolveNodeId(const PeerId & peerId, Inet::IPAddressType type) override;
 
-    CHIP_ERROR FindCommissionableNodes(DiscoveryFilter filter = DiscoveryFilter()) override { return CHIP_ERROR_NOT_IMPLEMENTED; }
+    CHIP_ERROR FindCommissionableNodes(DiscoveryFilter filter = DiscoveryFilter()) override;
+
+    CHIP_ERROR FindCommissioners(DiscoveryFilter filter = DiscoveryFilter()) override;
 
     static DiscoveryImplPlatform & GetInstance();
 
@@ -70,8 +75,9 @@ private:
     static void HandleNodeIdResolve(void * context, MdnsService * result, CHIP_ERROR error);
     static void HandleMdnsInit(void * context, CHIP_ERROR initError);
     static void HandleMdnsError(void * context, CHIP_ERROR initError);
+    static void HandleNodeBrowse(void * context, MdnsService * services, size_t servicesSize, CHIP_ERROR error);
+    static void HandleNodeResolve(void * context, MdnsService * result, CHIP_ERROR error);
     static CHIP_ERROR GenerateRotatingDeviceId(char rotatingDeviceIdHexBuffer[], size_t & rotatingDeviceIdHexBufferSize);
-    CHIP_ERROR SetupHostname(chip::ByteSpan macOrEui64);
 #ifdef DETAIL_LOGGING
     static void PrintEntries(const MdnsService * service);
 #endif

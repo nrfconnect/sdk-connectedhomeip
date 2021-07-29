@@ -55,7 +55,7 @@ void EchoClient::Shutdown()
     mExchangeMgr           = nullptr;
 }
 
-CHIP_ERROR EchoClient::SendEchoRequest(System::PacketBufferHandle && payload, const Messaging::SendFlags & sendFlags)
+CHIP_ERROR EchoClient::SendEchoRequest(System::PacketBufferHandle && payload, Messaging::SendFlags sendFlags)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -75,7 +75,8 @@ CHIP_ERROR EchoClient::SendEchoRequest(System::PacketBufferHandle && payload, co
     }
 
     // Send an Echo Request message.  Discard the exchange context if the send fails.
-    err = mExchangeCtx->SendMessage(MsgType::EchoRequest, std::move(payload), sendFlags);
+    err = mExchangeCtx->SendMessage(MsgType::EchoRequest, std::move(payload),
+                                    sendFlags.Set(Messaging::SendMessageFlags::kExpectResponse));
 
     if (err != CHIP_NO_ERROR)
     {
@@ -86,8 +87,8 @@ CHIP_ERROR EchoClient::SendEchoRequest(System::PacketBufferHandle && payload, co
     return err;
 }
 
-void EchoClient::OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
-                                   const PayloadHeader & payloadHeader, System::PacketBufferHandle && payload)
+CHIP_ERROR EchoClient::OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
+                                         const PayloadHeader & payloadHeader, System::PacketBufferHandle && payload)
 {
     // Assert that the exchange context matches the client's current context.
     // This should never fail because even if SendEchoRequest is called
@@ -95,27 +96,20 @@ void EchoClient::OnMessageReceived(Messaging::ExchangeContext * ec, const Packet
     // which clears the OnMessageReceived callback.
     VerifyOrDie(ec == mExchangeCtx);
 
+    mExchangeCtx = nullptr;
+
     // Verify that the message is an Echo Response.
-    // If not, close the exchange and free the payload.
     if (!payloadHeader.HasMessageType(MsgType::EchoResponse))
     {
-        ec->Close();
-        mExchangeCtx = nullptr;
-        return;
+        return CHIP_ERROR_INVALID_ARGUMENT;
     }
-
-    // Remove the EC from the app state now. OnEchoResponseReceived can call
-    // SendEchoRequest and install a new one. We abort rather than close
-    // because we no longer care whether the echo request message has been
-    // acknowledged at the transport layer.
-    mExchangeCtx->Abort();
-    mExchangeCtx = nullptr;
 
     // Call the registered OnEchoResponseReceived handler, if any.
     if (OnEchoResponseReceived != nullptr)
     {
         OnEchoResponseReceived(ec, std::move(payload));
     }
+    return CHIP_NO_ERROR;
 }
 
 void EchoClient::OnResponseTimeout(Messaging::ExchangeContext * ec)

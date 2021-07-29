@@ -71,7 +71,7 @@ uint16_t emberAfCopyList(ClusterId clusterId, EmberAfAttributeMetadata * am, boo
 
     if (!chip::CanCastTo<uint16_t>(index))
     {
-        ChipLogError(Zcl, "Index %l is invalid. Should be between 1 and 65534", index);
+        ChipLogError(Zcl, "Index %" PRId32 " is invalid. Should be between 1 and 65534", index);
         return 0;
     }
 
@@ -102,7 +102,7 @@ uint16_t emberAfAttributeValueListSize(ClusterId clusterId, AttributeId attribut
     uint32_t totalSize = kSizeLengthInBytes + (entryCount * entryLength);
     if (!chip::CanCastTo<uint16_t>(totalSize))
     {
-        ChipLogError(Zcl, "Cluster 0x%04x: Size of attribute 0x%02x is too large.", clusterId, attributeId);
+        ChipLogError(Zcl, "Cluster %" PRIx32 ": Size of attribute %" PRIx32 " is too large.", clusterId, attributeId);
         return 0;
     }
 

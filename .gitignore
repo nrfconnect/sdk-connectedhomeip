@@ -3,6 +3,7 @@
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/settings.json
+!.vscode/extensions.json
 
 # Platforms
 .DS_Store
@@ -43,6 +44,7 @@ TAGS
 # Python bytecodes
 __pycache__
 *.pyc
+*.egg-info
 
 # Doxygen outputs
 docs/html

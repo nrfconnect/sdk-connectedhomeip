@@ -62,14 +62,21 @@ class SetupPayload:
 
         return self
 
+    def PrintOnboardingCodes(self, passcode, vendorId, productId, discriminator, customFlow, capabilities, version):
+        self.Clear()
+        err = self.chipLib.pychip_SetupPayload_PrintOnboardingCodes(passcode, vendorId, productId, discriminator, customFlow, capabilities, version)
+
+        if err != 0:
+            raise ChipStackError(err)
+
     def Print(self):
         for name, value in self.attributes.items():
             decorated_value = self.__DecorateValue(name, value)
             decorated_value = f" [{decorated_value}]" if decorated_value else ""
             print(f"{name}: {value}{decorated_value}")
 
-        for tag, value in self.vendor_attributes:
-            print(f"Vendor attribute '{tag:>3}': {value}")
+        for tag in self.vendor_attributes:
+            print(f"Vendor attribute '{tag:>3}': {self.vendor_attributes[tag]}")
 
     def Clear(self):
         self.attributes.clear()
@@ -95,3 +102,6 @@ class SetupPayload:
         setter.Set("pychip_SetupPayload_ParseManualPairingCode",
                    c_int32,
                    [c_char_p, SetupPayload.AttributeVisitor, SetupPayload.VendorAttributeVisitor])
+        setter.Set("pychip_SetupPayload_PrintOnboardingCodes",
+                   c_int32,
+                   [c_uint32, c_uint16, c_uint16, c_uint16, uint8_t, uint8_t, uint8_t])

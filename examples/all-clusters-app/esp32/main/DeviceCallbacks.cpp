@@ -73,7 +73,7 @@ void DeviceCallbacks::DeviceEventCallback(const ChipDeviceEvent * event, intptr_
         break;
     }
 
-    ESP_LOGI(TAG, "Current free heap: %d\n", heap_caps_get_free_size(MALLOC_CAP_8BIT));
+    ESP_LOGI(TAG, "Current free heap: %zu\n", heap_caps_get_free_size(MALLOC_CAP_8BIT));
 }
 
 void DeviceCallbacks::PostAttributeChangeCallback(EndpointId endpointId, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
@@ -92,12 +92,20 @@ void DeviceCallbacks::PostAttributeChangeCallback(EndpointId endpointId, Cluster
         OnIdentifyPostAttributeChangeCallback(endpointId, attributeId, value);
         break;
 
+    case ZCL_LEVEL_CONTROL_CLUSTER_ID:
+        OnLevelControlAttributeChangeCallback(endpointId, attributeId, value);
+        break;
+#if CONFIG_DEVICE_TYPE_ESP32_C3_DEVKITM
+    case ZCL_COLOR_CONTROL_CLUSTER_ID:
+        OnColorControlAttributeChangeCallback(endpointId, attributeId, value);
+        break;
+#endif
     default:
         ESP_LOGI(TAG, "Unhandled cluster ID: %d", clusterId);
         break;
     }
 
-    ESP_LOGI(TAG, "Current free heap: %d\n", heap_caps_get_free_size(MALLOC_CAP_8BIT));
+    ESP_LOGI(TAG, "Current free heap: %zu\n", heap_caps_get_free_size(MALLOC_CAP_8BIT));
 }
 
 void DeviceCallbacks::OnInternetConnectivityChange(const ChipDeviceEvent * event)
@@ -138,13 +146,59 @@ void DeviceCallbacks::OnOnOffPostAttributeChangeCallback(EndpointId endpointId, 
     VerifyOrExit(endpointId == 1 || endpointId == 2, ESP_LOGE(TAG, "Unexpected EndPoint ID: `0x%02x'", endpointId));
 
     // At this point we can assume that value points to a bool value.
+    mEndpointOnOffState[endpointId - 1] = *value;
     endpointId == 1 ? statusLED1.Set(*value) : statusLED2.Set(*value);
 
 exit:
     return;
 }
 
-void IdentifyTimerHandler(Layer * systemLayer, void * appState, Error error)
+void DeviceCallbacks::OnLevelControlAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
+{
+    bool onOffState    = mEndpointOnOffState[endpointId - 1];
+    uint8_t brightness = onOffState ? *value : 0;
+
+    VerifyOrExit(attributeId == ZCL_CURRENT_LEVEL_ATTRIBUTE_ID, ESP_LOGI(TAG, "Unhandled Attribute ID: '0x%04x", attributeId));
+    VerifyOrExit(endpointId == 1 || endpointId == 2, ESP_LOGE(TAG, "Unexpected EndPoint ID: `0x%02x'", endpointId));
+
+    // At this point we can assume that value points to a bool value.
+    endpointId == 1 ? statusLED1.SetBrightness(brightness) : statusLED2.SetBrightness(brightness);
+
+exit:
+    return;
+}
+
+// Currently we only support ColorControl cluster for ESP32C3_DEVKITM which has an on-board RGB-LED
+#if CONFIG_DEVICE_TYPE_ESP32_C3_DEVKITM
+void DeviceCallbacks::OnColorControlAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
+{
+    VerifyOrExit(attributeId == ZCL_COLOR_CONTROL_CURRENT_HUE_ATTRIBUTE_ID ||
+                     attributeId == ZCL_COLOR_CONTROL_CURRENT_SATURATION_ATTRIBUTE_ID,
+                 ESP_LOGI(TAG, "Unhandled AttributeId ID: '0x%04x", attributeId));
+    VerifyOrExit(endpointId == 1 || endpointId == 2, ESP_LOGE(TAG, "Unexpected EndPoint ID: `0x%02x'", endpointId));
+    if (endpointId == 1)
+    {
+        uint8_t hue, saturation;
+        if (attributeId == ZCL_COLOR_CONTROL_CURRENT_HUE_ATTRIBUTE_ID)
+        {
+            hue = *value;
+            emberAfReadServerAttribute(endpointId, ZCL_COLOR_CONTROL_CLUSTER_ID, ZCL_COLOR_CONTROL_CURRENT_SATURATION_ATTRIBUTE_ID,
+                                       &saturation, sizeof(uint8_t));
+        }
+        else
+        {
+            saturation = *value;
+            emberAfReadServerAttribute(endpointId, ZCL_COLOR_CONTROL_CLUSTER_ID, ZCL_COLOR_CONTROL_CURRENT_HUE_ATTRIBUTE_ID, &hue,
+                                       sizeof(uint8_t));
+        }
+        statusLED1.SetColor(hue, saturation);
+    }
+exit:
+    return;
+}
+#endif
+
+void IdentifyTimerHandler(Layer * systemLayer, void * appState, CHIP_ERROR error)
 {
     statusLED1.Animate();
 

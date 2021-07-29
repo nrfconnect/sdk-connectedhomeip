@@ -24,47 +24,44 @@
 
 using namespace ::chip;
 
-namespace {
-constexpr uint16_t kWaitDurationInSeconds = UINT16_MAX;
-} // namespace
-
-CHIP_ERROR ReportingCommand::Run(PersistentStorage & storage, NodeId localId, NodeId remoteId)
+CHIP_ERROR ReportingCommand::Run()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    auto * ctx = GetExecContext();
 
-    chip::Controller::BasicCluster cluster;
-    chip::Controller::CommissionerInitParams initParams;
-
-    initParams.storageDelegate = &storage;
-
-    err = mOpCredsIssuer.Initialize(storage);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(Controller, "Init failure! Operational Cred Issuer: %s", ErrorStr(err)));
-
-    initParams.operationalCredentialsDelegate = &mOpCredsIssuer;
-
-    err = mCommissioner.SetUdpListenPort(storage.GetListenPort());
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(Controller, "Init failure! Commissioner: %s", ErrorStr(err)));
-
-    err = mCommissioner.Init(localId, initParams);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(Controller, "Init failure! Commissioner: %s", ErrorStr(err)));
-
-    err = mCommissioner.ServiceEvents();
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(Controller, "Init failure! Run Loop: %s", ErrorStr(err)));
-
-    err = mCommissioner.GetDevice(remoteId, &mDevice);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(chipTool, "Init failure! No pairing for device: %" PRIu64, localId));
-
-    AddReportCallbacks(mEndPointId);
-
-    cluster.Associate(mDevice, mEndPointId);
-    err = cluster.MfgSpecificPing(nullptr, nullptr);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(Controller, "Init failure! Ping failure: %s", ErrorStr(err)));
-
-    UpdateWaitForResponse(true);
-    WaitForResponse(kWaitDurationInSeconds);
+    CHIP_ERROR err =
+        ctx->commissioner->GetConnectedDevice(ctx->remoteId, &mOnDeviceConnectedCallback, &mOnDeviceConnectionFailureCallback);
+    VerifyOrExit(err == CHIP_NO_ERROR,
+                 ChipLogError(chipTool, "Failed in initiating connection to the device: %" PRIu64 ", error %s", ctx->remoteId,
+                              ErrorStr(err)));
 
 exit:
-    mCommissioner.ServiceEventSignal();
-    mCommissioner.Shutdown();
     return err;
+}
+
+void ReportingCommand::OnDeviceConnectedFn(void * context, chip::Controller::Device * device)
+{
+    ReportingCommand * command = reinterpret_cast<ReportingCommand *>(context);
+    VerifyOrReturn(command != nullptr,
+                   ChipLogError(chipTool, "Device connected, but cannot send the command, as the context is null"));
+
+    chip::Controller::BasicCluster cluster;
+    cluster.Associate(device, command->mEndPointId);
+
+    command->AddReportCallbacks(command->mEndPointId);
+
+    CHIP_ERROR err = cluster.MfgSpecificPing(nullptr, nullptr);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Init failure! Ping failure: %s", ErrorStr(err));
+        command->SetCommandExitStatus(err);
+    }
+}
+
+void ReportingCommand::OnDeviceConnectionFailureFn(void * context, NodeId deviceId, CHIP_ERROR err)
+{
+    ChipLogError(chipTool, "Failed in connecting to the device %" PRIu64 ". Error %s", deviceId, ErrorStr(err));
+
+    ReportingCommand * command = reinterpret_cast<ReportingCommand *>(context);
+    VerifyOrReturn(command != nullptr, ChipLogError(chipTool, "ReportingCommand context is null"));
+    command->SetCommandExitStatus(err);
 }

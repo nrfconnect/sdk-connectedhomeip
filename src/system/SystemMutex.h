@@ -39,10 +39,20 @@
 #endif // CHIP_SYSTEM_CONFIG_POSIX_LOCKING
 
 #if CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
+#if defined(ESP_PLATFORM)
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+#else
 #include <FreeRTOS.h>
 #include <semphr.h>
 #include <task.h>
+#endif
 #endif // CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
+
+#if CHIP_SYSTEM_CONFIG_MBED_LOCKING
+#include <rtos/Mutex.h>
+#endif // CHIP_SYSTEM_CONFIG_MBED_LOCKING
 
 namespace chip {
 namespace System {
@@ -64,7 +74,7 @@ public:
     Mutex();
     ~Mutex();
 
-    static Error Init(Mutex & aMutex);
+    static CHIP_ERROR Init(Mutex & aMutex);
 
     void Lock();   /**< Acquire the mutual exclusion lock, blocking the current thread indefinitely if necessary. */
     void Unlock(); /**< Release the mutual exclusion lock (can block on some systems until scheduler completes). */
@@ -78,9 +88,13 @@ private:
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
     StaticSemaphore_t mFreeRTOSSemaphoreObj;
 #endif // (configSUPPORT_STATIC_ALLOCATION == 1)
-    volatile SemaphoreHandle_t mFreeRTOSSemaphore;
-    volatile int mInitialized;
+    volatile SemaphoreHandle_t mFreeRTOSSemaphore = nullptr;
+    volatile int mInitialized                     = 0;
 #endif // CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
+
+#if CHIP_SYSTEM_CONFIG_MBED_LOCKING
+    rtos::Mutex mMbedMutex;
+#endif // CHIP_SYSTEM_CONFIG_MBED_LOCKING
 
     Mutex(const Mutex &) = delete;
     Mutex & operator=(const Mutex &) = delete;
@@ -106,6 +120,25 @@ inline void Mutex::Unlock()
 inline void Mutex::Unlock(void)
 {
     xSemaphoreGive(this->mFreeRTOSSemaphore);
+}
+#endif // CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
+
+#if CHIP_SYSTEM_CONFIG_MBED_LOCKING
+inline CHIP_ERROR Mutex::Init(Mutex & aMutex)
+{
+    // The mutex is initialized when constructed and generates
+    // a runtime error in case of failure.
+    return CHIP_NO_ERROR;
+}
+
+inline void Mutex::Lock()
+{
+    return mMbedMutex.lock();
+}
+
+inline void Mutex::Unlock(void)
+{
+    return mMbedMutex.unlock();
 }
 #endif // CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
 

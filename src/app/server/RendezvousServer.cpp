@@ -55,9 +55,10 @@ void RendezvousServer::OnPlatformEvent(const DeviceLayer::ChipDeviceEvent * even
         }
         else
         {
-            ChipLogError(Discovery, "Commissioning errored out with error %u", event->CommissioningComplete.status);
+            ChipLogError(Discovery, "Commissioning errored out with error %" CHIP_ERROR_FORMAT,
+                         ChipError::FormatError(event->CommissioningComplete.status));
         }
-        // TODO: Commissioning complete means we can finalize the admin in our storage
+        // TODO: Commissioning complete means we can finalize the fabric in our storage
     }
     else if (event->Type == DeviceLayer::DeviceEventType::kOperationalNetworkEnabled)
     {
@@ -68,12 +69,12 @@ void RendezvousServer::OnPlatformEvent(const DeviceLayer::ChipDeviceEvent * even
 
 CHIP_ERROR RendezvousServer::WaitForPairing(const RendezvousParameters & params, Messaging::ExchangeManager * exchangeManager,
                                             TransportMgrBase * transportMgr, SecureSessionMgr * sessionMgr,
-                                            Transport::AdminPairingInfo * admin)
+                                            Transport::FabricInfo * fabric)
 {
     VerifyOrReturnError(transportMgr != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(exchangeManager != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(sessionMgr != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(admin != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(fabric != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(params.HasSetupPINCode() || params.HasPASEVerifier(), CHIP_ERROR_INVALID_ARGUMENT);
 
 #if CONFIG_NETWORK_LAYER_BLE
@@ -94,21 +95,24 @@ CHIP_ERROR RendezvousServer::WaitForPairing(const RendezvousParameters & params,
     }
 #endif
     mSessionMgr      = sessionMgr;
-    mAdmin           = admin;
+    mFabric          = fabric;
     mExchangeManager = exchangeManager;
 
     ReturnErrorOnFailure(mExchangeManager->RegisterUnsolicitedMessageHandlerForType(
         Protocols::SecureChannel::MsgType::PBKDFParamRequest, &mPairingSession));
 
+    uint16_t keyID = 0;
+    ReturnErrorOnFailure(mIDAllocator->Allocate(keyID));
+
     if (params.HasPASEVerifier())
     {
-        ReturnErrorOnFailure(mPairingSession.WaitForPairing(params.GetPASEVerifier(), mNextKeyId++, this));
+        ReturnErrorOnFailure(mPairingSession.WaitForPairing(params.GetPASEVerifier(), keyID, this));
     }
     else
     {
         ReturnErrorOnFailure(mPairingSession.WaitForPairing(params.GetSetupPINCode(), kSpake2p_Iteration_Count,
                                                             reinterpret_cast<const unsigned char *>(kSpake2pKeyExchangeSalt),
-                                                            strlen(kSpake2pKeyExchangeSalt), mNextKeyId++, this));
+                                                            strlen(kSpake2pKeyExchangeSalt), keyID, this));
     }
 
     ReturnErrorOnFailure(mPairingSession.MessageDispatch().Init(transportMgr));
@@ -145,7 +149,7 @@ void RendezvousServer::OnSessionEstablished()
     CHIP_ERROR err =
         mSessionMgr->NewPairing(Optional<Transport::PeerAddress>::Value(mPairingSession.PeerConnection().GetPeerAddress()),
                                 mPairingSession.PeerConnection().GetPeerNodeId(), &mPairingSession,
-                                SecureSession::SessionRole::kResponder, mAdmin->GetAdminId(), nullptr);
+                                SecureSession::SessionRole::kResponder, mFabric->GetFabricIndex());
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Ble, "Failed in setting up secure channel: err %s", ErrorStr(err));
@@ -174,13 +178,19 @@ void RendezvousServer::OnSessionEstablished()
     }
 
     ChipLogProgress(AppServer, "Device completed Rendezvous process");
-    StorablePeerConnection connection(mPairingSession, mAdmin->GetAdminId());
+    StorablePeerConnection connection(mPairingSession, mFabric->GetFabricIndex());
 
     VerifyOrReturn(mStorage != nullptr,
                    ChipLogError(AppServer, "Storage delegate is not available. Cannot store the connection state"));
     VerifyOrReturn(connection.StoreIntoKVS(*mStorage) == CHIP_NO_ERROR,
                    ChipLogError(AppServer, "Failed to store the connection state"));
 
-    mStorage->SyncSetKeyValue(kStorablePeerConnectionCountKey, &mNextKeyId, sizeof(mNextKeyId));
+    // The Peek() is used to find the smallest key ID that's not been assigned to any session.
+    // This value is persisted, and on reboot, it is used to revive any previously
+    // active secure sessions.
+    // We support one active PASE session at any time. So the key ID should not be updated
+    // in another thread, while we retrieve it here.
+    uint16_t keyID = mIDAllocator->Peek();
+    mStorage->SyncSetKeyValue(kStorablePeerConnectionCountKey, &keyID, sizeof(keyID));
 }
 } // namespace chip

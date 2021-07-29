@@ -33,7 +33,7 @@
 #include <protocols/secure_channel/Constants.h>
 #include <support/CodeUtils.h>
 #include <support/DLLUtil.h>
-#include <transport/AdminPairingTable.h>
+#include <transport/FabricTable.h>
 #include <transport/MessageCounterManagerInterface.h>
 #include <transport/PairingSession.h>
 #include <transport/PeerConnections.h>
@@ -106,11 +106,8 @@ public:
      * Get a handle to the data that allows mutating the bytes.  This should
      * only be used if absolutely necessary, because EncryptedPacketBufferHandle
      * represents a buffer that we want to resend as-is.
-     *
-     * We only allow doing this with an rvalue reference, so the fact that we
-     * are moving out of the EncryptedPacketBufferHandle is clear.
      */
-    PacketBufferHandle CastToWritable() && { return PacketBufferHandle(std::move(*this)); }
+    PacketBufferHandle CastToWritable() const { return PacketBufferHandle::Retain(); }
 
 private:
     EncryptedPacketBufferHandle(PacketBufferHandle && aBuffer) : PacketBufferHandle(std::move(aBuffer)) {}
@@ -126,6 +123,12 @@ private:
 class DLL_EXPORT SecureSessionMgrDelegate
 {
 public:
+    enum class DuplicateMessage : uint8_t
+    {
+        Yes,
+        No,
+    };
+
     /**
      * @brief
      *   Called when a new message is received. The function must internally release the
@@ -135,12 +138,12 @@ public:
      * @param payloadHeader The payload header
      * @param session       The handle to the secure session
      * @param source        The sender's address
+     * @param isDuplicate   The message is a duplicate of previously received message
      * @param msgBuf        The received message
-     * @param mgr           A pointer to the SecureSessionMgr
      */
     virtual void OnMessageReceived(const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                                   SecureSessionHandle session, const Transport::PeerAddress & source,
-                                   System::PacketBufferHandle && msgBuf, SecureSessionMgr * mgr)
+                                   SecureSessionHandle session, const Transport::PeerAddress & source, DuplicateMessage isDuplicate,
+                                   System::PacketBufferHandle && msgBuf)
     {}
 
     /**
@@ -149,27 +152,24 @@ public:
      *
      * @param error   error code
      * @param source  network entity that sent the message
-     * @param mgr     A pointer to the SecureSessionMgr
      */
-    virtual void OnReceiveError(CHIP_ERROR error, const Transport::PeerAddress & source, SecureSessionMgr * mgr) {}
+    virtual void OnReceiveError(CHIP_ERROR error, const Transport::PeerAddress & source) {}
 
     /**
      * @brief
      *   Called when a new pairing is being established
      *
      * @param session The handle to the secure session
-     * @param mgr     A pointer to the SecureSessionMgr
      */
-    virtual void OnNewConnection(SecureSessionHandle session, SecureSessionMgr * mgr) {}
+    virtual void OnNewConnection(SecureSessionHandle session) {}
 
     /**
      * @brief
      *   Called when a new connection is closing
      *
      * @param session The handle to the secure session
-     * @param mgr     A pointer to the SecureSessionMgr
      */
-    virtual void OnConnectionExpired(SecureSessionHandle session, SecureSessionMgr * mgr) {}
+    virtual void OnConnectionExpired(SecureSessionHandle session) {}
 
     virtual ~SecureSessionMgrDelegate() {}
 };
@@ -182,17 +182,23 @@ public:
 
     /**
      * @brief
-     *   Send a message to a currently connected peer.
+     *   This function takes the payload and returns an encrypted message which can be sent multiple times.
      *
      * @details
-     *   msgBuf contains the data to be transmitted.  If bufferRetainSlot is not null and this function
-     *   returns success, the encrypted data that was sent, as well as various other information needed
-     *   to retransmit it, will be stored in *bufferRetainSlot.
+     *   It does the following:
+     *    1. Encrypt the msgBuf
+     *    2. construct the packet header
+     *    3. Encode the packet header and prepend it to message.
+     *   Returns a encrypted message in encryptedMessage.
      */
-    CHIP_ERROR SendMessage(SecureSessionHandle session, PayloadHeader & payloadHeader, System::PacketBufferHandle && msgBuf,
-                           EncryptedPacketBufferHandle * bufferRetainSlot = nullptr);
-    CHIP_ERROR SendEncryptedMessage(SecureSessionHandle session, EncryptedPacketBufferHandle && msgBuf,
-                                    EncryptedPacketBufferHandle * bufferRetainSlot);
+    CHIP_ERROR BuildEncryptedMessagePayload(SecureSessionHandle session, PayloadHeader & payloadHeader,
+                                            System::PacketBufferHandle && msgBuf, EncryptedPacketBufferHandle & encryptedMessage);
+
+    /**
+     * @brief
+     *   Send a prepared message to a currently connected peer.
+     */
+    CHIP_ERROR SendPreparedMessage(SecureSessionHandle session, const EncryptedPacketBufferHandle & preparedMessage);
 
     Transport::PeerConnectionState * GetPeerConnectionState(SecureSessionHandle session);
 
@@ -215,7 +221,10 @@ public:
      *   peer node.
      */
     CHIP_ERROR NewPairing(const Optional<Transport::PeerAddress> & peerAddr, NodeId peerNodeId, PairingSession * pairing,
-                          SecureSession::SessionRole direction, Transport::AdminId admin, Transport::Base * transport = nullptr);
+                          SecureSession::SessionRole direction, FabricIndex fabric);
+
+    void ExpirePairing(SecureSessionHandle session);
+    void ExpireAllPairings(NodeId peerNodeId, FabricIndex fabric);
 
     /**
      * @brief
@@ -230,11 +239,11 @@ public:
      * @param localNodeId           Node id for the current node
      * @param systemLayer           System, layer to use
      * @param transportMgr          Transport to use
-     * @param admins                A table of device administrators
+     * @param fabrics                A table of device administrators
      * @param messageCounterManager The message counter manager
      */
     CHIP_ERROR Init(NodeId localNodeId, System::Layer * systemLayer, TransportMgrBase * transportMgr,
-                    Transport::AdminPairingTable * admins, Transport::MessageCounterManagerInterface * messageCounterManager);
+                    Transport::FabricTable * fabrics, Transport::MessageCounterManagerInterface * messageCounterManager);
 
     /**
      * @brief
@@ -252,14 +261,6 @@ public:
     void SetLocalNodeId(NodeId nodeId) { mLocalNodeId = nodeId; }
 
     NodeId GetLocalNodeId() { return mLocalNodeId; }
-
-    /**
-     * @brief
-     *   Return the transport type of current connection to the node with id peerNodeId.
-     *   'Transport::Type::kUndefined' will be returned if the connection to the specified
-     *   peer node does not exist.
-     */
-    Transport::Type GetTransportType(NodeId peerNodeId);
 
     TransportMgrBase * GetTransportManager() const { return mTransportMgr; }
 
@@ -295,15 +296,11 @@ private:
 
     SecureSessionMgrDelegate * mCB                                     = nullptr;
     TransportMgrBase * mTransportMgr                                   = nullptr;
-    Transport::AdminPairingTable * mAdmins                             = nullptr;
+    Transport::FabricTable * mFabrics                                  = nullptr;
     Transport::MessageCounterManagerInterface * mMessageCounterManager = nullptr;
 
     GlobalUnencryptedMessageCounter mGlobalUnencryptedMessageCounter;
     GlobalEncryptedMessageCounter mGlobalEncryptedMessageCounter;
-
-    CHIP_ERROR SendMessage(SecureSessionHandle session, PayloadHeader & payloadHeader, PacketHeader & packetHeader,
-                           System::PacketBufferHandle && msgBuf, EncryptedPacketBufferHandle * bufferRetainSlot,
-                           EncryptionState encryptionState);
 
     /** Schedules a new oneshot timer for checking connection expiry. */
     void ScheduleExpiryTimer();
@@ -319,7 +316,7 @@ private:
     /**
      * Callback for timer expiry check
      */
-    static void ExpiryTimerCallback(System::Layer * layer, void * param, System::Error error);
+    static void ExpiryTimerCallback(System::Layer * layer, void * param, CHIP_ERROR error);
 
     void SecureMessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                                System::PacketBufferHandle && msg);

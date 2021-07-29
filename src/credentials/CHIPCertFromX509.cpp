@@ -35,9 +35,11 @@
 #include <core/CHIPCore.h>
 #include <core/CHIPSafeCasts.h>
 #include <core/CHIPTLV.h>
+#include <core/Optional.h>
 #include <credentials/CHIPCert.h>
 #include <protocols/Protocols.h>
 #include <support/CodeUtils.h>
+#include <support/SafeInt.h>
 
 namespace chip {
 namespace Credentials {
@@ -45,10 +47,11 @@ namespace Credentials {
 using namespace chip::ASN1;
 using namespace chip::TLV;
 using namespace chip::Protocols;
+using namespace chip::Crypto;
 
-static ASN1_ERROR ParseChipAttribute(ASN1Reader & reader, uint64_t & chipAttrOut)
+static CHIP_ERROR ParseChipAttribute(ASN1Reader & reader, uint64_t & chipAttrOut)
 {
-    ASN1_ERROR err        = ASN1_NO_ERROR;
+    CHIP_ERROR err        = CHIP_NO_ERROR;
     const uint8_t * value = reader.GetValue();
     uint32_t valueLen     = reader.GetValueLen();
 
@@ -80,7 +83,8 @@ exit:
     return err;
 }
 
-static CHIP_ERROR ConvertDistinguishedName(ASN1Reader & reader, TLVWriter & writer, uint64_t tag)
+static CHIP_ERROR ConvertDistinguishedName(ASN1Reader & reader, TLVWriter & writer, uint64_t tag, uint64_t & subjectOrIssuer,
+                                           Optional<uint64_t> & fabric)
 {
     CHIP_ERROR err;
     TLVType outerContainer;
@@ -92,7 +96,7 @@ static CHIP_ERROR ConvertDistinguishedName(ASN1Reader & reader, TLVWriter & writ
     // RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
     ASN1_PARSE_ENTER_SEQUENCE
     {
-        while ((err = reader.Next()) == ASN1_NO_ERROR)
+        while ((err = reader.Next()) == CHIP_NO_ERROR)
         {
             // RelativeDistinguishedName ::= SET SIZE (1..MAX) OF AttributeTypeAndValue
             ASN1_ENTER_SET
@@ -140,6 +144,28 @@ static CHIP_ERROR ConvertDistinguishedName(ASN1Reader & reader, TLVWriter & writ
                         // Write the CHIP attribute value into the TLV.
                         err = writer.Put(ContextTag(tlvTagNum), chipAttr);
                         SuccessOrExit(err);
+
+                        // Certificates use a combination of OIDs for Issuer and Subject.
+                        // NOC: Issuer  = kOID_AttributeType_ChipRootId or kOID_AttributeType_ChipICAId
+                        //      Subject = kOID_AttributeType_ChipNodeId
+                        // ICA: Issuer  = kOID_AttributeType_ChipRootId
+                        //      Subject = kOID_AttributeType_ChipICAId
+                        // Root: Issuer = kOID_AttributeType_ChipRootId
+                        //      Subject = kOID_AttributeType_ChipRootId
+                        //
+                        // This function is called first for the Issuer DN, and later for Subject DN.
+                        // Since the caller knows if Issuer or Subject DN is being parsed, it's left up to
+                        // the caller to use the returned value (subjectOrIssuer) appropriately.
+                        if (attrOID == chip::ASN1::kOID_AttributeType_ChipNodeId ||
+                            attrOID == chip::ASN1::kOID_AttributeType_ChipICAId ||
+                            attrOID == chip::ASN1::kOID_AttributeType_ChipRootId)
+                        {
+                            subjectOrIssuer = chipAttr;
+                        }
+                        else if (attrOID == chip::ASN1::kOID_AttributeType_ChipFabricId)
+                        {
+                            fabric.SetValue(chipAttr);
+                        }
                     }
 
                     //
@@ -154,7 +180,7 @@ static CHIP_ERROR ConvertDistinguishedName(ASN1Reader & reader, TLVWriter & writ
 
                 // Only one AttributeTypeAndValue allowed per RDN.
                 err = reader.Next();
-                if (err == ASN1_NO_ERROR)
+                if (err == CHIP_NO_ERROR)
                 {
                     ExitNow(err = ASN1_ERROR_UNSUPPORTED_ENCODING);
                 }
@@ -324,7 +350,7 @@ static CHIP_ERROR ConvertExtension(ASN1Reader & reader, TLVWriter & writer)
                 ASN1_PARSE_ENTER_SEQUENCE
                 {
                     err = reader.Next();
-                    VerifyOrExit(err == ASN1_NO_ERROR, err = ASN1_ERROR_INVALID_ENCODING);
+                    SuccessOrExit(err);
 
                     // keyIdentifier [0] IMPLICIT KeyIdentifier,
                     // KeyIdentifier ::= OCTET STRING
@@ -367,7 +393,7 @@ static CHIP_ERROR ConvertExtension(ASN1Reader & reader, TLVWriter & writer)
                 uint32_t keyUsageBits;
                 err = reader.GetBitString(keyUsageBits);
                 SuccessOrExit(err);
-                VerifyOrExit(keyUsageBits <= UINT16_MAX, err = ASN1_ERROR_INVALID_ENCODING);
+                VerifyOrExit(CanCastTo<uint16_t>(keyUsageBits), err = ASN1_ERROR_INVALID_ENCODING);
 
                 // Check that only supported flags are set.
                 BitFlags<KeyUsageFlags> keyUsageFlags(static_cast<uint16_t>(keyUsageBits));
@@ -393,7 +419,7 @@ static CHIP_ERROR ConvertExtension(ASN1Reader & reader, TLVWriter & writer)
 
                     // cA BOOLEAN DEFAULT FALSE
                     err = reader.Next();
-                    if (err == ASN1_NO_ERROR && reader.GetClass() == kASN1TagClass_Universal &&
+                    if (err == CHIP_NO_ERROR && reader.GetClass() == kASN1TagClass_Universal &&
                         reader.GetTag() == kASN1UniversalTag_Boolean)
                     {
                         ASN1_GET_BOOLEAN(isCA);
@@ -404,13 +430,12 @@ static CHIP_ERROR ConvertExtension(ASN1Reader & reader, TLVWriter & writer)
                     }
 
                     // pathLenConstraint INTEGER (0..MAX) OPTIONAL
-                    if (err == ASN1_NO_ERROR && reader.GetClass() == kASN1TagClass_Universal &&
+                    if (err == CHIP_NO_ERROR && reader.GetClass() == kASN1TagClass_Universal &&
                         reader.GetTag() == kASN1UniversalTag_Integer)
                     {
                         ASN1_GET_INTEGER(pathLenConstraint);
 
-                        VerifyOrExit(pathLenConstraint <= UINT8_MAX, err = ASN1_ERROR_INVALID_ENCODING);
-                        VerifyOrExit(pathLenConstraint >= 0, err = ASN1_ERROR_INVALID_ENCODING);
+                        VerifyOrExit(CanCastTo<uint8_t>(pathLenConstraint), err = ASN1_ERROR_INVALID_ENCODING);
 
                         // pathLenConstraint is present only when cA is TRUE
                         VerifyOrExit(isCA, err = ASN1_ERROR_INVALID_ENCODING);
@@ -446,7 +471,7 @@ static CHIP_ERROR ConvertExtension(ASN1Reader & reader, TLVWriter & writer)
                 // ExtKeyUsageSyntax ::= SEQUENCE SIZE (1..MAX) OF KeyPurposeId
                 ASN1_PARSE_ENTER_SEQUENCE
                 {
-                    while ((err = reader.Next()) == ASN1_NO_ERROR)
+                    while ((err = reader.Next()) == CHIP_NO_ERROR)
                     {
                         // KeyPurposeId ::= OBJECT IDENTIFIER
                         OID keyPurposeOID;
@@ -496,7 +521,7 @@ static CHIP_ERROR ConvertExtensions(ASN1Reader & reader, TLVWriter & writer)
     // Extensions ::= SEQUENCE SIZE (1..MAX) OF Extension
     ASN1_PARSE_ENTER_SEQUENCE
     {
-        while ((err = reader.Next()) == ASN1_NO_ERROR)
+        while ((err = reader.Next()) == CHIP_NO_ERROR)
         {
             err = ConvertExtension(reader, writer);
             SuccessOrExit(err);
@@ -516,15 +541,46 @@ exit:
     return err;
 }
 
-static CHIP_ERROR ConvertCertificate(ASN1Reader & reader, TLVWriter & writer)
+CHIP_ERROR ConvertECDSASignatureDERToRaw(ASN1Reader & reader, TLVWriter & writer, uint64_t tag)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    uint8_t rawSig[kP256_ECDSA_Signature_Length_Raw];
+
+    // Per RFC3279, the ECDSA signature value is encoded in DER encapsulated in the signatureValue BIT STRING.
+    ASN1_ENTER_ENCAPSULATED(kASN1TagClass_Universal, kASN1UniversalTag_BitString)
+    {
+        // Ecdsa-Sig-Value ::= SEQUENCE
+        ASN1_PARSE_ENTER_SEQUENCE
+        {
+            // r INTEGER
+            ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_Integer);
+            ReturnErrorOnFailure(
+                ConvertIntegerDERToRaw(ByteSpan(reader.GetValue(), reader.GetValueLen()), rawSig, kP256_FE_Length));
+
+            // s INTEGER
+            ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_Integer);
+            ReturnErrorOnFailure(ConvertIntegerDERToRaw(ByteSpan(reader.GetValue(), reader.GetValueLen()), rawSig + kP256_FE_Length,
+                                                        kP256_FE_Length));
+        }
+        ASN1_EXIT_SEQUENCE;
+    }
+    ASN1_EXIT_ENCAPSULATED;
+
+    ReturnErrorOnFailure(writer.PutBytes(tag, rawSig, kP256_ECDSA_Signature_Length_Raw));
+
+exit:
+    return err;
+}
+
+static CHIP_ERROR ConvertCertificate(ASN1Reader & reader, TLVWriter & writer, uint64_t tag, uint64_t & issuer, uint64_t & subject,
+                                     Optional<uint64_t> & fabric)
 {
     CHIP_ERROR err;
     int64_t version;
     OID sigAlgoOID;
     TLVType containerType;
 
-    err = writer.StartContainer(ProfileTag(Protocols::OpCredentials::Id.ToTLVProfileId(), kTag_ChipCertificate), kTLVType_Structure,
-                                containerType);
+    err = writer.StartContainer(tag, kTLVType_Structure, containerType);
     SuccessOrExit(err);
 
     // Certificate ::= SEQUENCE
@@ -566,7 +622,7 @@ static CHIP_ERROR ConvertCertificate(ASN1Reader & reader, TLVWriter & writer)
             ASN1_EXIT_SEQUENCE;
 
             // issuer Name
-            err = ConvertDistinguishedName(reader, writer, ContextTag(kTag_Issuer));
+            err = ConvertDistinguishedName(reader, writer, ContextTag(kTag_Issuer), issuer, fabric);
             SuccessOrExit(err);
 
             // validity Validity,
@@ -574,7 +630,7 @@ static CHIP_ERROR ConvertCertificate(ASN1Reader & reader, TLVWriter & writer)
             SuccessOrExit(err);
 
             // subject Name,
-            err = ConvertDistinguishedName(reader, writer, ContextTag(kTag_Subject));
+            err = ConvertDistinguishedName(reader, writer, ContextTag(kTag_Subject), subject, fabric);
             SuccessOrExit(err);
 
             err = ConvertSubjectPublicKeyInfo(reader, writer);
@@ -584,20 +640,20 @@ static CHIP_ERROR ConvertCertificate(ASN1Reader & reader, TLVWriter & writer)
 
             // issuerUniqueID [1] IMPLICIT UniqueIdentifier OPTIONAL,
             // Not supported.
-            if (err == ASN1_NO_ERROR && reader.GetClass() == kASN1TagClass_ContextSpecific && reader.GetTag() == 1)
+            if (err == CHIP_NO_ERROR && reader.GetClass() == kASN1TagClass_ContextSpecific && reader.GetTag() == 1)
             {
                 ExitNow(err = ASN1_ERROR_UNSUPPORTED_ENCODING);
             }
 
             // subjectUniqueID [2] IMPLICIT UniqueIdentifier OPTIONAL,
             // Not supported.
-            if (err == ASN1_NO_ERROR && reader.GetClass() == kASN1TagClass_ContextSpecific && reader.GetTag() == 2)
+            if (err == CHIP_NO_ERROR && reader.GetClass() == kASN1TagClass_ContextSpecific && reader.GetTag() == 2)
             {
                 ExitNow(err = ASN1_ERROR_UNSUPPORTED_ENCODING);
             }
 
             // extensions [3] EXPLICIT Extensions OPTIONAL
-            if (err == ASN1_NO_ERROR && reader.GetClass() == kASN1TagClass_ContextSpecific && reader.GetTag() == 3)
+            if (err == CHIP_NO_ERROR && reader.GetClass() == kASN1TagClass_ContextSpecific && reader.GetTag() == 3)
             {
                 ASN1_ENTER_CONSTRUCTED(kASN1TagClass_ContextSpecific, 3)
                 {
@@ -633,33 +689,7 @@ static CHIP_ERROR ConvertCertificate(ASN1Reader & reader, TLVWriter & writer)
         // signatureValue BIT STRING
         ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_BitString);
 
-        // Per RFC3279, the ECDSA signature value is encoded in DER encapsulated in the signatureValue BIT STRING.
-        ASN1_ENTER_ENCAPSULATED(kASN1TagClass_Universal, kASN1UniversalTag_BitString)
-        {
-            TLVType outerContainer;
-
-            err = writer.StartContainer(ContextTag(kTag_ECDSASignature), kTLVType_Structure, outerContainer);
-            SuccessOrExit(err);
-
-            // Ecdsa-Sig-Value ::= SEQUENCE
-            ASN1_PARSE_ENTER_SEQUENCE
-            {
-                // r INTEGER
-                ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_Integer);
-                err = writer.PutBytes(ContextTag(kTag_ECDSASignature_r), reader.GetValue(), reader.GetValueLen());
-                SuccessOrExit(err);
-
-                // s INTEGER
-                ASN1_PARSE_ELEMENT(kASN1TagClass_Universal, kASN1UniversalTag_Integer);
-                err = writer.PutBytes(ContextTag(kTag_ECDSASignature_s), reader.GetValue(), reader.GetValueLen());
-                SuccessOrExit(err);
-            }
-            ASN1_EXIT_SEQUENCE;
-
-            err = writer.EndContainer(outerContainer);
-            SuccessOrExit(err);
-        }
-        ASN1_EXIT_ENCAPSULATED;
+        ReturnErrorOnFailure(ConvertECDSASignatureDERToRaw(reader, writer, ContextTag(kTag_ECDSASignature)));
     }
     ASN1_EXIT_SEQUENCE;
 
@@ -670,27 +700,133 @@ exit:
     return err;
 }
 
-DLL_EXPORT CHIP_ERROR ConvertX509CertToChipCert(const uint8_t * x509Cert, uint32_t x509CertLen, uint8_t * chipCertBuf,
-                                                uint32_t chipCertBufSize, uint32_t & chipCertLen)
+DLL_EXPORT CHIP_ERROR ConvertX509CertToChipCert(const ByteSpan x509Cert, uint8_t * chipCertBuf, uint32_t chipCertBufSize,
+                                                uint32_t & chipCertLen)
 {
-    CHIP_ERROR err;
     ASN1Reader reader;
     TLVWriter writer;
 
-    reader.Init(x509Cert, x509CertLen);
+    uint64_t issuer, subject;
+    Optional<uint64_t> fabric;
+
+    VerifyOrReturnError(!x509Cert.empty(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(CanCastTo<uint32_t>(x509Cert.size()), CHIP_ERROR_INVALID_ARGUMENT);
+
+    reader.Init(x509Cert.data(), static_cast<uint32_t>(x509Cert.size()));
 
     writer.Init(chipCertBuf, chipCertBufSize);
 
-    err = ConvertCertificate(reader, writer);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(ConvertCertificate(reader, writer, AnonymousTag, issuer, subject, fabric));
 
-    err = writer.Finalize();
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(writer.Finalize());
 
     chipCertLen = writer.GetLengthWritten();
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR ConvertX509CertsToChipCertArray(const ByteSpan & x509NOC, const ByteSpan & x509ICAC, MutableByteSpan & chipCertArray)
+{
+    // NOC is mandatory
+    VerifyOrReturnError(!x509NOC.empty(), CHIP_ERROR_INVALID_ARGUMENT);
+
+    TLVWriter writer;
+
+    // We can still generate the certificate if the output chip cert buffer is bigger than UINT32_MAX,
+    // since generated cert needs less space than UINT32_MAX.
+    uint32_t chipCertBufLen = (chipCertArray.size() > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(chipCertArray.size());
+    writer.Init(chipCertArray.data(), chipCertBufLen);
+
+    TLVType outerContainer;
+    ReturnErrorOnFailure(writer.StartContainer(AnonymousTag, kTLVType_Array, outerContainer));
+
+    ASN1Reader reader;
+    VerifyOrReturnError(CanCastTo<uint32_t>(x509NOC.size()), CHIP_ERROR_INVALID_ARGUMENT);
+    reader.Init(x509NOC.data(), static_cast<uint32_t>(x509NOC.size()));
+    uint64_t nocIssuer, nocSubject;
+    Optional<uint64_t> nocFabric;
+    ReturnErrorOnFailure(ConvertCertificate(reader, writer, AnonymousTag, nocIssuer, nocSubject, nocFabric));
+    VerifyOrReturnError(nocFabric.HasValue(), CHIP_ERROR_INVALID_ARGUMENT);
+
+    // ICAC is optional
+    if (!x509ICAC.empty())
+    {
+        VerifyOrReturnError(CanCastTo<uint32_t>(x509ICAC.size()), CHIP_ERROR_INVALID_ARGUMENT);
+        reader.Init(x509ICAC.data(), static_cast<uint32_t>(x509ICAC.size()));
+        uint64_t icaIssuer, icaSubject;
+        Optional<uint64_t> icaFabric;
+        ReturnErrorOnFailure(ConvertCertificate(reader, writer, AnonymousTag, icaIssuer, icaSubject, icaFabric));
+        VerifyOrReturnError(icaSubject == nocIssuer, CHIP_ERROR_INVALID_ARGUMENT);
+        if (icaFabric.HasValue())
+        {
+            // Match ICA's fabric ID if the ICA certificate has provided it
+            VerifyOrReturnError(icaFabric == nocFabric, CHIP_ERROR_INVALID_ARGUMENT);
+        }
+    }
+
+    ReturnErrorOnFailure(writer.EndContainer(outerContainer));
+    ReturnErrorOnFailure(writer.Finalize());
+
+    ReturnErrorCodeIf(writer.GetLengthWritten() > chipCertBufLen, CHIP_ERROR_INTERNAL);
+    chipCertArray.reduce_size(writer.GetLengthWritten());
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR ExtractCertsFromCertArray(const ByteSpan & opCertArray, ByteSpan & noc, ByteSpan & icac)
+{
+    TLVType outerContainerType;
+    TLVReader reader;
+    reader.Init(opCertArray.data(), static_cast<uint32_t>(opCertArray.size()));
+
+    if (reader.GetType() == kTLVType_NotSpecified)
+    {
+        ReturnErrorOnFailure(reader.Next());
+    }
+    VerifyOrReturnError(reader.GetType() == kTLVType_Array, CHIP_ERROR_WRONG_TLV_TYPE);
+    ReturnErrorOnFailure(reader.EnterContainer(outerContainerType));
+
+    {
+        TLVType nocContainerType;
+        const uint8_t * nocBegin = reader.GetReadPoint();
+
+        if (reader.GetType() == kTLVType_NotSpecified)
+        {
+            ReturnErrorOnFailure(reader.Next());
+        }
+        VerifyOrReturnError(reader.GetType() == kTLVType_Structure, CHIP_ERROR_WRONG_TLV_TYPE);
+        VerifyOrReturnError(reader.GetTag() == AnonymousTag, CHIP_ERROR_INVALID_TLV_TAG);
+
+        ReturnErrorOnFailure(reader.EnterContainer(nocContainerType));
+        ReturnErrorOnFailure(reader.ExitContainer(nocContainerType));
+        noc = ByteSpan(nocBegin, static_cast<size_t>(reader.GetReadPoint() - nocBegin));
+    }
+
+    {
+        TLVType icacContainerType;
+        const uint8_t * icacBegin = reader.GetReadPoint();
+
+        if (reader.GetType() == kTLVType_NotSpecified)
+        {
+            CHIP_ERROR err = reader.Next();
+            if (err == CHIP_END_OF_TLV)
+            {
+                icac = ByteSpan(nullptr, 0);
+                return CHIP_NO_ERROR;
+            }
+            ReturnErrorOnFailure(err);
+        }
+        VerifyOrReturnError(reader.GetType() == kTLVType_Structure, CHIP_ERROR_WRONG_TLV_TYPE);
+        VerifyOrReturnError(reader.GetTag() == AnonymousTag, CHIP_ERROR_INVALID_TLV_TAG);
+
+        ReturnErrorOnFailure(reader.EnterContainer(icacContainerType));
+        ReturnErrorOnFailure(reader.ExitContainer(icacContainerType));
+        icac = ByteSpan(icacBegin, static_cast<size_t>(reader.GetReadPoint() - icacBegin));
+    }
+
+    ReturnErrorOnFailure(reader.ExitContainer(outerContainerType));
+
+    return CHIP_NO_ERROR;
 }
 
 } // namespace Credentials

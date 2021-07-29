@@ -20,6 +20,7 @@ package chip.devicecontroller;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.util.Log;
+import chip.devicecontroller.GetConnectedDeviceCallbackJni.GetConnectedDeviceCallback;
 
 /** Controller to interact with the CHIP device. */
 public class ChipDeviceController {
@@ -47,6 +48,22 @@ public class ChipDeviceController {
   }
 
   public void pairDevice(BluetoothGatt bleServer, long deviceId, long setupPincode) {
+    pairDevice(bleServer, deviceId, setupPincode, null);
+  }
+
+  /**
+   * Pair a device connected through BLE.
+   *
+   * <p>TODO(#7985): Annotate csrNonce as Nullable.
+   *
+   * @param bleServer the BluetoothGatt representing the BLE connection to the device
+   * @param deviceId the node ID to assign to the device
+   * @param setupPincode the pincode for the device
+   * @param csrNonce the 32-byte CSR nonce to use, or null if we want to use an internally randomly
+   *     generated CSR nonce.
+   */
+  public void pairDevice(
+      BluetoothGatt bleServer, long deviceId, long setupPincode, byte[] csrNonce) {
     if (connectionId == 0) {
       bleGatt = bleServer;
 
@@ -59,7 +76,7 @@ public class ChipDeviceController {
 
       Log.d(TAG, "Bluetooth connection added with ID: " + connectionId);
       Log.d(TAG, "Pairing device with ID: " + deviceId);
-      pairDevice(deviceControllerPtr, deviceId, connectionId, setupPincode);
+      pairDevice(deviceControllerPtr, deviceId, connectionId, setupPincode, csrNonce);
     } else {
       Log.e(TAG, "Bluetooth connection already in use.");
       completionListener.onError(new Exception("Bluetooth connection already in use."));
@@ -74,8 +91,21 @@ public class ChipDeviceController {
     pairTestDeviceWithoutSecurity(deviceControllerPtr, ipAddress);
   }
 
-  public void pairDevice(long deviceId, int connectionId, long pinCode) {
-    pairDevice(deviceControllerPtr, deviceId, connectionId, pinCode);
+  /**
+   * Returns a pointer to a device with the specified nodeId. The device is not guaranteed to be
+   * connected.
+   *
+   * <p>TODO(#8443): This method and getConnectedDevicePointer() could benefit from ChipDevice
+   * abstraction to hide the pointer passing.
+   */
+  public long getDevicePointer(long nodeId) {
+    return getDevicePointer(deviceControllerPtr, nodeId);
+  }
+
+  /** Through GetConnectedDeviceCallback, returns a pointer to a connected device or an error. */
+  public void getConnectedDevicePointer(long nodeId, GetConnectedDeviceCallback callback) {
+    GetConnectedDeviceCallbackJni jniCallback = new GetConnectedDeviceCallbackJni(callback);
+    getConnectedDevicePointer(deviceControllerPtr, nodeId, jniCallback.getCallbackHandle());
   }
 
   public boolean disconnectDevice(long deviceId) {
@@ -99,6 +129,18 @@ public class ChipDeviceController {
   public void onPairingComplete(int errorCode) {
     if (completionListener != null) {
       completionListener.onPairingComplete(errorCode);
+    }
+  }
+
+  public void onCommissioningComplete(long nodeId, int errorCode) {
+    if (completionListener != null) {
+      completionListener.onCommissioningComplete(nodeId, errorCode);
+    }
+  }
+
+  public void onOpCSRGenerationComplete(byte[] csr) {
+    if (completionListener != null) {
+      completionListener.onOpCSRGenerationComplete(csr);
     }
   }
 
@@ -162,8 +204,8 @@ public class ChipDeviceController {
     return getIpAddress(deviceControllerPtr, deviceId);
   }
 
-  public void updateAddress(long deviceId, String address, int port) {
-    updateAddress(deviceControllerPtr, deviceId, address, port);
+  public void updateDevice(long fabricId, long deviceId) {
+    updateDevice(deviceControllerPtr, fabricId, deviceId);
   }
 
   public void sendMessage(long deviceId, String message) {
@@ -189,9 +231,14 @@ public class ChipDeviceController {
   private native long newDeviceController();
 
   private native void pairDevice(
-      long deviceControllerPtr, long deviceId, int connectionId, long pinCode);
+      long deviceControllerPtr, long deviceId, int connectionId, long pinCode, byte[] csrNonce);
 
   private native void unpairDevice(long deviceControllerPtr, long deviceId);
+
+  private native long getDevicePointer(long deviceControllerPtr, long deviceId);
+
+  private native void getConnectedDevicePointer(
+      long deviceControllerPtr, long deviceId, long callbackHandle);
 
   private native void pairTestDeviceWithoutSecurity(long deviceControllerPtr, String ipAddress);
 
@@ -201,8 +248,7 @@ public class ChipDeviceController {
 
   private native String getIpAddress(long deviceControllerPtr, long deviceId);
 
-  private native void updateAddress(
-      long deviceControllerPtr, long deviceId, String address, int port);
+  private native void updateDevice(long deviceControllerPtr, long fabricId, long deviceId);
 
   private native void sendMessage(long deviceControllerPtr, long deviceId, String message);
 
@@ -215,6 +261,18 @@ public class ChipDeviceController {
   private native boolean openPairingWindow(long deviceControllerPtr, long deviceId, int duration);
 
   private native boolean isActive(long deviceControllerPtr, long deviceId);
+
+  public static native void setKeyValueStoreManager(KeyValueStoreManager manager);
+
+  public static native void setServiceResolver(ServiceResolver resolver);
+
+  public static native void handleServiceResolve(
+      String instanceName,
+      String serviceType,
+      String address,
+      int port,
+      long callbackHandle,
+      long contextHandle);
 
   static {
     System.loadLibrary("CHIPController");
@@ -248,6 +306,9 @@ public class ChipDeviceController {
     /** Notifies the deletion of pairing session. */
     void onPairingDeleted(int errorCode);
 
+    /** Notifies the completion of commissioning. */
+    void onCommissioningComplete(long nodeId, int errorCode);
+
     /** Notifies the completion of network commissioning */
     void onNetworkCommissioningComplete(int errorCode);
 
@@ -259,5 +320,8 @@ public class ChipDeviceController {
 
     /** Notifies the listener of the error. */
     void onError(Throwable error);
+
+    /** Notifies the Commissioner when the OpCSR for the Comissionee is generated. */
+    void onOpCSRGenerationComplete(byte[] csr);
   }
 }

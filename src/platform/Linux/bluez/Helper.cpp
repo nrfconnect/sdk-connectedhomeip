@@ -389,7 +389,7 @@ static gboolean BluezCharacteristicWriteFD(GIOChannel * aChannel, GIOCondition a
 
     len = read(fd, buf, conn->mMtu);
 
-    VerifyOrExit(len > 0, ChipLogError(DeviceLayer, "FAIL: short read in %s (%d)", __func__, len));
+    VerifyOrExit(len > 0, ChipLogError(DeviceLayer, "FAIL: short read in %s (%zd)", __func__, len));
 
     // Casting len to size_t is safe, since we ensured that it's not negative.
     newVal = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, buf, static_cast<size_t>(len), sizeof(uint8_t));
@@ -442,7 +442,7 @@ static gboolean BluezCharacteristicAcquireWrite(BluezGattCharacteristic1 * aChar
         errStr = strerror(errno);
         ChipLogError(DeviceLayer, "FAIL: socketpair: %s in %s", errStr, __func__);
         g_dbus_method_invocation_return_dbus_error(aInvocation, "org.bluez.Error.Failed", "FD creation failed");
-        SuccessOrExit(false);
+        goto exit;
     }
 
     g_variant_dict_init(&options, aOptions);
@@ -455,7 +455,7 @@ static gboolean BluezCharacteristicAcquireWrite(BluezGattCharacteristic1 * aChar
     {
         ChipLogError(DeviceLayer, "FAIL: no MTU in options in %s", __func__);
         g_dbus_method_invocation_return_dbus_error(aInvocation, "org.bluez.Error.InvalidArguments", "MTU negotiation failed");
-        SuccessOrExit(false);
+        goto exit;
     }
 
     channel = g_io_channel_unix_new(fds[0]);
@@ -519,7 +519,7 @@ static gboolean BluezCharacteristicAcquireNotify(BluezGattCharacteristic1 * aCha
         errStr = strerror(errno);
         ChipLogError(DeviceLayer, "FAIL: socketpair: %s in %s", errStr, __func__);
         g_dbus_method_invocation_return_dbus_error(aInvocation, "org.bluez.Error.Failed", "FD creation failed");
-        SuccessOrExit(false);
+        goto exit;
     }
     channel = g_io_channel_unix_new(fds[0]);
     g_io_channel_set_encoding(channel, nullptr, nullptr);
@@ -914,7 +914,7 @@ static void BluezHandleNewDevice(BluezDevice1 * device, BluezEndpoint * apEndpoi
     conn = static_cast<BluezConnection *>(
         g_hash_table_lookup(apEndpoint->mpConnMap, g_dbus_proxy_get_object_path(G_DBUS_PROXY(device))));
     VerifyOrExit(conn == nullptr,
-                 ChipLogError(DeviceLayer, "FAIL: connection already tracked: conn: %x new device: %s", conn,
+                 ChipLogError(DeviceLayer, "FAIL: connection already tracked: conn: %p new device: %s", conn,
                               g_dbus_proxy_get_object_path(G_DBUS_PROXY(device))));
 
     conn                = g_new0(BluezConnection, 1);
@@ -1218,7 +1218,7 @@ static void UpdateAdditionalDataCharacteristic(BluezGattCharacteristic1 * charac
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(DeviceLayer, "Failed to generate TLV encoded Additional Data", __func__);
+        ChipLogError(DeviceLayer, "Failed to generate TLV encoded Additional Data (%s)", __func__);
     }
     return;
 }

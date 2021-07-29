@@ -20,7 +20,6 @@
 #include <AppConfig.h>
 #include <AppTask.h>
 #include <LcdPainter.h>
-#include <Service.h>
 #include <app/common/gen/attribute-id.h>
 #include <app/common/gen/attribute-type.h>
 #include <app/common/gen/cluster-id.h>
@@ -76,40 +75,31 @@ WindowCover & AppTask::Cover()
     return mCover;
 }
 
-int AppTask::Start()
+CHIP_ERROR AppTask::Start()
 {
-    int err = CHIP_ERROR_MAX;
-
     mQueue = xQueueCreateStatic(APP_EVENT_QUEUE_SIZE, sizeof(AppEvent), sAppEventQueueBuffer, &sAppEventQueueStruct);
     if (mQueue == NULL)
     {
         EFR32_LOG("Failed to allocate app event queue");
-        appError(err);
+        appError(APP_ERROR_EVENT_QUEUE_FAILED);
     }
 
     // Start App task.
     mHandle = xTaskCreateStatic(Main, APP_TASK_NAME, ArraySize(sAppStack), NULL, 1, sAppStack, &sAppTaskStruct);
-    if (mHandle != NULL)
-    {
-        err = CHIP_NO_ERROR;
-    }
-    return err;
+    return mHandle ? CHIP_NO_ERROR : APP_ERROR_CREATE_TASK_FAILED;
 }
 
 void AppTask::Main(void * pvParameter)
 {
-    AppTask & app             = AppTask::sInstance;
-    uint64_t lastChangeTimeUS = 0;
-    int err;
+    AppTask & app = AppTask::sInstance;
 
-    err = app.Init();
+    CHIP_ERROR err = app.Init();
     if (err != CHIP_NO_ERROR)
     {
         appError(err);
     }
 
     EFR32_LOG("App Task started");
-    SetDeviceName("EFR32WindowCoverDemo._chip._udp.local.");
 
     while (true)
     {
@@ -175,22 +165,11 @@ void AppTask::Main(void * pvParameter)
 
         app.mStatusLED.Animate();
         app.mActionLED.Animate();
-
-        uint64_t nowUS            = chip::System::Platform::Layer::GetClock_Monotonic();
-        uint64_t nextChangeTimeUS = lastChangeTimeUS + 5 * 1000 * 1000UL;
-
-        if (nowUS > nextChangeTimeUS)
-        {
-            PublishService();
-            lastChangeTimeUS = nowUS;
-        }
     }
 }
 
-int AppTask::Init()
+CHIP_ERROR AppTask::Init()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     // Init ZCL Data Model
     InitServer();
 
@@ -211,9 +190,11 @@ int AppTask::Init()
 
 // Print setup info on LCD if available
 #ifdef DISPLAY_ENABLED
-    if (!GetQRCode(mQRCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)) == CHIP_NO_ERROR)
+    CHIP_ERROR err = GetQRCode(mQRCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
+    if (err != CHIP_NO_ERROR)
     {
         EFR32_LOG("Getting QR code failed!");
+        return err;
     }
 #else
     PrintQRCode(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
@@ -222,7 +203,7 @@ int AppTask::Init()
     // Force LCD refresh
     mLastThreadProvisioned = !ConnectivityMgr().IsThreadProvisioned();
 
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 void AppTask::PostEvent(const AppEvent & event)
@@ -383,7 +364,7 @@ void AppTask::UpdateClusterState(AppEvent::EventType event)
     // WindowCoveringType
     case AppEvent::EventType::CoverStatusChange: {
         uint8_t config = mCover.StatusGet();
-        status = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_CONFIG_STATUS_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
+        status = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_WC_CONFIG_STATUS_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
                                        (uint8_t *) &config, ZCL_BITMAP8_ATTRIBUTE_TYPE);
         break;
     }
@@ -391,7 +372,7 @@ void AppTask::UpdateClusterState(AppEvent::EventType event)
     // WindowCoveringType
     case AppEvent::EventType::CoverTypeChange: {
         uint8_t type = static_cast<uint8_t>(mCover.TypeGet());
-        status       = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_COVERING_TYPE_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
+        status       = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_WC_TYPE_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
                                        (uint8_t *) &type, ZCL_INT8U_ATTRIBUTE_TYPE);
         break;
     }
@@ -400,8 +381,8 @@ void AppTask::UpdateClusterState(AppEvent::EventType event)
     case AppEvent::EventType::CoverLiftUp:
     case AppEvent::EventType::CoverLiftDown: {
         uint16_t lift = mCover.LiftGet();
-        status        = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_CURRENT_LIFT_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
-                                       (uint8_t *) &lift, ZCL_INT16U_ATTRIBUTE_TYPE);
+        status        = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_WC_CURRENT_POSITION_LIFT_ATTRIBUTE_ID,
+                                       CLUSTER_MASK_SERVER, (uint8_t *) &lift, ZCL_INT16U_ATTRIBUTE_TYPE);
         break;
     }
 
@@ -409,8 +390,8 @@ void AppTask::UpdateClusterState(AppEvent::EventType event)
     case AppEvent::EventType::CoverTiltUp:
     case AppEvent::EventType::CoverTiltDown: {
         uint16_t tilt = mCover.TiltGet();
-        status        = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_CURRENT_TILT_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
-                                       (uint8_t *) &tilt, ZCL_INT16U_ATTRIBUTE_TYPE);
+        status        = emberAfWriteAttribute(1, ZCL_WINDOW_COVERING_CLUSTER_ID, ZCL_WC_CURRENT_POSITION_TILT_ATTRIBUTE_ID,
+                                       CLUSTER_MASK_SERVER, (uint8_t *) &tilt, ZCL_INT16U_ATTRIBUTE_TYPE);
         break;
     }
 

@@ -46,16 +46,14 @@ target_sources(app PRIVATE
                ${PUMP_COMMON}/gen/callback-stub.cpp
                ${PUMP_COMMON}/gen/IMClusterCommandHandler.cpp
                ${NRFCONNECT_COMMON}/util/LEDWidget.cpp
-               ${NRFCONNECT_COMMON}/util/NFCWidget.cpp
                ${NRFCONNECT_COMMON}/util/ThreadUtil.cpp
-               ${NRFCONNECT_COMMON}/app/Service.cpp
                ${CHIP_ROOT}/src/app/server/DataModelHandler.cpp
                ${CHIP_ROOT}/src/app/reporting/reporting-default-configuration.cpp
                ${CHIP_ROOT}/src/app/reporting/reporting.cpp
                ${CHIP_ROOT}/src/app/util/af-event.cpp
                ${CHIP_ROOT}/src/app/util/af-main-common.cpp
                ${CHIP_ROOT}/src/app/util/attribute-list-byte-span.cpp
-               ${CHIP_ROOT}/src/app/util/attribute-size.cpp
+               ${CHIP_ROOT}/src/app/util/attribute-size-util.cpp
                ${CHIP_ROOT}/src/app/util/attribute-storage.cpp
                ${CHIP_ROOT}/src/app/util/attribute-table.cpp
                ${CHIP_ROOT}/src/app/util/binding-table.cpp
@@ -68,5 +66,6 @@ target_sources(app PRIVATE
                ${CHIP_ROOT}/src/app/util/util.cpp
                ${CHIP_ROOT}/src/app/clusters/bindings/bindings.cpp
                ${CHIP_ROOT}/src/app/clusters/on-off-server/on-off.cpp
-               ${CHIP_ROOT}/src/app/clusters/operational-credentials-server/operational-credentials-server.cpp
-               ${CHIP_ROOT}/src/app/clusters/trusted-root-certificates-server/trusted-root-certificates-server.cpp)
+               ${CHIP_ROOT}/src/app/clusters/operational-credentials-server/operational-credentials-server.cpp)
+
+include(${CHIP_ROOT}/config/nrfconnect/app/flashing.cmake)

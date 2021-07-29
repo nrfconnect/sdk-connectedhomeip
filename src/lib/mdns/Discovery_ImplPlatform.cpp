@@ -21,11 +21,12 @@
 
 #include "ServiceNaming.h"
 #include "lib/core/CHIPSafeCasts.h"
+#include "lib/mdns/TxtFields.h"
 #include "lib/mdns/platform/Mdns.h"
 #include "lib/support/logging/CHIPLogging.h"
 #include "platform/CHIPDeviceConfig.h"
 #include "platform/CHIPDeviceLayer.h"
-#include "setup_payload/AdditionalDataPayloadGenerator.h"
+#include "support/CHIPMemString.h"
 #include "support/CodeUtils.h"
 #include "support/ErrorStr.h"
 #include "support/RandUtils.h"
@@ -102,20 +103,17 @@ void DiscoveryImplPlatform::HandleMdnsError(void * context, CHIP_ERROR error)
     }
 }
 
-CHIP_ERROR DiscoveryImplPlatform::SetupHostname(chip::ByteSpan macOrEui64)
+CHIP_ERROR DiscoveryImplPlatform::GetCommissionableInstanceName(char * instanceName, size_t maxLength)
 {
-    char nameBuffer[17];
-    CHIP_ERROR error = MakeHostName(nameBuffer, sizeof(nameBuffer), macOrEui64);
-    if (error != CHIP_NO_ERROR)
+    if (maxLength < (chip::Mdns::kMaxInstanceNameSize + 1))
     {
-        ChipLogError(Discovery, "Failed to create mdns hostname: %s", ErrorStr(error));
-        return error;
+        return CHIP_ERROR_NO_MEMORY;
     }
-    error = ChipMdnsSetHostname(nameBuffer);
-    if (error != CHIP_NO_ERROR)
+    size_t len = snprintf(instanceName, maxLength, "%08" PRIX32 "%08" PRIX32, static_cast<uint32_t>(mCommissionInstanceName >> 32),
+                          static_cast<uint32_t>(mCommissionInstanceName));
+    if (len >= maxLength)
     {
-        ChipLogError(Discovery, "Failed to setup mdns hostname: %s", ErrorStr(error));
-        return error;
+        return CHIP_ERROR_NO_MEMORY;
     }
     return CHIP_NO_ERROR;
 }
@@ -135,17 +133,17 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const CommissionAdvertisingParameter
     char pairingHintBuf[kKeyPairingHintMaxLength + 1];
     char pairingInstrBuf[kKeyPairingInstructionMaxLength + 1];
     // size of textEntries array should be count of Bufs above
-    TextEntry textEntries[9];
+    TextEntry textEntries[CommissionAdvertisingParameters::kTxtMaxNumber];
     size_t textEntrySize = 0;
-    // add underscore, character and newline to lengths for sub types (ex. _S<ddd>)
-    char shortDiscriminatorSubtype[kSubTypeShortDiscriminatorMaxLength + 3];
-    char longDiscriminatorSubtype[kSubTypeLongDiscriminatorMaxLength + 4];
-    char vendorSubType[kSubTypeVendorMaxLength + 3];
-    char commissioningModeSubType[kSubTypeCommissioningModeMaxLength + 3];
-    char openWindowSubType[kSubTypeAdditionalPairingMaxLength + 3];
-    char deviceTypeSubType[kSubTypeDeviceTypeMaxLength + 3];
+    // add null-character to the subtypes
+    char shortDiscriminatorSubtype[kSubTypeShortDiscriminatorMaxLength + 1];
+    char longDiscriminatorSubtype[kSubTypeLongDiscriminatorMaxLength + 1];
+    char vendorSubType[kSubTypeVendorMaxLength + 1];
+    char commissioningModeSubType[kSubTypeCommissioningModeMaxLength + 1];
+    char openWindowSubType[kSubTypeAdditionalPairingMaxLength + 1];
+    char deviceTypeSubType[kSubTypeDeviceTypeMaxLength + 1];
     // size of subTypes array should be count of SubTypes above
-    const char * subTypes[6];
+    const char * subTypes[kSubTypeMaxNumber];
     size_t subTypeSize = 0;
 
     if (!mMdnsInitialized)
@@ -153,10 +151,15 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const CommissionAdvertisingParameter
         return CHIP_ERROR_INCORRECT_STATE;
     }
 
-    ReturnErrorOnFailure(SetupHostname(params.GetMac()));
+    error = MakeHostName(service.mHostName, sizeof(service.mHostName), params.GetMac());
+    if (error != CHIP_NO_ERROR)
+    {
+        ChipLogError(Discovery, "Failed to create mdns hostname: %s", ErrorStr(error));
+        return error;
+    }
 
-    snprintf(service.mName, sizeof(service.mName), "%08" PRIX32 "%08" PRIX32, static_cast<uint32_t>(mCommissionInstanceName >> 32),
-             static_cast<uint32_t>(mCommissionInstanceName));
+    ReturnErrorOnFailure(GetCommissionableInstanceName(service.mName, sizeof(service.mName)));
+
     if (params.GetCommissionAdvertiseMode() == CommssionAdvertiseMode::kCommissionableNode)
     {
         strncpy(service.mType, kCommissionableServiceName, sizeof(service.mType));
@@ -342,7 +345,7 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const OperationalAdvertisingParamete
     constexpr uint8_t kMaxMRPRetryBufferSize = 7 + 1;
     char mrpRetryIntervalIdleBuf[kMaxMRPRetryBufferSize];
     char mrpRetryIntervalActiveBuf[kMaxMRPRetryBufferSize];
-    TextEntry mrpRetryIntervalEntries[OperationalAdvertisingParameters::kNumAdvertisingTxtEntries];
+    TextEntry mrpRetryIntervalEntries[OperationalAdvertisingParameters::kTxtMaxNumber];
     size_t textEntrySize = 0;
     uint32_t mrpRetryIntervalIdle, mrpRetryIntervalActive;
     int writtenCharactersNumber;
@@ -365,8 +368,7 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const OperationalAdvertisingParamete
 
     if (mrpRetryIntervalIdle > kMaxMRPRetryInterval)
     {
-        ChipLogProgress(Discovery, "MRP retry interval idle value exceeds allowed range of 1 hour, using maximum available",
-                        chip::ErrorStr(error));
+        ChipLogProgress(Discovery, "MRP retry interval idle value exceeds allowed range of 1 hour, using maximum available");
         mrpRetryIntervalIdle = kMaxMRPRetryInterval;
     }
     writtenCharactersNumber = snprintf(mrpRetryIntervalIdleBuf, sizeof(mrpRetryIntervalIdleBuf), "%" PRIu32, mrpRetryIntervalIdle);
@@ -377,8 +379,7 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const OperationalAdvertisingParamete
 
     if (mrpRetryIntervalActive > kMaxMRPRetryInterval)
     {
-        ChipLogProgress(Discovery, "MRP retry interval active value exceeds allowed range of 1 hour, using maximum available",
-                        chip::ErrorStr(error));
+        ChipLogProgress(Discovery, "MRP retry interval active value exceeds allowed range of 1 hour, using maximum available");
         mrpRetryIntervalActive = kMaxMRPRetryInterval;
     }
     writtenCharactersNumber =
@@ -388,7 +389,12 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const OperationalAdvertisingParamete
     mrpRetryIntervalEntries[textEntrySize++] = { "CRA", reinterpret_cast<const uint8_t *>(mrpRetryIntervalActiveBuf),
                                                  strlen(mrpRetryIntervalActiveBuf) };
 
-    ReturnErrorOnFailure(SetupHostname(params.GetMac()));
+    error = MakeHostName(service.mHostName, sizeof(service.mHostName), params.GetMac());
+    if (error != CHIP_NO_ERROR)
+    {
+        ChipLogError(Discovery, "Failed to create mdns hostname: %s", ErrorStr(error));
+        return error;
+    }
     ReturnErrorOnFailure(MakeInstanceName(service.mName, sizeof(service.mName), params.GetPeerId()));
     strncpy(service.mType, kOperationalServiceName, sizeof(service.mType));
     service.mProtocol      = MdnsServiceProtocol::kMdnsProtocolTcp;
@@ -423,7 +429,6 @@ CHIP_ERROR DiscoveryImplPlatform::StopPublishDevice()
 
 CHIP_ERROR DiscoveryImplPlatform::SetResolverDelegate(ResolverDelegate * delegate)
 {
-    VerifyOrReturnError(delegate == nullptr || mResolverDelegate == nullptr, CHIP_ERROR_INCORRECT_STATE);
     mResolverDelegate = delegate;
     return CHIP_NO_ERROR;
 }
@@ -439,6 +444,66 @@ CHIP_ERROR DiscoveryImplPlatform::ResolveNodeId(const PeerId & peerId, Inet::IPA
     service.mProtocol    = MdnsServiceProtocol::kMdnsProtocolTcp;
     service.mAddressType = type;
     return ChipMdnsResolve(&service, INET_NULL_INTERFACEID, HandleNodeIdResolve, this);
+}
+
+void DiscoveryImplPlatform::HandleNodeBrowse(void * context, MdnsService * services, size_t servicesSize, CHIP_ERROR error)
+{
+    for (size_t i = 0; i < servicesSize; ++i)
+    {
+        // For some platforms browsed services are already resolved, so verify if resolve is really needed or call resolve callback
+        if (!services[i].mAddress.HasValue())
+        {
+            ChipMdnsResolve(&services[i], services[i].mInterface, HandleNodeResolve, context);
+        }
+        else
+        {
+            HandleNodeResolve(context, &services[i], error);
+        }
+    }
+}
+
+void DiscoveryImplPlatform::HandleNodeResolve(void * context, MdnsService * result, CHIP_ERROR error)
+{
+    if (error != CHIP_NO_ERROR)
+    {
+        return;
+    }
+    DiscoveryImplPlatform * mgr = static_cast<DiscoveryImplPlatform *>(context);
+    DiscoveredNodeData data;
+    Platform::CopyString(data.hostName, result->mHostName);
+
+    if (result->mAddress.HasValue())
+    {
+        data.ipAddress[data.numIPs++] = result->mAddress.Value();
+    }
+
+    for (size_t i = 0; i < result->mTextEntrySize; ++i)
+    {
+        ByteSpan key(reinterpret_cast<const uint8_t *>(result->mTextEntries[i].mKey), strlen(result->mTextEntries[i].mKey));
+        ByteSpan val(result->mTextEntries[i].mData, result->mTextEntries[i].mDataSize);
+        FillNodeDataFromTxt(key, val, &data);
+    }
+    mgr->mResolverDelegate->OnNodeDiscoveryComplete(data);
+}
+
+CHIP_ERROR DiscoveryImplPlatform::FindCommissionableNodes(DiscoveryFilter filter)
+{
+    ReturnErrorOnFailure(Init());
+    char serviceName[kMaxCommisisonableServiceNameSize];
+    ReturnErrorOnFailure(MakeServiceTypeName(serviceName, sizeof(serviceName), filter, DiscoveryType::kCommissionableNode));
+
+    return ChipMdnsBrowse(serviceName, MdnsServiceProtocol::kMdnsProtocolUdp, Inet::kIPAddressType_Any, INET_NULL_INTERFACEID,
+                          HandleNodeBrowse, this);
+}
+
+CHIP_ERROR DiscoveryImplPlatform::FindCommissioners(DiscoveryFilter filter)
+{
+    ReturnErrorOnFailure(Init());
+    char serviceName[kMaxCommisisonerServiceNameSize];
+    ReturnErrorOnFailure(MakeServiceTypeName(serviceName, sizeof(serviceName), filter, DiscoveryType::kCommissionerNode));
+
+    return ChipMdnsBrowse(serviceName, MdnsServiceProtocol::kMdnsProtocolUdp, Inet::kIPAddressType_Any, INET_NULL_INTERFACEID,
+                          HandleNodeBrowse, this);
 }
 
 void DiscoveryImplPlatform::HandleNodeIdResolve(void * context, MdnsService * result, CHIP_ERROR error)
@@ -478,12 +543,7 @@ void DiscoveryImplPlatform::HandleNodeIdResolve(void * context, MdnsService * re
     nodeData.mAddress     = result->mAddress.ValueOr({});
     nodeData.mPort        = result->mPort;
 
-#if CHIP_PROGRESS_LOGGING
-    char addrBuffer[Inet::kMaxIPAddressStringLength + 1];
-    nodeData.mAddress.ToString(addrBuffer);
-#endif // CHIP_PROGRESS_LOGGING
-    ChipLogProgress(Discovery, "Node ID resolved for 0x" ChipLogFormatX64 " to %s", ChipLogValueX64(nodeData.mPeerId.GetNodeId()),
-                    addrBuffer);
+    nodeData.LogNodeIdResolved();
     mgr->mResolverDelegate->OnNodeIdResolved(nodeData);
 }
 

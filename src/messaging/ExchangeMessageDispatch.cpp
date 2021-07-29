@@ -29,6 +29,7 @@
 #endif
 
 #include <inttypes.h>
+#include <memory>
 
 #include <messaging/ExchangeMessageDispatch.h>
 #include <messaging/ReliableMessageContext.h>
@@ -49,18 +50,14 @@ CHIP_ERROR ExchangeMessageDispatch::SendMessage(SecureSessionHandle session, uin
     payloadHeader.SetExchangeID(exchangeId).SetMessageType(protocol, type).SetInitiator(isInitiator);
 
     // If there is a pending acknowledgment piggyback it on this message.
-    if (reliableMessageContext->HasPeerRequestedAck())
+    if (reliableMessageContext->IsAckPending())
     {
-        payloadHeader.SetAckId(reliableMessageContext->GetPendingPeerAckId());
-
-        // Set AckPending flag to false since current outgoing message is going to serve as the ack on this exchange.
-        reliableMessageContext->SetAckPending(false);
+        payloadHeader.SetAckId(reliableMessageContext->TakePendingPeerAckId());
 
 #if !defined(NDEBUG)
         if (!payloadHeader.HasMessageType(Protocols::SecureChannel::MsgType::StandaloneAck))
         {
-            ChipLogDetail(ExchangeManager, "Piggybacking Ack for MsgId:%08" PRIX32 " with msg",
-                          reliableMessageContext->GetPendingPeerAckId());
+            ChipLogDetail(ExchangeManager, "Piggybacking Ack for MsgId:%08" PRIX32 " with msg", payloadHeader.GetAckId().Value());
         }
 #endif
     }
@@ -76,54 +73,49 @@ CHIP_ERROR ExchangeMessageDispatch::SendMessage(SecureSessionHandle session, uin
 
         // Add to Table for subsequent sending
         ReturnErrorOnFailure(reliableMessageMgr->AddToRetransTable(reliableMessageContext, &entry));
+        auto deleter = [reliableMessageMgr](ReliableMessageMgr::RetransTableEntry * e) {
+            reliableMessageMgr->ClearRetransTable(*e);
+        };
+        std::unique_ptr<ReliableMessageMgr::RetransTableEntry, decltype(deleter)> entryOwner(entry, deleter);
 
-        CHIP_ERROR err = SendMessageImpl(session, payloadHeader, std::move(message), &entry->retainedBuf);
-        if (err != CHIP_NO_ERROR)
-        {
-            // Remove from table
-            ChipLogError(ExchangeManager, "Failed to send message with err %s", ::chip::ErrorStr(err));
-            reliableMessageMgr->ClearRetransTable(*entry);
-            ReturnErrorOnFailure(err);
-        }
-        else
-        {
-            reliableMessageMgr->StartRetransmision(entry);
-        }
+        ReturnErrorOnFailure(PrepareMessage(session, payloadHeader, std::move(message), entryOwner->retainedBuf));
+        ReturnErrorOnFailure(SendPreparedMessage(session, entryOwner->retainedBuf));
+        reliableMessageMgr->StartRetransmision(entryOwner.release());
     }
     else
     {
         // If the channel itself is providing reliability, let's not request MRP acks
         payloadHeader.SetNeedsAck(false);
-        ReturnErrorOnFailure(SendMessageImpl(session, payloadHeader, std::move(message), nullptr));
+        EncryptedPacketBufferHandle preparedMessage;
+        ReturnErrorOnFailure(PrepareMessage(session, payloadHeader, std::move(message), preparedMessage));
+        ReturnErrorOnFailure(SendPreparedMessage(session, preparedMessage));
     }
 
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR ExchangeMessageDispatch::OnMessageReceived(const PayloadHeader & payloadHeader, uint32_t messageId,
-                                                      const Transport::PeerAddress & peerAddress,
-                                                      ReliableMessageContext * reliableMessageContext)
+CHIP_ERROR ExchangeMessageDispatch::OnMessageReceived(const Header::Flags & headerFlags, const PayloadHeader & payloadHeader,
+                                                      uint32_t messageId, const Transport::PeerAddress & peerAddress,
+                                                      MessageFlags msgFlags, ReliableMessageContext * reliableMessageContext)
 {
+    if (IsEncryptionRequired())
+    {
+        VerifyOrReturnError(headerFlags.Has(Header::FlagValues::kEncryptedMessage), CHIP_ERROR_INVALID_ARGUMENT);
+    }
+
     ReturnErrorCodeIf(!MessagePermitted(payloadHeader.GetProtocolID().GetProtocolId(), payloadHeader.GetMessageType()),
                       CHIP_ERROR_INVALID_ARGUMENT);
 
     if (IsReliableTransmissionAllowed())
     {
-        if (payloadHeader.IsAckMsg() && payloadHeader.GetAckId().HasValue())
+        if (!msgFlags.Has(MessageFlagValues::kDuplicateMessage) && payloadHeader.IsAckMsg() && payloadHeader.GetAckId().HasValue())
         {
             ReturnErrorOnFailure(reliableMessageContext->HandleRcvdAck(payloadHeader.GetAckId().Value()));
         }
 
         if (payloadHeader.NeedsAck())
         {
-            MessageFlags msgFlags;
-
             // An acknowledgment needs to be sent back to the peer for this message on this exchange,
-            // Set the flag in message header indicating an ack requested by peer;
-            msgFlags.Set(MessageFlagValues::kPeerRequestedAck);
-
-            // Also set the flag in the exchange context indicating an ack requested;
-            reliableMessageContext->SetPeerRequestedAck(true);
 
             ReturnErrorOnFailure(reliableMessageContext->HandleNeedsAck(messageId, msgFlags));
         }

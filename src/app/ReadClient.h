@@ -56,7 +56,10 @@ public:
      *  all held resources.  The object must not be used after Shutdown() is called.
      *
      *  SDK consumer can choose when to shut down the ReadClient.
-     *  The ReadClient will never shut itself down, unless the overall InteractionModelEngine is shut down.
+     *  The ReadClient will automatically shut itself down when it receives a
+     *  response or the response times out.  So manual shutdown is only needed
+     *  to shut down a ReadClient before one of those two things has happened,
+     *  (e.g. if SendReadRequest returned failure).
      */
     void Shutdown();
 
@@ -69,9 +72,13 @@ public:
      *  @retval #others fail to send read request
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR SendReadRequest(NodeId aNodeId, Transport::AdminId aAdminId, EventPathParams * apEventPathParamsList,
-                               size_t aEventPathParamsListSize, AttributePathParams * apAttributePathParamsList,
-                               size_t aAttributePathParamsListSize, EventNumber aEventNumber);
+    CHIP_ERROR SendReadRequest(NodeId aNodeId, FabricIndex aFabricIndex, SecureSessionHandle * aSecureSession,
+                               EventPathParams * apEventPathParamsList, size_t aEventPathParamsListSize,
+                               AttributePathParams * apAttributePathParamsList, size_t aAttributePathParamsListSize,
+                               EventNumber aEventNumber);
+
+    intptr_t GetAppIdentifier() const { return mAppIdentifier; }
+    Messaging::ExchangeContext * GetExchangeContext() const { return mpExchangeCtx; }
 
 private:
     friend class TestReadInteraction;
@@ -92,17 +99,18 @@ private:
      *
      *  @param[in]    apExchangeMgr    A pointer to the ExchangeManager object.
      *  @param[in]    apDelegate       InteractionModelDelegate set by application.
+     *  @param[in]    aAppState        Application defined object to distinguish different read requests.
      *
      *  @retval #CHIP_ERROR_INCORRECT_STATE incorrect state if it is already initialized
      *  @retval #CHIP_NO_ERROR On success.
      *
      */
-    CHIP_ERROR Init(Messaging::ExchangeManager * apExchangeMgr, InteractionModelDelegate * apDelegate);
+    CHIP_ERROR Init(Messaging::ExchangeManager * apExchangeMgr, InteractionModelDelegate * apDelegate, intptr_t aAppIdentifier);
 
     virtual ~ReadClient() = default;
 
-    void OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                           const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload) override;
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
+                                 const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload) override;
     void OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext) override;
 
     /**
@@ -111,6 +119,10 @@ private:
      */
     bool IsFree() const { return mState == ClientState::Uninitialized; };
 
+    CHIP_ERROR GenerateEventPathList(ReadRequest::Builder & aRequest, EventPathParams * apEventPathParamsList,
+                                     size_t aEventPathParamsListSize, EventNumber & aEventNumber);
+    CHIP_ERROR GenerateAttributePathList(ReadRequest::Builder & aRequest, AttributePathParams * apAttributePathParamsList,
+                                         size_t aAttributePathParamsListSize);
     CHIP_ERROR ProcessAttributeDataList(TLV::TLVReader & aAttributeDataListReader);
 
     void MoveToState(const ClientState aTargetState);
@@ -118,10 +130,17 @@ private:
     CHIP_ERROR AbortExistingExchangeContext();
     const char * GetStateStr() const;
 
+    /**
+     * Internal shutdown method that we use when we know what's going on with
+     * our exchange and don't need to manually close it.
+     */
+    void ShutdownInternal();
+
     Messaging::ExchangeManager * mpExchangeMgr = nullptr;
     Messaging::ExchangeContext * mpExchangeCtx = nullptr;
     InteractionModelDelegate * mpDelegate      = nullptr;
     ClientState mState                         = ClientState::Uninitialized;
+    intptr_t mAppIdentifier                    = 0;
 };
 
 }; // namespace app

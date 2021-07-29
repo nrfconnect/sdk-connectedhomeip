@@ -78,14 +78,14 @@ constexpr size_t kVendorIdSizeBytes = 2;
 constexpr size_t kAckIdSizeBytes = 4;
 
 /// Mask to extract just the version part from a 16bit header prefix.
-constexpr uint16_t kVersionMask = 0xF000;
+constexpr uint16_t kVersionMask = 0x00F0;
 /// Shift to convert to/from a masked version 16bit value to a 4bit version.
-constexpr int kVersionShift = 12;
+constexpr int kVersionShift = 4;
 
 /// Mask to extract just the encryption type part from a 16bit header prefix.
-constexpr uint16_t kEncryptionTypeMask = 0xF0;
-/// Shift to convert to/from a masked encryption type 16bit value to a 4bit encryption type.
-constexpr int kEncryptionTypeShift = 4;
+constexpr uint16_t kEncryptionTypeMask = 0x3000;
+/// Shift to convert to/from a masked encryption type 16bit value to a 2bit encryption type.
+constexpr int kEncryptionTypeShift = 12;
 
 } // namespace
 
@@ -131,12 +131,6 @@ uint16_t MessageAuthenticationCode::TagLenForEncryptionType(Header::EncryptionTy
 {
     switch (encType)
     {
-    case Header::EncryptionType::kAESCCMTagLen8:
-        return 8;
-
-    case Header::EncryptionType::kAESCCMTagLen12:
-        return 12;
-
     case Header::EncryptionType::kAESCCMTagLen16:
         return 16;
 
@@ -150,6 +144,7 @@ CHIP_ERROR PacketHeader::Decode(const uint8_t * const data, uint16_t size, uint1
     CHIP_ERROR err = CHIP_NO_ERROR;
     LittleEndian::Reader reader(data, size);
     int version;
+    // TODO: De-uint16-ify everything related to this library
     uint16_t octets_read;
 
     uint16_t header;
@@ -158,8 +153,8 @@ CHIP_ERROR PacketHeader::Decode(const uint8_t * const data, uint16_t size, uint1
     version = ((header & kVersionMask) >> kVersionShift);
     VerifyOrExit(version == kHeaderVersion, err = CHIP_ERROR_VERSION_MISMATCH);
 
+    mFlags.SetRaw(header);
     mEncryptionType = static_cast<Header::EncryptionType>((header & kEncryptionTypeMask) >> kEncryptionTypeShift);
-    mFlags.SetRaw(header & Header::kFlagsMask);
 
     err = reader.Read32(&mMessageId).StatusCode();
     SuccessOrExit(err);
@@ -191,7 +186,7 @@ CHIP_ERROR PacketHeader::Decode(const uint8_t * const data, uint16_t size, uint1
     err = reader.Read16(&mEncryptionKeyID).StatusCode();
     SuccessOrExit(err);
 
-    octets_read = reader.OctetsRead();
+    octets_read = static_cast<uint16_t>(reader.OctetsRead());
     VerifyOrExit(octets_read == EncodeSizeBytes(), err = CHIP_ERROR_INTERNAL);
     *decode_len = octets_read;
 
@@ -251,7 +246,7 @@ CHIP_ERROR PayloadHeader::Decode(const uint8_t * const data, uint16_t size, uint
         mAckId.ClearValue();
     }
 
-    octets_read = reader.OctetsRead();
+    octets_read = static_cast<uint16_t>(reader.OctetsRead());
     VerifyOrExit(octets_read == EncodeSizeBytes(), err = CHIP_ERROR_INTERNAL);
     *decode_len = octets_read;
 
@@ -325,7 +320,7 @@ CHIP_ERROR PayloadHeader::Encode(uint8_t * data, uint16_t size, uint16_t * encod
     LittleEndian::Write16(p, mExchangeID);
     if (HaveVendorId())
     {
-        LittleEndian::Write16(p, static_cast<std::underlying_type_t<VendorId>>(mProtocolID.GetVendorId()));
+        LittleEndian::Write16(p, to_underlying(mProtocolID.GetVendorId()));
     }
     LittleEndian::Write16(p, mProtocolID.GetProtocolId());
     if (mAckId.HasValue())

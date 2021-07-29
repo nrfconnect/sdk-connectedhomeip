@@ -139,7 +139,7 @@ void GenericPlatformManagerImpl_FreeRTOS<ImplClass>::_RunEventLoop(void)
                 // Call into the system layer to dispatch the callback functions for all timers
                 // that have expired.
                 err = SystemLayer.HandlePlatformTimer();
-                if (err != CHIP_SYSTEM_NO_ERROR)
+                if (err != CHIP_NO_ERROR)
                 {
                     ChipLogError(DeviceLayer, "Error handling CHIP timers: %s", ErrorStr(err));
                 }
@@ -241,6 +241,14 @@ void GenericPlatformManagerImpl_FreeRTOS<ImplClass>::PostEventFromISR(const Chip
 template <class ImplClass>
 CHIP_ERROR GenericPlatformManagerImpl_FreeRTOS<ImplClass>::_Shutdown(void)
 {
+    VerifyOrDieWithMsg(false, DeviceLayer, "Shutdown is not implemented");
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+
+template <class ImplClass>
+CHIP_ERROR GenericPlatformManagerImpl_FreeRTOS<ImplClass>::_StopEventLoopTask(void)
+{
+    VerifyOrDieWithMsg(false, DeviceLayer, "StopEventLoopTask is not implemented");
     return CHIP_ERROR_NOT_IMPLEMENTED;
 }
 

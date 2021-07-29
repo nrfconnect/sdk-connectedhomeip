@@ -83,6 +83,9 @@ enum class PriorityLevel : uint8_t
 
 };
 
+static_assert(sizeof(std::underlying_type_t<PriorityLevel>) <= sizeof(unsigned),
+              "Logging that converts PriorityLevel to unsigned will be lossy");
+
 /**
  * @brief
  *   The structure that provides a full resolution of the cluster.
@@ -172,6 +175,7 @@ struct EventLoadOutContext
     Timestamp mPreviousSystemTime;
     Timestamp mCurrentSystemTime;
     EventNumber mCurrentEventNumber = 0;
+    size_t mEventCount              = 0;
     Timestamp mCurrentUTCTime;
     ClusterInfo * mpInterestedEventPaths = nullptr;
     bool mFirst                          = true;

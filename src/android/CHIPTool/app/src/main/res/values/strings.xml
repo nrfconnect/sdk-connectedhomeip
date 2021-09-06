@@ -34,6 +34,7 @@
     <string name="enter_endpoint_id_hint_text">Enter Endpoint ID</string>
     <string name="echo_input_hint_text">Enter message for device</string>
     <string name="update_device_address_btn_text">Update address</string>
+    <string name="update_device_address_failure">Device address update failed: %1$s</string>
 
     <string name="send_command_on_btn_text">On</string>
     <string name="send_command_off_btn_text">Off</string>

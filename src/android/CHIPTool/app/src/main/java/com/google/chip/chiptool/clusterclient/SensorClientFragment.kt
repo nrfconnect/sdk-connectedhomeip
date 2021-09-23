@@ -149,7 +149,7 @@ class SensorClientFragment : Fragment() {
     val clusterConfig = CLUSTERS[clusterName]
     val clusterRead = clusterConfig!!["read"] as (Long, Int, ReadCallback) -> Unit
 
-    val device = ChipClient.getConnectedDevicePointer(requireContext(), deviceId)
+    val device = ChipClient.getConnectedDevicePointer(deviceId)
 
     clusterRead(device, endpointId, object : ReadCallback {
       override fun onSuccess(value: Int) {

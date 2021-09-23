@@ -96,7 +96,7 @@ class EnterNetworkFragment : Fragment() {
     val ssidBytes = ssid.toByteArray()
     val pwdBytes = password.toByteArray()
 
-    val devicePtr = ChipClient.getDeviceController(requireContext())
+    val devicePtr = ChipClient.getDeviceController()
       .getDevicePointer(DeviceIdUtil.getLastDeviceId(requireContext()))
     val cluster = NetworkCommissioningCluster(devicePtr, /* endpointId = */ 0)
 
@@ -188,7 +188,7 @@ class EnterNetworkFragment : Fragment() {
     }
 
     try {
-      ChipClient.getDeviceController(requireContext()).enableThreadNetwork(
+      ChipClient.getDeviceController().enableThreadNetwork(
         DeviceIdUtil.getLastDeviceId(requireContext()),
         MakeThreadOperationalDataset(
           channelStr.toString().toInt(),

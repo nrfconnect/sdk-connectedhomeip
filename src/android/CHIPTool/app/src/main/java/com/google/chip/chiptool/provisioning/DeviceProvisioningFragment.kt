@@ -79,7 +79,7 @@ class DeviceProvisioningFragment : Fragment() {
     }
 
     scope.launch {
-      val deviceController = ChipClient.getDeviceController(requireContext())
+      val deviceController = ChipClient.getDeviceController()
       val bluetoothManager = BluetoothManager()
 
       showMessage(

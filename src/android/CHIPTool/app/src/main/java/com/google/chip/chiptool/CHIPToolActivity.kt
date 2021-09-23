@@ -84,14 +84,12 @@ class CHIPToolActivity :
   }
 
   override fun onCommissioningComplete(code: Int) {
-    runOnUiThread {
-      Toast.makeText(
-          this,
-          getString(R.string.commissioning_completed, code),
-          Toast.LENGTH_SHORT).show()
-    }
     ChipClient.getDeviceController(this).close()
-    showFragment(SelectActionFragment.newInstance(), false)
+    if (code == 0) {
+      showFragment(OnOffClientFragment.newInstance(), false)
+    } else {
+      showFragment(SelectActionFragment.newInstance(), false)
+    }
   }
 
   override fun handleScanQrCodeClicked() {

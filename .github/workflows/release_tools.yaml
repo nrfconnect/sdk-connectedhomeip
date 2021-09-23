@@ -57,9 +57,9 @@ jobs:
                   echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted" > /etc/apt/sources.list.d/arm64.list
                   echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main restricted" >> /etc/apt/sources.list.d/arm64.list
                   apt update
-                  apt install -y --no-install-recommends g++-aarch64-linux-gnu libgirepository1.0-dev
+                  apt install -y --no-install-recommends -o APT::Immediate-Configure=false g++-aarch64-linux-gnu libgirepository1.0-dev
                   dpkg --add-architecture arm64
-                  apt install -y --no-install-recommends libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64
+                  apt install -y --no-install-recommends -o APT::Immediate-Configure=false libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64
             - name: Build x64 Python CHIP Controller with debug logs enabled
               timeout-minutes: 10
               run: |

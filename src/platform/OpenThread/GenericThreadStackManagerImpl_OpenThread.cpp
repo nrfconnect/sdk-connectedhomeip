@@ -1226,11 +1226,7 @@ CHIP_ERROR GenericThreadStackManagerImpl_OpenThread<ImplClass>::_RemoveAllSrpSer
     // In case of empty list just return with no error
     VerifyOrExit(services != nullptr, error = CHIP_NO_ERROR);
 
-#if OPENTHREAD_API_VERSION >= 156
-    error = MapOpenThreadError(otSrpClientRemoveHostAndServices(mOTInst, false, false));
-#else
     error = MapOpenThreadError(otSrpClientRemoveHostAndServices(mOTInst, false));
-#endif
 
 exit:
     Impl()->UnlockThreadStack();

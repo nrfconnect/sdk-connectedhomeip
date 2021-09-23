@@ -1,18 +1,8 @@
-# Using Python CHIP Controller advanced features
+# Python CHIP Device Controller - Advanced usage
 
-This document extends the
-[basic documentation](python_chip_controller_building.md) of the Python CHIP
-Controller with the useful information when developing Python CHIP controller
-tool or Matter accessories on Linux.
-
-<hr>
-
--   [Bluetooth LE virtualization on Linux](#virtualization)
--   [Debugging with gdb](#gdb)
-
-<hr>
-
-<a name="virtualization"></a>
+This document extends the [basic documentation](README.md) with the useful
+information when developing Python CHIP controller tool or Matter accessories on
+Linux.
 
 ## Bluetooth LE virtualization on Linux
 
@@ -71,10 +61,6 @@ interfaces working as Bluetooth LE central and peripheral, respectively.
     ```
     chip-device-ctrl --bluetooth-adapter=hci2
     ```
-
-<hr>
-
-<a name="gdb"></a>
 
 ## Debugging with gdb
 

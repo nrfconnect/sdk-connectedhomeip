@@ -179,14 +179,9 @@ void BLEManagerImpl::DriveBLEState()
             SuccessOrExit(err);
         }
     }
-    else
+    // Otherwise, stop advertising if currently active.
+    else if (mFlags.Has(Flags::kAdvertising))
     {
-        if (mFlags.Has(Flags::kAdvertising))
-        {
-            err = StopAdvertising();
-            SuccessOrExit(err);
-        }
-
         // If no connections are active unregister also CHIPoBLE GATT service
         if (NumConnections() == 0 && mFlags.Has(Flags::kChipoBleGattServiceRegister))
         {
@@ -200,6 +195,9 @@ void BLEManagerImpl::DriveBLEState()
                 mFlags.Clear(Flags::kChipoBleGattServiceRegister);
             }
         }
+
+        err = StopAdvertising();
+        SuccessOrExit(err);
     }
 
 exit:
@@ -468,10 +466,6 @@ exit:
     bt_conn_unref(connEvent->BtConn);
 
     ChipLogProgress(DeviceLayer, "Current number of connections: %" PRIu16 "/%" PRIu16, NumConnections(), CONFIG_BT_MAX_CONN);
-
-    ChipDeviceEvent disconnectEvent;
-    disconnectEvent.Type = DeviceEventType::kCHIPoBLEConnectionClosed;
-    PlatformMgr().PostEvent(&disconnectEvent);
 
     // Force a reconfiguration of advertising in case we switched to non-connectable mode when
     // the BLE connection was established.
@@ -806,7 +800,7 @@ void BLEManagerImpl::HandleConnect(struct bt_conn * conId, uint8_t err)
     PlatformMgr().LockChipStack();
 
     // Don't handle BLE connecting events when it is not related to CHIPoBLE
-    VerifyOrExit(sInstance.mFlags.Has(Flags::kChipoBleGattServiceRegister), );
+    VerifyOrExit(ConnectivityMgr().IsBLEAdvertisingEnabled(), );
 
     event.Type                            = DeviceEventType::kPlatformZephyrBleConnected;
     event.Platform.BleConnEvent.BtConn    = bt_conn_ref(conId);
@@ -825,7 +819,7 @@ void BLEManagerImpl::HandleDisconnect(struct bt_conn * conId, uint8_t reason)
     PlatformMgr().LockChipStack();
 
     // Don't handle BLE disconnecting events when it is not related to CHIPoBLE
-    VerifyOrExit(sInstance.mFlags.Has(Flags::kChipoBleGattServiceRegister), );
+    VerifyOrExit(ConnectivityMgr().IsBLEAdvertisingEnabled(), );
 
     event.Type                            = DeviceEventType::kPlatformZephyrBleDisconnected;
     event.Platform.BleConnEvent.BtConn    = bt_conn_ref(conId);

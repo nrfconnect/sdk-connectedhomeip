@@ -31,16 +31,16 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-#include <asn1/ASN1.h>
-#include <asn1/ASN1Macros.h>
-#include <core/CHIPCore.h>
-#include <core/CHIPSafeCasts.h>
-#include <core/CHIPTLV.h>
 #include <credentials/CHIPCert.h>
+#include <lib/asn1/ASN1.h>
+#include <lib/asn1/ASN1Macros.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/core/CHIPSafeCasts.h>
+#include <lib/core/CHIPTLV.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/SafeInt.h>
 #include <protocols/Protocols.h>
-#include <support/CodeUtils.h>
-#include <support/DLLUtil.h>
-#include <support/SafeInt.h>
 
 namespace chip {
 namespace Credentials {
@@ -58,7 +58,7 @@ static CHIP_ERROR DecodeConvertDN(TLVReader & reader, ASN1Writer & writer, ChipD
     uint64_t tlvTag;
     uint32_t tlvTagNum;
     OID attrOID;
-    uint32_t asn1Tag;
+    uint8_t asn1Tag;
     const uint8_t * asn1AttrVal;
     uint32_t asn1AttrValLen;
     uint8_t chipAttrStr[17];
@@ -790,7 +790,6 @@ exit:
 static CHIP_ERROR DecodeConvertCert(TLVReader & reader, ASN1Writer & writer, ChipCertificateData & certData)
 {
     CHIP_ERROR err;
-    uint64_t tag;
     TLVType containerType;
 
     if (reader.GetType() == kTLVType_NotSpecified)
@@ -799,8 +798,7 @@ static CHIP_ERROR DecodeConvertCert(TLVReader & reader, ASN1Writer & writer, Chi
         SuccessOrExit(err);
     }
     VerifyOrExit(reader.GetType() == kTLVType_Structure, err = CHIP_ERROR_WRONG_TLV_TYPE);
-    tag = reader.GetTag();
-    VerifyOrExit(tag == AnonymousTag, err = CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
+    VerifyOrExit(reader.GetTag() == AnonymousTag, err = CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
 
     err = reader.EnterContainer(containerType);
     SuccessOrExit(err);
@@ -834,34 +832,30 @@ exit:
     return err;
 }
 
-DLL_EXPORT CHIP_ERROR ConvertChipCertToX509Cert(const ByteSpan chipCert, uint8_t * x509CertBuf, uint32_t x509CertBufSize,
-                                                uint32_t & x509CertLen)
+DLL_EXPORT CHIP_ERROR ConvertChipCertToX509Cert(const ByteSpan chipCert, MutableByteSpan & x509Cert)
 {
     TLVReader reader;
     ASN1Writer writer;
     ChipCertificateData certData;
 
-    VerifyOrReturnError(!chipCert.empty(), CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(CanCastTo<uint32_t>(chipCert.size()), CHIP_ERROR_INVALID_ARGUMENT);
+    reader.Init(chipCert);
 
-    reader.Init(chipCert.data(), static_cast<uint32_t>(chipCert.size()));
-
-    writer.Init(x509CertBuf, x509CertBufSize);
+    writer.Init(x509Cert);
 
     certData.Clear();
 
     ReturnErrorOnFailure(DecodeConvertCert(reader, writer, certData));
 
-    x509CertLen = writer.GetLengthWritten();
+    x509Cert.reduce_size(writer.GetLengthWritten());
 
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR DecodeChipCert(const uint8_t * chipCert, uint32_t chipCertLen, ChipCertificateData & certData)
+CHIP_ERROR DecodeChipCert(const ByteSpan chipCert, ChipCertificateData & certData)
 {
     TLVReader reader;
 
-    reader.Init(chipCert, chipCertLen);
+    reader.Init(chipCert);
 
     return DecodeChipCert(reader, certData);
 }

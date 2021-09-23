@@ -19,16 +19,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
 
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
+#include <lib/support/ErrorStr.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <nlunit-test.h>
 
 using namespace chip;
 
-#if CHIP_CONFIG_ERROR_CLASS && CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
+#if CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
 
 const char * CheckAndSkipSource(nlTestSuite * inSuite, const char * s, const char * file, unsigned int line)
 {
@@ -43,11 +43,11 @@ const char * CheckAndSkipSource(nlTestSuite * inSuite, const char * s, const cha
 
 #define CHECK_AND_SKIP_SOURCE(suite, s) CheckAndSkipSource((suite), (s), __FILE__, __LINE__)
 
-#else // CHIP_CONFIG_ERROR_CLASS && CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
+#else // CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
 
 #define CHECK_AND_SKIP_SOURCE(suite, s) (s)
 
-#endif // CHIP_CONFIG_ERROR_CLASS && CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
+#endif // CHIP_CONFIG_ERROR_SOURCE && !CHIP_CONFIG_SHORT_ERROR_STR
 
 static int falseFormatCalled = 0;
 static bool falseFormat(char * buf, uint16_t bufSize, CHIP_ERROR err)
@@ -119,7 +119,7 @@ static void CheckRegisterDeregisterErrorFormatter(nlTestSuite * inSuite, void * 
 
 static void CheckNoError(nlTestSuite * inSuite, void * inContext)
 {
-    NL_TEST_ASSERT(inSuite, strcmp(CHECK_AND_SKIP_SOURCE(inSuite, ErrorStr(CHIP_NO_ERROR)), "No Error") == 0);
+    NL_TEST_ASSERT(inSuite, strcmp(CHECK_AND_SKIP_SOURCE(inSuite, ErrorStr(CHIP_NO_ERROR)), CHIP_NO_ERROR_STRING) == 0);
 }
 
 static void CheckFormatErr(nlTestSuite * inSuite, void * inContext)

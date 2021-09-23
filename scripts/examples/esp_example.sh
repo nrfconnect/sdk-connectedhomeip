@@ -21,7 +21,7 @@ env
 
 app="$1"
 sdkconfig_name="$2"
-root=examples/$app/esp32/
+root=examples/$app/esp32
 
 shift 1
 
@@ -30,9 +30,9 @@ if [ -z "$app" ]; then
     exit 1
 fi
 
+source "$IDF_PATH/export.sh"
 source "scripts/activate.sh"
 # shellcheck source=/dev/null
-source "$IDF_PATH/export.sh"
 
 if [ "$sdkconfig_name" == "sdkconfig_c3devkit.defaults" ]; then
     idf_target="esp32c3"
@@ -43,8 +43,7 @@ fi
 rm -f "$root"/sdkconfig
 (
     cd "$root"
-    idf.py set-target "$idf_target"
-    idf.py -D SDKCONFIG_DEFAULTS="$sdkconfig_name" build
+    idf.py -D SDKCONFIG_DEFAULTS="$sdkconfig_name" set-target "$idf_target" build
 ) || {
     echo "build $sdkconfig_name failed"
     exit 1

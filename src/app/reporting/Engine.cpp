@@ -38,6 +38,15 @@ CHIP_ERROR Engine::Init()
     return CHIP_NO_ERROR;
 }
 
+void Engine::Shutdown()
+{
+    mMoreChunkedMessages = false;
+    mNumReportsInFlight  = 0;
+    mCurReadHandlerIdx   = 0;
+    InteractionModelEngine::GetInstance()->ReleaseClusterInfoList(mpGlobalDirtySet);
+    mpGlobalDirtySet = nullptr;
+}
+
 EventNumber Engine::CountEvents(ReadHandler * apReadHandler, EventNumber * apInitialEvents)
 {
     EventNumber event_count             = 0;
@@ -53,10 +62,11 @@ EventNumber Engine::CountEvents(ReadHandler * apReadHandler, EventNumber * apIni
 }
 
 CHIP_ERROR
-Engine::RetrieveClusterData(AttributeDataElement::Builder & aAttributeDataElementBuilder, ClusterInfo & aClusterInfo)
+Engine::RetrieveClusterData(AttributeDataList::Builder & aAttributeDataList, ClusterInfo & aClusterInfo)
 {
-    CHIP_ERROR err                              = CHIP_NO_ERROR;
-    AttributePath::Builder attributePathBuilder = aAttributeDataElementBuilder.CreateAttributePathBuilder();
+    CHIP_ERROR err                                            = CHIP_NO_ERROR;
+    AttributeDataElement::Builder attributeDataElementBuilder = aAttributeDataList.CreateAttributeDataElementBuilder();
+    AttributePath::Builder attributePathBuilder               = attributeDataElementBuilder.CreateAttributePathBuilder();
     attributePathBuilder.NodeId(aClusterInfo.mNodeId)
         .EndpointId(aClusterInfo.mEndpointId)
         .ClusterId(aClusterInfo.mClusterId)
@@ -65,19 +75,20 @@ Engine::RetrieveClusterData(AttributeDataElement::Builder & aAttributeDataElemen
     err = attributePathBuilder.GetError();
     SuccessOrExit(err);
 
-    err = ReadSingleClusterData(aClusterInfo, aAttributeDataElementBuilder.GetWriter(), nullptr /* data exists */);
+    ChipLogDetail(DataManagement, "<RE:Run> Cluster %" PRIx32 ", Field %" PRIx32 " is dirty", aClusterInfo.mClusterId,
+                  aClusterInfo.mFieldId);
+
+    err = ReadSingleClusterData(aClusterInfo, attributeDataElementBuilder.GetWriter(), nullptr /* data exists */);
     SuccessOrExit(err);
-    aAttributeDataElementBuilder.MoreClusterData(false);
-    aAttributeDataElementBuilder.EndOfAttributeDataElement();
-    err = aAttributeDataElementBuilder.GetError();
+    attributeDataElementBuilder.MoreClusterData(false);
+    attributeDataElementBuilder.EndOfAttributeDataElement();
+    err = attributeDataElementBuilder.GetError();
 
 exit:
-    aClusterInfo.ClearDirty();
-
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(DataManagement, "Error retrieving data from clusterId: %" PRIx32 ", err = %" CHIP_ERROR_FORMAT,
-                     aClusterInfo.mClusterId, ChipError::FormatError(err));
+        ChipLogError(DataManagement, "Error retrieving data from clusterId: " ChipLogFormatMEI ", err = %" CHIP_ERROR_FORMAT,
+                     ChipLogValueMEI(aClusterInfo.mClusterId), err.Format());
     }
 
     return err;
@@ -85,29 +96,46 @@ exit:
 
 CHIP_ERROR Engine::BuildSingleReportDataAttributeDataList(ReportData::Builder & aReportDataBuilder, ReadHandler * apReadHandler)
 {
-    CHIP_ERROR err            = CHIP_NO_ERROR;
-    ClusterInfo * clusterInfo = apReadHandler->GetAttributeClusterInfolist();
-    bool attributeClean       = true;
+    CHIP_ERROR err      = CHIP_NO_ERROR;
+    bool attributeClean = true;
     TLV::TLVWriter backup;
     aReportDataBuilder.Checkpoint(backup);
     AttributeDataList::Builder attributeDataList = aReportDataBuilder.CreateAttributeDataListBuilder();
     SuccessOrExit(err = aReportDataBuilder.GetError());
     // TODO: Need to handle multiple chunk of message
-    while (clusterInfo != nullptr)
+    for (auto clusterInfo = apReadHandler->GetAttributeClusterInfolist(); clusterInfo != nullptr; clusterInfo = clusterInfo->mpNext)
     {
-        if (clusterInfo->IsDirty())
+        if (apReadHandler->IsInitialReport())
         {
-            AttributeDataElement::Builder attributeDataElementBuilder = attributeDataList.CreateAttributeDataElementBuilder();
-            ChipLogDetail(DataManagement, "<RE:Run> Cluster %" PRIx32 ", Field %" PRIx32 " is dirty", clusterInfo->mClusterId,
-                          clusterInfo->mFieldId);
             // Retrieve data for this cluster instance and clear its dirty flag.
-            err = RetrieveClusterData(attributeDataElementBuilder, *clusterInfo);
+            err = RetrieveClusterData(attributeDataList, *clusterInfo);
             VerifyOrExit(err == CHIP_NO_ERROR,
                          ChipLogError(DataManagement, "<RE:Run> Error retrieving data from cluster, aborting"));
             attributeClean = false;
         }
-
-        clusterInfo = clusterInfo->mpNext;
+        else
+        {
+            for (auto path = mpGlobalDirtySet; path != nullptr; path = path->mpNext)
+            {
+                if (clusterInfo->IsAttributePathSupersetOf(*path))
+                {
+                    err = RetrieveClusterData(attributeDataList, *path);
+                }
+                else if (path->IsAttributePathSupersetOf(*clusterInfo))
+                {
+                    err = RetrieveClusterData(attributeDataList, *clusterInfo);
+                }
+                else
+                {
+                    // partial overlap is not possible, hence the 'continue' here: clusterInfo and path have nothing in
+                    // common.
+                    continue;
+                }
+                VerifyOrExit(err == CHIP_NO_ERROR,
+                             ChipLogError(DataManagement, "<RE:Run> Error retrieving data from cluster, aborting"));
+                attributeClean = false;
+            }
+        }
     }
     attributeDataList.EndOfAttributeDataList();
     err = attributeDataList.GetError();
@@ -117,7 +145,6 @@ exit:
     {
         aReportDataBuilder.Rollback(backup);
     }
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -221,7 +248,6 @@ exit:
     {
         aReportDataBuilder.Rollback(backup);
     }
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -239,6 +265,13 @@ CHIP_ERROR Engine::BuildAndSendSingleReportData(ReadHandler * apReadHandler)
     // Create a report data.
     err = reportDataBuilder.Init(&reportDataWriter);
     SuccessOrExit(err);
+
+    if (apReadHandler->IsSubscriptionType())
+    {
+        uint64_t subscriptionId = 0;
+        apReadHandler->GetSubscriptionId(subscriptionId);
+        reportDataBuilder.SubscriptionId(subscriptionId);
+    }
 
     err = BuildSingleReportDataAttributeDataList(reportDataBuilder, apReadHandler);
     SuccessOrExit(err);
@@ -279,27 +312,20 @@ CHIP_ERROR Engine::BuildAndSendSingleReportData(ReadHandler * apReadHandler)
     ChipLogDetail(DataManagement, "<RE> Sending report...");
     err = SendReport(apReadHandler, std::move(bufHandle));
     VerifyOrExit(err == CHIP_NO_ERROR,
-                 ChipLogError(DataManagement, "<RE> Error sending out report data with %" CHIP_ERROR_FORMAT "!",
-                              ChipError::FormatError(err)));
+                 ChipLogError(DataManagement, "<RE> Error sending out report data with %" CHIP_ERROR_FORMAT "!", err.Format()));
 
     ChipLogDetail(DataManagement, "<RE> ReportsInFlight = %" PRIu32 " with readHandler %" PRIu32 ", RE has %s", mNumReportsInFlight,
                   mCurReadHandlerIdx, mMoreChunkedMessages ? "more messages" : "no more messages");
 
-    if (!mMoreChunkedMessages)
-    {
-        OnReportConfirm();
-    }
-
 exit:
-    ChipLogFunctError(err);
-    if (!mMoreChunkedMessages || err != CHIP_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
-        apReadHandler->Shutdown();
+        apReadHandler->Shutdown(ReadHandler::ShutdownOptions::AbortCurrentExchange);
     }
     return err;
 }
 
-void Engine::Run(System::Layer * aSystemLayer, void * apAppState, CHIP_ERROR)
+void Engine::Run(System::Layer * aSystemLayer, void * apAppState)
 {
     Engine * const pEngine = reinterpret_cast<Engine *>(apAppState);
     pEngine->Run();
@@ -309,7 +335,8 @@ CHIP_ERROR Engine::ScheduleRun()
 {
     if (InteractionModelEngine::GetInstance()->GetExchangeManager() != nullptr)
     {
-        return InteractionModelEngine::GetInstance()->GetExchangeManager()->GetSessionMgr()->SystemLayer()->ScheduleWork(Run, this);
+        return InteractionModelEngine::GetInstance()->GetExchangeManager()->GetSessionManager()->SystemLayer()->ScheduleWork(Run,
+                                                                                                                             this);
     }
     else
     {
@@ -324,17 +351,79 @@ void Engine::Run()
     InteractionModelEngine * imEngine = InteractionModelEngine::GetInstance();
     ReadHandler * readHandler         = imEngine->mReadHandlers + mCurReadHandlerIdx;
 
-    while ((mNumReportsInFlight < CHIP_MAX_REPORTS_IN_FLIGHT) && (numReadHandled < CHIP_MAX_NUM_READ_HANDLER))
+    while ((mNumReportsInFlight < CHIP_IM_MAX_REPORTS_IN_FLIGHT) && (numReadHandled < CHIP_IM_MAX_NUM_READ_HANDLER))
     {
         if (readHandler->IsReportable())
         {
             CHIP_ERROR err = BuildAndSendSingleReportData(readHandler);
-            ChipLogFunctError(err);
-            return;
+            if (err != CHIP_NO_ERROR)
+            {
+                return;
+            }
         }
         numReadHandled++;
-        mCurReadHandlerIdx = (mCurReadHandlerIdx + 1) % CHIP_MAX_NUM_READ_HANDLER;
+        mCurReadHandlerIdx = (mCurReadHandlerIdx + 1) % CHIP_IM_MAX_NUM_READ_HANDLER;
         readHandler        = imEngine->mReadHandlers + mCurReadHandlerIdx;
+    }
+
+    bool allReadClean = true;
+    for (auto & handler : InteractionModelEngine::GetInstance()->mReadHandlers)
+    {
+        UpdateReadHandlerDirty(handler);
+        if (handler.IsDirty())
+        {
+            allReadClean = false;
+            break;
+        }
+    }
+
+    if (allReadClean)
+    {
+        InteractionModelEngine::GetInstance()->ReleaseClusterInfoList(mpGlobalDirtySet);
+    }
+}
+
+CHIP_ERROR Engine::SetDirty(ClusterInfo & aClusterInfo)
+{
+    for (auto & handler : InteractionModelEngine::GetInstance()->mReadHandlers)
+    {
+        if (handler.IsSubscriptionType() && (handler.IsGeneratingReports() || handler.IsAwaitingReportResponse()))
+        {
+            handler.SetDirty();
+        }
+    }
+    if (!InteractionModelEngine::GetInstance()->MergeOverlappedAttributePath(mpGlobalDirtySet, aClusterInfo) &&
+        InteractionModelEngine::GetInstance()->IsOverlappedAttributePath(aClusterInfo))
+    {
+        ReturnLogErrorOnFailure(InteractionModelEngine::GetInstance()->PushFront(mpGlobalDirtySet, aClusterInfo));
+    }
+    return CHIP_NO_ERROR;
+}
+
+void Engine::UpdateReadHandlerDirty(ReadHandler & aReadHandler)
+{
+    if (!aReadHandler.IsDirty())
+    {
+        return;
+    }
+    if (!aReadHandler.IsSubscriptionType())
+    {
+        return;
+    }
+    for (auto clusterInfo = aReadHandler.GetAttributeClusterInfolist(); clusterInfo != nullptr; clusterInfo = clusterInfo->mpNext)
+    {
+        bool intersected = false;
+        for (auto path = mpGlobalDirtySet; path != nullptr; path = path->mpNext)
+        {
+            if (path->IsAttributePathSupersetOf(*clusterInfo) || clusterInfo->IsAttributePathSupersetOf(*path))
+            {
+                intersected = true;
+            }
+        }
+        if (!intersected)
+        {
+            aReadHandler.ClearDirty();
+        }
     }
 }
 
@@ -344,13 +433,7 @@ CHIP_ERROR Engine::SendReport(ReadHandler * apReadHandler, System::PacketBufferH
 
     // We can only have 1 report in flight for any given read - increment and break out.
     mNumReportsInFlight++;
-
     err = apReadHandler->SendReportData(std::move(aPayload));
-
-    if (err != CHIP_NO_ERROR)
-    {
-        mNumReportsInFlight--;
-    }
     return err;
 }
 

@@ -16,7 +16,7 @@
  */
 
 // Import helpers from zap core
-const zapPath      = '../../../../../third_party/zap/repo/src-electron/';
+const zapPath      = '../../../../../third_party/zap/repo/dist/src-electron/';
 const templateUtil = require(zapPath + 'generator/template-util.js')
 const zclHelper    = require(zapPath + 'generator/helper-zcl.js')
 
@@ -28,6 +28,7 @@ const StringHelper    = require('../../../../../src/app/zap-templates/common/Str
 function asExpectedEndpointForCluster(clusterName)
 {
   switch (clusterName) {
+  case 'AdministratorCommissioning':
   case 'Basic':
   case 'Descriptor':
   case 'GeneralCommissioning':
@@ -41,6 +42,7 @@ function asExpectedEndpointForCluster(clusterName)
   case 'OperationalCredentials':
   case 'TrustedRootCertificates':
   case 'OtaSoftwareUpdateProvider':
+  case 'OtaSoftwareUpdateRequestor':
     return 0;
   }
   return 1;
@@ -77,6 +79,8 @@ function asObjectiveCNumberType(label, type, asLowerCased)
         .then(zclType => {
           const basicType = ChipTypesHelper.asBasicType(zclType);
           switch (basicType) {
+          case 'bool':
+            return 'Bool';
           case 'uint8_t':
             return 'UnsignedChar';
           case 'uint16_t':

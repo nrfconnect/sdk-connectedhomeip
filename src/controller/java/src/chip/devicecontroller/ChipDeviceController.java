@@ -21,6 +21,8 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.util.Log;
 import chip.devicecontroller.GetConnectedDeviceCallbackJni.GetConnectedDeviceCallback;
+import chip.devicecontroller.mdns.ChipMdnsCallback;
+import chip.devicecontroller.mdns.ServiceResolver;
 
 /** Controller to interact with the CHIP device. */
 public class ChipDeviceController {
@@ -31,8 +33,9 @@ public class ChipDeviceController {
   private BluetoothGatt bleGatt;
   private CompletionListener completionListener;
 
-  public ChipDeviceController() {
-    deviceControllerPtr = newDeviceController();
+  public ChipDeviceController(
+      KeyValueStoreManager manager, ServiceResolver resolver, ChipMdnsCallback chipMdnsCallback) {
+    deviceControllerPtr = newDeviceController(manager, resolver, chipMdnsCallback);
   }
 
   public void setCompletionListener(CompletionListener listener) {
@@ -83,6 +86,12 @@ public class ChipDeviceController {
     }
   }
 
+  public void pairDeviceWithAddress(
+      long deviceId, String address, int port, int discriminator, long pinCode, byte[] csrNonce) {
+    pairDeviceWithAddress(
+        deviceControllerPtr, deviceId, address, port, discriminator, pinCode, csrNonce);
+  }
+
   public void unpairDevice(long deviceId) {
     unpairDevice(deviceControllerPtr, deviceId);
   }
@@ -116,10 +125,6 @@ public class ChipDeviceController {
     completionListener.onConnectDeviceComplete();
   }
 
-  public void onSendMessageComplete(String message) {
-    completionListener.onSendMessageComplete(message);
-  }
-
   public void onStatusUpdate(int status) {
     if (completionListener != null) {
       completionListener.onStatusUpdate(status);
@@ -147,12 +152,6 @@ public class ChipDeviceController {
   public void onPairingDeleted(int errorCode) {
     if (completionListener != null) {
       completionListener.onPairingDeleted(errorCode);
-    }
-  }
-
-  public void onNetworkCommissioningComplete(int errorCode) {
-    if (completionListener != null) {
-      completionListener.onNetworkCommissioningComplete(errorCode);
     }
   }
 
@@ -208,18 +207,6 @@ public class ChipDeviceController {
     updateDevice(deviceControllerPtr, fabricId, deviceId);
   }
 
-  public void sendMessage(long deviceId, String message) {
-    sendMessage(deviceControllerPtr, deviceId, message);
-  }
-
-  public void sendCommand(long deviceId, ChipCommandType command, int value) {
-    sendCommand(deviceControllerPtr, deviceId, command, value);
-  }
-
-  public void enableThreadNetwork(long deviceId, byte[] operationalDataset) {
-    enableThreadNetwork(deviceControllerPtr, deviceId, operationalDataset);
-  }
-
   public boolean openPairingWindow(long deviceId, int duration) {
     return openPairingWindow(deviceControllerPtr, deviceId, duration);
   }
@@ -228,10 +215,20 @@ public class ChipDeviceController {
     return isActive(deviceControllerPtr, deviceId);
   }
 
-  private native long newDeviceController();
+  private native long newDeviceController(
+      KeyValueStoreManager manager, ServiceResolver resolver, ChipMdnsCallback chipMdnsCallback);
 
   private native void pairDevice(
       long deviceControllerPtr, long deviceId, int connectionId, long pinCode, byte[] csrNonce);
+
+  private native void pairDeviceWithAddress(
+      long deviceControllerPtr,
+      long deviceId,
+      String address,
+      int port,
+      int discriminator,
+      long pinCode,
+      byte[] csrNonce);
 
   private native void unpairDevice(long deviceControllerPtr, long deviceId);
 
@@ -250,29 +247,9 @@ public class ChipDeviceController {
 
   private native void updateDevice(long deviceControllerPtr, long fabricId, long deviceId);
 
-  private native void sendMessage(long deviceControllerPtr, long deviceId, String message);
-
-  private native void sendCommand(
-      long deviceControllerPtr, long deviceId, ChipCommandType command, int value);
-
-  private native void enableThreadNetwork(
-      long deviceControllerPtr, long deviceId, byte[] operationalDataset);
-
   private native boolean openPairingWindow(long deviceControllerPtr, long deviceId, int duration);
 
   private native boolean isActive(long deviceControllerPtr, long deviceId);
-
-  public static native void setKeyValueStoreManager(KeyValueStoreManager manager);
-
-  public static native void setServiceResolver(ServiceResolver resolver);
-
-  public static native void handleServiceResolve(
-      String instanceName,
-      String serviceType,
-      String address,
-      int port,
-      long callbackHandle,
-      long contextHandle);
 
   static {
     System.loadLibrary("CHIPController");
@@ -294,9 +271,6 @@ public class ChipDeviceController {
     /** Notifies the completion of "ConnectDevice" command. */
     void onConnectDeviceComplete();
 
-    /** Notifies the completion of "SendMessage" echo command. */
-    void onSendMessageComplete(String message);
-
     /** Notifies the pairing status. */
     void onStatusUpdate(int status);
 
@@ -308,9 +282,6 @@ public class ChipDeviceController {
 
     /** Notifies the completion of commissioning. */
     void onCommissioningComplete(long nodeId, int errorCode);
-
-    /** Notifies the completion of network commissioning */
-    void onNetworkCommissioningComplete(int errorCode);
 
     /** Notifies that the Chip connection has been closed. */
     void onNotifyChipConnectionClosed();

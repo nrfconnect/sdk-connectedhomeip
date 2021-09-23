@@ -17,34 +17,120 @@
 
 #pragma once
 
-#include <core/CHIPError.h>
+#include <lib/core/CHIPError.h>
+#include <lib/mdns/Advertiser.h>
+#include <platform/CHIPDeviceLayer.h>
 #include <stddef.h>
+#include <system/TimeSource.h>
 
 namespace chip {
 namespace app {
-namespace Mdns {
 
-/// Start operational advertising
-CHIP_ERROR AdvertiseOperational();
+#define TIMEOUT_CLEARED 0
+class DLL_EXPORT MdnsServer
+{
+public:
+    /// Provides the system-wide implementation of the service advertiser
+    static MdnsServer & Instance()
+    {
+        static MdnsServer instance;
+        return instance;
+    }
 
-/// Set MDNS commissioner advertisement
-CHIP_ERROR AdvertiseCommissioner();
+    /// Sets the secure Matter port
+    void SetSecuredPort(uint16_t port) { mSecuredPort = port; }
 
-/// Set MDNS commissionable node advertisement
-CHIP_ERROR AdvertiseCommissionableNode();
+    /// Gets the secure Matter port
+    uint16_t GetSecuredPort() { return mSecuredPort; }
 
-/// Set MDNS advertisement
-// CHIP_ERROR Advertise(chip::Mdns::CommssionAdvertiseMode mode);
-CHIP_ERROR Advertise(bool commissionableNode);
+    /// Sets the unsecure Matter port
+    void SetUnsecuredPort(uint16_t port) { mUnsecuredPort = port; }
 
-/// (Re-)starts the minmdns server
-void StartServer();
+    /// Gets the unsecure Matter port
+    uint16_t GetUnsecuredPort() { return mUnsecuredPort; }
 
-CHIP_ERROR GenerateRotatingDeviceId(char rotatingDeviceIdHexBuffer[], size_t rotatingDeviceIdHexBufferSize);
+    /// Sets the factory-new state commissionable node discovery timeout
+    void SetDiscoveryTimeoutSecs(int16_t secs) { mDiscoveryTimeoutSecs = secs; }
 
-/// Generates the (random) instance name that a CHIP device is to use for pre-commissioning DNS-SD
-CHIP_ERROR GetCommissionableInstanceName(char * buffer, size_t bufferLen);
+    /// Gets the factory-new state commissionable node discovery timeout
+    int16_t GetDiscoveryTimeoutSecs() { return mDiscoveryTimeoutSecs; }
 
-} // namespace Mdns
+    /// Callback from Discovery Expiration timer
+    /// Checks if discovery has expired and if so,
+    /// kicks off extend discovery (when enabled)
+    /// otherwise, stops commissionable node advertising
+    /// Discovery Expiration refers here to commissionable node advertising when in commissioning mode
+    void OnDiscoveryExpiration(System::Layer * aSystemLayer, void * aAppState);
+
+#if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
+    /// Sets the extended discovery timeout. Value will be persisted across reboots
+    void SetExtendedDiscoveryTimeoutSecs(int16_t secs);
+
+    /// Callback from Extended Discovery Expiration timer
+    /// Checks if extended discovery has expired and if so,
+    /// stops commissionable node advertising
+    /// Extended Discovery Expiration refers here to commissionable node advertising when NOT in commissioning mode
+    void OnExtendedDiscoveryExpiration(System::Layer * aSystemLayer, void * aAppState);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
+
+    /// Start operational advertising
+    CHIP_ERROR AdvertiseOperational();
+
+    /// (Re-)starts the minmdns server
+    /// - if device has not yet been commissioned, then commissioning mode will show as enabled (CM=1, AC=0)
+    /// - if device has been commissioned, then commissioning mode will reflect the state of mode argument
+    void StartServer(chip::Mdns::CommissioningMode mode = chip::Mdns::CommissioningMode::kDisabled);
+
+    CHIP_ERROR GenerateRotatingDeviceId(char rotatingDeviceIdHexBuffer[], size_t rotatingDeviceIdHexBufferSize);
+
+    /// Generates the (random) instance name that a CHIP device is to use for pre-commissioning DNS-SD
+    CHIP_ERROR GetCommissionableInstanceName(char * buffer, size_t bufferLen);
+
+private:
+    /// Overloaded utility method for commissioner and commissionable advertisement
+    /// This method is used for both commissioner discovery and commissionable node discovery since
+    /// they share many fields.
+    ///   commissionableNode = true : advertise commissionable node
+    ///   commissionableNode = false : advertise commissioner
+    CHIP_ERROR Advertise(bool commissionableNode, chip::Mdns::CommissioningMode mode);
+
+    /// Set MDNS commissioner advertisement
+    CHIP_ERROR AdvertiseCommissioner();
+
+    /// Set MDNS commissionable node advertisement
+    CHIP_ERROR AdvertiseCommissionableNode(chip::Mdns::CommissioningMode mode);
+
+    Time::TimeSource<Time::Source::kSystem> mTimeSource;
+
+    void ClearTimeouts()
+    {
+        mDiscoveryExpirationMs = TIMEOUT_CLEARED;
+#if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
+        mExtendedDiscoveryExpirationMs = TIMEOUT_CLEARED;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
+    }
+
+    uint16_t mSecuredPort   = CHIP_PORT;
+    uint16_t mUnsecuredPort = CHIP_UDC_PORT;
+
+    /// schedule next discovery expiration
+    CHIP_ERROR ScheduleDiscoveryExpiration();
+    int16_t mDiscoveryTimeoutSecs   = CHIP_DEVICE_CONFIG_DISCOVERY_TIMEOUT_SECS;
+    uint64_t mDiscoveryExpirationMs = TIMEOUT_CLEARED;
+
+    /// return true if expirationMs is valid (not cleared and not in the future)
+    bool OnExpiration(uint64_t expirationMs);
+
+#if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
+    /// get the current extended discovery timeout (from persistent storage)
+    int16_t GetExtendedDiscoveryTimeoutSecs();
+
+    /// schedule next extended discovery expiration
+    CHIP_ERROR ScheduleExtendedDiscoveryExpiration();
+
+    uint64_t mExtendedDiscoveryExpirationMs = TIMEOUT_CLEARED;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY
+};
+
 } // namespace app
 } // namespace chip

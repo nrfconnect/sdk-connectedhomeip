@@ -36,6 +36,8 @@
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD 1
 #define CHIP_DEVICE_CONFIG_ENABLE_MDNS 1
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT 1
+#define CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY 1
+#define CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONABLE_DISCOVERY 1
 #endif
 
 #define CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE 1
@@ -86,9 +88,15 @@
  *    (assuming 2k Flash page size) => Total Flash size for nvm3: 8 * 2k = 16k
  *    The total size should allow sufficient margin for wear-levelling and
  *    repacking.
+ *
+ *    MG21 and MG 24 a 8k per page. 3 * 8k = 24k
  */
 #ifndef CHIP_DEVICE_CONFIG_NVM3_NUM_FLASH_PAGES_FOR_STORAGE
+#if defined(EFR32MG21) || defined(EFR32MG24)
+#define CHIP_DEVICE_CONFIG_NVM3_NUM_FLASH_PAGES_FOR_STORAGE 3
+#else
 #define CHIP_DEVICE_CONFIG_NVM3_NUM_FLASH_PAGES_FOR_STORAGE 8
+#endif
 #endif // CHIP_DEVICE_CONFIG_NVM3_NUM_FLASH_PAGES_FOR_STORAGE
 
 // ========== Platform-specific Configuration Overrides =========

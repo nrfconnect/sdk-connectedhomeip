@@ -24,10 +24,10 @@
 /* this file behaves like a config.h, comes first */
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#include <lib/support/CodeUtils.h>
+#include <lib/support/ErrorStr.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/ESP32/ESP32Utils.h>
-#include <support/CodeUtils.h>
-#include <support/ErrorStr.h>
-#include <support/logging/CHIPLogging.h>
 
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -311,7 +311,7 @@ CHIP_ERROR ESP32Utils::MapError(esp_err_t error)
     {
         return CHIP_NO_ERROR;
     }
-    return ChipError::Encapsulate(ChipError::Range::kPlatform, error);
+    return CHIP_ERROR(ChipError::Range::kPlatform, error);
 }
 
 /**
@@ -328,7 +328,7 @@ CHIP_ERROR ESP32Utils::MapError(esp_err_t error)
  */
 bool ESP32Utils::FormatError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 {
-    if (!ChipError::IsRange(ChipError::Range::kPlatform, err))
+    if (!err.IsRange(ChipError::Range::kPlatform))
     {
         return false;
     }
@@ -336,7 +336,7 @@ bool ESP32Utils::FormatError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 #if CHIP_CONFIG_SHORT_ERROR_STR
     const char * desc = NULL;
 #else  // CHIP_CONFIG_SHORT_ERROR_STR
-    const char * desc = esp_err_to_name((esp_err_t) ChipError::GetValue(err));
+    const char * desc = esp_err_to_name((esp_err_t) err.GetValue());
 #endif // CHIP_CONFIG_SHORT_ERROR_STR
 
     chip::FormatError(buf, bufSize, "ESP32", err, desc);

@@ -1,9 +1,32 @@
+#
+#    Copyright (c) 2021 Project CHIP Authors
+#    All rights reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+from dataclasses import dataclass
+from typing import Any
+import typing
 from chip import ChipDeviceCtrl
+from chip import ChipCommissionableNodeCtrl
+import chip.interaction_model as IM
 import threading
 import os
 import sys
 import logging
 import time
+import ctypes
 
 logger = logging.getLogger('PythonMatterControllerTEST')
 logger.setLevel(logging.INFO)
@@ -56,6 +79,31 @@ class BaseTestHelper:
         self.devCtrl = ChipDeviceCtrl.ChipDeviceController(
             controllerNodeId=nodeid)
         self.logger = logger
+        self.commissionableNodeCtrl = ChipCommissionableNodeCtrl.ChipCommissionableNodeController()
+
+    def _WaitForOneDiscoveredDevice(self, timeoutSeconds: int = 2):
+        print("Waiting for device responses...")
+        strlen = 100
+        addrStrStorage = ctypes.create_string_buffer(strlen)
+        timeout = time.time() + timeoutSeconds
+        while (not self.devCtrl.GetIPForDiscoveredDevice(0, addrStrStorage, strlen) and time.time() <= timeout):
+            time.sleep(0.2)
+        if time.time() > timeout:
+            return None
+        return ctypes.string_at(addrStrStorage)
+
+    def TestDiscovery(self, discriminator: int):
+        self.logger.info(
+            f"Discovering commissionable nodes with discriminator {discriminator}")
+        self.devCtrl.DiscoverCommissionableNodesLongDiscriminator(
+            ctypes.c_uint16(int(discriminator)))
+        res = self._WaitForOneDiscoveredDevice()
+        if not res:
+            self.logger.info(
+                f"Device not found")
+            return False
+        self.logger.info(f"Found device at {res}")
+        return res
 
     def TestKeyExchange(self, ip: str, setuppin: int, nodeid: int):
         self.logger.info("Conducting key exchange with device {}".format(ip))
@@ -72,7 +120,8 @@ class BaseTestHelper:
             self.devCtrl.CloseSession(nodeid)
             return True
         except Exception as ex:
-            self.logger.exception(f"Failed to close sessions with device {nodeid}: {ex}")
+            self.logger.exception(
+                f"Failed to close sessions with device {nodeid}: {ex}")
             return False
 
     def TestNetworkCommissioning(self, nodeid: int, endpoint: int, group: int, dataset: str, network_id: str):
@@ -114,13 +163,20 @@ class BaseTestHelper:
             return False
         return True
 
-    def TestResolve(self, fabricid, nodeid):
+    def TestResolve(self, nodeid):
+        fabricid = self.devCtrl.GetCompressedFabricId()
         self.logger.info(
-            "Resolve {} with fabric id: {}".format(nodeid, fabricid))
+            "Resolve: node id = {:08x} (compressed) fabric id = {:08x}".format(nodeid, fabricid))
         try:
             self.devCtrl.ResolveNode(fabricid=fabricid, nodeid=nodeid)
+            addr = self.devCtrl.GetAddressAndPort(nodeid)
+            if not addr:
+                return False
+            self.logger.info(f"Resolved address: {addr[0]}:{addr[1]}")
+            return True
         except Exception as ex:
             self.logger.exception("Failed to resolve. {}".format(ex))
+            return False
 
     def TestReadBasicAttribiutes(self, nodeid: int, endpoint: int, group: int):
         basic_cluster_attrs = {
@@ -130,9 +186,9 @@ class BaseTestHelper:
             "ProductID": 65279,
             "UserLabel": "",
             "Location": "",
-            "HardwareVersion": 1,
+            "HardwareVersion": 0,
             "HardwareVersionString": "TEST_VERSION",
-            "SoftwareVersion": 1,
+            "SoftwareVersion": 0,
             "SoftwareVersionString": "prerelease",
         }
         failed_zcl = {}
@@ -144,14 +200,14 @@ class BaseTestHelper:
                                                     endpoint=endpoint,
                                                     groupid=group)
                 if res is None:
-                    raise Exception("Read {} attribute: no value get".format(basic_attr))
+                    raise Exception(
+                        "Read {} attribute: no value get".format(basic_attr))
                 elif res.status != 0:
                     raise Exception(
                         "Read {} attribute: non-zero status code {}".format(basic_attr, res.status))
                 elif res.value != expected_value:
                     raise Exception("Read {} attribute: expect {} got {}".format(
                         basic_attr, repr(expected_value), repr(res.value)))
-                time.sleep(2)
             except Exception as ex:
                 failed_zcl[basic_attr] = str(ex)
         if failed_zcl:
@@ -160,22 +216,120 @@ class BaseTestHelper:
         return True
 
     def TestWriteBasicAttributes(self, nodeid: int, endpoint: int, group: int):
-        basic_cluster_attrs = [
-            ("UserLabel", "Test"),
+        @dataclass
+        class AttributeWriteRequest:
+            cluster: str
+            attribute: str
+            value: Any
+            expected_status: IM.ProtocolCode = IM.ProtocolCode.Success
+
+        requests = [
+            AttributeWriteRequest("Basic", "UserLabel", "Test"),
+            AttributeWriteRequest("Basic", "Location",
+                                  "a pretty loooooooooooooog string", IM.ProtocolCode.InvalidValue),
         ]
         failed_zcl = []
-        for basic_attr in basic_cluster_attrs:
+        for req in requests:
             try:
-                self.devCtrl.ZCLWriteAttribute(cluster="Basic",
-                                               attribute=basic_attr[0],
-                                               nodeid=nodeid,
-                                               endpoint=endpoint,
-                                               groupid=group,
-                                               value=basic_attr[1])
-                time.sleep(2)
-            except Exception:
-                failed_zcl.append(basic_attr)
+                res = self.devCtrl.ZCLWriteAttribute(cluster=req.cluster,
+                                                     attribute=req.attribute,
+                                                     nodeid=nodeid,
+                                                     endpoint=endpoint,
+                                                     groupid=group,
+                                                     value=req.value)
+                if res is None:
+                    raise Exception(
+                        f"Write {req.cluster}.{req.attribute} attribute: no value get")
+                elif res.status != req.expected_status:
+                    raise Exception(
+                        f"Write {req.cluster}.{req.attribute} attribute: expected status is {req.expected_status} got {res.status}")
+                if req.expected_status != IM.ProtocolCode.Success:
+                    # If the write interaction is expected to success, proceed to verify it.
+                    continue
+                res = self.devCtrl.ZCLReadAttribute(
+                    cluster=req.cluster, attribute=req.attribute, nodeid=nodeid, endpoint=endpoint, groupid=group)
+                if res is None:
+                    raise Exception(
+                        f"Read written {req.cluster}.{req.attribute} attribute: failed to read attribute")
+                elif res.status != 0:
+                    raise Exception(
+                        f"Read written {req.cluster}.{req.attribute} attribute: non-zero status code {res.status}")
+                elif res.value != req.value:
+                    raise Exception(
+                        f"Read written {req.cluster}.{req.attribute} attribute: expected {req.value} got {res.value}")
+            except Exception as ex:
+                failed_zcl.append(str(ex))
         if failed_zcl:
             self.logger.exception(f"Following attributes failed: {failed_zcl}")
+            return False
+        return True
+
+    def TestSubscription(self, nodeid: int, endpoint: int):
+        class _subscriptionHandler(IM.OnSubscriptionReport):
+            def __init__(self, path: IM.AttributePath, logger: logging.Logger):
+                super(_subscriptionHandler, self).__init__()
+                self.subscriptionReceived = 0
+                self.path = path
+                self.countLock = threading.Lock()
+                self.cv = threading.Condition(self.countLock)
+                self.logger = logger
+
+            def OnData(self, path: IM.AttributePath, subscriptionId: int, data: typing.Any) -> None:
+                if path != self.path:
+                    return
+                logger.info(
+                    f"Received report from server: path: {path}, value: {data}, subscriptionId: {subscriptionId}")
+                with self.countLock:
+                    self.subscriptionReceived += 1
+                    self.cv.notify_all()
+
+        class _conductAttributeChange(threading.Thread):
+            def __init__(self, devCtrl: ChipDeviceCtrl.ChipDeviceController, nodeid: int, endpoint: int):
+                super(_conductAttributeChange, self).__init__()
+                self.nodeid = nodeid
+                self.endpoint = endpoint
+                self.devCtrl = devCtrl
+
+            def run(self):
+                for i in range(5):
+                    time.sleep(3)
+                    self.devCtrl.ZCLSend(
+                        "OnOff", "Toggle", self.nodeid, self.endpoint, 0, {})
+
+        try:
+            subscribedPath = IM.AttributePath(
+                nodeId=nodeid, endpointId=endpoint, clusterId=6, attributeId=0)
+            # OnOff Cluster, OnOff Attribute
+            handler = _subscriptionHandler(subscribedPath, self.logger)
+            IM.SetAttributeReportCallback(subscribedPath, handler)
+            self.devCtrl.ZCLConfigureAttribute(
+                "OnOff", "OnOff", nodeid, endpoint, 1, 10, 0)
+            changeThread = _conductAttributeChange(
+                self.devCtrl, nodeid, endpoint)
+            changeThread.start()
+            with handler.cv:
+                while handler.subscriptionReceived < 5:
+                    # We should observe 10 attribute changes
+                    handler.cv.wait()
+            return True
+        except Exception as ex:
+            self.logger.exception(f"Failed to finish API test: {ex}")
+            return False
+
+        return True
+
+    def TestNonControllerAPIs(self):
+        '''
+        This function validates various APIs provided by chip package which is not related to controller.
+        TODO: Add more tests for APIs
+        '''
+        try:
+            cluster = self.devCtrl.GetClusterHandler()
+            clusterInfo = cluster.GetClusterInfoById(0x50F)  # TestCluster
+            if clusterInfo["clusterName"] != "TestCluster":
+                raise Exception(
+                    f"Wrong cluster info clusterName: {clusterInfo['clusterName']} expected TestCluster")
+        except Exception as ex:
+            self.logger.exception(f"Failed to finish API test: {ex}")
             return False
         return True

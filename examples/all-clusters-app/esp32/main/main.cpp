@@ -43,28 +43,35 @@
 #include <string>
 #include <vector>
 
-#include <app/common/gen/att-storage.h>
-#include <app/common/gen/attribute-id.h>
-#include <app/common/gen/attribute-type.h>
-#include <app/common/gen/cluster-id.h>
+#include <app-common/zap-generated/att-storage.h>
+#include <app-common/zap-generated/attribute-id.h>
+#include <app-common/zap-generated/attribute-type.h>
+#include <app-common/zap-generated/cluster-id.h>
 #include <app/server/AppDelegate.h>
 #include <app/server/Mdns.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/af-types.h>
 #include <app/util/af.h>
+#include <credentials/DeviceAttestationCredsProvider.h>
+#include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <lib/shell/Engine.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/ErrorStr.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
-#include <support/CHIPMem.h>
-#include <support/ErrorStr.h>
 
 #include <app/clusters/door-lock-server/door-lock-server.h>
 #include <app/clusters/on-off-server/on-off-server.h>
 #include <app/clusters/temperature-measurement-server/temperature-measurement-server.h>
 
+#if CONFIG_ENABLE_PW_RPC
+#include "Rpc.h"
+#endif
+
 using namespace ::chip;
+using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
 
@@ -323,12 +330,12 @@ class SetupListModel : public ListScreen::Model
 public:
     SetupListModel()
     {
-        std::string resetWiFi              = "Reset WiFi";
-        std::string resetToFactory         = "Reset to factory";
-        std::string forceWifiCommissioning = "Force WiFi commissioning";
+        std::string resetWiFi                   = "Reset WiFi";
+        std::string resetToFactory              = "Reset to factory";
+        std::string forceWifiCommissioningBasic = "Force WiFi commissioning (basic)";
         options.emplace_back(resetWiFi);
         options.emplace_back(resetToFactory);
-        options.emplace_back(forceWifiCommissioning);
+        options.emplace_back(forceWifiCommissioningBasic);
     }
     virtual std::string GetTitle() { return "Setup"; }
     virtual int GetItemCount() { return options.size(); }
@@ -339,7 +346,8 @@ public:
         if (i == 0)
         {
             ConnectivityMgr().ClearWiFiStationProvision();
-            OpenDefaultPairingWindow(ResetFabrics::kYes);
+            chip::Server::GetInstance().GetFabricTable().DeleteAllFabrics();
+            chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow();
         }
         else if (i == 1)
         {
@@ -347,8 +355,10 @@ public:
         }
         else if (i == 2)
         {
-            app::Mdns::AdvertiseCommissionableNode();
-            OpenDefaultPairingWindow(ResetFabrics::kYes, PairingWindowAdvertisement::kMdns);
+            app::MdnsServer::Instance().StartServer(Mdns::CommissioningMode::kEnabledBasic);
+            chip::Server::GetInstance().GetFabricTable().DeleteAllFabrics();
+            chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow(
+                kNoCommissioningTimeout, CommissioningWindowAdvertisement::kMdnsOnly);
         }
     }
 
@@ -547,7 +557,7 @@ std::string createSetupPayload()
 
     if (err != CHIP_NO_ERROR)
     {
-        ESP_LOGE(TAG, "Couldn't get payload string %" CHIP_ERROR_FORMAT, ChipError::FormatError(err));
+        ESP_LOGE(TAG, "Couldn't get payload string %" CHIP_ERROR_FORMAT, err.Format());
     }
     return result;
 };
@@ -593,6 +603,9 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "nvs_flash_init() failed: %s", esp_err_to_name(err));
         return;
     }
+#if CONFIG_ENABLE_PW_RPC
+    chip::rpc::Init();
+#endif
 
 #if CONFIG_ENABLE_CHIP_SHELL
     chip::LaunchShell();
@@ -617,7 +630,10 @@ extern "C" void app_main()
 
     // Init ZCL Data Model and CHIP App Server
     AppCallbacks callbacks;
-    InitServer(&callbacks);
+    chip::Server::GetInstance().Init(&callbacks);
+
+    // Initialize device attestation config
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 
     SetupPretendDevices();
     SetupInitialLevelControlValues(/* endpointId = */ 1);

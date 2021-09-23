@@ -5,6 +5,7 @@
 
 // module headers
 #import <CHIP/CHIP.h>
+#import <CHIP/CHIPTestClustersObjc.h>
 
 // system dependencies
 #import <XCTest/XCTest.h>
@@ -17,6 +18,14 @@ const uint32_t kSetupPINCode = 20202021;
 const uint16_t kRemotePort = 5540;
 const uint16_t kLocalPort = 5541;
 NSString * kAddress = @"::1";
+
+// Test Util APIs
+void WaitForMs(XCTestExpectation * expectation, dispatch_queue_t queue, unsigned int ms)
+{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, ms * NSEC_PER_MSEC), queue, ^{
+        [expectation fulfill];
+    });
+}
 
 CHIPDevice * GetPairedDevice(uint64_t deviceId)
 {
@@ -76,7 +85,7 @@ CHIPDevice * GetPairedDevice(uint64_t deviceId)
     [controller setListenPort:kLocalPort];
     [controller setPairingDelegate:pairing queue:callbackQueue];
 
-    BOOL started = [controller startup:nil];
+    BOOL started = [controller startup:nil vendorId:0 nocSigner:nil];
     XCTAssertTrue(started);
 
     NSError * error;
@@ -134,7 +143,7 @@ CHIPDevice * GetPairedDevice(uint64_t deviceId)
     [self waitForExpectationsWithTimeout:kTimeoutInSeconds handler:nil];
 }
 
-{{>test_cluster tests="TestCluster, Test_TC_OO_1_1, Test_TC_OO_2_1, Test_TC_OO_2_2, Test_TC_DM_1_1, Test_TC_DM_3_1, Test_TC_WNCV_1_1, Test_TC_WNCV_2_1"}}
+{{>test_cluster tests="TestCluster, TestConstraints, TestDelayCommands, TestSubscribe_OnOff, Test_TC_OO_1_1, Test_TC_OO_2_1, Test_TC_OO_2_2, Test_TC_DM_1_1, Test_TC_DM_3_1, Test_TC_CC_3_4, Test_TC_CC_5, Test_TC_CC_6, Test_TC_CC_7, Test_TC_CC_8, Test_TC_WNCV_1_1, Test_TC_WNCV_2_1, Test_TC_WNCV_3_1, Test_TC_WNCV_3_2, Test_TC_WNCV_3_3, Test_TC_BI_1_1, Test_TC_FLW_1_1, Test_TC_TM_1_1, Test_TC_OCC_1_1, TestOperationalCredentialsCluster, Test_TC_LVL_1_1, Test_TC_CC_1_1, Test_TC_RH_1_1, Test_TC_MC_1_1, Test_TC_TSTAT_1_1, Test_TC_PCC_1_1, Test_TC_TSUIC_1_1"}}
 
 {{#chip_client_clusters}}
 {{#unless (isStrEqual "Test Cluster" name)}}

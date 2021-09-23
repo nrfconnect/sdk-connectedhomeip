@@ -21,8 +21,8 @@
 #include <app/server/OnboardingCodesUtil.h>
 #include <platform/CHIPDeviceLayer.h>
 
-#include <core/CHIPError.h>
-#include <support/CHIPArgParser.hpp>
+#include <lib/core/CHIPError.h>
+#include <lib/support/CHIPArgParser.hpp>
 
 using namespace chip;
 using namespace chip::ArgParser;
@@ -33,39 +33,51 @@ LinuxDeviceOptions gDeviceOptions;
 // Follow the code style of command line arguments in case we need to add more options in the future.
 enum
 {
-    kDeviceOption_BleDevice     = 0x1000,
-    kDeviceOption_WiFi          = 0x1001,
-    kDeviceOption_Thread        = 0x1002,
-    kDeviceOption_Version       = 0x1003,
-    kDeviceOption_VendorID      = 0x1004,
-    kDeviceOption_ProductID     = 0x1005,
-    kDeviceOption_CustomFlow    = 0x1006,
-    kDeviceOption_Capabilities  = 0x1007,
-    kDeviceOption_Discriminator = 0x1008,
-    kDeviceOption_Passcode      = 0x1009
+    kDeviceOption_BleDevice                 = 0x1000,
+    kDeviceOption_WiFi                      = 0x1001,
+    kDeviceOption_Thread                    = 0x1002,
+    kDeviceOption_Version                   = 0x1003,
+    kDeviceOption_VendorID                  = 0x1004,
+    kDeviceOption_ProductID                 = 0x1005,
+    kDeviceOption_CustomFlow                = 0x1006,
+    kDeviceOption_Capabilities              = 0x1007,
+    kDeviceOption_Discriminator             = 0x1008,
+    kDeviceOption_Passcode                  = 0x1009,
+    kDeviceOption_SecuredDevicePort         = 0x100a,
+    kDeviceOption_SecuredCommissionerPort   = 0x100b,
+    kDeviceOption_UnsecuredCommissionerPort = 0x100c
 };
 
 constexpr unsigned kAppUsageLength = 64;
 
-OptionDef sDeviceOptionDefs[] = { { "ble-device", kArgumentRequired, kDeviceOption_BleDevice },
+OptionDef sDeviceOptionDefs[] = {
+#if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
+    { "ble-device", kArgumentRequired, kDeviceOption_BleDevice },
+#endif // CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
-                                  { "wifi", kNoArgument, kDeviceOption_WiFi },
+    { "wifi", kNoArgument, kDeviceOption_WiFi },
 #endif // CHIP_DEVICE_CONFIG_ENABLE_WPA
 #if CHIP_ENABLE_OPENTHREAD
-                                  { "thread", kNoArgument, kDeviceOption_Thread },
+    { "thread", kNoArgument, kDeviceOption_Thread },
 #endif // CHIP_ENABLE_OPENTHREAD
-                                  { "version", kArgumentRequired, kDeviceOption_Version },
-                                  { "vendor-id", kArgumentRequired, kDeviceOption_VendorID },
-                                  { "product-id", kArgumentRequired, kDeviceOption_ProductID },
-                                  { "custom-flow", kArgumentRequired, kDeviceOption_CustomFlow },
-                                  { "capabilities", kArgumentRequired, kDeviceOption_Capabilities },
-                                  { "discriminator", kArgumentRequired, kDeviceOption_Discriminator },
-                                  { "passcode", kArgumentRequired, kDeviceOption_Passcode },
-                                  {} };
+    { "version", kArgumentRequired, kDeviceOption_Version },
+    { "vendor-id", kArgumentRequired, kDeviceOption_VendorID },
+    { "product-id", kArgumentRequired, kDeviceOption_ProductID },
+    { "custom-flow", kArgumentRequired, kDeviceOption_CustomFlow },
+    { "capabilities", kArgumentRequired, kDeviceOption_Capabilities },
+    { "discriminator", kArgumentRequired, kDeviceOption_Discriminator },
+    { "passcode", kArgumentRequired, kDeviceOption_Passcode },
+    { "secured-device-port", kArgumentRequired, kDeviceOption_SecuredDevicePort },
+    { "secured-commissioner-port", kArgumentRequired, kDeviceOption_SecuredCommissionerPort },
+    { "unsecured-commissioner-port", kArgumentRequired, kDeviceOption_UnsecuredCommissionerPort },
+    {}
+};
 
 const char * sDeviceOptionHelp =
+#if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
     "  --ble-device <number>\n"
     "       The device number for CHIPoBLE, without 'hci' prefix, can be found by hciconfig.\n"
+#endif // CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
     "\n"
     "  --wifi\n"
@@ -97,6 +109,16 @@ const char * sDeviceOptionHelp =
     "\n"
     "  --passcode <passcode>\n"
     "       A 27-bit unsigned integer, which serves as proof of possession during commissioning.\n"
+    "\n"
+    "  --secured-device-port <port>\n"
+    "       A 16-bit unsigned integer specifying the listen port to use for secure device messages (default is 5540).\n"
+    "\n"
+    "  --secured-commissioner-port <port>\n"
+    "       A 16-bit unsigned integer specifying the listen port to use for secure commissioner messages (default is 5542). Only "
+    "valid when app is both device and commissioner\n"
+    "\n"
+    "  --unsecured-commissioner-port <port>\n"
+    "       A 16-bit unsigned integer specifying the port to use for unsecured commissioner messages (default is 5550).\n"
     "\n";
 
 bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, const char * aName, const char * aValue)
@@ -148,6 +170,18 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
 
     case kDeviceOption_Passcode:
         LinuxDeviceOptions::GetInstance().payload.setUpPINCode = static_cast<uint32_t>(atoi(aValue));
+        break;
+
+    case kDeviceOption_SecuredDevicePort:
+        LinuxDeviceOptions::GetInstance().securedDevicePort = static_cast<uint16_t>(atoi(aValue));
+        break;
+
+    case kDeviceOption_SecuredCommissionerPort:
+        LinuxDeviceOptions::GetInstance().securedCommissionerPort = static_cast<uint16_t>(atoi(aValue));
+        break;
+
+    case kDeviceOption_UnsecuredCommissionerPort:
+        LinuxDeviceOptions::GetInstance().unsecuredCommissionerPort = static_cast<uint16_t>(atoi(aValue));
         break;
 
     default:

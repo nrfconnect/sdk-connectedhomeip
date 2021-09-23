@@ -30,16 +30,16 @@
 
 #include <stddef.h>
 
-#include <asn1/ASN1.h>
-#include <asn1/ASN1Macros.h>
-#include <core/CHIPCore.h>
-#include <core/CHIPSafeCasts.h>
-#include <core/CHIPTLV.h>
-#include <core/Optional.h>
 #include <credentials/CHIPCert.h>
+#include <lib/asn1/ASN1.h>
+#include <lib/asn1/ASN1Macros.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/core/CHIPSafeCasts.h>
+#include <lib/core/CHIPTLV.h>
+#include <lib/core/Optional.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/SafeInt.h>
 #include <protocols/Protocols.h>
-#include <support/CodeUtils.h>
-#include <support/SafeInt.h>
 
 namespace chip {
 namespace Credentials {
@@ -700,8 +700,7 @@ exit:
     return err;
 }
 
-DLL_EXPORT CHIP_ERROR ConvertX509CertToChipCert(const ByteSpan x509Cert, uint8_t * chipCertBuf, uint32_t chipCertBufSize,
-                                                uint32_t & chipCertLen)
+CHIP_ERROR ConvertX509CertToChipCert(const ByteSpan x509Cert, MutableByteSpan & chipCert)
 {
     ASN1Reader reader;
     TLVWriter writer;
@@ -712,119 +711,15 @@ DLL_EXPORT CHIP_ERROR ConvertX509CertToChipCert(const ByteSpan x509Cert, uint8_t
     VerifyOrReturnError(!x509Cert.empty(), CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(CanCastTo<uint32_t>(x509Cert.size()), CHIP_ERROR_INVALID_ARGUMENT);
 
-    reader.Init(x509Cert.data(), static_cast<uint32_t>(x509Cert.size()));
+    reader.Init(x509Cert);
 
-    writer.Init(chipCertBuf, chipCertBufSize);
+    writer.Init(chipCert);
 
     ReturnErrorOnFailure(ConvertCertificate(reader, writer, AnonymousTag, issuer, subject, fabric));
 
     ReturnErrorOnFailure(writer.Finalize());
 
-    chipCertLen = writer.GetLengthWritten();
-
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR ConvertX509CertsToChipCertArray(const ByteSpan & x509NOC, const ByteSpan & x509ICAC, MutableByteSpan & chipCertArray)
-{
-    // NOC is mandatory
-    VerifyOrReturnError(!x509NOC.empty(), CHIP_ERROR_INVALID_ARGUMENT);
-
-    TLVWriter writer;
-
-    // We can still generate the certificate if the output chip cert buffer is bigger than UINT32_MAX,
-    // since generated cert needs less space than UINT32_MAX.
-    uint32_t chipCertBufLen = (chipCertArray.size() > UINT32_MAX) ? UINT32_MAX : static_cast<uint32_t>(chipCertArray.size());
-    writer.Init(chipCertArray.data(), chipCertBufLen);
-
-    TLVType outerContainer;
-    ReturnErrorOnFailure(writer.StartContainer(AnonymousTag, kTLVType_Array, outerContainer));
-
-    ASN1Reader reader;
-    VerifyOrReturnError(CanCastTo<uint32_t>(x509NOC.size()), CHIP_ERROR_INVALID_ARGUMENT);
-    reader.Init(x509NOC.data(), static_cast<uint32_t>(x509NOC.size()));
-    uint64_t nocIssuer, nocSubject;
-    Optional<uint64_t> nocFabric;
-    ReturnErrorOnFailure(ConvertCertificate(reader, writer, AnonymousTag, nocIssuer, nocSubject, nocFabric));
-    VerifyOrReturnError(nocFabric.HasValue(), CHIP_ERROR_INVALID_ARGUMENT);
-
-    // ICAC is optional
-    if (!x509ICAC.empty())
-    {
-        VerifyOrReturnError(CanCastTo<uint32_t>(x509ICAC.size()), CHIP_ERROR_INVALID_ARGUMENT);
-        reader.Init(x509ICAC.data(), static_cast<uint32_t>(x509ICAC.size()));
-        uint64_t icaIssuer, icaSubject;
-        Optional<uint64_t> icaFabric;
-        ReturnErrorOnFailure(ConvertCertificate(reader, writer, AnonymousTag, icaIssuer, icaSubject, icaFabric));
-        VerifyOrReturnError(icaSubject == nocIssuer, CHIP_ERROR_INVALID_ARGUMENT);
-        if (icaFabric.HasValue())
-        {
-            // Match ICA's fabric ID if the ICA certificate has provided it
-            VerifyOrReturnError(icaFabric == nocFabric, CHIP_ERROR_INVALID_ARGUMENT);
-        }
-    }
-
-    ReturnErrorOnFailure(writer.EndContainer(outerContainer));
-    ReturnErrorOnFailure(writer.Finalize());
-
-    ReturnErrorCodeIf(writer.GetLengthWritten() > chipCertBufLen, CHIP_ERROR_INTERNAL);
-    chipCertArray.reduce_size(writer.GetLengthWritten());
-
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR ExtractCertsFromCertArray(const ByteSpan & opCertArray, ByteSpan & noc, ByteSpan & icac)
-{
-    TLVType outerContainerType;
-    TLVReader reader;
-    reader.Init(opCertArray.data(), static_cast<uint32_t>(opCertArray.size()));
-
-    if (reader.GetType() == kTLVType_NotSpecified)
-    {
-        ReturnErrorOnFailure(reader.Next());
-    }
-    VerifyOrReturnError(reader.GetType() == kTLVType_Array, CHIP_ERROR_WRONG_TLV_TYPE);
-    ReturnErrorOnFailure(reader.EnterContainer(outerContainerType));
-
-    {
-        TLVType nocContainerType;
-        const uint8_t * nocBegin = reader.GetReadPoint();
-
-        if (reader.GetType() == kTLVType_NotSpecified)
-        {
-            ReturnErrorOnFailure(reader.Next());
-        }
-        VerifyOrReturnError(reader.GetType() == kTLVType_Structure, CHIP_ERROR_WRONG_TLV_TYPE);
-        VerifyOrReturnError(reader.GetTag() == AnonymousTag, CHIP_ERROR_INVALID_TLV_TAG);
-
-        ReturnErrorOnFailure(reader.EnterContainer(nocContainerType));
-        ReturnErrorOnFailure(reader.ExitContainer(nocContainerType));
-        noc = ByteSpan(nocBegin, static_cast<size_t>(reader.GetReadPoint() - nocBegin));
-    }
-
-    {
-        TLVType icacContainerType;
-        const uint8_t * icacBegin = reader.GetReadPoint();
-
-        if (reader.GetType() == kTLVType_NotSpecified)
-        {
-            CHIP_ERROR err = reader.Next();
-            if (err == CHIP_END_OF_TLV)
-            {
-                icac = ByteSpan(nullptr, 0);
-                return CHIP_NO_ERROR;
-            }
-            ReturnErrorOnFailure(err);
-        }
-        VerifyOrReturnError(reader.GetType() == kTLVType_Structure, CHIP_ERROR_WRONG_TLV_TYPE);
-        VerifyOrReturnError(reader.GetTag() == AnonymousTag, CHIP_ERROR_INVALID_TLV_TAG);
-
-        ReturnErrorOnFailure(reader.EnterContainer(icacContainerType));
-        ReturnErrorOnFailure(reader.ExitContainer(icacContainerType));
-        icac = ByteSpan(icacBegin, static_cast<size_t>(reader.GetReadPoint() - icacBegin));
-    }
-
-    ReturnErrorOnFailure(reader.ExitContainer(outerContainerType));
+    chipCert.reduce_size(writer.GetLengthWritten());
 
     return CHIP_NO_ERROR;
 }

@@ -27,15 +27,15 @@
 #include "CommandSender.h"
 #include "InteractionModelEngine.h"
 
+#include <lib/support/TypeTraits.h>
 #include <protocols/secure_channel/Constants.h>
-#include <support/TypeTraits.h>
 
 using GeneralStatusCode = chip::Protocols::SecureChannel::GeneralStatusCode;
 
 namespace chip {
 namespace app {
-CHIP_ERROR CommandHandler::OnInvokeCommandRequest(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
-                                                  const PayloadHeader & payloadHeader, System::PacketBufferHandle && payload)
+CHIP_ERROR CommandHandler::OnInvokeCommandRequest(Messaging::ExchangeContext * ec, const PayloadHeader & payloadHeader,
+                                                  System::PacketBufferHandle && payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferHandle response;
@@ -51,7 +51,6 @@ CHIP_ERROR CommandHandler::OnInvokeCommandRequest(Messaging::ExchangeContext * e
     err = SendCommandResponse();
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -73,7 +72,6 @@ CHIP_ERROR CommandHandler::SendCommandResponse()
 
 exit:
     ShutdownInternal();
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -101,7 +99,7 @@ CHIP_ERROR CommandHandler::ProcessCommandDataElement(CommandDataElement::Parser 
     if (CHIP_END_OF_TLV == err)
     {
         err = CHIP_NO_ERROR;
-        ChipLogDetail(DataManagement, "Received command without data for cluster %" PRIx32, clusterId);
+        ChipLogDetail(DataManagement, "Received command without data for cluster " ChipLogFormatMEI, ChipLogValueMEI(clusterId));
     }
     if (CHIP_NO_ERROR == err)
     {
@@ -121,7 +119,8 @@ exit:
         // TODO: The error code should be updated after #7072 added error codes required by IM.
         if (err == CHIP_ERROR_INVALID_PROFILE_ID)
         {
-            ChipLogDetail(DataManagement, "No Cluster 0x%" PRIx32 " on Endpoint 0x%" PRIx16, clusterId, endpointId);
+            ChipLogDetail(DataManagement, "No Cluster " ChipLogFormatMEI " on Endpoint 0x%" PRIx16, ChipLogValueMEI(clusterId),
+                          endpointId);
         }
 
         AddStatusCode(returnStatusParam,
@@ -155,7 +154,6 @@ CHIP_ERROR CommandHandler::AddStatusCode(const CommandPathParams & aCommandPathP
     err = FinishCommand(true /* isStatus */);
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 

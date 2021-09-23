@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <platform/CHIPDeviceConfig.h>
+
 #include <platform/ConnectivityManager.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 #include <platform/internal/GenericConnectivityManagerImpl.h>
@@ -32,8 +34,8 @@
 #include <platform/internal/GenericConnectivityManagerImpl_NoThread.h>
 #endif
 #include <inet/IPAddress.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <netsocket/WiFiInterface.h>
-#include <support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace DeviceLayer {

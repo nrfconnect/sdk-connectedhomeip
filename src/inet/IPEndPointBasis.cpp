@@ -36,8 +36,8 @@
 #include <inet/InetInterface.h>
 #include <inet/InetLayer.h>
 
-#include <support/CodeUtils.h>
-#include <support/SafeInt.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/SafeInt.h>
 
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
 #if INET_CONFIG_ENABLE_IPV4
@@ -198,7 +198,7 @@ static CHIP_ERROR SocketsSetMulticastLoopback(int aSocket, bool aLoopback, int a
     const unsigned int lValue = aLoopback;
     if (setsockopt(aSocket, aProtocol, aOption, &lValue, sizeof(lValue)) != 0)
     {
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     }
 
     return CHIP_NO_ERROR;
@@ -265,7 +265,7 @@ static CHIP_ERROR SocketsIPv4JoinLeaveMulticastGroup(int aSocket, InterfaceId aI
 
     if (setsockopt(aSocket, IPPROTO_IP, aCommand, &lMulticastRequest, sizeof(lMulticastRequest)) != 0)
     {
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     }
     return CHIP_NO_ERROR;
 }
@@ -287,7 +287,7 @@ static CHIP_ERROR SocketsIPv6JoinLeaveMulticastGroup(int aSocket, InterfaceId aI
 
     if (setsockopt(aSocket, IPPROTO_IPV6, aCommand, &lMulticastRequest, sizeof(lMulticastRequest)) != 0)
     {
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     }
     return CHIP_NO_ERROR;
 }
@@ -344,12 +344,6 @@ CHIP_ERROR IPEndPointBasis::SetMulticastLoopback(IPVersion aIPVersion, bool aLoo
         switch (mLwIPEndPointType)
         {
 
-#if INET_CONFIG_ENABLE_RAW_ENDPOINT
-        case kLwIPEndPointType_Raw:
-            raw_set_flags(mRaw, RAW_FLAGS_MULTICAST_LOOP);
-            break;
-#endif // INET_CONFIG_ENABLE_RAW_ENDPOINT
-
 #if INET_CONFIG_ENABLE_UDP_ENDPOINT
         case kLwIPEndPointType_UDP:
             udp_set_flags(mUDP, UDP_FLAGS_MULTICAST_LOOP);
@@ -365,12 +359,6 @@ CHIP_ERROR IPEndPointBasis::SetMulticastLoopback(IPVersion aIPVersion, bool aLoo
     {
         switch (mLwIPEndPointType)
         {
-
-#if INET_CONFIG_ENABLE_RAW_ENDPOINT
-        case kLwIPEndPointType_Raw:
-            raw_clear_flags(mRaw, RAW_FLAGS_MULTICAST_LOOP);
-            break;
-#endif // INET_CONFIG_ENABLE_RAW_ENDPOINT
 
 #if INET_CONFIG_ENABLE_UDP_ENDPOINT
         case kLwIPEndPointType_UDP:
@@ -389,7 +377,7 @@ CHIP_ERROR IPEndPointBasis::SetMulticastLoopback(IPVersion aIPVersion, bool aLoo
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-    lRetval = SocketsSetMulticastLoopback(mSocket.GetFD(), aIPVersion, aLoopback);
+    lRetval = SocketsSetMulticastLoopback(mSocket, aIPVersion, aLoopback);
     SuccessOrExit(lRetval);
 
 exit:
@@ -449,7 +437,7 @@ CHIP_ERROR IPEndPointBasis::JoinMulticastGroup(InterfaceId aInterfaceId, const I
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-        lRetval = SocketsIPv4JoinLeaveMulticastGroup(mSocket.GetFD(), aInterfaceId, aAddress, IP_ADD_MEMBERSHIP);
+        lRetval = SocketsIPv4JoinLeaveMulticastGroup(mSocket, aInterfaceId, aAddress, IP_ADD_MEMBERSHIP);
         SuccessOrExit(lRetval);
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
     }
@@ -474,7 +462,7 @@ CHIP_ERROR IPEndPointBasis::JoinMulticastGroup(InterfaceId aInterfaceId, const I
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-        lRetval = SocketsIPv6JoinMulticastGroup(mSocket.GetFD(), aInterfaceId, aAddress);
+        lRetval = SocketsIPv6JoinMulticastGroup(mSocket, aInterfaceId, aAddress);
         SuccessOrExit(lRetval);
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
     }
@@ -541,7 +529,7 @@ CHIP_ERROR IPEndPointBasis::LeaveMulticastGroup(InterfaceId aInterfaceId, const 
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-        lRetval = SocketsIPv4JoinLeaveMulticastGroup(mSocket.GetFD(), aInterfaceId, aAddress, IP_DROP_MEMBERSHIP);
+        lRetval = SocketsIPv4JoinLeaveMulticastGroup(mSocket, aInterfaceId, aAddress, IP_DROP_MEMBERSHIP);
         SuccessOrExit(lRetval);
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
     }
@@ -566,7 +554,7 @@ CHIP_ERROR IPEndPointBasis::LeaveMulticastGroup(InterfaceId aInterfaceId, const 
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-        lRetval = SocketsIPv6LeaveMulticastGroup(mSocket.GetFD(), aInterfaceId, aAddress);
+        lRetval = SocketsIPv6LeaveMulticastGroup(mSocket, aInterfaceId, aAddress);
         SuccessOrExit(lRetval);
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
     }
@@ -658,11 +646,13 @@ done:
     return (lPacketInfo);
 }
 
-CHIP_ERROR IPEndPointBasis::PostPacketBufferEvent(chip::System::Layer & aLayer, System::Object & aTarget,
+CHIP_ERROR IPEndPointBasis::PostPacketBufferEvent(chip::System::LayerLwIP * aLayer, System::Object & aTarget,
                                                   System::EventType aEventType, System::PacketBufferHandle && aBuffer)
 {
+    VerifyOrReturnError(aLayer != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
     const CHIP_ERROR error =
-        aLayer.PostEvent(aTarget, aEventType, (uintptr_t) System::LwIPPacketBufferView::UnsafeGetLwIPpbuf(aBuffer));
+        aLayer->PostEvent(aTarget, aEventType, (uintptr_t) System::LwIPPacketBufferView::UnsafeGetLwIPpbuf(aBuffer));
     if (error == CHIP_NO_ERROR)
     {
         // If PostEvent() succeeded, it has ownership of the buffer, so we need to release it (without freeing it).
@@ -693,21 +683,21 @@ CHIP_ERROR IPEndPointBasis::Bind(IPAddressType aAddressType, const IPAddress & a
         }
         sa.sin6_scope_id = static_cast<decltype(sa.sin6_scope_id)>(aInterfaceId);
 
-        if (bind(mSocket.GetFD(), reinterpret_cast<const sockaddr *>(&sa), static_cast<unsigned>(sizeof(sa))) != 0)
-            lRetval = chip::System::MapErrorPOSIX(errno);
+        if (bind(mSocket, reinterpret_cast<const sockaddr *>(&sa), static_cast<unsigned>(sizeof(sa))) != 0)
+            lRetval = CHIP_ERROR_POSIX(errno);
 
             // Instruct the kernel that any messages to multicast destinations should be
             // sent down the interface specified by the caller.
 #ifdef IPV6_MULTICAST_IF
         if (lRetval == CHIP_NO_ERROR)
-            setsockopt(mSocket.GetFD(), IPPROTO_IPV6, IPV6_MULTICAST_IF, &aInterfaceId, sizeof(aInterfaceId));
+            setsockopt(mSocket, IPPROTO_IPV6, IPV6_MULTICAST_IF, &aInterfaceId, sizeof(aInterfaceId));
 #endif // defined(IPV6_MULTICAST_IF)
 
             // Instruct the kernel that any messages to multicast destinations should be
             // set with the configured hop limit value.
 #ifdef IPV6_MULTICAST_HOPS
         int hops = INET_CONFIG_IP_MULTICAST_HOP_LIMIT;
-        setsockopt(mSocket.GetFD(), IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops));
+        setsockopt(mSocket, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops));
 #endif // defined(IPV6_MULTICAST_HOPS)
     }
 #if INET_CONFIG_ENABLE_IPV4
@@ -722,26 +712,26 @@ CHIP_ERROR IPEndPointBasis::Bind(IPAddressType aAddressType, const IPAddress & a
         sa.sin_port   = htons(aPort);
         sa.sin_addr   = aAddress.ToIPv4();
 
-        if (bind(mSocket.GetFD(), reinterpret_cast<const sockaddr *>(&sa), static_cast<unsigned>(sizeof(sa))) != 0)
-            lRetval = chip::System::MapErrorPOSIX(errno);
+        if (bind(mSocket, reinterpret_cast<const sockaddr *>(&sa), static_cast<unsigned>(sizeof(sa))) != 0)
+            lRetval = CHIP_ERROR_POSIX(errno);
 
             // Instruct the kernel that any messages to multicast destinations should be
             // sent down the interface to which the specified IPv4 address is bound.
 #ifdef IP_MULTICAST_IF
         if (lRetval == CHIP_NO_ERROR)
-            setsockopt(mSocket.GetFD(), IPPROTO_IP, IP_MULTICAST_IF, &sa, sizeof(sa));
+            setsockopt(mSocket, IPPROTO_IP, IP_MULTICAST_IF, &sa, sizeof(sa));
 #endif // defined(IP_MULTICAST_IF)
 
             // Instruct the kernel that any messages to multicast destinations should be
             // set with the configured hop limit value.
 #ifdef IP_MULTICAST_TTL
         int ttl = INET_CONFIG_IP_MULTICAST_HOP_LIMIT;
-        setsockopt(mSocket.GetFD(), IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+        setsockopt(mSocket, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 #endif // defined(IP_MULTICAST_TTL)
 
         // Allow socket transmitting broadcast packets.
         if (lRetval == CHIP_NO_ERROR)
-            setsockopt(mSocket.GetFD(), SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
+            setsockopt(mSocket, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
     }
 #endif // INET_CONFIG_ENABLE_IPV4
     else
@@ -758,9 +748,9 @@ CHIP_ERROR IPEndPointBasis::BindInterface(IPAddressType aAddressType, InterfaceI
     if (aInterfaceId == INET_NULL_INTERFACEID)
     {
         // Stop interface-based filtering.
-        if (setsockopt(mSocket.GetFD(), SOL_SOCKET, SO_BINDTODEVICE, "", 0) == -1)
+        if (setsockopt(mSocket, SOL_SOCKET, SO_BINDTODEVICE, "", 0) == -1)
         {
-            lRetval = chip::System::MapErrorPOSIX(errno);
+            lRetval = CHIP_ERROR_POSIX(errno);
         }
     }
     else
@@ -770,13 +760,13 @@ CHIP_ERROR IPEndPointBasis::BindInterface(IPAddressType aAddressType, InterfaceI
 
         if (if_indextoname(aInterfaceId, lInterfaceName) == NULL)
         {
-            lRetval = chip::System::MapErrorPOSIX(errno);
+            lRetval = CHIP_ERROR_POSIX(errno);
         }
 
         if (lRetval == CHIP_NO_ERROR &&
-            setsockopt(mSocket.GetFD(), SOL_SOCKET, SO_BINDTODEVICE, lInterfaceName, socklen_t(strlen(lInterfaceName))) == -1)
+            setsockopt(mSocket, SOL_SOCKET, SO_BINDTODEVICE, lInterfaceName, socklen_t(strlen(lInterfaceName))) == -1)
         {
-            lRetval = chip::System::MapErrorPOSIX(errno);
+            lRetval = CHIP_ERROR_POSIX(errno);
         }
     }
 
@@ -907,9 +897,9 @@ CHIP_ERROR IPEndPointBasis::SendMsg(const IPPacketInfo * aPktInfo, chip::System:
     }
 
     // Send IP packet.
-    const ssize_t lenSent = sendmsg(mSocket.GetFD(), &msgHeader, 0);
+    const ssize_t lenSent = sendmsg(mSocket, &msgHeader, 0);
     if (lenSent == -1)
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     if (lenSent != aBuffer->DataLength())
         return CHIP_ERROR_OUTBOUND_MESSAGE_TOO_BIG;
     return CHIP_NO_ERROR;
@@ -917,7 +907,7 @@ CHIP_ERROR IPEndPointBasis::SendMsg(const IPPacketInfo * aPktInfo, chip::System:
 
 CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int aProtocol)
 {
-    if (!mSocket.HasFD())
+    if (mSocket == INET_INVALID_SOCKET_FD)
     {
         const int one = 1;
         int family;
@@ -938,15 +928,15 @@ CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int
             return INET_ERROR_WRONG_ADDRESS_TYPE;
         }
 
-        const int fd = ::socket(family, aType, aProtocol);
-        if (fd == -1)
-            return chip::System::MapErrorPOSIX(errno);
-        ReturnErrorOnFailure(mSocket.Attach(fd));
+        mSocket = ::socket(family, aType, aProtocol);
+        if (mSocket == -1)
+            return CHIP_ERROR_POSIX(errno);
+        ReturnErrorOnFailure(static_cast<System::LayerSockets *>(Layer().SystemLayer())->StartWatchingSocket(mSocket, &mWatch));
 
         mAddrType = aAddressType;
 
         // NOTE WELL: the errors returned by setsockopt() here are not
-        // returned as Inet layer chip::System::MapErrorPOSIX(errno)
+        // returned as Inet layer CHIP_ERROR_POSIX(errno)
         // codes because they are normally expected to fail on some
         // platforms where the socket option code is defined in the
         // header files but not [yet] implemented. Certainly, there is
@@ -954,11 +944,11 @@ CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int
         // logic up to check for implementations of these options and
         // to provide appropriate HAVE_xxxxx definitions accordingly.
 
-        int res = setsockopt(mSocket.GetFD(), SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+        int res = setsockopt(mSocket, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
         static_cast<void>(res);
 
 #ifdef SO_REUSEPORT
-        res = setsockopt(mSocket.GetFD(), SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+        res = setsockopt(mSocket, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
         if (res != 0)
         {
             ChipLogError(Inet, "SO_REUSEPORT failed: %d", errno);
@@ -972,7 +962,7 @@ CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int
 #ifdef IPV6_V6ONLY
         if (aAddressType == kIPAddressType_IPv6)
         {
-            res = setsockopt(mSocket.GetFD(), IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one));
+            res = setsockopt(mSocket, IPPROTO_IPV6, IPV6_V6ONLY, &one, sizeof(one));
             if (res != 0)
             {
                 ChipLogError(Inet, "IPV6_V6ONLY failed: %d", errno);
@@ -984,7 +974,7 @@ CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int
 #ifdef IP_PKTINFO
         if (aAddressType == kIPAddressType_IPv4)
         {
-            res = setsockopt(mSocket.GetFD(), IPPROTO_IP, IP_PKTINFO, &one, sizeof(one));
+            res = setsockopt(mSocket, IPPROTO_IP, IP_PKTINFO, &one, sizeof(one));
             if (res != 0)
             {
                 ChipLogError(Inet, "IP_PKTINFO failed: %d", errno);
@@ -996,7 +986,7 @@ CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int
 #ifdef IPV6_RECVPKTINFO
         if (aAddressType == kIPAddressType_IPv6)
         {
-            res = setsockopt(mSocket.GetFD(), IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
+            res = setsockopt(mSocket, IPPROTO_IPV6, IPV6_RECVPKTINFO, &one, sizeof(one));
             if (res != 0)
             {
                 ChipLogError(Inet, "IPV6_PKTINFO failed: %d", errno);
@@ -1010,7 +1000,7 @@ CHIP_ERROR IPEndPointBasis::GetSocket(IPAddressType aAddressType, int aType, int
         // SIGPIPEs on unconnected UDP sockets.
 #ifdef SO_NOSIGPIPE
         {
-            res = setsockopt(mSocket.GetFD(), SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+            res = setsockopt(mSocket, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
             if (res != 0)
             {
                 ChipLogError(Inet, "SO_NOSIGPIPE failed: %d", errno);
@@ -1058,11 +1048,11 @@ void IPEndPointBasis::HandlePendingIO(uint16_t aPort)
         msgHeader.msg_control    = controlData;
         msgHeader.msg_controllen = sizeof(controlData);
 
-        ssize_t rcvLen = recvmsg(mSocket.GetFD(), &msgHeader, MSG_DONTWAIT);
+        ssize_t rcvLen = recvmsg(mSocket, &msgHeader, MSG_DONTWAIT);
 
         if (rcvLen < 0)
         {
-            lStatus = chip::System::MapErrorPOSIX(errno);
+            lStatus = CHIP_ERROR_POSIX(errno);
         }
         else if (rcvLen > lBuffer->AvailableDataLength())
         {
@@ -1141,7 +1131,7 @@ void IPEndPointBasis::HandlePendingIO(uint16_t aPort)
     }
     else
     {
-        if (OnReceiveError != nullptr && lStatus != chip::System::MapErrorPOSIX(EAGAIN))
+        if (OnReceiveError != nullptr && lStatus != CHIP_ERROR_POSIX(EAGAIN))
         {
             OnReceiveError(this, lStatus, nullptr);
         }
@@ -1237,7 +1227,7 @@ CHIP_ERROR IPEndPointBasis::SendMsg(const IPPacketInfo * aPktInfo, chip::System:
     nw_connection_send(mConnection, content, NW_CONNECTION_DEFAULT_MESSAGE_CONTEXT, true, ^(nw_error_t error) {
         if (error)
         {
-            res = chip::System::MapErrorPOSIX(nw_error_get_error_code(error));
+            res = CHIP_ERROR_POSIX(nw_error_get_error_code(error));
         }
         else
         {
@@ -1268,7 +1258,7 @@ void IPEndPointBasis::HandleDataReceived(const nw_connection_t & aConnection)
                     errno                          = nw_error_get_error_code(receive_error);
                     if (!(error_domain == nw_error_domain_posix && errno == ECANCELED))
                     {
-                        CHIP_ERROR error = chip::System::MapErrorPOSIX(errno);
+                        CHIP_ERROR error = CHIP_ERROR_POSIX(errno);
                         IPPacketInfo packetInfo;
                         GetPacketInfo(aConnection, packetInfo);
                         dispatch_async(mDispatchQueue, ^{
@@ -1412,7 +1402,7 @@ CHIP_ERROR IPEndPointBasis::StartListener()
 
         case nw_listener_state_failed:
             ChipLogDetail(Inet, "Listener: Failed");
-            res = chip::System::MapErrorPOSIX(nw_error_get_error_code(error));
+            res = CHIP_ERROR_POSIX(nw_error_get_error_code(error));
             break;
 
         case nw_listener_state_ready:
@@ -1468,7 +1458,7 @@ CHIP_ERROR IPEndPointBasis::StartConnection(nw_connection_t & aConnection)
 
         case nw_connection_state_failed:
             ChipLogDetail(Inet, "Connection: Failed");
-            res = chip::System::MapErrorPOSIX(nw_error_get_error_code(error));
+            res = CHIP_ERROR_POSIX(nw_error_get_error_code(error));
             break;
 
         case nw_connection_state_ready:

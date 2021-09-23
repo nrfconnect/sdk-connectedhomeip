@@ -204,8 +204,12 @@ commissioning and cluster control.
          - chip-device-ctrl > close-ble
 
 -   Resolve DNS-SD name and update address of the node in the device controller.
+    Get fabric ID using `get-fabricid` and use the decimal value of compressed
+    fabric id.
 
-         - chip-device-ctrl > resolve 0 135246
+         - chip-device-ctrl > get-fabricid
+
+         - chip-device-ctrl > resolve <Compressed Fabric ID> 135246
 
 ### Cluster control
 
@@ -220,7 +224,7 @@ commissioning and cluster control.
 
     `chip-device-ctrl > zcl LevelControl MoveToLevel 135246 1 1 level=10 transitionTime=0 optionMask=0 optionOverride=0`
 
--   For ESP32C3-DevKitM, use the ColorContorl cluster commands to control the
+-   For ESP32C3-DevKitM, use the ColorControl cluster commands to control the
     CurrentHue and CurrentSaturation attribute. This allows you to control the
     color of on-board LED.
 
@@ -257,3 +261,30 @@ If you wish to see the actual effect of the commands on `ESP32-DevKitC`,
 `ESP32-WROVER-KIT_V4.1`, you will have to connect an external LED to GPIO
 `STATUS_LED_GPIO_NUM`. For `ESP32C3-DevKitM`, the on-board LED will show the
 actual effect of the commands.
+
+## Using the RPC console
+
+Enable RPCs in the build using menuconfig:
+
+    $ idf.py menuconfig
+
+Enable the RPC library:
+
+    Component config → CHIP Core → General Options → Enable Pigweed PRC library
+
+After flashing a build with RPCs enabled you can use the rpc console to send
+commands to the device.
+
+Build or install the [rpc console](../../common/pigweed/rpc_console/README.md)
+
+Start the console
+
+    python -m chip_rpc.console --device /dev/ttyUSB0
+
+From within the console you can then invoke rpcs:
+
+    rpcs.chip.rpc.Wifi.Connect(ssid=b"MySSID", secret=b"MyPASSWORD")
+    rpcs.chip.rpc.Wifi.GetIP6Address()
+
+    rpcs.chip.rpc.Lighting.Get()
+    rpcs.chip.rpc.Lighting.Set(on=True, level=128, color=protos.chip.rpc.LightingColor(hue=5, saturation=5))

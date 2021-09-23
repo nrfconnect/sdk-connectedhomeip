@@ -24,18 +24,20 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#include <lib/support/CHIPMem.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/PlatformManager.h>
 #include <platform/internal/GenericPlatformManagerImpl_POSIX.cpp>
-#include <support/CHIPMem.h>
-#include <support/logging/CHIPLogging.h>
 
 #include <thread>
 
 #include <arpa/inet.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <malloc.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <unistd.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -86,7 +88,7 @@ void PlatformManagerImpl::WiFIIPChangeListener()
                 struct rtattr * routeInfo         = IFA_RTA(addressMessage);
                 size_t rtl                        = IFA_PAYLOAD(header);
 
-                while (rtl && RTA_OK(routeInfo, rtl))
+                for (; rtl && RTA_OK(routeInfo, rtl); routeInfo = RTA_NEXT(routeInfo, rtl))
                 {
                     if (routeInfo->rta_type == IFA_LOCAL)
                     {
@@ -107,9 +109,12 @@ void PlatformManagerImpl::WiFIIPChangeListener()
                         ChipLogDetail(DeviceLayer, "Got IP address on interface: %s IP: %s", name,
                                       event.InternetConnectivityChange.address);
 
-                        PlatformMgr().PostEvent(&event);
+                        CHIP_ERROR status = PlatformMgr().PostEvent(&event);
+                        if (status != CHIP_NO_ERROR)
+                        {
+                            ChipLogDetail(DeviceLayer, "Failed to report IP address: %" CHIP_ERROR_FORMAT, status.Format());
+                        }
                     }
-                    routeInfo = RTA_NEXT(routeInfo, rtl);
                 }
             }
         }
@@ -142,6 +147,44 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 
 exit:
     return err;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapFree(uint64_t & currentHeapFree)
+{
+    struct mallinfo mallocInfo = mallinfo();
+
+    // Get the current amount of heap memory, in bytes, that are not being utilized
+    // by the current running program.
+    currentHeapFree = mallocInfo.fordblks;
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapUsed(uint64_t & currentHeapUsed)
+{
+    struct mallinfo mallocInfo = mallinfo();
+
+    // Get the current amount of heap memory, in bytes, that are being used by
+    // the current running program.
+    currentHeapUsed = mallocInfo.uordblks;
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark)
+{
+    struct mallinfo mallocInfo = mallinfo();
+
+    // The usecase of this function is embedded devices,on which we would need to intercept
+    // malloc/calloc/free and then record the maximum amount of heap memory,in bytes, that
+    // has been used by the Node.
+    // On Linux, since it uses virtual memory, whereby a page of memory could be copied to
+    // the hard disk, called swap space, and free up that page of memory. So it is impossible
+    // to know accurately peak physical memory it use. We just return the current heap memory
+    // being used by the current running program.
+    currentHeapHighWatermark = mallocInfo.uordblks;
+
+    return CHIP_NO_ERROR;
 }
 
 #if CHIP_WITH_GIO

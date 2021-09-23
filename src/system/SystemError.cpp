@@ -30,10 +30,10 @@
 // Include common private header
 #include "SystemLayerPrivate.h"
 
-#include <support/DLLUtil.h>
-#include <support/ErrorStr.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/ErrorStr.h>
 
-#include <core/CHIPConfig.h>
+#include <lib/core/CHIPConfig.h>
 
 // Include local headers
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
@@ -47,6 +47,7 @@
 namespace chip {
 namespace System {
 
+namespace Internal {
 /**
  * This implements a mapping function for CHIP System Layer errors that allows mapping integers in the number space of the
  * underlying POSIX network and OS stack errors into a platform- or system-specific range. Error codes beyond those currently
@@ -58,9 +59,15 @@ namespace System {
  */
 DLL_EXPORT CHIP_ERROR MapErrorPOSIX(int aError)
 {
-    return (aError == 0 ? CHIP_NO_ERROR
-                        : ChipError::Encapsulate(ChipError::Range::kPOSIX, static_cast<ChipError::ValueType>(aError)));
+    return (aError == 0 ? CHIP_NO_ERROR : CHIP_ERROR(ChipError::Range::kPOSIX, static_cast<ChipError::ValueType>(aError)));
 }
+
+DLL_EXPORT CHIP_ERROR MapErrorPOSIX(int aError, const char * file, unsigned int line)
+{
+    return (aError == 0 ? CHIP_NO_ERROR
+                        : CHIP_ERROR(ChipError::Range::kPOSIX, static_cast<ChipError::ValueType>(aError), file, line));
+}
+} // namespace Internal
 
 /**
  * This implements a function to return an NULL-terminated OS-specific descriptive C string, associated with the specified, mapped
@@ -72,7 +79,7 @@ DLL_EXPORT CHIP_ERROR MapErrorPOSIX(int aError)
  */
 DLL_EXPORT const char * DescribeErrorPOSIX(CHIP_ERROR aError)
 {
-    const int lError = static_cast<int>(ChipError::GetValue(aError));
+    const int lError = static_cast<int>(aError.GetValue());
     return strerror(lError);
 }
 
@@ -100,7 +107,7 @@ void RegisterPOSIXErrorFormatter()
  */
 bool FormatPOSIXError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 {
-    if (ChipError::IsRange(ChipError::Range::kPOSIX, err))
+    if (err.IsRange(ChipError::Range::kPOSIX))
     {
         const char * desc =
 #if CHIP_CONFIG_SHORT_ERROR_STR
@@ -125,7 +132,7 @@ bool FormatPOSIXError(char * buf, uint16_t bufSize, CHIP_ERROR err)
  */
 DLL_EXPORT CHIP_ERROR MapErrorZephyr(int aError)
 {
-    return MapErrorPOSIX(-aError);
+    return Internal::MapErrorPOSIX(-aError);
 }
 
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
@@ -142,7 +149,7 @@ DLL_EXPORT CHIP_ERROR MapErrorZephyr(int aError)
 DLL_EXPORT CHIP_ERROR MapErrorLwIP(err_t aError)
 {
     static_assert(ChipError::CanEncapsulate(-std::numeric_limits<err_t>::min()), "Can't represent all LWIP errors");
-    return (aError == ERR_OK ? CHIP_NO_ERROR : ChipError::Encapsulate(ChipError::Range::kLwIP, static_cast<unsigned int>(-aError)));
+    return (aError == ERR_OK ? CHIP_NO_ERROR : CHIP_ERROR(ChipError::Range::kLwIP, static_cast<unsigned int>(-aError)));
 }
 
 /**
@@ -156,12 +163,12 @@ DLL_EXPORT CHIP_ERROR MapErrorLwIP(err_t aError)
  */
 DLL_EXPORT const char * DescribeErrorLwIP(CHIP_ERROR aError)
 {
-    if (!ChipError::IsRange(ChipError::Range::kLwIP, aError))
+    if (!aError.IsRange(ChipError::Range::kLwIP))
     {
         return nullptr;
     }
 
-    const err_t lError = static_cast<err_t>(-static_cast<err_t>(ChipError::GetValue(aError)));
+    const err_t lError = static_cast<err_t>(-static_cast<err_t>(aError.GetValue()));
 
     // If we are not compiling with LWIP_DEBUG asserted, the unmapped
     // local value may go unused.
@@ -195,7 +202,7 @@ void RegisterLwIPErrorFormatter(void)
  */
 bool FormatLwIPError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 {
-    if (ChipError::IsRange(ChipError::Range::kLwIP, err))
+    if (err.IsRange(ChipError::Range::kLwIP))
     {
         const char * desc =
 #if CHIP_CONFIG_SHORT_ERROR_STR

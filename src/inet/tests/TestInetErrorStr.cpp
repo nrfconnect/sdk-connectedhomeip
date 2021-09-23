@@ -37,9 +37,9 @@
 #include <string.h>
 
 #include <inet/InetError.h>
-#include <support/CodeUtils.h>
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/ErrorStr.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <nlunit-test.h>
 
@@ -81,7 +81,7 @@ static void CheckInetErrorStr(nlTestSuite * inSuite, void * inContext)
         char expectedText[9];
 
         // Assert that the error string contains the error number in hex.
-        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, ChipError::AsInteger(err));
+        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, err.AsInteger());
         NL_TEST_ASSERT(inSuite, (strstr(errStr, expectedText) != nullptr));
 
 #if !CHIP_CONFIG_SHORT_ERROR_STR

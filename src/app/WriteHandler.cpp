@@ -21,23 +21,23 @@
 #include <app/MessageDef/EventPath.h>
 #include <app/WriteHandler.h>
 #include <app/reporting/Engine.h>
-#include <support/TypeTraits.h>
+#include <lib/support/TypeTraits.h>
 
 namespace chip {
 namespace app {
 CHIP_ERROR WriteHandler::Init(InteractionModelDelegate * apDelegate)
 {
-    VerifyOrReturnError(apDelegate != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(mpExchangeCtx == nullptr, CHIP_ERROR_INCORRECT_STATE);
+    IgnoreUnusedVariable(apDelegate);
+    VerifyOrReturnLogError(mpExchangeCtx == nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     System::PacketBufferHandle packet = System::PacketBufferHandle::New(chip::app::kMaxSecureSduLengthBytes);
-    VerifyOrReturnError(!packet.IsNull(), CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnLogError(!packet.IsNull(), CHIP_ERROR_NO_MEMORY);
 
     mMessageWriter.Init(std::move(packet));
-    ReturnErrorOnFailure(mWriteResponseBuilder.Init(&mMessageWriter));
+    ReturnLogErrorOnFailure(mWriteResponseBuilder.Init(&mMessageWriter));
 
     AttributeStatusList::Builder attributeStatusListBuilder = mWriteResponseBuilder.CreateAttributeStatusListBuilder();
-    ReturnErrorOnFailure(attributeStatusListBuilder.GetError());
+    ReturnLogErrorOnFailure(attributeStatusListBuilder.GetError());
 
     MoveToState(State::Initialized);
 
@@ -62,7 +62,6 @@ CHIP_ERROR WriteHandler::OnWriteRequest(Messaging::ExchangeContext * apExchangeC
     err = SendWriteResponse();
 
 exit:
-    ChipLogFunctError(err);
     Shutdown();
     return err;
 }
@@ -84,7 +83,6 @@ CHIP_ERROR WriteHandler::FinalizeMessage(System::PacketBufferHandle & packet)
     SuccessOrExit(err);
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -105,7 +103,6 @@ CHIP_ERROR WriteHandler::SendWriteResponse()
     MoveToState(State::Sending);
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -164,7 +161,6 @@ CHIP_ERROR WriteHandler::ProcessAttributeDataList(TLV::TLVReader & aAttributeDat
     }
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -203,7 +199,6 @@ CHIP_ERROR WriteHandler::ProcessWriteRequest(System::PacketBufferHandle && aPayl
     err = ProcessAttributeDataList(attributeDataListReader);
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 
@@ -257,7 +252,6 @@ CHIP_ERROR WriteHandler::AddAttributeStatusCode(const AttributePathParams & aAtt
     MoveToState(State::AddAttributeStatusCode);
 
 exit:
-    ChipLogFunctError(err);
     return err;
 }
 

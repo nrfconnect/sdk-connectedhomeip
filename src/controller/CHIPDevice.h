@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2021 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,9 +30,14 @@
 #include <app/InteractionModelEngine.h>
 #include <app/util/CHIPDeviceCallbacksMgr.h>
 #include <app/util/basic-types.h>
-#include <core/CHIPCallback.h>
-#include <core/CHIPCore.h>
+#include <controller-clusters/zap-generated/CHIPClientCallbacks.h>
+#include <controller/DeviceControllerInteractionModelDelegate.h>
 #include <credentials/CHIPOperationalCredentials.h>
+#include <lib/core/CHIPCallback.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/support/Base64.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/TypeTraits.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeDelegate.h>
 #include <messaging/ExchangeMgr.h>
@@ -41,10 +46,7 @@
 #include <protocols/secure_channel/PASESession.h>
 #include <protocols/secure_channel/SessionIDAllocator.h>
 #include <setup_payload/SetupPayload.h>
-#include <support/Base64.h>
-#include <support/DLLUtil.h>
-#include <support/TypeTraits.h>
-#include <transport/SecureSessionMgr.h>
+#include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/UDP.h>
@@ -77,17 +79,17 @@ using DeviceTransportMgr = TransportMgr<Transport::UDP /* IPv6 */
 
 struct ControllerDeviceInitParams
 {
-    DeviceTransportMgr * transportMgr                   = nullptr;
-    SecureSessionMgr * sessionMgr                       = nullptr;
-    Messaging::ExchangeManager * exchangeMgr            = nullptr;
-    Inet::InetLayer * inetLayer                         = nullptr;
-    PersistentStorageDelegate * storageDelegate         = nullptr;
-    Credentials::OperationalCredentialSet * credentials = nullptr;
-    uint8_t credentialsIndex                            = 0;
-    SessionIDAllocator * idAllocator                    = nullptr;
+    DeviceTransportMgr * transportMgr           = nullptr;
+    SessionManager * sessionManager             = nullptr;
+    Messaging::ExchangeManager * exchangeMgr    = nullptr;
+    Inet::InetLayer * inetLayer                 = nullptr;
+    PersistentStorageDelegate * storageDelegate = nullptr;
+    SessionIDAllocator * idAllocator            = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * bleLayer = nullptr;
 #endif
+    Transport::FabricTable * fabricsTable                 = nullptr;
+    DeviceControllerInteractionModelDelegate * imDelegate = nullptr;
 };
 
 class Device;
@@ -99,12 +101,15 @@ class DLL_EXPORT Device : public Messaging::ExchangeDelegate, public SessionEsta
 {
 public:
     ~Device();
-    Device()               = default;
+    Device() :
+        mOpenPairingSuccessCallback(OnOpenPairingWindowSuccessResponse, this),
+        mOpenPairingFailureCallback(OnOpenPairingWindowFailureResponse, this)
+    {}
     Device(const Device &) = delete;
 
-    enum class PairingWindowOption
+    enum class CommissioningWindowOption
     {
-        kOriginalSetupCode,
+        kOriginalSetupCode = 0,
         kTokenWithRandomPIN,
         kTokenWithProvidedPIN,
     };
@@ -120,32 +125,15 @@ public:
     void SetDelegate(DeviceStatusDelegate * delegate) { mStatusDelegate = delegate; }
 
     // ----- Messaging -----
-    /**
-     * @brief
-     *   Send the provided message to the device
-     *
-     * @param[in] protocolId  The protocol identifier of the CHIP message to be sent.
-     * @param[in] msgType     The message type of the message to be sent.  Must be a valid message type for protocolId.
-     * @param [in] sendFlags  SendMessageFlags::kExpectResponse or SendMessageFlags::kNone
-     * @param[in] message     The message payload to be sent.
-     *
-     * @return CHIP_ERROR   CHIP_NO_ERROR on success, or corresponding error
-     */
-    CHIP_ERROR SendMessage(Protocols::Id protocolId, uint8_t msgType, Messaging::SendFlags sendFlags,
-                           System::PacketBufferHandle && message);
-
-    /**
-     * A strongly-message-typed version of SendMessage.
-     */
-    template <typename MessageType, typename = std::enable_if_t<std::is_enum<MessageType>::value>>
-    CHIP_ERROR SendMessage(MessageType msgType, Messaging::SendFlags sendFlags, System::PacketBufferHandle && message)
-    {
-        return SendMessage(Protocols::MessageTypeTraits<MessageType>::ProtocolId(), to_underlying(msgType), sendFlags,
-                           std::move(message));
-    }
-
     CHIP_ERROR SendReadAttributeRequest(app::AttributePathParams aPath, Callback::Cancelable * onSuccessCallback,
                                         Callback::Cancelable * onFailureCallback, app::TLVDataFilter aTlvDataFilter);
+
+    CHIP_ERROR SendSubscribeAttributeRequest(app::AttributePathParams aPath, uint16_t mMinIntervalFloorSeconds,
+                                             uint16_t mMaxIntervalCeilingSeconds, Callback::Cancelable * onSuccessCallback,
+                                             Callback::Cancelable * onFailureCallback);
+
+    CHIP_ERROR SendWriteAttributeRequest(app::WriteClientHandle aHandle, Callback::Cancelable * onSuccessCallback,
+                                         Callback::Cancelable * onFailureCallback);
 
     /**
      * @brief
@@ -181,16 +169,15 @@ public:
      */
     void Init(ControllerDeviceInitParams params, uint16_t listenPort, FabricIndex fabric)
     {
-        mTransportMgr     = params.transportMgr;
-        mSessionManager   = params.sessionMgr;
-        mExchangeMgr      = params.exchangeMgr;
-        mInetLayer        = params.inetLayer;
-        mListenPort       = listenPort;
-        mFabricIndex      = fabric;
-        mStorageDelegate  = params.storageDelegate;
-        mCredentials      = params.credentials;
-        mCredentialsIndex = params.credentialsIndex;
-        mIDAllocator      = params.idAllocator;
+        mSessionManager  = params.sessionManager;
+        mExchangeMgr     = params.exchangeMgr;
+        mInetLayer       = params.inetLayer;
+        mListenPort      = listenPort;
+        mFabricIndex     = fabric;
+        mStorageDelegate = params.storageDelegate;
+        mIDAllocator     = params.idAllocator;
+        mFabricsTable    = params.fabricsTable;
+        mpIMDelegate     = params.imDelegate;
 #if CONFIG_NETWORK_LAYER_BLE
         mBleLayer = params.bleLayer;
 #endif
@@ -250,7 +237,7 @@ public:
      *
      * @param session A handle to the secure session
      */
-    void OnNewConnection(SecureSessionHandle session);
+    void OnNewConnection(SessionHandle session);
 
     /**
      * @brief
@@ -260,7 +247,7 @@ public:
      *
      * @param session A handle to the secure session
      */
-    void OnConnectionExpired(SecureSessionHandle session);
+    void OnConnectionExpired(SessionHandle session);
 
     /**
      * @brief
@@ -272,12 +259,11 @@ public:
      *                          on.  The Device guarantees that it will call
      *                          Close() on exchange when it's done processing
      *                          the message.
-     * @param[in] header        Reference to common packet header of the received message
      * @param[in] payloadHeader Reference to payload header in the message
      * @param[in] msgBuf        The message buffer
      */
-    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * exchange, const PacketHeader & header,
-                                 const PayloadHeader & payloadHeader, System::PacketBufferHandle && msgBuf) override;
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * exchange, const PayloadHeader & payloadHeader,
+                                 System::PacketBufferHandle && msgBuf) override;
 
     /**
      * @brief ExchangeDelegate implementation of OnResponseTimeout.
@@ -286,22 +272,45 @@ public:
 
     /**
      * @brief
-     *   Trigger a paired device to re-enter the pairing mode. If an onboarding token is provided, the device will use
-     *   the provided setup PIN code and the discriminator to advertise itself for pairing availability. If the token
+     *   Trigger a paired device to re-enter the commissioning mode. If an onboarding token is provided, the device will use
+     *   the provided setup PIN code and the discriminator to advertise itself for commissioning availability. If the token
      *   is not provided, the device will use the manufacturer assigned setup PIN code and discriminator.
      *
-     *   The device will exit the pairing mode after a successful pairing, or after the given `timeout` time.
+     *   The device will exit the commissioning mode after a successful commissioning, or after the given `timeout` time.
      *
-     * @param[in] timeout         The pairing mode should terminate after this much time.
-     * @param[in] option          The pairing window can be opened using the original setup code, or an
+     * @param[in] timeout         The commissioning mode should terminate after this much time.
+     * @param[in] iteration       The PAKE iteration count associated with the PAKE Passcode ID and ephemeral
+     *                            PAKE passcode verifier to be used for this commissioning.
+     * @param[in] option          The commissioning window can be opened using the original setup code, or an
+     *                            onboarding token can be generated using a random setup PIN code (or with
+     *                            the PIN code provied in the setupPayload).
+     * @param[in] salt            The PAKE Salt associated with the PAKE Passcode ID and ephemeral PAKE passcode
+     *                            verifier to be used for this commissioning.
+     * @param[out] setupPayload   The setup payload corresponding to the generated onboarding token.
+     *
+     * @return CHIP_ERROR         CHIP_NO_ERROR on success, or corresponding error
+     */
+    CHIP_ERROR OpenCommissioningWindow(uint16_t timeout, uint32_t iteration, CommissioningWindowOption option,
+                                       const ByteSpan & salt, SetupPayload & setupPayload);
+
+    /**
+     * @brief
+     *   Trigger a paired device to re-enter the commissioning mode. If an onboarding token is provided, the device will use
+     *   the provided setup PIN code and the discriminator to advertise itself for commissioning availability. If the token
+     *   is not provided, the device will use the manufacturer assigned setup PIN code and discriminator.
+     *
+     *   The device will exit the commissioning mode after a successful commissioning, or after the given `timeout` time.
+     *
+     * @param[in] timeout         The commissioning mode should terminate after this much time.
+     * @param[in] option          The commissioning window can be opened using the original setup code, or an
      *                            onboarding token can be generated using a random setup PIN code (or with
      *                            the PIN code provied in the setupPayload). This argument selects one of these
      *                            methods.
      * @param[out] setupPayload   The setup payload corresponding to the generated onboarding token.
      *
-     * @return CHIP_ERROR               CHIP_NO_ERROR on success, or corresponding error
+     * @return CHIP_ERROR         CHIP_NO_ERROR on success, or corresponding error
      */
-    CHIP_ERROR OpenPairingWindow(uint32_t timeout, PairingWindowOption option, SetupPayload & setupPayload);
+    CHIP_ERROR OpenPairingWindow(uint16_t timeout, CommissioningWindowOption option, SetupPayload & setupPayload);
 
     /**
      *  In case there exists an open session to the device, mark it as expired.
@@ -338,7 +347,11 @@ public:
 
     NodeId GetDeviceId() const { return mDeviceId; }
 
-    bool MatchesSession(SecureSessionHandle session) const { return mSecureSession == session; }
+    bool MatchesSession(SessionHandle session) const { return mSecureSession.HasValue() && mSecureSession.Value() == session; }
+
+    chip::Optional<SessionHandle> GetSecureSession() const { return mSecureSession; }
+
+    Messaging::ExchangeManager * GetExchangeManager() const { return mExchangeMgr; }
 
     void SetAddress(const Inet::IPAddress & deviceAddr) { mDeviceAddress.SetIPAddress(deviceAddr); }
 
@@ -348,10 +361,11 @@ public:
     void AddResponseHandler(uint8_t seqNum, Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback,
                             app::TLVDataFilter tlvDataFilter = nullptr);
     void CancelResponseHandler(uint8_t seqNum);
-    void AddReportHandler(EndpointId endpoint, ClusterId cluster, AttributeId attribute, Callback::Cancelable * onReportCallback);
+    void AddReportHandler(EndpointId endpoint, ClusterId cluster, AttributeId attribute, Callback::Cancelable * onReportCallback,
+                          app::TLVDataFilter tlvDataFilter);
 
-    // This two functions are pretty tricky, it is used to bridge the response, we need to implement interaction model delegate on
-    // the app side instead of register callbacks here. The IM delegate can provide more infomation then callback and it is
+    // This two functions are pretty tricky, it is used to bridge the response, we need to implement interaction model delegate
+    // on the app side instead of register callbacks here. The IM delegate can provide more infomation then callback and it is
     // type-safe.
     // TODO: Implement interaction model delegate in the application.
     void AddIMResponseHandler(app::CommandSender * commandObj, Callback::Cancelable * onSuccessCallback,
@@ -381,6 +395,18 @@ public:
     }
 
     ByteSpan GetCSRNonce() const { return ByteSpan(mCSRNonce, sizeof(mCSRNonce)); }
+
+    MutableByteSpan GetMutableNOCCert() { return MutableByteSpan(mNOCCertBuffer, sizeof(mNOCCertBuffer)); }
+
+    CHIP_ERROR SetNOCCertBufferSize(size_t new_size);
+
+    ByteSpan GetNOCCert() const { return ByteSpan(mNOCCertBuffer, mNOCCertBufferSize); }
+
+    MutableByteSpan GetMutableICACert() { return MutableByteSpan(mICACertBuffer, sizeof(mICACertBuffer)); }
+
+    CHIP_ERROR SetICACertBufferSize(size_t new_size);
+
+    ByteSpan GetICACert() const { return ByteSpan(mICACertBuffer, mICACertBufferSize); }
 
     /*
      * This function can be called to establish a secure session with the device.
@@ -432,13 +458,13 @@ private:
 
     DeviceStatusDelegate * mStatusDelegate = nullptr;
 
-    SecureSessionMgr * mSessionManager = nullptr;
-
-    DeviceTransportMgr * mTransportMgr = nullptr;
+    SessionManager * mSessionManager = nullptr;
 
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
 
-    SecureSessionHandle mSecureSession = {};
+    Optional<SessionHandle> mSecureSession = Optional<SessionHandle>::Missing();
+
+    DeviceControllerInteractionModelDelegate * mpIMDelegate = nullptr;
 
     uint8_t mSequenceNumber = 0;
 
@@ -452,10 +478,8 @@ private:
      *   This function loads the secure session object from the serialized operational
      *   credentials corresponding to the device. This is typically done when the device
      *   does not have an active secure channel.
-     *
-     * @param[in] resetNeeded   Does the underlying network socket require a reset
      */
-    CHIP_ERROR LoadSecureSessionParameters(ResetTransport resetNeeded);
+    CHIP_ERROR LoadSecureSessionParameters();
 
     /**
      * @brief
@@ -474,26 +498,37 @@ private:
 
     CHIP_ERROR WarmupCASESession();
 
+    static void OnOpenPairingWindowSuccessResponse(void * context);
+    static void OnOpenPairingWindowFailureResponse(void * context, uint8_t status);
+
     uint16_t mListenPort;
 
     FabricIndex mFabricIndex = Transport::kUndefinedFabricIndex;
 
+    Transport::FabricTable * mFabricsTable = nullptr;
+
     bool mDeviceOperationalCertProvisioned = false;
 
     CASESession mCASESession;
-
-    Credentials::OperationalCredentialSet * mCredentials = nullptr;
-    // TODO: Switch to size_t whenever OperationalCredentialSet Class is updated to support more then 255 credentials per controller
-    uint8_t mCredentialsIndex = 0;
-
     PersistentStorageDelegate * mStorageDelegate = nullptr;
 
     uint8_t mCSRNonce[kOpCSRNonceLength];
 
+    uint8_t mNOCCertBuffer[Credentials::kMaxCHIPCertLength];
+    size_t mNOCCertBufferSize = 0;
+
+    uint8_t mICACertBuffer[Credentials::kMaxCHIPCertLength];
+    size_t mICACertBufferSize = 0;
+
     SessionIDAllocator * mIDAllocator = nullptr;
+
+    uint16_t mPAKEVerifierID = 1;
 
     Callback::CallbackDeque mConnectionSuccess;
     Callback::CallbackDeque mConnectionFailure;
+
+    Callback::Callback<DefaultSuccessCallback> mOpenPairingSuccessCallback;
+    Callback::Callback<DefaultFailureCallback> mOpenPairingFailureCallback;
 };
 
 /**

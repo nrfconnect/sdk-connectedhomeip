@@ -21,8 +21,8 @@
 
 #include <logging/log.h>
 
+#include <lib/support/CHIPMem.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <support/CHIPMem.h>
 
 LOG_MODULE_REGISTER(app);
 
@@ -80,6 +80,6 @@ int main()
     }
 
 exit:
-    LOG_ERR("Exited with code %" CHIP_ERROR_FORMAT, chip::ChipError::FormatError(err));
+    LOG_ERR("Exited with code %" CHIP_ERROR_FORMAT, err.Format());
     return err == CHIP_NO_ERROR ? EXIT_SUCCESS : EXIT_FAILURE;
 }

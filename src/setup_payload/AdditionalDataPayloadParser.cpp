@@ -27,31 +27,43 @@
 #include <string.h>
 #include <vector>
 
-#include <core/CHIPError.h>
-#include <core/CHIPTLVData.hpp>
-#include <core/CHIPTLVUtilities.hpp>
+#include <lib/core/CHIPError.h>
+#include <lib/core/CHIPTLVData.hpp>
+#include <lib/core/CHIPTLVUtilities.hpp>
+#include <lib/support/BytesToHex.h>
+#include <lib/support/CodeUtils.h>
 #include <protocols/Protocols.h>
-#include <support/CodeUtils.h>
+#include <setup_payload/AdditionalDataPayloadGenerator.h>
 
 namespace chip {
 
 CHIP_ERROR AdditionalDataPayloadParser::populatePayload(SetupPayloadData::AdditionalDataPayload & outPayload)
 {
-    TLV::TLVReader reader;
-    TLV::TLVReader innerReader;
+    TLV::ContiguousBufferTLVReader reader;
+    TLV::ContiguousBufferTLVReader innerReader;
 
     reader.Init(mPayloadBufferData, mPayloadBufferLength);
     ReturnErrorOnFailure(reader.Next(TLV::kTLVType_Structure, TLV::AnonymousTag));
 
     // Open the container
     ReturnErrorOnFailure(reader.OpenContainer(innerReader));
+    if (innerReader.Next(TLV::kTLVType_ByteString, TLV::ContextTag(SetupPayloadData::kRotatingDeviceIdTag)) == CHIP_NO_ERROR)
+    {
+        // Get the value of the rotating device id
+        ByteSpan rotatingDeviceId;
+        ReturnErrorOnFailure(innerReader.GetByteView(rotatingDeviceId));
 
-    ReturnErrorOnFailure(innerReader.Next(TLV::kTLVType_UTF8String, TLV::ContextTag(SetupPayloadData::kRotatingDeviceIdTag)));
+        VerifyOrReturnError(rotatingDeviceId.size() <= RotatingDeviceId::kMaxLength, CHIP_ERROR_INVALID_STRING_LENGTH);
+        char rotatingDeviceIdBufferTemp[RotatingDeviceId::kHexMaxLength];
 
-    // Get the value of the rotating device id
-    char rotatingDeviceId[SetupPayloadData::kRotatingDeviceIdLength];
-    ReturnErrorOnFailure(innerReader.GetString(rotatingDeviceId, sizeof(rotatingDeviceId)));
-    outPayload.rotatingDeviceId = std::string(rotatingDeviceId);
+        ReturnErrorOnFailure(Encoding::BytesToUppercaseHexString(rotatingDeviceId.data(), rotatingDeviceId.size(),
+                                                                 rotatingDeviceIdBufferTemp, RotatingDeviceId::kHexMaxLength));
+        outPayload.rotatingDeviceId = std::string(rotatingDeviceIdBufferTemp, rotatingDeviceId.size() * 2);
+    }
+    else
+    {
+        outPayload.rotatingDeviceId = "";
+    }
 
     // Verify the end of the container
     ReturnErrorOnFailure(reader.VerifyEndOfContainer());

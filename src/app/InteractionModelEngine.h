@@ -26,15 +26,15 @@
 #pragma once
 
 #include <app/MessageDef/ReportData.h>
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
 #include <protocols/interaction_model/Constants.h>
-#include <support/CodeUtils.h>
-#include <support/DLLUtil.h>
-#include <support/logging/CHIPLogging.h>
 #include <system/SystemPacketBuffer.h>
 
 #include <app/ClusterInfo.h>
@@ -49,23 +49,10 @@
 #include <app/reporting/Engine.h>
 #include <app/util/basic-types.h>
 
-// TODO: Make number of command/read/write client/handler configurable
-#define CHIP_MAX_NUM_COMMAND_HANDLER 4
-#define CHIP_MAX_NUM_COMMAND_SENDER 4
-#define CHIP_MAX_NUM_READ_CLIENT 4
-#define CHIP_MAX_NUM_READ_HANDLER 4
-#define CHIP_MAX_REPORTS_IN_FLIGHT 4
-#define IM_SERVER_MAX_NUM_PATH_GROUPS 8
-#define CHIP_MAX_NUM_WRITE_CLIENT 4
-#define CHIP_MAX_NUM_WRITE_HANDLER 4
-
 namespace chip {
 namespace app {
 
-constexpr size_t kMaxSecureSduLengthBytes = 1024;
-/* TODO: https://github.com/project-chip/connectedhomeip/issues/7489 */
-constexpr uint32_t kImMessageTimeoutMsec = 12000;
-constexpr FieldId kRootFieldId           = 0;
+static constexpr size_t kMaxSecureSduLengthBytes = 1024;
 
 /**
  * @class InteractionModelEngine
@@ -116,27 +103,36 @@ public:
     CHIP_ERROR NewCommandSender(CommandSender ** const apCommandSender);
 
     /**
-     *  Creates a new read client and send ReadRequest message to the node using the read client. User should use this method since
-     * it takes care of the life cycle of ReadClient.
+     *  Creates a new read client and send ReadRequest message to the node using the read client,
+     *  shutdown if fail to send it out
      *
      *  @retval #CHIP_ERROR_NO_MEMORY If there is no ReadClient available
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR SendReadRequest(NodeId aNodeId, FabricIndex aFabricIndex, SecureSessionHandle * apSecureSession,
-                               EventPathParams * apEventPathParamsList, size_t aEventPathParamsListSize,
-                               AttributePathParams * apAttributePathParamsList, size_t aAttributePathParamsListSize,
-                               EventNumber aEventNumber, intptr_t aAppIdentifier = 0);
+    CHIP_ERROR SendReadRequest(ReadPrepareParams & aReadPrepareParams, uint64_t aAppIdentifier = 0);
 
+    /**
+     *  Creates a new read client and sends SubscribeRequest message to the node using the read client.
+     *  Shuts down on transmission failure.
+     *
+     *  @retval #CHIP_ERROR_NO_MEMORY If there is no ReadClient available
+     *  @retval #CHIP_NO_ERROR On success.
+     */
+    CHIP_ERROR SendSubscribeRequest(ReadPrepareParams & aReadPrepareParams, uint64_t aAppIdentifier = 0);
     /**
      *  Retrieve a WriteClient that the SDK consumer can use to send a write.  If the call succeeds,
      *  see WriteClient documentation for lifetime handling.
+     *
+     *  The Write interaction is more like Invoke interaction (cluster specific commands) since it will include cluster specific
+     * payload, and may have the need to encode non-scalar values (like structs and arrays). Thus we use WriteClientHandle to
+     * prevent user's code from leaking WriteClients.
      *
      *  @param[out]    apWriteClient    A pointer to the WriteClient object.
      *
      *  @retval #CHIP_ERROR_NO_MEMORY If there is no WriteClient available
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR NewWriteClient(WriteClient ** const apWriteClient);
+    CHIP_ERROR NewWriteClient(WriteClientHandle & apWriteClient, uint64_t aApplicationIdentifier = 0);
 
     /**
      *  Get read client index in mReadClients
@@ -153,52 +149,64 @@ public:
 
     void ReleaseClusterInfoList(ClusterInfo *& aClusterInfo);
     CHIP_ERROR PushFront(ClusterInfo *& aClusterInfoLisst, ClusterInfo & aClusterInfo);
+    // Merges aAttributePath inside apAttributePathList if current path is overlapped with existing path in apAttributePathList
+    // Overlap means the path is superset or subset of another path
+    bool MergeOverlappedAttributePath(ClusterInfo * apAttributePathList, ClusterInfo & aAttributePath);
+    bool IsOverlappedAttributePath(ClusterInfo & aAttributePath);
 
 private:
     friend class reporting::Engine;
-    CHIP_ERROR OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
-    CHIP_ERROR OnInvokeCommandRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                      const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
-    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                 const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
+    CHIP_ERROR OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
+                                System::PacketBufferHandle && aPayload);
+    CHIP_ERROR OnInvokeCommandRequest(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
+                                      System::PacketBufferHandle && aPayload);
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
+                                 System::PacketBufferHandle && aPayload);
     void OnResponseTimeout(Messaging::ExchangeContext * ec);
 
     /**
      * Called when Interaction Model receives a Read Request message.  Errors processing
      * the Read Request are handled entirely within this function.
      */
-    CHIP_ERROR OnReadRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                             const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
+
+    CHIP_ERROR OnReadInitialRequest(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
+                                    System::PacketBufferHandle && aPayload, ReadHandler::InteractionType aInteractionType);
 
     /**
      * Called when Interaction Model receives a Write Request message.  Errors processing
      * the Write Request are handled entirely within this function.
      */
-    CHIP_ERROR OnWriteRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                              const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
+    CHIP_ERROR OnWriteRequest(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
+                              System::PacketBufferHandle && aPayload);
 
+    /**This function handles processing of un-solicited ReportData messages on the client, which can
+     * only occur post subscription establishment
+     */
+    CHIP_ERROR OnUnsolicitedReportData(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
+                                       System::PacketBufferHandle && aPayload);
     /**
      *  Retrieve a ReadClient that the SDK consumer can use to send do a read.  If the call succeeds, the consumer
      *  is responsible for calling Shutdown() on the ReadClient once it's done using it.
      *
-     *  @param[out]    apReadClient    A pointer to the ReadClient object.
-     *
      *  @retval #CHIP_ERROR_INCORRECT_STATE If there is no ReadClient available
      *  @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR NewReadClient(ReadClient ** const apReadClient, intptr_t aAppIdentifier);
+    CHIP_ERROR NewReadClient(ReadClient ** const apReadClient, ReadClient::InteractionType aInteractionType,
+                             uint64_t aAppIdentifier);
 
     Messaging::ExchangeManager * mpExchangeMgr = nullptr;
     InteractionModelDelegate * mpDelegate      = nullptr;
-    CommandHandler mCommandHandlerObjs[CHIP_MAX_NUM_COMMAND_HANDLER];
-    CommandSender mCommandSenderObjs[CHIP_MAX_NUM_COMMAND_SENDER];
-    ReadClient mReadClients[CHIP_MAX_NUM_READ_CLIENT];
-    ReadHandler mReadHandlers[CHIP_MAX_NUM_READ_HANDLER];
-    WriteClient mWriteClients[CHIP_MAX_NUM_WRITE_CLIENT];
-    WriteHandler mWriteHandlers[CHIP_MAX_NUM_WRITE_HANDLER];
+
+    // TODO(#8006): investgate if we can disable some IM functions on some compact accessories.
+    // TODO(#8006): investgate if we can provide more flexible object management on devices with more resources.
+    CommandHandler mCommandHandlerObjs[CHIP_IM_MAX_NUM_COMMAND_HANDLER];
+    CommandSender mCommandSenderObjs[CHIP_IM_MAX_NUM_COMMAND_SENDER];
+    ReadClient mReadClients[CHIP_IM_MAX_NUM_READ_CLIENT];
+    ReadHandler mReadHandlers[CHIP_IM_MAX_NUM_READ_HANDLER];
+    WriteClient mWriteClients[CHIP_IM_MAX_NUM_WRITE_CLIENT];
+    WriteHandler mWriteHandlers[CHIP_IM_MAX_NUM_WRITE_HANDLER];
     reporting::Engine mReportingEngine;
-    ClusterInfo mClusterInfoPool[IM_SERVER_MAX_NUM_PATH_GROUPS];
+    ClusterInfo mClusterInfoPool[CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS];
     ClusterInfo * mpNextAvailableClusterInfo = nullptr;
 };
 

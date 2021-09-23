@@ -23,18 +23,18 @@
 #include "MinimalMdnsServer.h"
 #include "ServiceNaming.h"
 
-#include <mdns/Advertiser_ImplMinimalMdnsAllocator.h>
-#include <mdns/minimal/ResponseSender.h>
-#include <mdns/minimal/Server.h>
-#include <mdns/minimal/core/FlatAllocatedQName.h>
-#include <mdns/minimal/responders/IP.h>
-#include <mdns/minimal/responders/Ptr.h>
-#include <mdns/minimal/responders/QueryResponder.h>
-#include <mdns/minimal/responders/Srv.h>
-#include <mdns/minimal/responders/Txt.h>
-#include <support/CHIPMem.h>
-#include <support/RandUtils.h>
-#include <support/StringBuilder.h>
+#include <lib/mdns/Advertiser_ImplMinimalMdnsAllocator.h>
+#include <lib/mdns/minimal/ResponseSender.h>
+#include <lib/mdns/minimal/Server.h>
+#include <lib/mdns/minimal/core/FlatAllocatedQName.h>
+#include <lib/mdns/minimal/responders/IP.h>
+#include <lib/mdns/minimal/responders/Ptr.h>
+#include <lib/mdns/minimal/responders/QueryResponder.h>
+#include <lib/mdns/minimal/responders/Srv.h>
+#include <lib/mdns/minimal/responders/Txt.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/RandUtils.h>
+#include <lib/support/StringBuilder.h>
 
 // Enable detailed mDNS logging for received queries
 #undef DETAIL_LOGGING
@@ -105,7 +105,10 @@ public:
     AdvertiserMinMdns() : mResponseSender(&GlobalMinimalMdnsServer::Server())
     {
         GlobalMinimalMdnsServer::Instance().SetQueryDelegate(this);
-        mResponseSender.AddQueryResponder(mQueryResponderAllocatorOperational.GetQueryResponder());
+        for (auto & allocator : mQueryResponderAllocatorOperational)
+        {
+            mResponseSender.AddQueryResponder(allocator.GetQueryResponder());
+        }
         mResponseSender.AddQueryResponder(mQueryResponderAllocatorCommissionable.GetQueryResponder());
         mResponseSender.AddQueryResponder(mQueryResponderAllocatorCommissioner.GetQueryResponder());
     }
@@ -136,15 +139,94 @@ private:
     /// interfaces on which the mDNS server is listening
     bool ShouldAdvertiseOn(const chip::Inet::InterfaceId id, const chip::Inet::IPAddress & addr);
 
-    FullQName GetCommisioningTextEntries(const CommissionAdvertisingParameters & params);
+    FullQName GetCommissioningTxtEntries(const CommissionAdvertisingParameters & params);
+    FullQName GetOperationalTxtEntries(const OperationalAdvertisingParameters & params);
 
-    // Max number of records for operational = PTR, SRV, TXT, A, AAAA, no subtypes.
-    static constexpr size_t kMaxOperationalRecords = 5;
-    QueryResponderAllocator<kMaxOperationalRecords> mQueryResponderAllocatorOperational;
+    struct CommonTxtEntryStorage
+    {
+        // +2 for all to account for '=' and terminating nullchar
+        char mrpRetryIntervalIdleBuf[KeySize(TxtFieldKey::kMrpRetryIntervalIdle) + ValSize(TxtFieldKey::kMrpRetryIntervalIdle) + 2];
+        char mrpRetryIntervalActiveBuf[KeySize(TxtFieldKey::kMrpRetryIntervalActive) +
+                                       ValSize(TxtFieldKey::kMrpRetryIntervalActive) + 2];
+        char tcpSupportedBuf[KeySize(TxtFieldKey::kTcpSupport) + ValSize(TxtFieldKey::kTcpSupport) + 2];
+    };
+    template <class Derived>
+    CHIP_ERROR AddCommonTxtEntries(const BaseAdvertisingParams<Derived> & params, CommonTxtEntryStorage & storage,
+                                   char ** txtFields, size_t & numTxtFields)
+    {
+        Optional<uint32_t> mrpRetryIntervalIdle, mrpRetryIntervalActive;
+        params.GetMRPRetryIntervals(mrpRetryIntervalIdle, mrpRetryIntervalActive);
+        // TODO: Issue #5833 - MRP retry intervals should be updated on the poll period value change or device type change.
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+        if (chip::DeviceLayer::ConnectivityMgr().GetThreadDeviceType() ==
+            chip::DeviceLayer::ConnectivityManager::kThreadDeviceType_SleepyEndDevice)
+        {
+            uint32_t sedPollPeriod;
+            ReturnErrorOnFailure(chip::DeviceLayer::ThreadStackMgr().GetPollPeriod(sedPollPeriod));
+            // Increment default MRP retry intervals by SED poll period to be on the safe side
+            // and avoid unnecessary retransmissions.
+            if (mrpRetryIntervalIdle.HasValue())
+            {
+                mrpRetryIntervalIdle.SetValue(mrpRetryIntervalIdle.Value() + sedPollPeriod);
+            }
+            if (mrpRetryIntervalActive.HasValue())
+            {
+                mrpRetryIntervalActive.SetValue(mrpRetryIntervalActive.Value() + sedPollPeriod);
+            }
+        }
+#endif
+        if (mrpRetryIntervalIdle.HasValue())
+        {
+            if (mrpRetryIntervalIdle.Value() > kMaxRetryInterval)
+            {
+                ChipLogProgress(Discovery,
+                                "MRP retry interval idle value exceeds allowed range of 1 hour, using maximum available");
+                mrpRetryIntervalIdle.SetValue(kMaxRetryInterval);
+            }
+            size_t writtenCharactersNumber = snprintf(storage.mrpRetryIntervalIdleBuf, sizeof(storage.mrpRetryIntervalIdleBuf),
+                                                      "CRI=%" PRIu32, mrpRetryIntervalIdle.Value());
+            VerifyOrReturnError((writtenCharactersNumber > 0) &&
+                                    (writtenCharactersNumber < sizeof(storage.mrpRetryIntervalIdleBuf)),
+                                CHIP_ERROR_INVALID_STRING_LENGTH);
+            txtFields[numTxtFields++] = storage.mrpRetryIntervalIdleBuf;
+        }
+        if (mrpRetryIntervalActive.HasValue())
+        {
+            if (mrpRetryIntervalActive.Value() > kMaxRetryInterval)
+            {
+                ChipLogProgress(Discovery,
+                                "MRP retry interval active value exceeds allowed range of 1 hour, using maximum available");
+                mrpRetryIntervalActive.SetValue(kMaxRetryInterval);
+            }
+            size_t writtenCharactersNumber = snprintf(storage.mrpRetryIntervalActiveBuf, sizeof(storage.mrpRetryIntervalActiveBuf),
+                                                      "CRA=%" PRIu32, mrpRetryIntervalActive.Value());
+            VerifyOrReturnError((writtenCharactersNumber > 0) &&
+                                    (writtenCharactersNumber < sizeof(storage.mrpRetryIntervalActiveBuf)),
+                                CHIP_ERROR_INVALID_STRING_LENGTH);
+            txtFields[numTxtFields++] = storage.mrpRetryIntervalActiveBuf;
+        }
+        if (params.GetTcpSupported().HasValue())
+        {
+            size_t writtenCharactersNumber =
+                snprintf(storage.tcpSupportedBuf, sizeof(storage.tcpSupportedBuf), "T=%d", params.GetTcpSupported().Value());
+            VerifyOrReturnError((writtenCharactersNumber > 0) && (writtenCharactersNumber < sizeof(storage.tcpSupportedBuf)),
+                                CHIP_ERROR_INVALID_STRING_LENGTH);
+            txtFields[numTxtFields++] = storage.tcpSupportedBuf;
+        }
+        return CHIP_NO_ERROR;
+    }
+
+    // Max number of records for operational = PTR, SRV, TXT, A, AAAA, I subtype.
+    static constexpr size_t kMaxOperationalRecords  = 6;
+    static constexpr size_t kMaxOperationalNetworks = 5;
+    QueryResponderAllocator<kMaxOperationalRecords> mQueryResponderAllocatorOperational[kMaxOperationalNetworks];
     // Max number of records for commissionable = 7 x PTR (base + 6 sub types - _S, _L, _D, _T, _C, _A), SRV, TXT, A, AAAA
     static constexpr size_t kMaxCommissionRecords = 11;
     QueryResponderAllocator<kMaxCommissionRecords> mQueryResponderAllocatorCommissionable;
     QueryResponderAllocator<kMaxCommissionRecords> mQueryResponderAllocatorCommissioner;
+
+    QueryResponderAllocator<kMaxOperationalRecords> * FindOperationalAllocator(const FullQName & qname);
+    QueryResponderAllocator<kMaxOperationalRecords> * FindEmptyOperationalAllocator();
 
     ResponseSender mResponseSender;
     uint32_t mCommissionInstanceName1;
@@ -196,6 +278,9 @@ CHIP_ERROR AdvertiserMinMdns::Start(chip::Inet::InetLayer * inetLayer, uint16_t 
 
     mCommissionInstanceName1 = GetRandU32();
     mCommissionInstanceName2 = GetRandU32();
+    // Re-set the server in the response sender in case this has been swapped in the
+    // GlobalMinimalMdnsServer (used for testing).
+    mResponseSender.SetServer(&GlobalMinimalMdnsServer::Server());
 
     ReturnErrorOnFailure(GlobalMinimalMdnsServer::Instance().StartServer(inetLayer, port));
 
@@ -209,37 +294,79 @@ CHIP_ERROR AdvertiserMinMdns::Start(chip::Inet::InetLayer * inetLayer, uint16_t 
 /// Stops the advertiser.
 CHIP_ERROR AdvertiserMinMdns::StopPublishDevice()
 {
-    mQueryResponderAllocatorOperational.Clear();
+    for (auto & allocator : mQueryResponderAllocatorOperational)
+    {
+        allocator.Clear();
+    }
     mQueryResponderAllocatorCommissionable.Clear();
     mQueryResponderAllocatorCommissioner.Clear();
     return CHIP_NO_ERROR;
 }
 
+QueryResponderAllocator<AdvertiserMinMdns::kMaxOperationalRecords> *
+AdvertiserMinMdns::FindOperationalAllocator(const FullQName & qname)
+{
+    for (auto & allocator : mQueryResponderAllocatorOperational)
+    {
+        if (allocator.GetResponder(QType::SRV, qname) != nullptr)
+        {
+            return &allocator;
+        }
+    }
+    return nullptr;
+}
+
+QueryResponderAllocator<AdvertiserMinMdns::kMaxOperationalRecords> * AdvertiserMinMdns::FindEmptyOperationalAllocator()
+{
+    for (auto & allocator : mQueryResponderAllocatorOperational)
+    {
+        if (allocator.IsEmpty())
+        {
+            return &allocator;
+        }
+    }
+    return nullptr;
+}
+
 CHIP_ERROR AdvertiserMinMdns::Advertise(const OperationalAdvertisingParameters & params)
 {
-    // TODO: When multi-admin is enabled, commissionable does not need to be cleared here.
-    mQueryResponderAllocatorOperational.Clear();
-    char nameBuffer[64] = "";
+    char nameBuffer[kOperationalServiceNamePrefix + 1] = "";
 
     /// need to set server name
     ReturnErrorOnFailure(MakeInstanceName(nameBuffer, sizeof(nameBuffer), params.GetPeerId()));
 
-    FullQName operationalServiceName =
-        mQueryResponderAllocatorOperational.AllocateQName(kOperationalServiceName, kOperationalProtocol, kLocalDomain);
-    FullQName operationalServerName =
-        mQueryResponderAllocatorOperational.AllocateQName(nameBuffer, kOperationalServiceName, kOperationalProtocol, kLocalDomain);
+    QNamePart nameCheckParts[]  = { nameBuffer, kOperationalServiceName, kOperationalProtocol, kLocalDomain };
+    FullQName nameCheck         = FullQName(nameCheckParts);
+    auto * operationalAllocator = FindOperationalAllocator(nameCheck);
+    if (operationalAllocator != nullptr)
+    {
+        operationalAllocator->Clear();
+    }
+    else
+    {
+        operationalAllocator = FindEmptyOperationalAllocator();
+        if (operationalAllocator == nullptr)
+        {
+            ChipLogError(Discovery, "Failed to find an open operational allocator");
+            return CHIP_ERROR_NO_MEMORY;
+        }
+    }
+
+    FullQName serviceName = operationalAllocator->AllocateQName(kOperationalServiceName, kOperationalProtocol, kLocalDomain);
+    FullQName instanceName =
+        operationalAllocator->AllocateQName(nameBuffer, kOperationalServiceName, kOperationalProtocol, kLocalDomain);
 
     ReturnErrorOnFailure(MakeHostName(nameBuffer, sizeof(nameBuffer), params.GetMac()));
-    FullQName serverName = mQueryResponderAllocatorOperational.AllocateQName(nameBuffer, kLocalDomain);
+    FullQName hostName = operationalAllocator->AllocateQName(nameBuffer, kLocalDomain);
 
-    if ((operationalServiceName.nameCount == 0) || (operationalServerName.nameCount == 0) || (serverName.nameCount == 0))
+    if ((serviceName.nameCount == 0) || (instanceName.nameCount == 0) || (hostName.nameCount == 0))
     {
         ChipLogError(Discovery, "Failed to allocate QNames.");
         return CHIP_ERROR_NO_MEMORY;
     }
 
-    if (!mQueryResponderAllocatorOperational.AddResponder<PtrResponder>(operationalServiceName, operationalServerName)
-             .SetReportAdditional(operationalServerName)
+    if (!operationalAllocator->AddResponder<PtrResponder>(serviceName, instanceName)
+             .SetReportAdditional(instanceName)
              .SetReportInServiceListing(true)
              .IsValid())
     {
@@ -247,23 +374,23 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const OperationalAdvertisingParameters &
         return CHIP_ERROR_NO_MEMORY;
     }
 
-    if (!mQueryResponderAllocatorOperational
-             .AddResponder<SrvResponder>(SrvResourceRecord(operationalServerName, serverName, params.GetPort()))
-             .SetReportAdditional(serverName)
+    if (!operationalAllocator->AddResponder<SrvResponder>(SrvResourceRecord(instanceName, hostName, params.GetPort()))
+             .SetReportAdditional(hostName)
              .IsValid())
     {
         ChipLogError(Discovery, "Failed to add SRV record mDNS responder");
         return CHIP_ERROR_NO_MEMORY;
     }
-    if (!mQueryResponderAllocatorOperational.AddResponder<TxtResponder>(TxtResourceRecord(operationalServerName, mEmptyTextEntries))
-             .SetReportAdditional(serverName)
+
+    if (!operationalAllocator->AddResponder<TxtResponder>(TxtResourceRecord(instanceName, GetOperationalTxtEntries(params)))
+             .SetReportAdditional(hostName)
              .IsValid())
     {
         ChipLogError(Discovery, "Failed to add TXT record mDNS responder");
         return CHIP_ERROR_NO_MEMORY;
     }
 
-    if (!mQueryResponderAllocatorOperational.AddResponder<IPv6Responder>(serverName).IsValid())
+    if (!operationalAllocator->AddResponder<IPv6Responder>(hostName).IsValid())
     {
         ChipLogError(Discovery, "Failed to add IPv6 mDNS responder");
         return CHIP_ERROR_NO_MEMORY;
@@ -271,11 +398,25 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const OperationalAdvertisingParameters &
 
     if (params.IsIPv4Enabled())
     {
-        if (!mQueryResponderAllocatorOperational.AddResponder<IPv4Responder>(serverName).IsValid())
+        if (!operationalAllocator->AddResponder<IPv4Responder>(hostName).IsValid())
         {
             ChipLogError(Discovery, "Failed to add IPv4 mDNS responder");
             return CHIP_ERROR_NO_MEMORY;
         }
+    }
+    MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
+                       DiscoveryFilter(DiscoveryFilterType::kCompressedFabricId, params.GetPeerId().GetCompressedFabricId()));
+    FullQName compressedFabricIdSubtype = operationalAllocator->AllocateQName(
+        nameBuffer, kSubtypeServiceNamePart, kOperationalServiceName, kOperationalProtocol, kLocalDomain);
+    ReturnErrorCodeIf(compressedFabricIdSubtype.nameCount == 0, CHIP_ERROR_NO_MEMORY);
+
+    if (!operationalAllocator->AddResponder<PtrResponder>(compressedFabricIdSubtype, instanceName)
+             .SetReportAdditional(instanceName)
+             .SetReportInServiceListing(true)
+             .IsValid())
+    {
+        ChipLogError(Discovery, "Failed to add device type PTR record mDNS responder");
+        return CHIP_ERROR_NO_MEMORY;
     }
 
     ChipLogProgress(Discovery, "CHIP minimal mDNS configured as 'Operational device'.");
@@ -299,8 +440,6 @@ CHIP_ERROR AdvertiserMinMdns::GetCommissionableInstanceName(char * instanceName,
 
 CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & params)
 {
-
-    // TODO: When multi-admin is enabled, operational does not need to be cleared here.
     if (params.GetCommissionAdvertiseMode() == CommssionAdvertiseMode::kCommissionableNode)
     {
         mQueryResponderAllocatorCommissionable.Clear();
@@ -436,9 +575,9 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
             }
         }
 
+        if (params.GetCommissioningMode() != CommissioningMode::kDisabled)
         {
-            MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
-                               DiscoveryFilter(DiscoveryFilterType::kCommissioningMode, params.GetCommissioningMode() ? 1 : 0));
+            MakeServiceSubtype(nameBuffer, sizeof(nameBuffer), DiscoveryFilter(DiscoveryFilterType::kCommissioningMode));
             FullQName longServiceName =
                 allocator->AllocateQName(nameBuffer, kSubtypeServiceNamePart, serviceType, kCommissionProtocol, kLocalDomain);
             ReturnErrorCodeIf(longServiceName.nameCount == 0, CHIP_ERROR_NO_MEMORY);
@@ -451,26 +590,9 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
                 return CHIP_ERROR_NO_MEMORY;
             }
         }
-
-        if (params.GetCommissioningMode() && params.GetOpenWindowCommissioningMode())
-        {
-            MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
-                               DiscoveryFilter(DiscoveryFilterType::kCommissioningModeFromCommand, 1));
-            FullQName longServiceName =
-                allocator->AllocateQName(nameBuffer, kSubtypeServiceNamePart, serviceType, kCommissionProtocol, kLocalDomain);
-            ReturnErrorCodeIf(longServiceName.nameCount == 0, CHIP_ERROR_NO_MEMORY);
-            if (!allocator->AddResponder<PtrResponder>(longServiceName, instanceName)
-                     .SetReportAdditional(instanceName)
-                     .SetReportInServiceListing(true)
-                     .IsValid())
-            {
-                ChipLogError(Discovery, "Failed to add open window commissioning mode PTR record mDNS responder");
-                return CHIP_ERROR_NO_MEMORY;
-            }
-        }
     }
 
-    if (!allocator->AddResponder<TxtResponder>(TxtResourceRecord(instanceName, GetCommisioningTextEntries(params)))
+    if (!allocator->AddResponder<TxtResponder>(TxtResourceRecord(instanceName, GetCommissioningTxtEntries(params)))
              .SetReportAdditional(hostName)
              .IsValid())
     {
@@ -490,11 +612,26 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
     return CHIP_NO_ERROR;
 }
 
-FullQName AdvertiserMinMdns::GetCommisioningTextEntries(const CommissionAdvertisingParameters & params)
+FullQName AdvertiserMinMdns::GetOperationalTxtEntries(const OperationalAdvertisingParameters & params)
 {
-    // Max number of TXT fields from the spec is 9: D, VP, AP, CM, DT, DN, RI, PI, PH.
-    constexpr size_t kMaxTxtFields = 9;
-    const char * txtFields[kMaxTxtFields];
+    char * txtFields[OperationalAdvertisingParameters::kTxtMaxNumber];
+    size_t numTxtFields = 0;
+    auto * allocator    = mQueryResponderAllocatorOperational;
+    struct CommonTxtEntryStorage commonStorage;
+    AddCommonTxtEntries<OperationalAdvertisingParameters>(params, commonStorage, txtFields, numTxtFields);
+    if (numTxtFields == 0)
+    {
+        return allocator->AllocateQNameFromArray(mEmptyTextEntries, 1);
+    }
+    else
+    {
+        return allocator->AllocateQNameFromArray(txtFields, numTxtFields);
+    }
+}
+
+FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertisingParameters & params)
+{
+    char * txtFields[CommissionAdvertisingParameters::kTxtMaxNumber];
     size_t numTxtFields = 0;
 
     QueryResponderAllocator<kMaxCommissionRecords> * allocator =
@@ -526,6 +663,8 @@ FullQName AdvertiserMinMdns::GetCommisioningTextEntries(const CommissionAdvertis
         snprintf(txtDeviceName, sizeof(txtDeviceName), "DN=%s", params.GetDeviceName().Value());
         txtFields[numTxtFields++] = txtDeviceName;
     }
+    CommonTxtEntryStorage commonStorage;
+    AddCommonTxtEntries<CommissionAdvertisingParameters>(params, commonStorage, txtFields, numTxtFields);
 
     // the following sub types only apply to commissionable node advertisements
     if (params.GetCommissionAdvertiseMode() == CommssionAdvertiseMode::kCommissionableNode)
@@ -535,21 +674,9 @@ FullQName AdvertiserMinMdns::GetCommisioningTextEntries(const CommissionAdvertis
         snprintf(txtDiscriminator, sizeof(txtDiscriminator), "D=%d", params.GetLongDiscriminator());
         txtFields[numTxtFields++] = txtDiscriminator;
 
-        if (!params.GetVendorId().HasValue())
-        {
-            return allocator->AllocateQName(txtDiscriminator);
-        }
-
         char txtCommissioningMode[chip::Mdns::kKeyCommissioningModeMaxLength + 4];
-        snprintf(txtCommissioningMode, sizeof(txtCommissioningMode), "CM=%d", params.GetCommissioningMode() ? 1 : 0);
+        snprintf(txtCommissioningMode, sizeof(txtCommissioningMode), "CM=%d", static_cast<int>(params.GetCommissioningMode()));
         txtFields[numTxtFields++] = txtCommissioningMode;
-
-        char txtOpenWindowCommissioningMode[chip::Mdns::kKeyAdditionalPairingMaxLength + 4];
-        if (params.GetCommissioningMode() && params.GetOpenWindowCommissioningMode())
-        {
-            snprintf(txtOpenWindowCommissioningMode, sizeof(txtOpenWindowCommissioningMode), "AP=1");
-            txtFields[numTxtFields++] = txtOpenWindowCommissioningMode;
-        }
 
         char txtRotatingDeviceId[chip::Mdns::kKeyRotatingIdMaxLength + 4];
         if (params.GetRotatingId().HasValue())
@@ -580,7 +707,7 @@ FullQName AdvertiserMinMdns::GetCommisioningTextEntries(const CommissionAdvertis
     {
         return allocator->AllocateQNameFromArray(txtFields, numTxtFields);
     }
-} // namespace
+}
 
 bool AdvertiserMinMdns::ShouldAdvertiseOn(const chip::Inet::InterfaceId id, const chip::Inet::IPAddress & addr)
 {
@@ -650,7 +777,10 @@ void AdvertiserMinMdns::AdvertiseRecords()
         QueryData queryData(QType::PTR, QClass::IN, false /* unicast */);
         queryData.SetIsBootAdvertising(true);
 
-        mQueryResponderAllocatorOperational.GetQueryResponder()->ClearBroadcastThrottle();
+        for (auto & allocator : mQueryResponderAllocatorOperational)
+        {
+            allocator.GetQueryResponder()->ClearBroadcastThrottle();
+        }
         mQueryResponderAllocatorCommissionable.GetQueryResponder()->ClearBroadcastThrottle();
         mQueryResponderAllocatorCommissioner.GetQueryResponder()->ClearBroadcastThrottle();
 
@@ -662,7 +792,10 @@ void AdvertiserMinMdns::AdvertiseRecords()
     }
 
     // Once all automatic broadcasts are done, allow immediate replies once.
-    mQueryResponderAllocatorOperational.GetQueryResponder()->ClearBroadcastThrottle();
+    for (auto & allocator : mQueryResponderAllocatorOperational)
+    {
+        allocator.GetQueryResponder()->ClearBroadcastThrottle();
+    }
     mQueryResponderAllocatorCommissionable.GetQueryResponder()->ClearBroadcastThrottle();
     mQueryResponderAllocatorCommissioner.GetQueryResponder()->ClearBroadcastThrottle();
 }

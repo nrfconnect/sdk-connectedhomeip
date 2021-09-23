@@ -7,10 +7,6 @@ open class GenericChipDeviceListener : ChipDeviceController.CompletionListener {
     // No op
   }
 
-  override fun onSendMessageComplete(message: String?) {
-    // No op
-  }
-
   override fun onStatusUpdate(status: Int) {
     // No op
   }
@@ -24,10 +20,6 @@ open class GenericChipDeviceListener : ChipDeviceController.CompletionListener {
   }
 
   override fun onCommissioningComplete(nodeId: Long, errorCode: Int) {
-    // No op
-  }
-
-  override fun onNetworkCommissioningComplete(code: Int) {
     // No op
   }
 

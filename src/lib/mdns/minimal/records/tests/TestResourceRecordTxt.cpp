@@ -14,9 +14,9 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#include <mdns/minimal/records/Txt.h>
+#include <lib/mdns/minimal/records/Txt.h>
 
-#include <support/UnitTestRegistration.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <nlunit-test.h>
 
@@ -40,6 +40,7 @@ void TestTxt(nlTestSuite * inSuite, void * inContext)
 
     TxtResourceRecord record(kName, kData);
     record.SetTtl(128);
+    NL_TEST_ASSERT(inSuite, record.GetNumEntries() == 3);
 
     header.Clear();
 

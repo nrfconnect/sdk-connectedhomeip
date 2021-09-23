@@ -34,6 +34,30 @@ tests:
               - name: "returnValue"
                 value: 7
 
+    - label: "Send Test Add Arguments Command"
+      command: "testAddArguments"
+      arguments:
+          values:
+              - name: "arg1"
+                value: 3
+              - name: "arg2"
+                value: 17
+      response:
+          values:
+              - name: "returnValue"
+                value: 20
+
+    - label: "Send failing Test Add Arguments Command"
+      command: "testAddArguments"
+      arguments:
+          values:
+              - name: "arg1"
+                value: 250
+              - name: "arg2"
+                value: 6
+      response:
+          error: 1
+
     # Tests for Boolean attribute
 
     - label: "Read attribute BOOLEAN Default Value"
@@ -587,6 +611,8 @@ tests:
       attribute: "octet_string"
       arguments:
           value: "TestValueLongerThan10"
+      response:
+          error: true
 
     - label: "Read attribute OCTET_STRING"
       command: "readAttribute"
@@ -638,20 +664,22 @@ tests:
       command: "writeAttribute"
       attribute: "char_string"
       arguments:
-          value: "☉Test☉"
+          value: "☉T☉"
 
     - label: "Read attribute CHAR_STRING"
       command: "readAttribute"
       attribute: "char_string"
       disabled: true
       response:
-          value: "☉Test☉"
+          value: "☉T☉"
 
-    - label: "Write attribute CHAR_STRING"
+    - label: "Write attribute CHAR_STRING - Value too long"
       command: "writeAttribute"
       attribute: "char_string"
       arguments:
           value: "☉TestValueLongerThan10☉"
+      response:
+          error: true
 
     - label: "Read attribute CHAR_STRING"
       command: "readAttribute"
@@ -660,7 +688,7 @@ tests:
       response:
           value: "☉TestVal"
 
-    - label: "Write attribute CHAR_STRING"
+    - label: "Write attribute CHAR_STRING - Empty"
       command: "writeAttribute"
       attribute: "char_string"
       arguments:
@@ -721,6 +749,70 @@ tests:
                   { fabricIndex: 2, operationalCert: "Test2" },
                   { fabricIndex: 3, operationalCert: "Test3" },
               ]
+
+    # Tests for Epoch Microseconds
+
+    - label: "Read attribute EPOCH_US Default Value"
+      command: "readAttribute"
+      attribute: "epoch_us"
+      response:
+          value: 0
+
+    - label: "Write attribute EPOCH_US Max Value"
+      command: "writeAttribute"
+      attribute: "epoch_us"
+      arguments:
+          value: "18446744073709551615"
+
+    - label: "Read attribute EPOCH_US Max Value"
+      command: "readAttribute"
+      attribute: "epoch_us"
+      response:
+          value: "18446744073709551615"
+
+    - label: "Write attribute EPOCH_US Min Value"
+      command: "writeAttribute"
+      attribute: "epoch_us"
+      arguments:
+          value: 0
+
+    - label: "Read attribute EPOCH_US Min Value"
+      command: "readAttribute"
+      attribute: "epoch_us"
+      response:
+          value: 0
+
+    # Tests for Epoch Seconds
+
+    - label: "Read attribute EPOCH_S Default Value"
+      command: "readAttribute"
+      attribute: "epoch_s"
+      response:
+          value: 0
+
+    - label: "Write attribute EPOCH_S Max Value"
+      command: "writeAttribute"
+      attribute: "epoch_s"
+      arguments:
+          value: 4294967295
+
+    - label: "Read attribute EPOCH_S Max Value"
+      command: "readAttribute"
+      attribute: "epoch_s"
+      response:
+          value: 4294967295
+
+    - label: "Write attribute EPOCH_S Min Value"
+      command: "writeAttribute"
+      attribute: "epoch_s"
+      arguments:
+          value: 0
+
+    - label: "Read attribute EPOCH_S Min Value"
+      command: "readAttribute"
+      attribute: "epoch_s"
+      response:
+          value: 0
 
     # Tests for Unsupported attribute
 

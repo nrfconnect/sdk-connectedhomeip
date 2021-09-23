@@ -43,10 +43,9 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include <support/CHIPMem.h>
-#include <support/ErrorStr.h>
-#include <support/ScopedBuffer.h>
-#include <system/SystemTimer.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/ErrorStr.h>
+#include <lib/support/ScopedBuffer.h>
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
 #include <arpa/inet.h>
@@ -56,7 +55,7 @@
 using namespace chip;
 using namespace chip::Inet;
 
-System::Layer gSystemLayer;
+System::LayerImpl gSystemLayer;
 
 Inet::InetLayer gInet;
 
@@ -114,8 +113,10 @@ void ServiceEvents(struct ::timeval & aSleepTime)
     FD_ZERO(&exceptFDs);
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-    if (gSystemLayer.State() == System::kLayerState_Initialized)
+    if (gSystemLayer.IsInitialized())
+    {
         gSystemLayer.PrepareSelect(numFDs, &readFDs, &writeFDs, &exceptFDs, aSleepTime);
+    }
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS
@@ -126,12 +127,12 @@ void ServiceEvents(struct ::timeval & aSleepTime)
     int selectRes = select(numFDs, &readFDs, &writeFDs, &exceptFDs, &aSleepTime);
     if (selectRes < 0)
     {
-        LOG_INF("select failed: %s", ErrorStr(System::MapErrorPOSIX(errno)));
+        LOG_INF("select failed: %s", ErrorStr(CHIP_ERROR_POSIX(errno)));
         return;
     }
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
 
-    if (gSystemLayer.State() == System::kLayerState_Initialized)
+    if (gSystemLayer.IsInitialized())
     {
 
 #if CHIP_SYSTEM_CONFIG_USE_SOCKETS

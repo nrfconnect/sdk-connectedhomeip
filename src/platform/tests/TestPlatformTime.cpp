@@ -28,9 +28,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <lib/support/CodeUtils.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <lib/support/UnitTestUtils.h>
 #include <nlunit-test.h>
-#include <support/CodeUtils.h>
-#include <support/UnitTestRegistration.h>
 #include <system/SystemClock.h>
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
@@ -40,7 +41,6 @@
 
 using namespace chip;
 using namespace chip::Logging;
-using namespace chip::System::Platform::Clock;
 
 // =================================
 //      Test Vectors
@@ -64,37 +64,6 @@ static const struct time_test_vector test_vector_system_time_us[] = {
 };
 
 // =================================
-//      OS-specific utils
-// =================================
-// TODO: Make tests OS agnostic
-
-#include <unistd.h>
-
-void test_os_sleep_ms(uint64_t millisecs)
-{
-    struct timespec sleep_time;
-    int s = millisecs / 1000;
-
-    millisecs -= s * 1000;
-    sleep_time.tv_sec  = s;
-    sleep_time.tv_nsec = millisecs * 1000000;
-
-    nanosleep(&sleep_time, nullptr);
-}
-
-void test_os_sleep_us(uint64_t microsecs)
-{
-    struct timespec sleep_time;
-    int s = microsecs / 1000000;
-
-    microsecs -= s * 1000000;
-    sleep_time.tv_sec  = s;
-    sleep_time.tv_nsec = microsecs * 1000;
-
-    nanosleep(&sleep_time, nullptr);
-}
-
-// =================================
 //      Unit tests
 // =================================
 
@@ -111,11 +80,11 @@ static void TestDevice_GetMonotonicMicroseconds(nlTestSuite * inSuite, void * in
     {
         test_params = &test_vector_system_time_us[vectorIndex];
         Tdelay      = test_params->delay;
-        Tstart      = GetMonotonicMicroseconds();
+        Tstart      = System::Clock::GetMonotonicMicroseconds();
 
-        test_os_sleep_us(test_params->delay);
+        chip::test_utils::SleepMicros(test_params->delay);
 
-        Tend   = GetMonotonicMicroseconds();
+        Tend   = System::Clock::GetMonotonicMicroseconds();
         Tdelta = Tend - Tstart;
 
         ChipLogProgress(DeviceLayer, "Start=%" PRIu64 " End=%" PRIu64 " Delta=%" PRIu64 " Expected=%" PRIu64, Tstart, Tend, Tdelta,
@@ -142,11 +111,11 @@ static void TestDevice_GetMonotonicMilliseconds(nlTestSuite * inSuite, void * in
     {
         test_params = &test_vector_system_time_ms[vectorIndex];
         Tdelay      = test_params->delay;
-        Tstart      = GetMonotonicMilliseconds();
+        Tstart      = System::Clock::GetMonotonicMilliseconds();
 
-        test_os_sleep_ms(test_params->delay);
+        chip::test_utils::SleepMillis(test_params->delay);
 
-        Tend   = GetMonotonicMilliseconds();
+        Tend   = System::Clock::GetMonotonicMilliseconds();
         Tdelta = Tend - Tstart;
 
         ChipLogProgress(DeviceLayer, "Start=%" PRIu64 " End=%" PRIu64 " Delta=%" PRIu64 " Expected=%" PRIu64, Tstart, Tend, Tdelta,

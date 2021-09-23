@@ -29,7 +29,7 @@
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <protocols/secure_channel/PASESession.h>
 #include <system/SystemPacketBuffer.h>
-#include <transport/SecureSessionMgr.h>
+#include <transport/SessionManager.h>
 #include <transport/raw/TCP.h>
 #include <transport/raw/UDP.h>
 
@@ -132,7 +132,7 @@ Protocols::Echo::EchoClient gEchoClient;
 Transport::FabricTable gFabrics;
 
 CHIP_ERROR SendEchoRequest(streamer_t * stream);
-void EchoTimerHandler(chip::System::Layer * systemLayer, void * appState, CHIP_ERROR error);
+void EchoTimerHandler(chip::System::Layer * systemLayer, void * appState);
 
 Transport::PeerAddress GetEchoPeerAddress()
 {
@@ -151,7 +151,7 @@ Transport::PeerAddress GetEchoPeerAddress()
 
 void Shutdown()
 {
-    chip::DeviceLayer::SystemLayer.CancelTimer(EchoTimerHandler, NULL);
+    chip::DeviceLayer::SystemLayer().CancelTimer(EchoTimerHandler, NULL);
 #if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if (gPingArguments.IsUsingTCP())
     {
@@ -166,7 +166,7 @@ void Shutdown()
     gSessionManager.Shutdown();
 }
 
-void EchoTimerHandler(chip::System::Layer * systemLayer, void * appState, CHIP_ERROR error)
+void EchoTimerHandler(chip::System::Layer * systemLayer, void * appState)
 {
     if (gPingArguments.GetEchoRespCount() != gPingArguments.GetEchoCount())
     {
@@ -212,7 +212,7 @@ CHIP_ERROR SendEchoRequest(streamer_t * stream)
     }
 
     gPingArguments.SetLastEchoTime(System::Clock::GetMonotonicMilliseconds());
-    SuccessOrExit(chip::DeviceLayer::SystemLayer.StartTimer(gPingArguments.GetEchoInterval(), EchoTimerHandler, NULL));
+    SuccessOrExit(chip::DeviceLayer::SystemLayer().StartTimer(gPingArguments.GetEchoInterval(), EchoTimerHandler, NULL));
 
     streamer_printf(stream, "\nSend echo request message with payload size: %d bytes to Node: %" PRIu64 "\n", payloadSize,
                     kTestDeviceNodeId);
@@ -226,7 +226,7 @@ CHIP_ERROR SendEchoRequest(streamer_t * stream)
     }
     else
     {
-        chip::DeviceLayer::SystemLayer.CancelTimer(EchoTimerHandler, NULL);
+        chip::DeviceLayer::SystemLayer().CancelTimer(EchoTimerHandler, NULL);
     }
 
 exit:
@@ -249,7 +249,7 @@ CHIP_ERROR EstablishSecureSession(streamer_t * stream, const Transport::PeerAddr
     peerAddr = Optional<Transport::PeerAddress>::Value(peerAddress);
 
     // Attempt to connect to the peer.
-    err = gSessionManager.NewPairing(peerAddr, kTestDeviceNodeId, testSecurePairingSecret, SecureSession::SessionRole::kInitiator,
+    err = gSessionManager.NewPairing(peerAddr, kTestDeviceNodeId, testSecurePairingSecret, CryptoContext::SessionRole::kInitiator,
                                      gFabricIndex);
 
 exit:
@@ -285,16 +285,11 @@ void StartPinging(streamer_t * stream, char * destination)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    Transport::FabricInfo * fabricInfo = nullptr;
-
     if (!IPAddress::FromString(destination, gDestAddr))
     {
         streamer_printf(stream, "Invalid Echo Server IP address: %s\n", destination);
         ExitNow(err = CHIP_ERROR_INVALID_ARGUMENT);
     }
-
-    fabricInfo = gFabrics.AssignFabricIndex(gFabricIndex, kTestControllerNodeId);
-    VerifyOrExit(fabricInfo != nullptr, err = CHIP_ERROR_NO_MEMORY);
 
 #if INET_CONFIG_ENABLE_TCP_ENDPOINT
     err = gTCPManager.Init(Transport::TcpListenParameters(&DeviceLayer::InetLayer)
@@ -311,8 +306,7 @@ void StartPinging(streamer_t * stream, char * destination)
 #if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if (gPingArguments.IsUsingTCP())
     {
-        err = gSessionManager.Init(kTestControllerNodeId, &DeviceLayer::SystemLayer, &gTCPManager, &gFabrics,
-                                   &gMessageCounterManager);
+        err = gSessionManager.Init(&DeviceLayer::SystemLayer(), &gTCPManager, &gFabrics, &gMessageCounterManager);
         SuccessOrExit(err);
 
         err = gExchangeManager.Init(&gSessionManager);
@@ -321,8 +315,7 @@ void StartPinging(streamer_t * stream, char * destination)
     else
 #endif
     {
-        err = gSessionManager.Init(kTestControllerNodeId, &DeviceLayer::SystemLayer, &gUDPManager, &gFabrics,
-                                   &gMessageCounterManager);
+        err = gSessionManager.Init(&DeviceLayer::SystemLayer(), &gUDPManager, &gFabrics, &gMessageCounterManager);
         SuccessOrExit(err);
 
         err = gExchangeManager.Init(&gSessionManager);
@@ -336,8 +329,7 @@ void StartPinging(streamer_t * stream, char * destination)
     err = EstablishSecureSession(stream, GetEchoPeerAddress());
     SuccessOrExit(err);
 
-    // TODO: temprary create a SecureSessionHandle from node id to unblock end-to-end test. Complete solution is tracked in PR:4451
-    err = gEchoClient.Init(&gExchangeManager, { kTestDeviceNodeId, 0, gFabricIndex });
+    err = gEchoClient.Init(&gExchangeManager, SessionHandle(kTestDeviceNodeId, 0, 0, gFabricIndex));
     SuccessOrExit(err);
 
     // Arrange to get a callback whenever an Echo Response is received.

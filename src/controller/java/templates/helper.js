@@ -16,10 +16,10 @@
  */
 
 // Import helpers from zap core
-const zapPath      = '../../../../third_party/zap/repo/src-electron/';
+const zapPath      = '../../../../third_party/zap/repo/dist/src-electron/';
 const templateUtil = require(zapPath + 'generator/template-util.js')
 const zclHelper    = require(zapPath + 'generator/helper-zcl.js')
-const queryZcl     = require(zapPath + 'db/query-zcl.js')
+const queryCommand = require(zapPath + 'db/query-command.js')
 
 const ChipTypesHelper = require('../../../../src/app/zap-templates/common/ChipTypesHelper.js');
 const StringHelper    = require('../../../../src/app/zap-templates/common/StringHelper.js');
@@ -127,7 +127,10 @@ function asJniBasicTypeForZclType(type)
     })
   }
 
-  const promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this)).catch(err => console.log(err));
+  const promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this)).catch(err => {
+    console.log(err);
+    throw err;
+  });
   return templateUtil.templatePromise(this.global, promise)
 }
 
@@ -141,7 +144,10 @@ function asJniSignature(type)
     })
   }
 
-  const promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this)).catch(err => console.log(err));
+  const promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this)).catch(err => {
+    console.log(err);
+    throw err;
+  });
   return templateUtil.templatePromise(this.global, promise)
 }
 
@@ -176,17 +182,23 @@ function convertAttributeCallbackTypeToJavaName(cType)
 function omitCommaForFirstNonStatusCommand(id, index)
 {
   let promise = templateUtil.ensureZclPackageId(this)
-                    .then((pkgId) => { return queryZcl.selectCommandArgumentsByCommandId(this.global.db, id, pkgId) })
-                    .catch(err => console.log(err))
+                    .then((pkgId) => { return queryCommand.selectCommandArgumentsByCommandId(this.global.db, id, pkgId) })
+                    .catch(err => {
+                      console.log(err);
+                      throw err;
+                    })
                     .then((result) => {
                       // Currently, we omit array types, so don't count it as a valid non-status command.
-                      let firstNonStatusCommandIndex = result.findIndex((command) => command.label != "status" && !command.isArray);
+                      let firstNonStatusCommandIndex = result.findIndex((command) => !command.isArray);
                       if (firstNonStatusCommandIndex == -1 || firstNonStatusCommandIndex != index) {
                         return ", ";
                       }
                       return "";
                     })
-                    .catch(err => console.log(err));
+                    .catch(err => {
+                      console.log(err);
+                      throw err;
+                    });
 
   return templateUtil.templatePromise(this.global, promise);
 }

@@ -20,8 +20,8 @@
 #include <app/CommandSender.h>
 #include <app/InteractionModelEngine.h>
 #include <controller/python/chip/interaction_model/Delegate.h>
-#include <support/TypeTraits.h>
-#include <support/logging/CHIPLogging.h>
+#include <lib/support/TypeTraits.h>
+#include <lib/support/logging/CHIPLogging.h>
 
 using namespace chip::app;
 using namespace chip::Controller;
@@ -64,7 +64,7 @@ CHIP_ERROR PythonInteractionModelDelegate::CommandResponseError(const CommandSen
 {
     if (commandResponseErrorFunct != nullptr)
     {
-        commandResponseErrorFunct(reinterpret_cast<uint64_t>(apCommandSender), ChipError::AsInteger(aError));
+        commandResponseErrorFunct(reinterpret_cast<uint64_t>(apCommandSender), aError.AsInteger());
     }
     if (aError != CHIP_NO_ERROR)
     {
@@ -80,6 +80,28 @@ CHIP_ERROR PythonInteractionModelDelegate::CommandResponseProcessed(const app::C
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR PythonInteractionModelDelegate::WriteResponseStatus(const app::WriteClient * apWriteClient,
+                                                               const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
+                                                               const uint32_t aProtocolId, const uint16_t aProtocolCode,
+                                                               app::AttributePathParams & aAttributePathParams,
+                                                               uint8_t aCommandIndex)
+{
+    if (onWriteResponseFunct != nullptr)
+    {
+        AttributeWriteStatus status{ apWriteClient->GetSourceNodeId(),
+                                     apWriteClient->GetAppIdentifier(),
+                                     aProtocolId,
+                                     aProtocolCode,
+                                     aAttributePathParams.mEndpointId,
+                                     aAttributePathParams.mClusterId,
+                                     aAttributePathParams.mFieldId };
+        onWriteResponseFunct(&status, sizeof(status));
+    }
+    DeviceControllerInteractionModelDelegate::WriteResponseStatus(apWriteClient, aGeneralCode, aProtocolId, aProtocolCode,
+                                                                  aAttributePathParams, aCommandIndex);
+    return CHIP_NO_ERROR;
+}
+
 void PythonInteractionModelDelegate::OnReportData(const app::ReadClient * apReadClient, const app::ClusterInfo & aPath,
                                                   TLV::TLVReader * apData, Protocols::InteractionModel::ProtocolCode status)
 {
@@ -88,7 +110,7 @@ void PythonInteractionModelDelegate::OnReportData(const app::ReadClient * apRead
         CHIP_ERROR err = CHIP_NO_ERROR;
         TLV::TLVWriter writer;
         uint8_t writerBuffer[CHIP_CONFIG_DEFAULT_UDP_MTU_SIZE];
-        writer.Init(writerBuffer, sizeof(writerBuffer));
+        writer.Init(writerBuffer);
         // When the apData is nullptr, means we did not receive a valid attribute data from server, status will be some error
         // status.
         if (apData != nullptr)
@@ -104,8 +126,9 @@ void PythonInteractionModelDelegate::OnReportData(const app::ReadClient * apRead
         {
             AttributePath path{ .endpointId = aPath.mEndpointId, .clusterId = aPath.mClusterId, .fieldId = aPath.mFieldId };
             onReportDataFunct(apReadClient->GetExchangeContext()->GetSecureSession().GetPeerNodeId(),
-                              apReadClient->GetAppIdentifier(), &path, sizeof(path), writerBuffer, writer.GetLengthWritten(),
-                              to_underlying(status));
+                              apReadClient->GetAppIdentifier(),
+                              /* TODO: Use real SubscriptionId */ apReadClient->IsSubscriptionType() ? 1 : 0, &path, sizeof(path),
+                              writerBuffer, writer.GetLengthWritten(), to_underlying(status));
         }
         else
         {
@@ -139,6 +162,11 @@ void pychip_InteractionModelDelegate_SetOnReportDataCallback(PythonInteractionMo
     gPythonInteractionModelDelegate.SetOnReportDataCallback(f);
 }
 
+void pychip_InteractionModelDelegate_SetOnWriteResponseStatusCallback(PythonInteractionModelDelegate_OnWriteResponseStatusFunct f)
+{
+    gPythonInteractionModelDelegate.SetOnWriteResponseStatusCallback(f);
+}
+
 PythonInteractionModelDelegate & PythonInteractionModelDelegate::Instance()
 {
     return gPythonInteractionModelDelegate;
@@ -154,10 +182,10 @@ static_assert(std::is_same<uint32_t, chip::ChipError::StorageType>::value, "pyth
 chip::ChipError::StorageType pychip_InteractionModel_GetCommandSenderHandle(uint64_t * commandSender)
 {
     chip::app::CommandSender * commandSenderObj = nullptr;
-    VerifyOrReturnError(commandSender != nullptr, chip::ChipError::AsInteger(CHIP_ERROR_INVALID_ARGUMENT));
+    VerifyOrReturnError(commandSender != nullptr, CHIP_ERROR_INVALID_ARGUMENT.AsInteger());
     CHIP_ERROR err = chip::app::InteractionModelEngine::GetInstance()->NewCommandSender(&commandSenderObj);
-    VerifyOrReturnError(err == CHIP_NO_ERROR, chip::ChipError::AsInteger(err));
+    VerifyOrReturnError(err == CHIP_NO_ERROR, err.AsInteger());
     *commandSender = reinterpret_cast<uint64_t>(commandSenderObj);
-    return chip::ChipError::AsInteger(CHIP_NO_ERROR);
+    return CHIP_NO_ERROR.AsInteger();
 }
 }

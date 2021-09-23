@@ -16,12 +16,14 @@
  */
 
 // Import helpers from zap core
-const zapPath       = '../../../../third_party/zap/repo/src-electron/';
-const queryConfig   = require(zapPath + 'db/query-config.js')
-const queryEndpoint = require(zapPath + 'db/query-endpoint.js')
-const templateUtil  = require(zapPath + 'generator/template-util.js')
-const zclHelper     = require(zapPath + 'generator/helper-zcl.js')
-const zclQuery      = require(zapPath + 'db/query-zcl.js')
+const zapPath           = '../../../../third_party/zap/repo/dist/src-electron/';
+const queryConfig       = require(zapPath + 'db/query-config.js')
+const queryCommand      = require(zapPath + 'db/query-command.js')
+const queryEndpoint     = require(zapPath + 'db/query-endpoint.js')
+const queryEndpointType = require(zapPath + 'db/query-endpoint-type.js')
+const templateUtil      = require(zapPath + 'generator/template-util.js')
+const zclHelper         = require(zapPath + 'generator/helper-zcl.js')
+const zclQuery          = require(zapPath + 'db/query-zcl.js')
 
 const { Deferred }    = require('./Deferred.js');
 const ListHelper      = require('./ListHelper.js');
@@ -71,22 +73,22 @@ function loadStructItems(struct, packageId)
 function loadStructs(packageId)
 {
   const { db, sessionId } = this.global;
-  return zclQuery.selectAllStructs(db, packageId)
+  return zclQuery.selectAllStructsWithItemCount(db, packageId)
       .then(structs => Promise.all(structs.map(struct => loadStructItems.call(this, struct, packageId))));
 }
 
 function loadClusters()
 {
   const { db, sessionId } = this.global;
-  return queryEndpoint.selectEndPointTypeIds(db, sessionId)
-      .then(endpointTypes => zclQuery.selectAllClustersDetailsFromEndpointTypes(db, endpointTypes))
+  return queryEndpointType.selectEndpointTypeIds(db, sessionId)
+      .then(endpointTypes => queryEndpointType.selectAllClustersDetailsFromEndpointTypes(db, endpointTypes))
       .then(clusters => clusters.filter(cluster => cluster.enabled == 1));
 }
 
 function loadCommandArguments(command, packageId)
 {
   const { db, sessionId } = this.global;
-  return zclQuery.selectCommandArgumentsByCommandId(db, command.id, packageId).then(commandArguments => {
+  return queryCommand.selectCommandArgumentsByCommandId(db, command.id, packageId).then(commandArguments => {
     command.arguments = commandArguments;
     return command;
   });
@@ -95,9 +97,10 @@ function loadCommandArguments(command, packageId)
 function loadCommands(packageId)
 {
   const { db, sessionId } = this.global;
-  return queryEndpoint.selectEndPointTypeIds(db, sessionId)
-      .then(endpointTypes => zclQuery.exportClustersAndEndpointDetailsFromEndpointTypes(db, endpointTypes))
-      .then(endpointTypesAndClusters => zclQuery.exportCommandDetailsFromAllEndpointTypesAndClusters(db, endpointTypesAndClusters))
+  return queryEndpointType.selectEndpointTypeIds(db, sessionId)
+      .then(endpointTypes => queryEndpointType.selectClustersAndEndpointDetailsFromEndpointTypes(db, endpointTypes))
+      .then(endpointTypesAndClusters => queryCommand.selectCommandDetailsFromAllEndpointTypesAndClusters(
+                db, endpointTypesAndClusters, true))
       .then(commands => Promise.all(commands.map(command => loadCommandArguments.call(this, command, packageId))));
 }
 
@@ -106,7 +109,7 @@ function loadAttributes(packageId)
   // The 'server' side is enforced here, because the list of attributes is used to generate client global
   // commands to retrieve server side attributes.
   const { db, sessionId } = this.global;
-  return queryEndpoint.selectEndPointTypeIds(db, sessionId)
+  return queryEndpointType.selectEndpointTypeIds(db, sessionId)
       .then(endpointTypes => Promise.all(
                 endpointTypes.map(({ endpointTypeId }) => queryEndpoint.selectEndpointClusters(db, endpointTypeId))))
       .then(clusters => clusters.flat())
@@ -142,6 +145,8 @@ function asPutLength(zclType)
 {
   const type = ChipTypesHelper.asBasicType(zclType);
   switch (type) {
+  case 'bool':
+    return '8';
   case 'int8_t':
   case 'int16_t':
   case 'int32_t':
@@ -160,6 +165,8 @@ function asPutCastType(zclType)
 {
   const type = ChipTypesHelper.asBasicType(zclType);
   switch (type) {
+  case 'bool':
+    return 'uint8_t';
   case 'int8_t':
   case 'int16_t':
   case 'int32_t':
@@ -177,8 +184,12 @@ function asPutCastType(zclType)
 
 function asChipCallback(item)
 {
-  if (StringHelper.isString(item.type)) {
-    return { name : 'String', type : 'const chip::ByteSpan' };
+  if (StringHelper.isOctetString(item.type)) {
+    return { name : 'OctetString', type : 'const chip::ByteSpan' };
+  }
+
+  if (StringHelper.isCharString(item.type)) {
+    return { name : 'CharString', type : 'const chip::ByteSpan' };
   }
 
   if (ListHelper.isList(item.type)) {
@@ -388,11 +399,11 @@ function enhancedCommands(commands, types)
 
     const manualFilter = response => {
       switch (command.name) {
-      case 'AddOpCert':
-      case 'UpdateOpCert':
+      case 'AddNOC':
+      case 'UpdateNOC':
       case 'UpdateFabricLabel':
       case 'RemoveFabric':
-        return response.name == 'OpCertResponse';
+        return response.name == 'NOCResponse';
       default:
         return false;
       }
@@ -495,7 +506,7 @@ Clusters.init = function(context, packageId) {
     this._attributes = enhancedAttributes(attributes, globalAttributes, types);
 
     return this.ready.resolve();
-  });
+  }, err => this.ready.reject(err));
 }
 
 
@@ -505,13 +516,13 @@ Clusters.init = function(context, packageId) {
 function asBlocks(promise, options)
 {
   const fn = pkgId => Clusters.init(this, pkgId).then(() => promise.then(data => templateUtil.collectBlocks(data, options, this)));
-  return templateUtil.ensureZclPackageId(this).then(fn).catch(err => console.log(err));
+  return templateUtil.ensureZclPackageId(this).then(fn).catch(err => { console.log(err); throw err; });
 }
 
 function asPromise(promise)
 {
   const fn = pkgId => Clusters.init(this, pkgId).then(() => promise);
-  return templateUtil.ensureZclPackageId(this).then(fn).catch(err => console.log(err));
+  return templateUtil.ensureZclPackageId(this).then(fn).catch(err => { console.log(err); throw err; });
 }
 
 //
@@ -566,7 +577,8 @@ Clusters.getAttributesByClusterName = function(name)
 //
 // Helpers: Get by Cluster Side
 //
-const kSideFilter = (side, item) => side == (item.clusterSide || item.side);
+const kSideFilter = (side, item) => item.source ? ((item.source == side && item.outgoing) || (item.source != side && item.incoming))
+                                                : item.side == side;
 
 Clusters.getCommandsByClusterSide = function(side)
 {

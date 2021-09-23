@@ -42,8 +42,7 @@ namespace Internal {
  */
 CHIP_ERROR MapOpenThreadError(otError otErr)
 {
-    return (otErr == OT_ERROR_NONE) ? CHIP_NO_ERROR
-                                    : ChipError::Encapsulate(ChipError::Range::kOpenThread, static_cast<unsigned int>(otErr));
+    return (otErr == OT_ERROR_NONE) ? CHIP_NO_ERROR : CHIP_ERROR(ChipError::Range::kOpenThread, static_cast<unsigned int>(otErr));
 }
 
 /**
@@ -60,7 +59,7 @@ CHIP_ERROR MapOpenThreadError(otError otErr)
  */
 bool FormatOpenThreadError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 {
-    if (!ChipError::IsRange(ChipError::Range::kOpenThread, err))
+    if (!err.IsRange(ChipError::Range::kOpenThread))
     {
         return false;
     }
@@ -68,7 +67,7 @@ bool FormatOpenThreadError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 #if CHIP_CONFIG_SHORT_ERROR_STR
     const char * desc = NULL;
 #else  // CHIP_CONFIG_SHORT_ERROR_STR
-    otError otErr     = (otError) ChipError::GetValue(err);
+    otError otErr     = (otError) err.GetValue();
     const char * desc = otThreadErrorToString(otErr);
 #endif // CHIP_CONFIG_SHORT_ERROR_STR
 
@@ -132,10 +131,15 @@ void LogOpenThreadStateChange(otInstance * otInst, uint32_t flags)
         }
 #if CHIP_CONFIG_SECURITY_TEST_MODE
         {
+#if OPENTHREAD_API_VERSION >= 126
+            const otNetworkKey * otKey = otThreadGetNetworkKey(otInst);
+            for (int i = 0; i < OT_NETWORK_KEY_SIZE; i++)
+#else
             const otMasterKey * otKey = otThreadGetMasterKey(otInst);
             for (int i = 0; i < OT_MASTER_KEY_SIZE; i++)
+#endif
                 snprintf(&strBuf[i * 2], 3, "%02X", otKey->m8[i]);
-            ChipLogDetail(DeviceLayer, "   Master Key: %s", strBuf);
+            ChipLogDetail(DeviceLayer, "   Network Key: %s", strBuf);
         }
 #endif // CHIP_CONFIG_SECURITY_TEST_MODE
     }

@@ -42,10 +42,11 @@
 #pragma once
 
 //#include PLATFORM_HEADER
+#include <app/AttributeAccessInterface.h>
 #include <app/util/af.h>
 
 #if !defined(EMBER_SCRIPTED_TEST)
-#include <app/common/gen/att-storage.h>
+#include <app-common/zap-generated/att-storage.h>
 #endif
 
 #if !defined(ATTRIBUTE_STORAGE_CONFIGURATION) && defined(EMBER_TEST)
@@ -58,7 +59,7 @@
 // we use the provider sample.
 #ifndef ATTRIBUTE_STORAGE_CONFIGURATION
 //  #error "Must define ATTRIBUTE_STORAGE_CONFIGURATION to specify the App. Builder default attributes file."
-#include "gen/endpoint_config.h"
+#include <zap-generated/endpoint_config.h>
 #else
 #include ATTRIBUTE_STORAGE_CONFIGURATION
 #endif
@@ -72,7 +73,7 @@
 #endif
 #endif
 
-#include <app/common/gen/attribute-type.h>
+#include <app-common/zap-generated/attribute-type.h>
 
 #define DECLARE_DYNAMIC_ENDPOINT(endpointName, clusterList)                                                                        \
     EmberAfEndpointType endpointName = { clusterList, sizeof(clusterList) / sizeof(EmberAfCluster), 0 }
@@ -254,3 +255,22 @@ EmberAfStatus emberAfSetDynamicEndpoint(uint16_t index, chip::EndpointId id, Emb
                                         uint8_t deviceVersion);
 chip::EndpointId emberAfClearDynamicEndpoint(uint16_t index);
 uint16_t emberAfGetDynamicIndexFromEndpoint(chip::EndpointId id);
+
+/**
+ * Register an attribute access override.  It will remain registered until
+ * the endpoint it's registered for is disabled (or until shutdown if it's
+ * registered for all endpoints).  Registration will fail if there is an
+ * already-registered override for the same set of attributes.
+ *
+ * @return false if there is an existing override that the new one would
+ *               conflict with.  In this case the override is not registered.
+ * @return true if registration was successful.
+ */
+bool registerAttributeAccessOverride(chip::app::AttributeAccessInterface * attrOverride);
+
+/**
+ * Find an attribute access override, if any, that is registered for the given
+ * endpoint and cluster id.  This might be an override specific to the given
+ * endpoint, or might be one registered for all endpoints.
+ */
+chip::app::AttributeAccessInterface * findAttributeAccessOverride(chip::EndpointId endpointId, chip::ClusterId clusterId);

@@ -17,11 +17,11 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <lib/support/CHIPMem.h>
+#include <lib/support/ErrorStr.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/PlatformManager.h>
-#include <support/CHIPMem.h>
-#include <support/ErrorStr.h>
-#include <support/logging/CHIPLogging.h>
 
 namespace {
 
@@ -51,9 +51,9 @@ chip::ChipError::StorageType pychip_BLEMgrImpl_ConfigureBle(uint32_t bluetoothAd
     sBluetoothAdapterId = bluetoothAdapterId;
     CHIP_ERROR err =
         chip::DeviceLayer::Internal::BLEMgrImpl().ConfigureBle(/* BLE adapter ID */ bluetoothAdapterId, /* BLE central */ true);
-    VerifyOrReturnError(err == CHIP_NO_ERROR, chip::ChipError::AsInteger(err));
+    VerifyOrReturnError(err == CHIP_NO_ERROR, err.AsInteger());
 #endif
-    return chip::ChipError::AsInteger(CHIP_NO_ERROR);
+    return CHIP_NO_ERROR.AsInteger();
 }
 
 void pychip_native_init()

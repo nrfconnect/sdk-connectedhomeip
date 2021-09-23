@@ -22,59 +22,56 @@
  *      for POSIX and LwIP platforms.
  */
 
-// __STDC_LIMIT_MACROS must be defined for UINT8_MAX to be defined for pre-C++11 clib
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif // __STDC_LIMIT_MACROS
-
-// __STDC_CONSTANT_MACROS must be defined for INT64_C and UINT64_C to be defined for pre-C++11 clib
-#ifndef __STDC_CONSTANT_MACROS
-#define __STDC_CONSTANT_MACROS
-#endif // __STDC_CONSTANT_MACROS
-
-// config
-#include <system/SystemConfig.h>
-
-#if !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
-
-// module header
 #include <system/SystemClock.h>
+
 // common private
 #include "SystemLayerPrivate.h"
 
-#include <support/CodeUtils.h>
-#include <support/TimeUtils.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/TimeUtils.h>
 #include <system/SystemError.h>
 
-#if CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
-#include <time.h>
-#if !(HAVE_CLOCK_GETTIME)
-#include <sys/time.h>
-#endif
+#include <stdint.h>
+#include <stdlib.h>
+
+#if !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
+
+#if CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS || CHIP_SYSTEM_CONFIG_USE_SOCKETS
 #include <errno.h>
-#endif // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
+#include <time.h>
+#endif // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS || CHIP_SYSTEM_CONFIG_USE_SOCKETS
 
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
 #include <lwip/sys.h>
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
-#include <stdint.h>
-#include <stdlib.h>
+#endif // !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
 
 namespace chip {
 namespace System {
-namespace Platform {
-namespace Clock {
 
-// -------------------- Default Get/SetClock Functions for POSIX Systems --------------------
+namespace Internal {
+
+ClockBase * gClockBase = &gClockImpl;
+
+#if !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
+ClockImpl gClockImpl;
+#endif // !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
+
+} // namespace Internal
+
+#if !CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
 
 #if CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
+
+// -------------------- Default Get/SetClock Functions for POSIX Systems --------------------
 
 #if !HAVE_CLOCK_GETTIME && !HAVE_GETTIMEOFDAY
 #error "CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS requires either clock_gettime() or gettimeofday()"
 #endif
 
 #if HAVE_CLOCK_GETTIME
+
 #if HAVE_DECL_CLOCK_BOOTTIME
 // CLOCK_BOOTTIME is a Linux-specific option to clock_gettime for a clock which compensates for system sleep.
 #define MONOTONIC_CLOCK_ID CLOCK_BOOTTIME
@@ -83,109 +80,52 @@ namespace Clock {
 // CLOCK_MONOTONIC is defined in POSIX and hence is the default choice
 #define MONOTONIC_CLOCK_ID CLOCK_MONOTONIC
 #endif
-#endif // HAVE_CLOCK_GETTIME
 
-uint64_t GetMonotonicMicroseconds()
+Clock::MonotonicMicroseconds ClockImpl::GetMonotonicMicroseconds()
 {
-#if HAVE_CLOCK_GETTIME
     struct timespec ts;
     int res = clock_gettime(MONOTONIC_CLOCK_ID, &ts);
     VerifyOrDie(res == 0);
     return (static_cast<uint64_t>(ts.tv_sec) * kMicrosecondsPerSecond) +
         (static_cast<uint64_t>(ts.tv_nsec) / kNanosecondsPerMicrosecond);
-#else  // HAVE_CLOCK_GETTIME
-    struct timeval tv;
-    int res = gettimeofday(&tv, NULL);
-    VerifyOrDie(res == 0);
-    return (tv.tv_sec * kMicrosecondsPerSecond) + tv.tv_usec;
-#endif // HAVE_CLOCK_GETTIME
 }
 
-uint64_t GetMonotonicMilliseconds()
+Clock::MonotonicMilliseconds ClockImpl::GetMonotonicMilliseconds()
 {
     return GetMonotonicMicroseconds() / kMicrosecondsPerMillisecond;
 }
 
-CHIP_ERROR GetUnixTimeMicroseconds(uint64_t & curTime)
+#endif // HAVE_CLOCK_GETTIME
+
+#if HAVE_GETTIMEOFDAY
+
+Clock::MonotonicMicroseconds ClockImpl::GetMonotonicMicroseconds()
 {
-#if HAVE_CLOCK_GETTIME
-    struct timespec ts;
-    int res = clock_gettime(CLOCK_REALTIME, &ts);
-    if (res != 0)
-    {
-        return MapErrorPOSIX(errno);
-    }
-    if (ts.tv_sec < CHIP_SYSTEM_CONFIG_VALID_REAL_TIME_THRESHOLD)
-    {
-        return CHIP_ERROR_REAL_TIME_NOT_SYNCED;
-    }
-    curTime = (static_cast<uint64_t>(ts.tv_sec) * kMicrosecondsPerSecond) +
-        (static_cast<uint64_t>(ts.tv_nsec) / kNanosecondsPerMicrosecond);
-    return CHIP_NO_ERROR;
-#else  // HAVE_CLOCK_GETTIME
     struct timeval tv;
     int res = gettimeofday(&tv, NULL);
-    if (res != 0)
-    {
-        return MapErrorPOSIX(errno);
-    }
-    if (tv.tv_sec < CHIP_SYSTEM_CONFIG_VALID_REAL_TIME_THRESHOLD)
-    {
-        return CHIP_ERROR_REAL_TIME_NOT_SYNCED;
-    }
-    curTime = (tv.tv_sec * kMicrosecondsPerSecond) + tv.tv_usec;
-    return CHIP_NO_ERROR;
-#endif // HAVE_CLOCK_GETTIME
+    VerifyOrDie(res == 0);
+    return (tv.tv_sec * kMicrosecondsPerSecond) + tv.tv_usec;
 }
 
-#if HAVE_CLOCK_SETTIME || HAVE_SETTIMEOFDAY
-
-CHIP_ERROR SetUnixTimeMicroseconds(uint64_t newCurTime)
+Clock::MonotonicMilliseconds ClockImpl::GetMonotonicMilliseconds()
 {
-#if HAVE_CLOCK_SETTIME
-    struct timespec ts;
-    ts.tv_sec  = static_cast<time_t>(newCurTime / kMicrosecondsPerSecond);
-    ts.tv_nsec = static_cast<long>(newCurTime % kMicrosecondsPerSecond) * kNanosecondsPerMicrosecond;
-    int res    = clock_settime(CLOCK_REALTIME, &ts);
-    if (res != 0)
-    {
-        return (errno == EPERM) ? CHIP_ERROR_ACCESS_DENIED : MapErrorPOSIX(errno);
-    }
-    return CHIP_NO_ERROR;
-#else  // HAVE_CLOCK_SETTIME
-    struct timeval tv;
-    tv.tv_sec  = static_cast<time_t>(newCurTime / kMicrosecondsPerSecond);
-    tv.tv_usec = static_cast<long>(newCurTime % kMicrosecondsPerSecond);
-    int res    = settimeofday(&tv, NULL);
-    if (res != 0)
-    {
-        return (errno == EPERM) ? CHIP_ERROR_ACCESS_DENIED : MapErrorPOSIX(errno);
-    }
-    return CHIP_NO_ERROR;
-#endif // HAVE_CLOCK_SETTIME
+    return GetMonotonicMicroseconds() / kMicrosecondsPerMillisecond;
 }
 
-#else // !HAVE_CLOCK_SETTTIME
-
-CHIP_ERROR SetUnixTimeMicroseconds(uint64_t newCurTime)
-{
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
-}
-
-#endif // HAVE_CLOCK_SETTIME || HAVE_SETTIMEOFDAY
+#endif // HAVE_GETTIMEOFDAY
 
 #endif // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
 
-// -------------------- Default Get/SetClock Functions for LwIP Systems --------------------
-
 #if CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME
 
-uint64_t GetMonotonicMicroseconds(void)
+// -------------------- Default Get/SetClock Functions for LwIP Systems --------------------
+
+Clock::MonotonicMilliseconds ClockImpl::GetMonotonicMicroseconds(void)
 {
     return GetMonotonicMilliseconds() * kMicrosecondsPerMillisecond;
 }
 
-uint64_t GetMonotonicMilliseconds(void)
+Clock::MonotonicMilliseconds ClockImpl::GetMonotonicMilliseconds(void)
 {
     static volatile uint64_t overflow        = 0;
     static volatile u32_t lastSample         = 0;
@@ -225,21 +165,39 @@ uint64_t GetMonotonicMilliseconds(void)
     return static_cast<uint64_t>(overflowSample | static_cast<uint64_t>(sample));
 }
 
-CHIP_ERROR GetUnixTimeMicroseconds(uint64_t & curTime)
-{
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
-}
-
-CHIP_ERROR SetUnixTimeMicroseconds(uint64_t newCurTime)
-{
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
-}
-
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME
 
+#endif // CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
+
+namespace Clock {
+
+bool IsEarlier(const Clock::MonotonicMilliseconds & inFirst, const Clock::MonotonicMilliseconds & inSecond)
+{
+    static const Clock::MonotonicMilliseconds kMaxTime_2 = static_cast<Clock::MonotonicMilliseconds>(
+        (static_cast<Clock::MonotonicMilliseconds>(0) - static_cast<Clock::MonotonicMilliseconds>(1)) / 2);
+
+    // account for timer wrap with the assumption that no two input times will "naturally"
+    // be more than half the timer range apart.
+    return (((inFirst < inSecond) && (inSecond - inFirst < kMaxTime_2)) ||
+            ((inFirst > inSecond) && (inFirst - inSecond > kMaxTime_2)));
+}
+
+#if CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS || CHIP_SYSTEM_CONFIG_USE_SOCKETS
+
+Clock::MonotonicMilliseconds TimevalToMilliseconds(const timeval & in)
+{
+    return static_cast<Clock::MonotonicMilliseconds>(in.tv_sec) * 1000 +
+        static_cast<Clock::MonotonicMilliseconds>(in.tv_usec / 1000);
+}
+
+void MillisecondsToTimeval(Clock::MonotonicMilliseconds in, timeval & out)
+{
+    out.tv_sec  = static_cast<time_t>(in / 1000);
+    out.tv_usec = static_cast<suseconds_t>((in % 1000) * 1000);
+}
+
+#endif // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS || CHIP_SYSTEM_CONFIG_USE_SOCKETS
+
 } // namespace Clock
-} // namespace Platform
 } // namespace System
 } // namespace chip
-
-#endif // CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME

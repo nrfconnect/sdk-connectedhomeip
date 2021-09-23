@@ -36,9 +36,9 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <core/CHIPError.h>
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
+#include <lib/core/CHIPError.h>
+#include <lib/support/ErrorStr.h>
+#include <lib/support/UnitTestRegistration.h>
 
 #include <nlunit-test.h>
 
@@ -150,7 +150,7 @@ static const CHIP_ERROR kTestElements[] =
     CHIP_ERROR_DEVICE_AUTH_TIMEOUT,
     CHIP_ERROR_MESSAGE_NOT_ACKNOWLEDGED,
     CHIP_ERROR_RETRANS_TABLE_FULL,
-    CHIP_ERROR_INVALID_ACK_ID,
+    CHIP_ERROR_INVALID_ACK_MESSAGE_COUNTER,
     CHIP_ERROR_SEND_THROTTLED,
     CHIP_ERROR_WRONG_MSG_VERSION_FOR_EXCHANGE,
     CHIP_ERROR_TRANSACTION_CANCELED,
@@ -242,7 +242,7 @@ static void CheckCoreErrorStr(nlTestSuite * inSuite, void * inContext)
         char expectedText[9];
 
         // Assert that the error string contains the error number in hex.
-        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, static_cast<uint32_t>(ChipError::AsInteger(err)));
+        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, static_cast<uint32_t>(err.AsInteger()));
         NL_TEST_ASSERT(inSuite, (strstr(errStr, expectedText) != nullptr));
 
 #if !CHIP_CONFIG_SHORT_ERROR_STR

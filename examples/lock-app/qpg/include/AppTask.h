@@ -28,7 +28,7 @@
 #include "FreeRTOS.h"
 #include "timers.h" // provides FreeRTOS timer support
 #include <ble/BLEEndPoint.h>
-#include <core/CHIPError.h>
+#include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceLayer.h>
 
 // Application-defined error codes in the CHIP_ERROR space.
@@ -63,7 +63,7 @@ private:
     static void FunctionTimerEventHandler(AppEvent * aEvent);
     static void FunctionHandler(AppEvent * aEvent);
     static void LockActionEventHandler(AppEvent * aEvent);
-    static void TimerEventHandler(chip::System::Layer * aLayer, void * aAppState, CHIP_ERROR aError);
+    static void TimerEventHandler(chip::System::Layer * aLayer, void * aAppState);
 
     void StartTimer(uint32_t aTimeoutMs);
 

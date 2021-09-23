@@ -26,20 +26,23 @@
 #pragma once
 
 #include "UDCClients.h"
-#include <core/CHIPCore.h>
-#include <mdns/Resolver.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/mdns/Resolver.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
-#include <support/CodeUtils.h>
-#include <support/DLLUtil.h>
-#include <support/logging/CHIPLogging.h>
 #include <transport/TransportMgr.h>
 
 namespace chip {
 namespace Protocols {
 namespace UserDirectedCommissioning {
+
+// Cache contains 16 clients. This may need to be tweaked.
+constexpr size_t kMaxUDCClients = 16;
 
 /**
  * User Directed Commissioning Protocol Message Types
@@ -101,6 +104,18 @@ public:
 
     CHIP_ERROR SendUDCMessage(TransportMgrBase * transportMgr, System::PacketBufferHandle && payload,
                               chip::Transport::PeerAddress peerAddress);
+
+    /**
+     * Encode a User Directed Commissioning message.
+     *
+     * @param payload       A PacketBufferHandle with the payload.
+     *
+     * @return CHIP_ERROR_NO_MEMORY if allocation fails.
+     *         Other CHIP_ERROR codes as returned by the lower layers.
+     *
+     */
+
+    CHIP_ERROR EncodeUDCMessage(System::PacketBufferHandle && payload);
 };
 
 class DLL_EXPORT UserDirectedCommissioningServer : public TransportMgrDelegate
@@ -164,14 +179,19 @@ public:
      */
     void OnCommissionableNodeFound(const Mdns::DiscoveredNodeData & nodeData);
 
+    /**
+     * Get the cache of UDC Clients
+     *
+     */
+    UDCClients<kMaxUDCClients> GetUDCClients() { return mUdcClients; }
+
 private:
     InstanceNameResolver * mInstanceNameResolver         = nullptr;
     UserConfirmationProvider * mUserConfirmationProvider = nullptr;
 
     void OnMessageReceived(const Transport::PeerAddress & source, System::PacketBufferHandle && msgBuf) override;
 
-    // Cache contains 16 clients. This may need to be tweaked.
-    UDCClients<16> mUdcClients; // < Active UDC clients
+    UDCClients<kMaxUDCClients> mUdcClients; // < Active UDC clients
 };
 
 } // namespace UserDirectedCommissioning

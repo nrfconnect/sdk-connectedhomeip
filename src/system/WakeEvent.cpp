@@ -28,8 +28,9 @@
 #include <system/WakeEvent.h>
 
 // Include additional CHIP headers
-#include <support/CodeUtils.h>
+#include <lib/support/CodeUtils.h>
 #include <system/SystemError.h>
+#include <system/SystemLayer.h>
 
 // Include system and language headers
 #include <errno.h>
@@ -53,7 +54,7 @@ inline int SetNonBlockingMode(int fd)
 }
 } // anonymous namespace
 
-CHIP_ERROR WakeEvent::Open(WatchableEventManager & watchState)
+CHIP_ERROR WakeEvent::Open(LayerSockets & systemLayer)
 {
     enum
     {
@@ -63,28 +64,30 @@ CHIP_ERROR WakeEvent::Open(WatchableEventManager & watchState)
     int fds[2];
 
     if (::pipe(fds) < 0)
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
 
     if (SetNonBlockingMode(fds[FD_READ]) < 0)
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
 
     if (SetNonBlockingMode(fds[FD_WRITE]) < 0)
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
 
+    mReadFD  = fds[FD_READ];
     mWriteFD = fds[FD_WRITE];
 
-    mFD.Init(watchState);
-    ReturnErrorOnFailure(mFD.Attach(fds[FD_READ]));
-    mFD.SetCallback(Confirm, reinterpret_cast<intptr_t>(this));
-    ReturnErrorOnFailure(mFD.RequestCallbackOnPendingRead());
+    ReturnErrorOnFailure(systemLayer.StartWatchingSocket(mReadFD, &mReadWatch));
+    ReturnErrorOnFailure(systemLayer.SetCallback(mReadWatch, Confirm, reinterpret_cast<intptr_t>(this)));
+    ReturnErrorOnFailure(systemLayer.RequestCallbackOnPendingRead(mReadWatch));
 
     return CHIP_NO_ERROR;
 }
 
-void WakeEvent::Close()
+void WakeEvent::Close(LayerSockets & systemLayer)
 {
-    mFD.Close();
+    systemLayer.StopWatchingSocket(&mReadWatch);
+    VerifyOrDie(::close(mReadFD) == 0);
     VerifyOrDie(::close(mWriteFD) == 0);
+    mReadFD  = -1;
     mWriteFD = -1;
 }
 
@@ -95,10 +98,10 @@ void WakeEvent::Confirm()
 
     do
     {
-        res = ::read(mFD.GetFD(), buffer, sizeof(buffer));
+        res = ::read(mReadFD, buffer, sizeof(buffer));
         if (res < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         {
-            ChipLogError(chipSystemLayer, "System wake event confirm failed: %s", ErrorStr(chip::System::MapErrorPOSIX(errno)));
+            ChipLogError(chipSystemLayer, "System wake event confirm failed: %s", ErrorStr(CHIP_ERROR_POSIX(errno)));
             return;
         }
     } while (res == sizeof(buffer));
@@ -110,7 +113,7 @@ CHIP_ERROR WakeEvent::Notify()
 
     if (::write(mWriteFD, &byte, 1) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
     {
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     }
 
     return CHIP_NO_ERROR;
@@ -118,35 +121,35 @@ CHIP_ERROR WakeEvent::Notify()
 
 #else // CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE
 
-CHIP_ERROR WakeEvent::Open(WatchableEventManager & watchState)
+CHIP_ERROR WakeEvent::Open(LayerSockets & systemLayer)
 {
-    mFD.Init(watchState);
-
-    const int fd = ::eventfd(0, 0);
-    if (fd == -1)
+    mReadFD = ::eventfd(0, 0);
+    if (mReadFD == -1)
     {
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     }
 
-    mFD.Attach(fd);
-    mFD.SetCallback(Confirm, reinterpret_cast<intptr_t>(this));
-    mFD.RequestCallbackOnPendingRead();
+    ReturnErrorOnFailure(systemLayer.StartWatchingSocket(mReadFD, &mReadWatch));
+    ReturnErrorOnFailure(systemLayer.SetCallback(mReadWatch, Confirm, reinterpret_cast<intptr_t>(this)));
+    ReturnErrorOnFailure(systemLayer.RequestCallbackOnPendingRead(mReadWatch));
 
     return CHIP_NO_ERROR;
 }
 
-void WakeEvent::Close()
+void WakeEvent::Close(LayerSockets & systemLayer)
 {
-    mFD.Close();
+    systemLayer.StopWatchingSocket(&mReadWatch);
+    VerifyOrDie(::close(mReadFD) == 0);
+    mReadFD = -1;
 }
 
 void WakeEvent::Confirm()
 {
     uint64_t value;
 
-    if (::read(mFD.GetFD(), &value, sizeof(value)) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+    if (::read(mReadFD, &value, sizeof(value)) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
     {
-        ChipLogError(chipSystemLayer, "System wake event confirm failed: %s", ErrorStr(chip::System::MapErrorPOSIX(errno)));
+        ChipLogError(chipSystemLayer, "System wake event confirm failed: %s", ErrorStr(CHIP_ERROR_POSIX(errno)));
     }
 }
 
@@ -154,9 +157,9 @@ CHIP_ERROR WakeEvent::Notify()
 {
     uint64_t value = 1;
 
-    if (::write(mFD.GetFD(), &value, sizeof(value)) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+    if (::write(mReadFD, &value, sizeof(value)) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
     {
-        return chip::System::MapErrorPOSIX(errno);
+        return CHIP_ERROR_POSIX(errno);
     }
 
     return CHIP_NO_ERROR;

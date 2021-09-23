@@ -30,12 +30,15 @@
 #include "shell_extension/launch.h"
 #include <app/server/Server.h>
 
+#include <credentials/DeviceAttestationCredsProvider.h>
+#include <credentials/examples/DeviceAttestationCredsExample.h>
+
 #include <cmath>
 #include <cstdio>
 #include <string>
 #include <vector>
 
-#include <support/ErrorStr.h>
+#include <lib/support/ErrorStr.h>
 
 #if CONFIG_ENABLE_PW_RPC
 #include "PigweedLogger.h"
@@ -43,6 +46,7 @@
 #endif
 
 using namespace ::chip;
+using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
 
@@ -81,7 +85,10 @@ extern "C" void app_main()
         return;
     }
 
-    InitServer();
+    chip::Server::GetInstance().Init();
+
+    // Initialize device attestation config
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 
     ESP_LOGI(TAG, "------------------------Starting App Task---------------------------");
     error = GetAppTask().StartAppTask();

@@ -177,8 +177,12 @@ commissioning and cluster control.
          - chip-device-ctrl > close-ble
 
 -   Resolve DNS-SD name and update address of the node in the device controller.
+    Get fabric ID using `get-fabricid` and use the decimal value of compressed
+    fabric id.
 
-         - chip-device-ctrl > resolve 0 135246
+         - chip-device-ctrl > get-fabricid
+
+         - chip-device-ctrl > resolve <Compressed Fabric ID> 135246
 
 ### Cluster control
 
@@ -198,6 +202,17 @@ see the actual effect of the commands on `ESP32-DevKitC`, you will have to
 connect an external LED to GPIO.
 
 ## Using the RPC console
+
+Enable RPCs in the build using menuconfig:
+
+    $ idf.py menuconfig
+
+Enable the RPC library:
+
+    Component config → CHIP Core → General Options → Enable Pigweed PRC library
+
+After flashing a build with RPCs enabled you can use the rpc console to send
+commands to the device.
 
 Build or install the [rpc console](../../common/pigweed/rpc_console/README.md)
 

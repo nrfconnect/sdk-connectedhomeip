@@ -31,10 +31,10 @@
 
 #if CONFIG_BT_BLUEDROID_ENABLED
 
-#include "core/CHIPCallback.h"
 #include "esp_bt.h"
 #include "esp_gap_ble_api.h"
 #include "esp_gatts_api.h"
+#include <lib/core/CHIPCallback.h>
 #elif CONFIG_BT_NIMBLE_ENABLED
 
 /* min max macros in NimBLE can cause build issues with generic min max
@@ -55,6 +55,8 @@ struct ble_gatt_char_context
 };
 
 #endif
+
+#include "ble/Ble.h"
 
 namespace chip {
 namespace DeviceLayer {
@@ -200,9 +202,9 @@ private:
     static constexpr uint32_t kFastAdvertiseTimeout = CHIP_DEVICE_CONFIG_BLE_ADVERTISING_INTERVAL_CHANGE_TIME;
     uint64_t mAdvertiseStartTime;
 
-    static void HandleFastAdvertisementTimer(System::Layer * systemLayer, void * context, CHIP_ERROR aError);
+    static void HandleFastAdvertisementTimer(System::Layer * systemLayer, void * context);
     void HandleFastAdvertisementTimer();
-    static void HandleAdvertisementTimer(System::Layer * systemLayer, void * context, CHIP_ERROR aError);
+    static void HandleAdvertisementTimer(System::Layer * systemLayer, void * context);
     void HandleAdvertisementTimer();
 
 #if CONFIG_BT_BLUEDROID_ENABLED

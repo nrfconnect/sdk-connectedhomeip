@@ -20,13 +20,13 @@
 
 #include "../../config/PersistentStorage.h"
 #include "../common/Command.h"
-#include "gen/CHIPClientCallbacks.h"
-#include "gen/CHIPClusters.h"
+#include <zap-generated/CHIPClientCallbacks.h>
+#include <zap-generated/CHIPClusters.h>
 
 #include <controller/ExampleOperationalCredentialsIssuer.h>
+#include <lib/support/Span.h>
 #include <lib/support/ThreadOperationalDataset.h>
 #include <setup_payload/SetupPayload.h>
-#include <support/Span.h>
 
 enum class PairingMode
 {
@@ -38,6 +38,7 @@ enum class PairingMode
     SoftAP,
     Ethernet,
     OnNetwork,
+    OpenCommissioningWindow,
 };
 
 enum class PairingNetworkType
@@ -54,7 +55,8 @@ class PairingCommand : public Command,
 {
 public:
     PairingCommand(const char * commandName, PairingMode mode, PairingNetworkType networkType) :
-        Command(commandName), mPairingMode(mode), mNetworkType(networkType), mRemoteAddr{ IPAddress::Any, INET_NULL_INTERFACEID }
+        Command(commandName), mPairingMode(mode), mNetworkType(networkType), mRemoteAddr{ IPAddress::Any, INET_NULL_INTERFACEID },
+        mOnDeviceConnectedCallback(OnDeviceConnectedFn, this), mOnDeviceConnectionFailureCallback(OnDeviceConnectionFailureFn, this)
     {
         switch (networkType)
         {
@@ -102,6 +104,12 @@ public:
             AddArgument("device-remote-ip", &mRemoteAddr);
             AddArgument("device-remote-port", 0, UINT16_MAX, &mRemotePort);
             break;
+        case PairingMode::OpenCommissioningWindow:
+            AddArgument("option", 0, UINT8_MAX, &mCommissioningWindowOption);
+            AddArgument("timeout", 0, UINT16_MAX, &mTimeout);
+            AddArgument("iteration", 0, UINT16_MAX, &mIteration);
+            AddArgument("discriminator", 0, 4096, &mDiscriminator);
+            break;
         }
     }
 
@@ -132,6 +140,7 @@ private:
     CHIP_ERROR PairWithCode(NodeId remoteId, chip::SetupPayload payload);
     CHIP_ERROR PairWithoutSecurity(NodeId remoteId, PeerAddress address);
     CHIP_ERROR Unpair(NodeId remoteId);
+    CHIP_ERROR OpenCommissioningWindow();
 
     void InitCallbacks();
     CHIP_ERROR SetupNetwork();
@@ -149,8 +158,11 @@ private:
     NodeId mRemoteId;
     uint16_t mRemotePort;
     uint64_t mFabricId;
+    uint16_t mTimeout;
+    uint16_t mIteration;
     uint16_t mDiscriminator;
     uint32_t mSetupPINCode;
+    uint8_t mCommissioningWindowOption;
     chip::ByteSpan mOperationalDataset;
     uint8_t mExtendedPanId[chip::Thread::kSizeExtendedPanId];
     chip::ByteSpan mSSID;
@@ -165,4 +177,10 @@ private:
     chip::Controller::NetworkCommissioningCluster mCluster;
     chip::EndpointId mEndpointId = 0;
     chip::Controller::ExampleOperationalCredentialsIssuer mOpCredsIssuer;
+
+    static void OnDeviceConnectedFn(void * context, chip::Controller::Device * device);
+    static void OnDeviceConnectionFailureFn(void * context, NodeId deviceId, CHIP_ERROR error);
+
+    chip::Callback::Callback<chip::Controller::OnDeviceConnected> mOnDeviceConnectedCallback;
+    chip::Callback::Callback<chip::Controller::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
 };

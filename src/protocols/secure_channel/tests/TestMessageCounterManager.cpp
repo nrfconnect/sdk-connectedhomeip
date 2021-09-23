@@ -21,17 +21,17 @@
  *      This file implements unit tests for the MessageCounterManager implementation.
  */
 
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/UnitTestRegistration.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <messaging/tests/MessagingContext.h>
 #include <protocols/Protocols.h>
 #include <protocols/echo/Echo.h>
-#include <support/CodeUtils.h>
-#include <support/UnitTestRegistration.h>
-#include <support/logging/CHIPLogging.h>
-#include <transport/SecureSessionMgr.h>
+#include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/tests/NetworkTestHelpers.h>
 
@@ -53,13 +53,14 @@ using TestContext = chip::Test::MessagingContext;
 TestContext sContext;
 
 TransportMgr<Test::LoopbackTransport> gTransportMgr;
+chip::Test::IOContext gIOContext;
 
 const char PAYLOAD[] = "Hello!";
 
 class MockAppDelegate : public ExchangeDelegate
 {
 public:
-    CHIP_ERROR OnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
+    CHIP_ERROR OnMessageReceived(ExchangeContext * ec, const PayloadHeader & payloadHeader,
                                  System::PacketBufferHandle && msgBuf) override
     {
         ++ReceiveHandlerCallCount;
@@ -77,11 +78,11 @@ void MessageCounterSyncProcess(nlTestSuite * inSuite, void * inContext)
 
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    SecureSessionHandle localSession = ctx.GetSessionLocalToPeer();
-    SecureSessionHandle peerSession  = ctx.GetSessionPeerToLocal();
+    SessionHandle localSession = ctx.GetSessionBobToAlice();
+    SessionHandle peerSession  = ctx.GetSessionAliceToBob();
 
-    Transport::PeerConnectionState * localState = ctx.GetSecureSessionManager().GetPeerConnectionState(localSession);
-    Transport::PeerConnectionState * peerState  = ctx.GetSecureSessionManager().GetPeerConnectionState(peerSession);
+    Transport::SecureSession * localState = ctx.GetSecureSessionManager().GetSecureSession(localSession);
+    Transport::SecureSession * peerState  = ctx.GetSecureSessionManager().GetSecureSession(peerSession);
 
     localState->GetSessionMessageCounter().GetPeerMessageCounter().Reset();
     err = ctx.GetMessageCounterManager().SendMsgCounterSyncReq(localSession, localState);
@@ -98,8 +99,8 @@ void CheckReceiveMessage(nlTestSuite * inSuite, void * inContext)
     TestContext & ctx = *reinterpret_cast<TestContext *>(inContext);
     CHIP_ERROR err    = CHIP_NO_ERROR;
 
-    SecureSessionHandle peerSession            = ctx.GetSessionPeerToLocal();
-    Transport::PeerConnectionState * peerState = ctx.GetSecureSessionManager().GetPeerConnectionState(peerSession);
+    SessionHandle peerSession            = ctx.GetSessionAliceToBob();
+    Transport::SecureSession * peerState = ctx.GetSecureSessionManager().GetSecureSession(peerSession);
     peerState->GetSessionMessageCounter().GetPeerMessageCounter().Reset();
 
     MockAppDelegate callback;
@@ -109,7 +110,7 @@ void CheckReceiveMessage(nlTestSuite * inSuite, void * inContext)
     System::PacketBufferHandle msgBuf = MessagePacketBuffer::NewWithData(PAYLOAD, payload_len);
     NL_TEST_ASSERT(inSuite, !msgBuf.IsNull());
 
-    Messaging::ExchangeContext * ec = ctx.NewExchangeToPeer(nullptr);
+    Messaging::ExchangeContext * ec = ctx.NewExchangeToAlice(nullptr);
     NL_TEST_ASSERT(inSuite, ec != nullptr);
 
     err = ec->SendMessage(chip::Protocols::Echo::MsgType::EchoRequest, std::move(msgBuf),
@@ -151,18 +152,13 @@ nlTestSuite sSuite =
  */
 int Initialize(void * aContext)
 {
-    CHIP_ERROR err = chip::Platform::MemoryInit();
-    if (err != CHIP_NO_ERROR)
-        return FAILURE;
-    auto * ctx = reinterpret_cast<TestContext *>(aContext);
+    // Initialize System memory and resources
+    VerifyOrReturnError(chip::Platform::MemoryInit() == CHIP_NO_ERROR, FAILURE);
+    VerifyOrReturnError(gIOContext.Init(&sSuite) == CHIP_NO_ERROR, FAILURE);
+    VerifyOrReturnError(gTransportMgr.Init("LOOPBACK") == CHIP_NO_ERROR, FAILURE);
 
-    err = gTransportMgr.Init("LOOPBACK");
-    if (err != CHIP_NO_ERROR)
-        return FAILURE;
-
-    err = ctx->Init(&sSuite, &gTransportMgr);
-    if (err != CHIP_NO_ERROR)
-        return FAILURE;
+    auto * ctx = static_cast<TestContext *>(aContext);
+    VerifyOrReturnError(ctx->Init(&sSuite, &gTransportMgr, &gIOContext) == CHIP_NO_ERROR, FAILURE);
 
     return SUCCESS;
 }
@@ -173,6 +169,7 @@ int Initialize(void * aContext)
 int Finalize(void * aContext)
 {
     CHIP_ERROR err = reinterpret_cast<TestContext *>(aContext)->Shutdown();
+    gIOContext.Shutdown();
     return (err == CHIP_NO_ERROR) ? SUCCESS : FAILURE;
 }
 

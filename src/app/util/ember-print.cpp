@@ -31,7 +31,6 @@ using namespace chip::Logging;
 
 void emberAfPrint(int category, const char * format, ...)
 {
-#if _CHIP_USE_LOGGING
     if (format != nullptr)
     {
         va_list args;
@@ -39,12 +38,10 @@ void emberAfPrint(int category, const char * format, ...)
         chip::Logging::LogV(chip::Logging::kLogModule_Zcl, chip::Logging::kLogCategory_Progress, format, args);
         va_end(args);
     }
-#endif
 }
 
 void emberAfPrintln(int category, const char * format, ...)
 {
-#if _CHIP_USE_LOGGING
     if (format != nullptr)
     {
         va_list args;
@@ -52,7 +49,6 @@ void emberAfPrintln(int category, const char * format, ...)
         chip::Logging::LogV(chip::Logging::kLogModule_Zcl, chip::Logging::kLogCategory_Progress, format, args);
         va_end(args);
     }
-#endif
 }
 
 // TODO: add unit tests.

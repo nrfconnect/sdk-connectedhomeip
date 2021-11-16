@@ -23,15 +23,17 @@
 
 #pragma once
 
+#include <app-common/zap-generated/cluster-objects.h>
 #include <platform/CHIPDeviceBuildConfig.h>
 #include <platform/CHIPDeviceEvent.h>
+#include <system/PlatformEventSupport.h>
 #include <system/SystemLayer.h>
 
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-#include <system/LwIPEventSupport.h>
-#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
-
 namespace chip {
+
+namespace Dnssd {
+class DiscoveryImplPlatform;
+}
 
 namespace DeviceLayer {
 
@@ -65,6 +67,33 @@ template <class>
 class GenericThreadStackManagerImpl_OpenThread_LwIP;
 } // namespace Internal
 
+// Maximum length of vendor defined name or prefix of the software thread that is
+// static for the duration of the thread.
+static constexpr size_t kMaxThreadNameLength = 32;
+
+struct ThreadMetrics : public app::Clusters::SoftwareDiagnostics::Structs::ThreadMetrics::Type
+{
+    char NameBuf[kMaxThreadNameLength + 1];
+    ThreadMetrics * Next; /* Pointer to the next structure.  */
+};
+
+class PlatformManager;
+
+/**
+ * Defines the delegate class of Platform Manager to notify platform updates.
+ */
+class PlatformManagerDelegate
+{
+public:
+    virtual ~PlatformManagerDelegate() {}
+
+    /**
+     * @brief
+     *   Called after the current device is rebooted
+     */
+    virtual void OnDeviceRebooted() {}
+};
+
 /**
  * Provides features for initializing and interacting with the chip network
  * stack on a chip-enabled device.
@@ -87,6 +116,8 @@ public:
     CHIP_ERROR InitChipStack();
     CHIP_ERROR AddEventHandler(EventHandlerFunct handler, intptr_t arg = 0);
     void RemoveEventHandler(EventHandlerFunct handler, intptr_t arg = 0);
+    void SetDelegate(PlatformManagerDelegate * delegate) { mDelegate = delegate; }
+    PlatformManagerDelegate * GetDelegate() const { return mDelegate; }
 
     /**
      * ScheduleWork can be called after InitChipStack has been called.  Calls
@@ -157,17 +188,36 @@ public:
     CHIP_ERROR GetCurrentHeapUsed(uint64_t & currentHeapUsed);
     CHIP_ERROR GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark);
 
+    /*
+     * Get the linked list of thread metrics of the current plaform. After usage, each caller of GetThreadMetrics
+     * needs to release the thread metrics list it gets via ReleaseThreadMetrics.
+     *
+     */
+    CHIP_ERROR GetThreadMetrics(ThreadMetrics ** threadMetricsOut);
+    void ReleaseThreadMetrics(ThreadMetrics * threadMetrics);
+
+    /**
+     * General Diagnostics methods.
+     */
+    CHIP_ERROR GetRebootCount(uint16_t & rebootCount);
+    CHIP_ERROR GetUpTime(uint64_t & upTime);
+    CHIP_ERROR GetTotalOperationalHours(uint32_t & totalOperationalHours);
+    CHIP_ERROR GetBootReasons(uint8_t & bootReasons);
+
 #if CHIP_STACK_LOCK_TRACKING_ENABLED
     bool IsChipStackLockedByCurrentThread() const;
 #endif
 
 private:
-    bool mInitialized = false;
+    bool mInitialized                   = false;
+    PlatformManagerDelegate * mDelegate = nullptr;
+
     // ===== Members for internal use by the following friends.
 
     friend class PlatformManagerImpl;
     friend class ConnectivityManagerImpl;
     friend class ConfigurationManagerImpl;
+    friend class Dnssd::DiscoveryImplPlatform;
     friend class TraitManager;
     friend class ThreadStackManagerImpl;
     friend class TimeSyncManager;
@@ -191,9 +241,7 @@ private:
     friend class Internal::GenericThreadStackManagerImpl_OpenThread_LwIP;
     template <class>
     friend class Internal::GenericConfigurationManagerImpl;
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
     friend class System::PlatformEventing;
-#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
     /*
      * PostEvent can be called safely on any thread without locking the stack.
@@ -204,7 +252,7 @@ private:
     [[nodiscard]] CHIP_ERROR PostEvent(const ChipDeviceEvent * event);
     void PostEventOrDie(const ChipDeviceEvent * event);
     void DispatchEvent(const ChipDeviceEvent * event);
-    CHIP_ERROR StartChipTimer(uint32_t durationMS);
+    CHIP_ERROR StartChipTimer(System::Clock::Timeout duration);
 
 protected:
     // Construction/destruction limited to subclasses.
@@ -244,6 +292,18 @@ public:
     StackLock() { PlatformMgr().LockChipStack(); }
 
     ~StackLock() { PlatformMgr().UnlockChipStack(); }
+};
+
+/**
+ * @brief
+ * RAII unlocking for PlatformManager to simplify management of
+ * LockChipStack()/UnlockChipStack calls.
+ */
+class StackUnlock
+{
+public:
+    StackUnlock() { PlatformMgr().UnlockChipStack(); }
+    ~StackUnlock() { PlatformMgr().LockChipStack(); }
 };
 
 } // namespace DeviceLayer
@@ -347,8 +407,10 @@ inline CHIP_ERROR PlatformManager::StopEventLoopTask()
  */
 inline CHIP_ERROR PlatformManager::Shutdown()
 {
-    mInitialized = false;
-    return static_cast<ImplClass *>(this)->_Shutdown();
+    CHIP_ERROR err = static_cast<ImplClass *>(this)->_Shutdown();
+    if (err == CHIP_NO_ERROR)
+        mInitialized = false;
+    return err;
 }
 
 inline void PlatformManager::LockChipStack()
@@ -383,9 +445,9 @@ inline void PlatformManager::DispatchEvent(const ChipDeviceEvent * event)
     static_cast<ImplClass *>(this)->_DispatchEvent(event);
 }
 
-inline CHIP_ERROR PlatformManager::StartChipTimer(uint32_t durationMS)
+inline CHIP_ERROR PlatformManager::StartChipTimer(System::Clock::Timeout duration)
 {
-    return static_cast<ImplClass *>(this)->_StartChipTimer(durationMS);
+    return static_cast<ImplClass *>(this)->_StartChipTimer(duration);
 }
 
 inline CHIP_ERROR PlatformManager::GetCurrentHeapFree(uint64_t & currentHeapFree)
@@ -401,6 +463,36 @@ inline CHIP_ERROR PlatformManager::GetCurrentHeapUsed(uint64_t & currentHeapUsed
 inline CHIP_ERROR PlatformManager::GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark)
 {
     return static_cast<ImplClass *>(this)->_GetCurrentHeapHighWatermark(currentHeapHighWatermark);
+}
+
+inline CHIP_ERROR PlatformManager::GetThreadMetrics(ThreadMetrics ** threadMetricsOut)
+{
+    return static_cast<ImplClass *>(this)->_GetThreadMetrics(threadMetricsOut);
+}
+
+inline void PlatformManager::ReleaseThreadMetrics(ThreadMetrics * threadMetrics)
+{
+    return static_cast<ImplClass *>(this)->_ReleaseThreadMetrics(threadMetrics);
+}
+
+inline CHIP_ERROR PlatformManager::GetRebootCount(uint16_t & rebootCount)
+{
+    return static_cast<ImplClass *>(this)->_GetRebootCount(rebootCount);
+}
+
+inline CHIP_ERROR PlatformManager::GetUpTime(uint64_t & upTime)
+{
+    return static_cast<ImplClass *>(this)->_GetUpTime(upTime);
+}
+
+inline CHIP_ERROR PlatformManager::GetTotalOperationalHours(uint32_t & totalOperationalHours)
+{
+    return static_cast<ImplClass *>(this)->_GetTotalOperationalHours(totalOperationalHours);
+}
+
+inline CHIP_ERROR PlatformManager::GetBootReasons(uint8_t & bootReasons)
+{
+    return static_cast<ImplClass *>(this)->_GetBootReasons(bootReasons);
 }
 
 } // namespace DeviceLayer

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import os
 from enum import Enum, auto
 
@@ -21,16 +20,29 @@ from .gn import GnBuilder
 
 class InfineonApp(Enum):
     LOCK = auto()
+    ALL_CLUSTERS = auto()
 
     def ExampleName(self):
         if self == InfineonApp.LOCK:
             return 'lock-app'
+        elif self == InfineonApp.ALL_CLUSTERS:
+            return 'all-clusters-app'
         else:
             raise Exception('Unknown app type: %r' % self)
 
     def AppNamePrefix(self):
         if self == InfineonApp.LOCK:
             return 'chip-p6-lock-example'
+        elif self == InfineonApp.ALL_CLUSTERS:
+            return 'chip-p6-clusters-example'
+        else:
+            raise Exception('Unknown app type: %r' % self)
+
+    def FlashBundleName(self):
+        if self == InfineonApp.LOCK:
+            return 'lock_app.flashbundle.txt'
+        elif self == InfineonApp.ALL_CLUSTERS:
+            return 'clusters_app.flashbundle.txt'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -48,16 +60,17 @@ class InfineonBuilder(GnBuilder):
     def __init__(self,
                  root,
                  runner,
-                 output_prefix: str,
                  app: InfineonApp = InfineonApp.LOCK,
                  board: InfineonBoard = InfineonBoard.P6BOARD):
         super(InfineonBuilder, self).__init__(
             root=os.path.join(root, 'examples', app.ExampleName(), 'p6'),
-            runner=runner,
-            output_prefix=output_prefix)
+            runner=runner)
 
         self.app = app
-        self.gn_build_args = ['p6_board="%s"' % board.GnArgName()]
+        self.board = board
+
+    def GnBuildArgs(self):
+        return ['p6_board="%s"' % self.board.GnArgName()]
 
     def build_outputs(self):
         items = {
@@ -70,3 +83,9 @@ class InfineonBuilder(GnBuilder):
         }
 
         return items
+
+    def flashbundle(self):
+        with open(os.path.join(self.output_dir, self.app.FlashBundleName()), 'r') as fp:
+            return {
+                l.strip(): os.path.join(self.output_dir, l.strip()) for l in fp.readlines() if l.strip()
+            }

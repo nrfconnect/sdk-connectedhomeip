@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <app/data-model/Nullable.h>
 #include <app/util/af-types.h>
 #include <lib/support/Span.h>
 
@@ -20,11 +21,19 @@ namespace Clusters {
 {{#first}}
 namespace {{asUpperCamelCase parent.label}} {
 namespace Attributes {
+
 {{/first}}
 {{#if clusterRef}}
-{{#if (canHaveSimpleAccessors type)}}
-EmberAfStatus Get{{asUpperCamelCase label}}(chip::EndpointId endpoint, {{asUnderlyingZclType type}} * {{asLowerCamelCase label}}); // {{type}} {{isArray}}
-EmberAfStatus Set{{asUpperCamelCase label}}(chip::EndpointId endpoint, {{asUnderlyingZclType type}} {{asLowerCamelCase label}});
+{{#if (canHaveSimpleAccessors this)}}
+namespace {{asUpperCamelCase label}} {
+EmberAfStatus Get(chip::EndpointId endpoint, {{accessorGetterType this}} value); // {{type}} {{isArray}}
+EmberAfStatus Set(chip::EndpointId endpoint, {{asUnderlyingZclType type}} value);
+{{#if isNullable}}
+EmberAfStatus SetNull(chip::EndpointId endpoint);
+EmberAfStatus Set(chip::EndpointId endpoint, const DataModel::Nullable<{{asUnderlyingZclType type}}> & value);
+{{/if}}
+} // namespace {{asUpperCamelCase label}}
+
 {{/if}}
 {{/if}}
 {{#last}}

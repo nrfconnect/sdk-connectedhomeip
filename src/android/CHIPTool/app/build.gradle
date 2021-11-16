@@ -14,9 +14,12 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // NOTE: This build assumes CHIP was configured and built for armeabi-v7a. Deal with
-        // other archs later when build is sane.
-        //  ndk {abiFilters 'armeabi-v7a'}
+        if (matterSdkSourceBuild.toBoolean() && !matterBuildSrcDir.isEmpty()) {
+            ndk {
+                abiFilters = []
+                abiFilters.addAll(matterSourceBuildAbiFilters.split(';').collect { it as String })
+            }
+        }
 
         externalNativeBuild {
             cmake {
@@ -47,47 +50,34 @@ android {
         }
     }
 
-    if (matterBuildSrcDir.isEmpty()) {
-        sourceSets {
-            main {
-                jniLibs.srcDirs = ['libs/jniLibs']
-            }
-        }
-    } else {
-        sourceSets {
-            main {
-                java.srcDirs = [
-                        'src/main/java/',
-                ]
-            }
-        }
-
+    if (matterSdkSourceBuild.toBoolean() && !matterBuildSrcDir.isEmpty()) {
         externalNativeBuild {
             cmake {
                 path file(matterBuildSrcDir + '/CMakeLists.txt')
                 version '3.10.2'
             }
         }
+    } else {
+        sourceSets {
+            main {
+                jniLibs.srcDirs = ['libs/jniLibs']
+            }
+        }
     }
 }
 
 dependencies {
+    implementation 'com.android.volley:volley:1.2.1'
     def room_version = "2.2.5"
 
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
 
-    if (matterBuildSrcDir.isEmpty()) {
+    if (matterSdkSourceBuild.toBoolean() && !matterBuildSrcDir.isEmpty()) {
+        implementation project(':chip-library')
+    } else {
         // local in-source-tree copy of the dependencies. Useful for IDE compilation
         implementation fileTree(dir: "libs", include: ["*.jar", "*.so"])
-
-        // build time dependencies
-        if (project.hasProperty("chipSdkJarDir")) {
-            println "Compiling using custom sdk jar file directory: ${chipSdkJarDir}"
-            implementation fileTree(dir: "${chipSdkJarDir}", include: ["*.jar", "*.so"])
-        }
-    } else {
-        implementation project(':chip-library')
     }
 
     implementation 'androidx.appcompat:appcompat:1.1.0'

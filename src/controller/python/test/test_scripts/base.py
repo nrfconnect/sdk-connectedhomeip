@@ -27,6 +27,7 @@ import sys
 import logging
 import time
 import ctypes
+import chip.clusters as Clusters
 
 logger = logging.getLogger('PythonMatterControllerTEST')
 logger.setLevel(logging.INFO)
@@ -72,6 +73,29 @@ class TestTimeout(threading.Thread):
                 wait_time = stop_time - time.time()
         if time.time() > stop_time:
             TestFail("Timeout")
+
+
+class TestResult:
+    def __init__(self, operationName, result):
+        self.operationName = operationName
+        self.result = result
+
+    def assertStatusEqual(self, expected):
+        if self.result is None:
+            raise Exception(f"{self.operationName}: no result got")
+        if self.result.status != expected:
+            raise Exception(
+                f"{self.operationName}: expected status {expected}, got {self.result.status}")
+        return self
+
+    def assertValueEqual(self, expected):
+        self.assertStatusEqual(0)
+        if self.result is None:
+            raise Exception(f"{self.operationName}: no result got")
+        if self.result.value != expected:
+            raise Exception(
+                f"{self.operationName}: expected value {expected}, got {self.result.value}")
+        return self
 
 
 class BaseTestHelper:
@@ -151,24 +175,73 @@ class BaseTestHelper:
             "Sending On/Off commands to device {} endpoint {}".format(nodeid, endpoint))
         err, resp = self.devCtrl.ZCLSend("OnOff", "On", nodeid,
                                          endpoint, group, {}, blocking=True)
-        if err != 0 or resp is None or resp.ProtocolCode != 0:
+        if err != 0 or resp is None or resp.Status != 0:
             self.logger.error(
                 "failed to send OnOff.On: error is {} with im response{}".format(err, resp))
             return False
         err, resp = self.devCtrl.ZCLSend("OnOff", "Off", nodeid,
                                          endpoint, group, {}, blocking=True)
-        if err != 0 or resp is None or resp.ProtocolCode != 0:
+        if err != 0 or resp is None or resp.Status != 0:
             self.logger.error(
                 "failed to send OnOff.Off: error is {} with im response {}".format(err, resp))
             return False
         return True
 
-    def TestResolve(self, nodeid):
-        fabricid = self.devCtrl.GetCompressedFabricId()
+    def TestOnOffCluster(self, nodeid: int, endpoint: int, group: int):
         self.logger.info(
-            "Resolve: node id = {:08x} (compressed) fabric id = {:08x}".format(nodeid, fabricid))
+            "Sending On/Off commands to device {} endpoint {}".format(nodeid, endpoint))
+        err, resp = self.devCtrl.ZCLSend("OnOff", "On", nodeid,
+                                         endpoint, group, {}, blocking=True)
+        if err != 0 or resp is None or resp.Status != 0:
+            self.logger.error(
+                "failed to send OnOff.On: error is {} with im response{}".format(err, resp))
+            return False
+        err, resp = self.devCtrl.ZCLSend("OnOff", "Off", nodeid,
+                                         endpoint, group, {}, blocking=True)
+        if err != 0 or resp is None or resp.Status != 0:
+            self.logger.error(
+                "failed to send OnOff.Off: error is {} with im response {}".format(err, resp))
+            return False
+        return True
+
+    def TestLevelControlCluster(self, nodeid: int, endpoint: int, group: int):
+        self.logger.info(
+            f"Sending MoveToLevel command to device {nodeid} endpoint {endpoint}")
         try:
-            self.devCtrl.ResolveNode(fabricid=fabricid, nodeid=nodeid)
+            commonArgs = dict(transitionTime=0, optionMask=0, optionOverride=0)
+
+            # Move to 0
+            self.devCtrl.ZCLSend("LevelControl", "MoveToLevel", nodeid,
+                                 endpoint, group, dict(**commonArgs, level=0), blocking=True)
+            res = self.devCtrl.ZCLReadAttribute(cluster="LevelControl",
+                                                attribute="CurrentLevel",
+                                                nodeid=nodeid,
+                                                endpoint=endpoint,
+                                                groupid=group)
+            TestResult("Read attribute LevelControl.CurrentLevel",
+                       res).assertValueEqual(0)
+
+            # Move to 255
+            self.devCtrl.ZCLSend("LevelControl", "MoveToLevel", nodeid,
+                                 endpoint, group, dict(**commonArgs, level=255), blocking=True)
+            res = self.devCtrl.ZCLReadAttribute(cluster="LevelControl",
+                                                attribute="CurrentLevel",
+                                                nodeid=nodeid,
+                                                endpoint=endpoint,
+                                                groupid=group)
+            TestResult("Read attribute LevelControl.CurrentLevel",
+                       res).assertValueEqual(255)
+
+            return True
+        except Exception as ex:
+            self.logger.exception(f"Level cluster test failed: {ex}")
+            return False
+
+    def TestResolve(self, nodeid):
+        self.logger.info(
+            "Resolve: node id = {:08x}".format(nodeid))
+        try:
+            self.devCtrl.ResolveNode(nodeid=nodeid)
             addr = self.devCtrl.GetAddressAndPort(nodeid)
             if not addr:
                 return False
@@ -178,13 +251,13 @@ class BaseTestHelper:
             self.logger.exception("Failed to resolve. {}".format(ex))
             return False
 
-    def TestReadBasicAttribiutes(self, nodeid: int, endpoint: int, group: int):
+    def TestReadBasicAttributes(self, nodeid: int, endpoint: int, group: int):
         basic_cluster_attrs = {
             "VendorName": "TEST_VENDOR",
             "VendorID": 9050,
             "ProductName": "TEST_PRODUCT",
             "ProductID": 65279,
-            "UserLabel": "",
+            "UserLabel": "Test",
             "Location": "",
             "HardwareVersion": 0,
             "HardwareVersionString": "TEST_VERSION",
@@ -199,15 +272,8 @@ class BaseTestHelper:
                                                     nodeid=nodeid,
                                                     endpoint=endpoint,
                                                     groupid=group)
-                if res is None:
-                    raise Exception(
-                        "Read {} attribute: no value get".format(basic_attr))
-                elif res.status != 0:
-                    raise Exception(
-                        "Read {} attribute: non-zero status code {}".format(basic_attr, res.status))
-                elif res.value != expected_value:
-                    raise Exception("Read {} attribute: expect {} got {}".format(
-                        basic_attr, repr(expected_value), repr(res.value)))
+                TestResult(f"Read attribute {basic_attr}", res).assertValueEqual(
+                    expected_value)
             except Exception as ex:
                 failed_zcl[basic_attr] = str(ex)
         if failed_zcl:
@@ -221,42 +287,35 @@ class BaseTestHelper:
             cluster: str
             attribute: str
             value: Any
-            expected_status: IM.ProtocolCode = IM.ProtocolCode.Success
+            expected_status: IM.Status = IM.Status.Success
 
         requests = [
             AttributeWriteRequest("Basic", "UserLabel", "Test"),
             AttributeWriteRequest("Basic", "Location",
-                                  "a pretty loooooooooooooog string", IM.ProtocolCode.InvalidValue),
+                                  "a pretty loooooooooooooog string", IM.Status.InvalidValue),
         ]
         failed_zcl = []
         for req in requests:
             try:
-                res = self.devCtrl.ZCLWriteAttribute(cluster=req.cluster,
-                                                     attribute=req.attribute,
-                                                     nodeid=nodeid,
-                                                     endpoint=endpoint,
-                                                     groupid=group,
-                                                     value=req.value)
-                if res is None:
-                    raise Exception(
-                        f"Write {req.cluster}.{req.attribute} attribute: no value get")
-                elif res.status != req.expected_status:
-                    raise Exception(
-                        f"Write {req.cluster}.{req.attribute} attribute: expected status is {req.expected_status} got {res.status}")
-                if req.expected_status != IM.ProtocolCode.Success:
-                    # If the write interaction is expected to success, proceed to verify it.
-                    continue
+                try:
+                    self.devCtrl.ZCLWriteAttribute(cluster=req.cluster,
+                                                   attribute=req.attribute,
+                                                   nodeid=nodeid,
+                                                   endpoint=endpoint,
+                                                   groupid=group,
+                                                   value=req.value)
+                    if req.expected_status != IM.Status.Success:
+                        raise AssertionError(
+                            f"Write attribute {req.cluster}.{req.attribute} expects failure but got success response")
+                except Exception as ex:
+                    if req.expected_status != IM.Status.Success:
+                        continue
+                    else:
+                        raise ex
                 res = self.devCtrl.ZCLReadAttribute(
                     cluster=req.cluster, attribute=req.attribute, nodeid=nodeid, endpoint=endpoint, groupid=group)
-                if res is None:
-                    raise Exception(
-                        f"Read written {req.cluster}.{req.attribute} attribute: failed to read attribute")
-                elif res.status != 0:
-                    raise Exception(
-                        f"Read written {req.cluster}.{req.attribute} attribute: non-zero status code {res.status}")
-                elif res.value != req.value:
-                    raise Exception(
-                        f"Read written {req.cluster}.{req.attribute} attribute: expected {req.value} got {res.value}")
+                TestResult(f"Read attribute {req.cluster}.{req.attribute}", res).assertValueEqual(
+                    req.value)
             except Exception as ex:
                 failed_zcl.append(str(ex))
         if failed_zcl:
@@ -302,16 +361,31 @@ class BaseTestHelper:
             # OnOff Cluster, OnOff Attribute
             handler = _subscriptionHandler(subscribedPath, self.logger)
             IM.SetAttributeReportCallback(subscribedPath, handler)
-            self.devCtrl.ZCLConfigureAttribute(
-                "OnOff", "OnOff", nodeid, endpoint, 1, 10, 0)
+            self.devCtrl.ZCLSubscribeAttribute(
+                "OnOff", "OnOff", nodeid, endpoint, 1, 10)
             changeThread = _conductAttributeChange(
                 self.devCtrl, nodeid, endpoint)
+            # Reset the number of subscriptions received as subscribing causes a callback.
+            handler.subscriptionReceived = 0
             changeThread.start()
             with handler.cv:
                 while handler.subscriptionReceived < 5:
-                    # We should observe 10 attribute changes
-                    handler.cv.wait()
-            return True
+                    # We should observe 5 attribute changes
+                    # The changing thread will change the value after 3 seconds. If we're waiting more than 10, assume something
+                    # is really wrong and bail out here with some information.
+                    if not handler.cv.wait(10.0):
+                        self.logger.error(
+                            f"Failed to receive subscription update")
+                        break
+
+            # thread changes 5 times, and sleeps for 3 seconds in between. Add an additional 3 seconds of slack. Timeout is in seconds.
+            changeThread.join(18.0)
+            if changeThread.is_alive():
+                # Thread join timed out
+                self.logger.error(f"Failed to join change thread")
+                return False
+            return True if handler.subscriptionReceived == 5 else False
+
         except Exception as ex:
             self.logger.exception(f"Failed to finish API test: {ex}")
             return False

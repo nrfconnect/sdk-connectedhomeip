@@ -23,6 +23,7 @@
 #include "Globals.h"
 #include "LEDWidget.h"
 #include "ListScreen.h"
+#include "OpenThreadLaunch.h"
 #include "QRCodeScreen.h"
 #include "ScreenManager.h"
 #include "WiFiWidget.h"
@@ -35,6 +36,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
+#include "platform/PlatformManager.h"
 #include "shell_extension/launch.h"
 
 #include <cmath>
@@ -46,9 +48,10 @@
 #include <app-common/zap-generated/att-storage.h>
 #include <app-common/zap-generated/attribute-id.h>
 #include <app-common/zap-generated/attribute-type.h>
+#include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/cluster-id.h>
 #include <app/server/AppDelegate.h>
-#include <app/server/Mdns.h>
+#include <app/server/Dnssd.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/af-types.h>
@@ -64,18 +67,19 @@
 
 #include <app/clusters/door-lock-server/door-lock-server.h>
 #include <app/clusters/on-off-server/on-off-server.h>
-#include <app/clusters/temperature-measurement-server/temperature-measurement-server.h>
 
 #if CONFIG_ENABLE_PW_RPC
 #include "Rpc.h"
+#endif
+
+#if CONFIG_OPENTHREAD_ENABLED
+#include <platform/ThreadStackManager.h>
 #endif
 
 using namespace ::chip;
 using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
-
-#define QRCODE_BASE_URL "https://dhrishi.github.io/connectedhomeip/qrcode.html"
 
 #if CONFIG_DEVICE_TYPE_M5STACK
 
@@ -210,7 +214,7 @@ public:
             if (name == "Temperature")
             {
                 // update the temp attribute here for hardcoded endpoint 1
-                emberAfTemperatureMeasurementClusterSetMeasuredValueCallback(1, static_cast<int16_t>(n * 100));
+                chip::app::Clusters::TemperatureMeasurement::Attributes::MeasuredValue::Set(1, static_cast<int16_t>(n * 100));
             }
             value = buffer;
         }
@@ -239,8 +243,7 @@ public:
             {
                 // update the doorlock attribute here
                 uint8_t attributeValue = value == "Closed" ? EMBER_ZCL_DOOR_LOCK_STATE_LOCKED : EMBER_ZCL_DOOR_LOCK_STATE_UNLOCKED;
-                emberAfWriteServerAttribute(DOOR_LOCK_SERVER_ENDPOINT, ZCL_DOOR_LOCK_CLUSTER_ID, ZCL_LOCK_STATE_ATTRIBUTE_ID,
-                                            (uint8_t *) &attributeValue, ZCL_INT8U_ATTRIBUTE_TYPE);
+                chip::app::Clusters::DoorLock::Attributes::LockState::Set(DOOR_LOCK_SERVER_ENDPOINT, attributeValue);
             }
         }
     }
@@ -325,6 +328,49 @@ public:
     }
 };
 
+class ActionListModel : public ListScreen::Model
+{
+    int GetItemCount() override { return static_cast<int>(mActions.size()); }
+    std::string GetItemText(int i) override { return mActions[i].title.c_str(); }
+    void ItemAction(int i) override
+    {
+        ESP_LOGI(TAG, "generic action %d", i);
+        mActions[i].action();
+    }
+
+protected:
+    void AddAction(const char * name, std::function<void(void)> action) { mActions.push_back(Action(name, action)); }
+
+private:
+    struct Action
+    {
+        std::string title;
+        std::function<void(void)> action;
+
+        Action(const char * t, std::function<void(void)> a) : title(t), action(a) {}
+    };
+
+    std::vector<Action> mActions;
+};
+
+class MdnsDebugListModel : public ActionListModel
+{
+public:
+    std::string GetTitle() override { return "mDNS Debug"; }
+
+    MdnsDebugListModel() { AddAction("(Re-)Init", std::bind(&MdnsDebugListModel::DoReinit, this)); }
+
+private:
+    void DoReinit()
+    {
+        CHIP_ERROR err = Dnssd::ServiceAdvertiser::Instance().Init(&DeviceLayer::InetLayer());
+        if (err != CHIP_NO_ERROR)
+        {
+            ESP_LOGE(TAG, "Error initializing: %s", err.AsString());
+        }
+    }
+};
+
 class SetupListModel : public ListScreen::Model
 {
 public:
@@ -355,10 +401,10 @@ public:
         }
         else if (i == 2)
         {
-            app::MdnsServer::Instance().StartServer(Mdns::CommissioningMode::kEnabledBasic);
+            app::DnssdServer::Instance().StartServer(Dnssd::CommissioningMode::kEnabledBasic);
             chip::Server::GetInstance().GetFabricTable().DeleteAllFabrics();
             chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow(
-                kNoCommissioningTimeout, CommissioningWindowAdvertisement::kMdnsOnly);
+                kNoCommissioningTimeout, CommissioningWindowAdvertisement::kDnssdOnly);
         }
     }
 
@@ -419,16 +465,14 @@ void SetupPretendDevices()
     AddCluster("Thermometer");
     AddAttribute("Temperature", "21");
     // write the temp attribute
-    emberAfTemperatureMeasurementClusterSetMeasuredValueCallback(1, static_cast<int16_t>(21 * 100));
+    chip::app::Clusters::TemperatureMeasurement::Attributes::MeasuredValue::Set(1, static_cast<int16_t>(21 * 100));
 
     AddDevice("Door Lock");
     AddEndpoint("Default");
     AddCluster("Lock");
     AddAttribute("State", "Open");
     // write the door lock state
-    uint8_t attributeValue = EMBER_ZCL_DOOR_LOCK_STATE_UNLOCKED;
-    emberAfWriteServerAttribute(DOOR_LOCK_SERVER_ENDPOINT, ZCL_DOOR_LOCK_CLUSTER_ID, ZCL_LOCK_STATE_ATTRIBUTE_ID, &attributeValue,
-                                ZCL_INT8U_ATTRIBUTE_TYPE);
+    chip::app::Clusters::DoorLock::Attributes::LockState::Set(DOOR_LOCK_SERVER_ENDPOINT, EMBER_ZCL_DOOR_LOCK_STATE_UNLOCKED);
     AddDevice("Garage 1");
     AddEndpoint("Door 1");
     AddCluster("Door");
@@ -449,125 +493,11 @@ void SetupPretendDevices()
     AddAttribute("State", "Closed");
 }
 
-void GetGatewayIP(char * ip_buf, size_t ip_len)
-{
-    esp_netif_ip_info_t ipInfo;
-    esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ipInfo);
-    esp_ip4addr_ntoa(&ipInfo.ip, ip_buf, ip_len);
-    ESP_LOGI(TAG, "Got gateway ip %s", ip_buf);
-}
-
-bool isRendezvousBLE()
-{
-    RendezvousInformationFlags flags = RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE);
-    return flags.Has(RendezvousInformationFlag::kBLE);
-}
-
-std::string createSetupPayload()
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    std::string result;
-
-    uint16_t discriminator;
-    err = ConfigurationMgr().GetSetupDiscriminator(discriminator);
-    if (err != CHIP_NO_ERROR)
-    {
-        ESP_LOGE(TAG, "Couldn't get discriminator: %s", ErrorStr(err));
-        return result;
-    }
-    ESP_LOGI(TAG, "Setup discriminator: %u (0x%x)", discriminator, discriminator);
-
-    uint32_t setupPINCode;
-    err = ConfigurationMgr().GetSetupPinCode(setupPINCode);
-    if (err != CHIP_NO_ERROR)
-    {
-        ESP_LOGE(TAG, "Couldn't get setupPINCode: %s", ErrorStr(err));
-        return result;
-    }
-    ESP_LOGI(TAG, "Setup PIN code: %u (0x%x)", setupPINCode, setupPINCode);
-
-    uint16_t vendorId;
-    err = ConfigurationMgr().GetVendorId(vendorId);
-    if (err != CHIP_NO_ERROR)
-    {
-        ESP_LOGE(TAG, "Couldn't get vendorId: %s", ErrorStr(err));
-        return result;
-    }
-
-    uint16_t productId;
-    err = ConfigurationMgr().GetProductId(productId);
-    if (err != CHIP_NO_ERROR)
-    {
-        ESP_LOGE(TAG, "Couldn't get productId: %s", ErrorStr(err));
-        return result;
-    }
-
-    SetupPayload payload;
-    payload.version               = 0;
-    payload.discriminator         = discriminator;
-    payload.setUpPINCode          = setupPINCode;
-    payload.rendezvousInformation = RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE);
-    payload.vendorID              = vendorId;
-    payload.productID             = productId;
-
-    if (!isRendezvousBLE())
-    {
-        char gw_ip[INET6_ADDRSTRLEN];
-        GetGatewayIP(gw_ip, sizeof(gw_ip));
-        payload.addOptionalVendorData(EXAMPLE_VENDOR_TAG_IP, gw_ip);
-
-        QRCodeSetupPayloadGenerator generator(payload);
-
-        size_t tlvDataLen = sizeof(gw_ip);
-        uint8_t tlvDataStart[tlvDataLen];
-        err = generator.payloadBase38Representation(result, tlvDataStart, tlvDataLen);
-    }
-    else
-    {
-        QRCodeSetupPayloadGenerator generator(payload);
-        err = generator.payloadBase38Representation(result);
-    }
-
-    {
-        ManualSetupPayloadGenerator generator(payload);
-        std::string outCode;
-
-        if (generator.payloadDecimalStringRepresentation(outCode) == CHIP_NO_ERROR)
-        {
-            ESP_LOGI(TAG, "Short Manual(decimal) setup code: %s", outCode.c_str());
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to get decimal setup code");
-        }
-
-        payload.commissioningFlow = CommissioningFlow::kCustom;
-        generator                 = ManualSetupPayloadGenerator(payload);
-
-        if (generator.payloadDecimalStringRepresentation(outCode) == CHIP_NO_ERROR)
-        {
-            // intentional extra space here to align the log with the short code
-            ESP_LOGI(TAG, "Long Manual(decimal) setup code:  %s", outCode.c_str());
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to get decimal setup code");
-        }
-    }
-
-    if (err != CHIP_NO_ERROR)
-    {
-        ESP_LOGE(TAG, "Couldn't get payload string %" CHIP_ERROR_FORMAT, err.Format());
-    }
-    return result;
-};
-
 WiFiWidget pairingWindowLED;
 
 class AppCallbacks : public AppDelegate
 {
 public:
-    void OnReceiveError() override { statusLED1.BlinkOnError(); }
     void OnRendezvousStarted() override { bluetoothLED.Set(true); }
     void OnRendezvousStopped() override
     {
@@ -578,7 +508,22 @@ public:
     void OnPairingWindowClosed() override { pairingWindowLED.Set(false); }
 };
 
+AppCallbacks sCallbacks;
+
 } // namespace
+
+static void InitServer(intptr_t context)
+{
+    // Init ZCL Data Model and CHIP App Server
+    chip::Server::GetInstance().Init(&sCallbacks);
+
+    // Initialize device attestation config
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+
+    SetupPretendDevices();
+    SetupInitialLevelControlValues(/* endpointId = */ 1);
+    SetupInitialLevelControlValues(/* endpointId = */ 2);
+}
 
 extern "C" void app_main()
 {
@@ -611,6 +556,11 @@ extern "C" void app_main()
     chip::LaunchShell();
 #endif // CONFIG_ENABLE_CHIP_SHELL
 
+#if CONFIG_OPENTHREAD_ENABLED
+    LaunchOpenThread();
+    ThreadStackMgr().InitThreadStack();
+#endif
+
     CHIPDeviceManager & deviceMgr = CHIPDeviceManager::GetInstance();
 
     CHIP_ERROR error = deviceMgr.Init(&EchoCallbacks);
@@ -628,31 +578,16 @@ extern "C" void app_main()
     wifiLED.Init();
     pairingWindowLED.Init();
 
-    // Init ZCL Data Model and CHIP App Server
-    AppCallbacks callbacks;
-    chip::Server::GetInstance().Init(&callbacks);
+    chip::DeviceLayer::PlatformMgr().ScheduleWork(InitServer, reinterpret_cast<intptr_t>(nullptr));
 
-    // Initialize device attestation config
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-
-    SetupPretendDevices();
-    SetupInitialLevelControlValues(/* endpointId = */ 1);
-    SetupInitialLevelControlValues(/* endpointId = */ 2);
-
-    std::string qrCodeText = createSetupPayload();
-    ESP_LOGI(TAG, "QR CODE Text: '%s'", qrCodeText.c_str());
-
-    {
-        std::vector<char> qrCode(3 * qrCodeText.size() + 1);
-        error = EncodeQRCodeToUrl(qrCodeText.c_str(), qrCodeText.size(), qrCode.data(), qrCode.max_size());
-        if (error == CHIP_NO_ERROR)
-        {
-            ESP_LOGI(TAG, "Copy/paste the below URL in a browser to see the QR CODE:\n\t%s?data=%s", QRCODE_BASE_URL,
-                     qrCode.data());
-        }
-    }
+    // Print QR Code URL
+    PrintOnboardingCodes(chip::RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE));
 
 #if CONFIG_HAVE_DISPLAY
+    std::string qrCodeText;
+
+    GetQRCode(qrCodeText, chip::RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE));
+
     // Initialize the display device.
     err = InitDisplay();
     if (err != ESP_OK)
@@ -686,10 +621,10 @@ extern "C" void app_main()
                        ESP_LOGI(TAG, "Opening device list");
                        ScreenManager::PushScreen(chip::Platform::New<ListScreen>(chip::Platform::New<DeviceListModel>()));
                    })
-            ->Item("Custom",
+            ->Item("mDNS Debug",
                    []() {
-                       ESP_LOGI(TAG, "Opening custom screen");
-                       ScreenManager::PushScreen(chip::Platform::New<CustomScreen>());
+                       ESP_LOGI(TAG, "Opening MDNS debug");
+                       ScreenManager::PushScreen(chip::Platform::New<ListScreen>(chip::Platform::New<MdnsDebugListModel>()));
                    })
             ->Item("QR Code",
                    [=]() {
@@ -711,6 +646,11 @@ extern "C" void app_main()
                    [=]() {
                        ESP_LOGI(TAG, "Opening Setup list");
                        ScreenManager::PushScreen(chip::Platform::New<ListScreen>(chip::Platform::New<SetupListModel>()));
+                   })
+            ->Item("Custom",
+                   []() {
+                       ESP_LOGI(TAG, "Opening custom screen");
+                       ScreenManager::PushScreen(chip::Platform::New<CustomScreen>());
                    })
             ->Item("More")
             ->Item("Items")

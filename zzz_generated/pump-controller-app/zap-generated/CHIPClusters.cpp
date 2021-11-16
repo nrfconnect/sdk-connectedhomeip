@@ -19,17 +19,7 @@
 
 #include "CHIPClusters.h"
 
-#include <cstdint>
-
 #include <app-common/zap-generated/ids/Attributes.h>
-#include <app/InteractionModelEngine.h>
-#include <app/chip-zcl-zpro-codec.h>
-#include <app/util/basic-types.h>
-#include <lib/support/BufferWriter.h>
-#include <lib/support/CodeUtils.h>
-#include <lib/support/SafeInt.h>
-#include <lib/support/logging/CHIPLogging.h>
-#include <system/SystemPacketBuffer.h>
 #include <zap-generated/CHIPClientCallbacks.h>
 
 namespace chip {
@@ -50,30 +40,27 @@ CHIP_ERROR FlowMeasurementCluster::ReadAttributeMeasuredValue(Callback::Cancelab
                                                               Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000000;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000000;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
-CHIP_ERROR FlowMeasurementCluster::ConfigureAttributeMeasuredValue(Callback::Cancelable * onSuccessCallback,
+CHIP_ERROR FlowMeasurementCluster::SubscribeAttributeMeasuredValue(Callback::Cancelable * onSuccessCallback,
                                                                    Callback::Cancelable * onFailureCallback, uint16_t minInterval,
-                                                                   uint16_t maxInterval, int16_t change)
+                                                                   uint16_t maxInterval)
 {
-    IgnoreUnusedVariable(change);
     chip::app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = FlowMeasurement::Attributes::Ids::MeasuredValue;
-    attributePath.mFlags.Set(chip::app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = FlowMeasurement::Attributes::MeasuredValue::Id;
     return mDevice->SendSubscribeAttributeRequest(attributePath, minInterval, maxInterval, onSuccessCallback, onFailureCallback);
 }
 
 CHIP_ERROR FlowMeasurementCluster::ReportAttributeMeasuredValue(Callback::Cancelable * onReportCallback)
 {
-    return RequestAttributeReporting(FlowMeasurement::Attributes::Ids::MeasuredValue, onReportCallback,
+    return RequestAttributeReporting(FlowMeasurement::Attributes::MeasuredValue::Id, onReportCallback,
                                      BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
@@ -81,10 +68,9 @@ CHIP_ERROR FlowMeasurementCluster::ReadAttributeMinMeasuredValue(Callback::Cance
                                                                  Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000001;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000001;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -93,10 +79,9 @@ CHIP_ERROR FlowMeasurementCluster::ReadAttributeMaxMeasuredValue(Callback::Cance
                                                                  Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000002;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000002;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -105,10 +90,9 @@ CHIP_ERROR FlowMeasurementCluster::ReadAttributeClusterRevision(Callback::Cancel
                                                                 Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x0000FFFD;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x0000FFFD;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -117,10 +101,9 @@ CHIP_ERROR FlowMeasurementCluster::ReadAttributeClusterRevision(Callback::Cancel
 CHIP_ERROR LevelControlCluster::Move(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback,
                                      uint8_t moveMode, uint8_t rate, uint8_t optionMask, uint8_t optionOverride)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -128,14 +111,17 @@ CHIP_ERROR LevelControlCluster::Move(Callback::Cancelable * onSuccessCallback, C
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::Move,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Move::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // moveMode: moveMode
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), moveMode));
     // rate: int8u
@@ -148,26 +134,23 @@ CHIP_ERROR LevelControlCluster::Move(Callback::Cancelable * onSuccessCallback, C
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR LevelControlCluster::MoveToLevel(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback,
                                             uint8_t level, uint16_t transitionTime, uint8_t optionMask, uint8_t optionOverride)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -175,14 +158,17 @@ CHIP_ERROR LevelControlCluster::MoveToLevel(Callback::Cancelable * onSuccessCall
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::MoveToLevel,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::MoveToLevel::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // level: int8u
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), level));
     // transitionTime: int16u
@@ -195,16 +181,14 @@ CHIP_ERROR LevelControlCluster::MoveToLevel(Callback::Cancelable * onSuccessCall
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
@@ -212,10 +196,9 @@ CHIP_ERROR LevelControlCluster::MoveToLevelWithOnOff(Callback::Cancelable * onSu
                                                      Callback::Cancelable * onFailureCallback, uint8_t level,
                                                      uint16_t transitionTime)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -223,14 +206,17 @@ CHIP_ERROR LevelControlCluster::MoveToLevelWithOnOff(Callback::Cancelable * onSu
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::MoveToLevelWithOnOff,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::MoveToLevelWithOnOff::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // level: int8u
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), level));
     // transitionTime: int16u
@@ -239,26 +225,23 @@ CHIP_ERROR LevelControlCluster::MoveToLevelWithOnOff(Callback::Cancelable * onSu
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR LevelControlCluster::MoveWithOnOff(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback,
                                               uint8_t moveMode, uint8_t rate)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -266,14 +249,17 @@ CHIP_ERROR LevelControlCluster::MoveWithOnOff(Callback::Cancelable * onSuccessCa
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::MoveWithOnOff,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::MoveWithOnOff::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // moveMode: moveMode
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), moveMode));
     // rate: int8u
@@ -282,16 +268,14 @@ CHIP_ERROR LevelControlCluster::MoveWithOnOff(Callback::Cancelable * onSuccessCa
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
@@ -299,10 +283,9 @@ CHIP_ERROR LevelControlCluster::Step(Callback::Cancelable * onSuccessCallback, C
                                      uint8_t stepMode, uint8_t stepSize, uint16_t transitionTime, uint8_t optionMask,
                                      uint8_t optionOverride)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -310,14 +293,17 @@ CHIP_ERROR LevelControlCluster::Step(Callback::Cancelable * onSuccessCallback, C
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::Step,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Step::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // stepMode: stepMode
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), stepMode));
     // stepSize: int8u
@@ -332,26 +318,23 @@ CHIP_ERROR LevelControlCluster::Step(Callback::Cancelable * onSuccessCallback, C
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR LevelControlCluster::StepWithOnOff(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback,
                                               uint8_t stepMode, uint8_t stepSize, uint16_t transitionTime)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -359,14 +342,17 @@ CHIP_ERROR LevelControlCluster::StepWithOnOff(Callback::Cancelable * onSuccessCa
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::StepWithOnOff,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::StepWithOnOff::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // stepMode: stepMode
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), stepMode));
     // stepSize: int8u
@@ -377,26 +363,23 @@ CHIP_ERROR LevelControlCluster::StepWithOnOff(Callback::Cancelable * onSuccessCa
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR LevelControlCluster::Stop(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback,
                                      uint8_t optionMask, uint8_t optionOverride)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -404,14 +387,17 @@ CHIP_ERROR LevelControlCluster::Stop(Callback::Cancelable * onSuccessCallback, C
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::Stop,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Stop::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
-    VerifyOrExit((writer = sender->GetCommandDataElementTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit((writer = sender->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
     // optionMask: bitmap8
     SuccessOrExit(err = writer->Put(TLV::ContextTag(argSeqNumber++), optionMask));
     // optionOverride: bitmap8
@@ -420,25 +406,22 @@ CHIP_ERROR LevelControlCluster::Stop(Callback::Cancelable * onSuccessCallback, C
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR LevelControlCluster::StopWithOnOff(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -446,10 +429,13 @@ CHIP_ERROR LevelControlCluster::StopWithOnOff(Callback::Cancelable * onSuccessCa
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::Ids::StopWithOnOff,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, LevelControl::Commands::StopWithOnOff::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
@@ -458,16 +444,14 @@ CHIP_ERROR LevelControlCluster::StopWithOnOff(Callback::Cancelable * onSuccessCa
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
@@ -476,30 +460,27 @@ CHIP_ERROR LevelControlCluster::ReadAttributeCurrentLevel(Callback::Cancelable *
                                                           Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000000;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000000;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int8uAttributeCallback>);
 }
 
-CHIP_ERROR LevelControlCluster::ConfigureAttributeCurrentLevel(Callback::Cancelable * onSuccessCallback,
+CHIP_ERROR LevelControlCluster::SubscribeAttributeCurrentLevel(Callback::Cancelable * onSuccessCallback,
                                                                Callback::Cancelable * onFailureCallback, uint16_t minInterval,
-                                                               uint16_t maxInterval, uint8_t change)
+                                                               uint16_t maxInterval)
 {
-    IgnoreUnusedVariable(change);
     chip::app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = LevelControl::Attributes::Ids::CurrentLevel;
-    attributePath.mFlags.Set(chip::app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = LevelControl::Attributes::CurrentLevel::Id;
     return mDevice->SendSubscribeAttributeRequest(attributePath, minInterval, maxInterval, onSuccessCallback, onFailureCallback);
 }
 
 CHIP_ERROR LevelControlCluster::ReportAttributeCurrentLevel(Callback::Cancelable * onReportCallback)
 {
-    return RequestAttributeReporting(LevelControl::Attributes::Ids::CurrentLevel, onReportCallback,
+    return RequestAttributeReporting(LevelControl::Attributes::CurrentLevel::Id, onReportCallback,
                                      BasicAttributeFilter<Int8uAttributeCallback>);
 }
 
@@ -507,10 +488,9 @@ CHIP_ERROR LevelControlCluster::ReadAttributeClusterRevision(Callback::Cancelabl
                                                              Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x0000FFFD;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x0000FFFD;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -518,10 +498,9 @@ CHIP_ERROR LevelControlCluster::ReadAttributeClusterRevision(Callback::Cancelabl
 // OnOff Cluster Commands
 CHIP_ERROR OnOffCluster::Off(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -529,10 +508,13 @@ CHIP_ERROR OnOffCluster::Off(Callback::Cancelable * onSuccessCallback, Callback:
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, OnOff::Commands::Ids::Off,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, OnOff::Commands::Off::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
@@ -541,25 +523,22 @@ CHIP_ERROR OnOffCluster::Off(Callback::Cancelable * onSuccessCallback, Callback:
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR OnOffCluster::On(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -567,10 +546,13 @@ CHIP_ERROR OnOffCluster::On(Callback::Cancelable * onSuccessCallback, Callback::
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, OnOff::Commands::Ids::On,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, OnOff::Commands::On::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
@@ -579,25 +561,22 @@ CHIP_ERROR OnOffCluster::On(Callback::Cancelable * onSuccessCallback, Callback::
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
 CHIP_ERROR OnOffCluster::Toggle(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    app::CommandSender * sender = nullptr;
-    TLV::TLVWriter * writer     = nullptr;
-    uint8_t argSeqNumber        = 0;
+    CHIP_ERROR err          = CHIP_NO_ERROR;
+    TLV::TLVWriter * writer = nullptr;
+    uint8_t argSeqNumber    = 0;
 
     // Used when encoding non-empty command. Suppress error message when encoding empty commands.
     (void) writer;
@@ -605,10 +584,13 @@ CHIP_ERROR OnOffCluster::Toggle(Callback::Cancelable * onSuccessCallback, Callba
 
     VerifyOrReturnError(mDevice != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
-    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, OnOff::Commands::Ids::Toggle,
+    app::CommandPathParams cmdParams = { mEndpoint, /* group id */ 0, mClusterId, OnOff::Commands::Toggle::Id,
                                          (app::CommandPathFlags::kEndpointIdValid) };
 
-    SuccessOrExit(err = app::InteractionModelEngine::GetInstance()->NewCommandSender(&sender));
+    CommandSenderHandle sender(
+        Platform::New<app::CommandSender>(mDevice->GetInteractionModelDelegate(), mDevice->GetExchangeManager()));
+
+    VerifyOrReturnError(sender != nullptr, CHIP_ERROR_NO_MEMORY);
 
     SuccessOrExit(err = sender->PrepareCommand(cmdParams));
 
@@ -617,16 +599,14 @@ CHIP_ERROR OnOffCluster::Toggle(Callback::Cancelable * onSuccessCallback, Callba
     SuccessOrExit(err = sender->FinishCommand());
 
     // #6308: This is a temporary solution before we fully support IM on application side and should be replaced by IMDelegate.
-    mDevice->AddIMResponseHandler(sender, onSuccessCallback, onFailureCallback);
+    mDevice->AddIMResponseHandler(sender.get(), onSuccessCallback, onFailureCallback);
 
-    err = mDevice->SendCommands(sender);
+    SuccessOrExit(err = mDevice->SendCommands(sender.get()));
 
+    // We have successfully sent the command, and the callback handler will be responsible to free the object, release the object
+    // now.
+    sender.release();
 exit:
-    // On error, we are responsible to close the sender.
-    if (err != CHIP_NO_ERROR && sender != nullptr)
-    {
-        sender->Shutdown();
-    }
     return err;
 }
 
@@ -634,10 +614,9 @@ exit:
 CHIP_ERROR OnOffCluster::ReadAttributeOnOff(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000000;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000000;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<BooleanAttributeCallback>);
 }
@@ -646,10 +625,9 @@ CHIP_ERROR OnOffCluster::ReadAttributeClusterRevision(Callback::Cancelable * onS
                                                       Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x0000FFFD;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x0000FFFD;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -660,30 +638,27 @@ CHIP_ERROR PressureMeasurementCluster::ReadAttributeMeasuredValue(Callback::Canc
                                                                   Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000000;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000000;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
-CHIP_ERROR PressureMeasurementCluster::ConfigureAttributeMeasuredValue(Callback::Cancelable * onSuccessCallback,
+CHIP_ERROR PressureMeasurementCluster::SubscribeAttributeMeasuredValue(Callback::Cancelable * onSuccessCallback,
                                                                        Callback::Cancelable * onFailureCallback,
-                                                                       uint16_t minInterval, uint16_t maxInterval, int16_t change)
+                                                                       uint16_t minInterval, uint16_t maxInterval)
 {
-    IgnoreUnusedVariable(change);
     chip::app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = PressureMeasurement::Attributes::Ids::MeasuredValue;
-    attributePath.mFlags.Set(chip::app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = PressureMeasurement::Attributes::MeasuredValue::Id;
     return mDevice->SendSubscribeAttributeRequest(attributePath, minInterval, maxInterval, onSuccessCallback, onFailureCallback);
 }
 
 CHIP_ERROR PressureMeasurementCluster::ReportAttributeMeasuredValue(Callback::Cancelable * onReportCallback)
 {
-    return RequestAttributeReporting(PressureMeasurement::Attributes::Ids::MeasuredValue, onReportCallback,
+    return RequestAttributeReporting(PressureMeasurement::Attributes::MeasuredValue::Id, onReportCallback,
                                      BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
@@ -691,10 +666,9 @@ CHIP_ERROR PressureMeasurementCluster::ReadAttributeMinMeasuredValue(Callback::C
                                                                      Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000001;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000001;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -703,10 +677,9 @@ CHIP_ERROR PressureMeasurementCluster::ReadAttributeMaxMeasuredValue(Callback::C
                                                                      Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000002;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000002;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -715,10 +688,9 @@ CHIP_ERROR PressureMeasurementCluster::ReadAttributeClusterRevision(Callback::Ca
                                                                     Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x0000FFFD;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x0000FFFD;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -729,10 +701,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeMaxPressure(Callback
                                                                         Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000000;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000000;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -741,10 +712,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeMaxSpeed(Callback::C
                                                                      Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000001;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000001;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -753,10 +723,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeMaxFlow(Callback::Ca
                                                                     Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000002;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000002;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -765,10 +734,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeEffectiveOperationMo
                                                                                    Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000011;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000011;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int8uAttributeCallback>);
 }
@@ -777,10 +745,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeEffectiveControlMode
                                                                                  Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000012;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000012;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int8uAttributeCallback>);
 }
@@ -789,31 +756,27 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeCapacity(Callback::C
                                                                      Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000013;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000013;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
-CHIP_ERROR PumpConfigurationAndControlCluster::ConfigureAttributeCapacity(Callback::Cancelable * onSuccessCallback,
+CHIP_ERROR PumpConfigurationAndControlCluster::SubscribeAttributeCapacity(Callback::Cancelable * onSuccessCallback,
                                                                           Callback::Cancelable * onFailureCallback,
-                                                                          uint16_t minInterval, uint16_t maxInterval,
-                                                                          int16_t change)
+                                                                          uint16_t minInterval, uint16_t maxInterval)
 {
-    IgnoreUnusedVariable(change);
     chip::app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = PumpConfigurationAndControl::Attributes::Ids::Capacity;
-    attributePath.mFlags.Set(chip::app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = PumpConfigurationAndControl::Attributes::Capacity::Id;
     return mDevice->SendSubscribeAttributeRequest(attributePath, minInterval, maxInterval, onSuccessCallback, onFailureCallback);
 }
 
 CHIP_ERROR PumpConfigurationAndControlCluster::ReportAttributeCapacity(Callback::Cancelable * onReportCallback)
 {
-    return RequestAttributeReporting(PumpConfigurationAndControl::Attributes::Ids::Capacity, onReportCallback,
+    return RequestAttributeReporting(PumpConfigurationAndControl::Attributes::Capacity::Id, onReportCallback,
                                      BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
@@ -821,10 +784,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeOperationMode(Callba
                                                                           Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000020;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000020;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int8uAttributeCallback>);
 }
@@ -833,16 +795,10 @@ CHIP_ERROR PumpConfigurationAndControlCluster::WriteAttributeOperationMode(Callb
                                                                            Callback::Cancelable * onFailureCallback, uint8_t value)
 {
     app::WriteClientHandle handle;
-    chip::app::AttributePathParams attributePath;
-    attributePath.mNodeId     = mDevice->GetDeviceId();
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000020;
-    attributePath.mFlags.Set(chip::app::AttributePathParams::Flags::kFieldIdValid);
-
-    ReturnErrorOnFailure(app::InteractionModelEngine::GetInstance()->NewWriteClient(handle));
-    ReturnErrorOnFailure(handle.EncodeScalarAttributeWritePayload(attributePath, value));
-
+    ReturnErrorOnFailure(
+        app::InteractionModelEngine::GetInstance()->NewWriteClient(handle, mDevice->GetInteractionModelDelegate()));
+    ReturnErrorOnFailure(handle.EncodeAttributeWritePayload(
+        chip::app::AttributePathParams(mEndpoint, mClusterId, PumpConfigurationAndControl::Attributes::OperationMode::Id), value));
     return mDevice->SendWriteAttributeRequest(std::move(handle), onSuccessCallback, onFailureCallback);
 }
 
@@ -850,10 +806,9 @@ CHIP_ERROR PumpConfigurationAndControlCluster::ReadAttributeClusterRevision(Call
                                                                             Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x0000FFFD;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x0000FFFD;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }
@@ -864,31 +819,27 @@ CHIP_ERROR TemperatureMeasurementCluster::ReadAttributeMeasuredValue(Callback::C
                                                                      Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000000;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000000;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
-CHIP_ERROR TemperatureMeasurementCluster::ConfigureAttributeMeasuredValue(Callback::Cancelable * onSuccessCallback,
+CHIP_ERROR TemperatureMeasurementCluster::SubscribeAttributeMeasuredValue(Callback::Cancelable * onSuccessCallback,
                                                                           Callback::Cancelable * onFailureCallback,
-                                                                          uint16_t minInterval, uint16_t maxInterval,
-                                                                          int16_t change)
+                                                                          uint16_t minInterval, uint16_t maxInterval)
 {
-    IgnoreUnusedVariable(change);
     chip::app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = TemperatureMeasurement::Attributes::Ids::MeasuredValue;
-    attributePath.mFlags.Set(chip::app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = TemperatureMeasurement::Attributes::MeasuredValue::Id;
     return mDevice->SendSubscribeAttributeRequest(attributePath, minInterval, maxInterval, onSuccessCallback, onFailureCallback);
 }
 
 CHIP_ERROR TemperatureMeasurementCluster::ReportAttributeMeasuredValue(Callback::Cancelable * onReportCallback)
 {
-    return RequestAttributeReporting(TemperatureMeasurement::Attributes::Ids::MeasuredValue, onReportCallback,
+    return RequestAttributeReporting(TemperatureMeasurement::Attributes::MeasuredValue::Id, onReportCallback,
                                      BasicAttributeFilter<Int16sAttributeCallback>);
 }
 
@@ -896,10 +847,9 @@ CHIP_ERROR TemperatureMeasurementCluster::ReadAttributeMinMeasuredValue(Callback
                                                                         Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000001;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000001;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -908,10 +858,9 @@ CHIP_ERROR TemperatureMeasurementCluster::ReadAttributeMaxMeasuredValue(Callback
                                                                         Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x00000002;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x00000002;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16sAttributeCallback>);
 }
@@ -920,10 +869,9 @@ CHIP_ERROR TemperatureMeasurementCluster::ReadAttributeClusterRevision(Callback:
                                                                        Callback::Cancelable * onFailureCallback)
 {
     app::AttributePathParams attributePath;
-    attributePath.mEndpointId = mEndpoint;
-    attributePath.mClusterId  = mClusterId;
-    attributePath.mFieldId    = 0x0000FFFD;
-    attributePath.mFlags.Set(app::AttributePathParams::Flags::kFieldIdValid);
+    attributePath.mEndpointId  = mEndpoint;
+    attributePath.mClusterId   = mClusterId;
+    attributePath.mAttributeId = 0x0000FFFD;
     return mDevice->SendReadAttributeRequest(attributePath, onSuccessCallback, onFailureCallback,
                                              BasicAttributeFilter<Int16uAttributeCallback>);
 }

@@ -70,21 +70,17 @@ const MbedConfig::Key MbedConfig::kConfigKey_SetupPinCode        = { FACTORY_KEY
 const MbedConfig::Key MbedConfig::kConfigKey_SetupDiscriminator  = { FACTORY_KEY("discriminator") };
 
 // Keys stored in the chip-config namespace
-const MbedConfig::Key MbedConfig::kConfigKey_FabricId                    = { CONFIG_KEY("fabric-id") };
-const MbedConfig::Key MbedConfig::kConfigKey_ServiceConfig               = { CONFIG_KEY("service-config") };
-const MbedConfig::Key MbedConfig::kConfigKey_PairedAccountId             = { CONFIG_KEY("account-id") };
-const MbedConfig::Key MbedConfig::kConfigKey_ServiceId                   = { CONFIG_KEY("service-id") };
-const MbedConfig::Key MbedConfig::kConfigKey_GroupKeyIndex               = { CONFIG_KEY("group-key-index") };
-const MbedConfig::Key MbedConfig::kConfigKey_LastUsedEpochKeyId          = { CONFIG_KEY("last-ek-id") };
-const MbedConfig::Key MbedConfig::kConfigKey_FailSafeArmed               = { CONFIG_KEY("fail-safe-armed") };
-const MbedConfig::Key MbedConfig::kConfigKey_WiFiStationSecType          = { CONFIG_KEY("sta-sec-type") };
-const MbedConfig::Key MbedConfig::kConfigKey_OperationalDeviceId         = { CONFIG_KEY("op-device-id") };
-const MbedConfig::Key MbedConfig::kConfigKey_OperationalDeviceCert       = { CONFIG_KEY("op-device-cert") };
-const MbedConfig::Key MbedConfig::kConfigKey_OperationalDeviceICACerts   = { CONFIG_KEY("op-device-ca-certs") };
-const MbedConfig::Key MbedConfig::kConfigKey_OperationalDevicePrivateKey = { CONFIG_KEY("op-device-key") };
-const MbedConfig::Key MbedConfig::kConfigKey_RegulatoryLocation          = { CONFIG_KEY("regulatory-location") };
-const MbedConfig::Key MbedConfig::kConfigKey_CountryCode                 = { CONFIG_KEY("country-code") };
-const MbedConfig::Key MbedConfig::kConfigKey_Breadcrumb                  = { CONFIG_KEY("breadcrumb") };
+const MbedConfig::Key MbedConfig::kConfigKey_FabricId           = { CONFIG_KEY("fabric-id") };
+const MbedConfig::Key MbedConfig::kConfigKey_ServiceConfig      = { CONFIG_KEY("service-config") };
+const MbedConfig::Key MbedConfig::kConfigKey_PairedAccountId    = { CONFIG_KEY("account-id") };
+const MbedConfig::Key MbedConfig::kConfigKey_ServiceId          = { CONFIG_KEY("service-id") };
+const MbedConfig::Key MbedConfig::kConfigKey_GroupKeyIndex      = { CONFIG_KEY("group-key-index") };
+const MbedConfig::Key MbedConfig::kConfigKey_LastUsedEpochKeyId = { CONFIG_KEY("last-ek-id") };
+const MbedConfig::Key MbedConfig::kConfigKey_FailSafeArmed      = { CONFIG_KEY("fail-safe-armed") };
+const MbedConfig::Key MbedConfig::kConfigKey_WiFiStationSecType = { CONFIG_KEY("sta-sec-type") };
+const MbedConfig::Key MbedConfig::kConfigKey_RegulatoryLocation = { CONFIG_KEY("regulatory-location") };
+const MbedConfig::Key MbedConfig::kConfigKey_CountryCode        = { CONFIG_KEY("country-code") };
+const MbedConfig::Key MbedConfig::kConfigKey_Breadcrumb         = { CONFIG_KEY("breadcrumb") };
 
 CHIP_ERROR MbedConfig::ReadConfigValue(Key key, bool & val)
 {
@@ -178,11 +174,23 @@ CHIP_ERROR MbedConfig::ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSize
         return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
     }
 
-    int err = kv_get(key, reinterpret_cast<void *>(buf), bufSize, &outLen);
+    kv_info_t info;
 
+    int err = kv_get_info(key, &info);
     if (err != MBED_SUCCESS)
     {
         return CHIP_ERROR_INTERNAL;
+    }
+
+    err = kv_get(key, reinterpret_cast<void *>(buf), bufSize, &outLen);
+    if (err != MBED_SUCCESS)
+    {
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    if (bufSize < info.size)
+    {
+        return CHIP_ERROR_BUFFER_TOO_SMALL;
     }
 
     return CHIP_NO_ERROR;

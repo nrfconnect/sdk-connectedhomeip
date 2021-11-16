@@ -25,6 +25,7 @@ if (chip_enable_openthread) {
 static_library("qpg") {
   sources = [
     "../FreeRTOS/SystemTimeSupport.cpp",
+    "../SingletonConfigurationManager.cpp",
     "BLEManagerImpl.cpp",
     "BLEManagerImpl.h",
     "BlePlatformConfig.h",
@@ -71,8 +72,8 @@ static_library("qpg") {
     ]
 
     if (chip_mdns == "platform") {
-      sources += [ "../OpenThread/MdnsImpl.cpp" ]
-      deps += [ "${chip_root}/src/lib/mdns:platform_header" ]
+      sources += [ "../OpenThread/DnssdImpl.cpp" ]
+      deps += [ "${chip_root}/src/lib/dnssd:platform_header" ]
     }
   }
 }

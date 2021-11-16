@@ -182,7 +182,8 @@ void ChannelContext::EnterAddressResolve()
     if (mState == ChannelState::kPreparing && GetPrepareVars().mState == PrepareState::kAddressResolving)
     {
         System::Layer * layer = mExchangeManager->GetSessionManager()->SystemLayer();
-        layer->StartTimer(CHIP_CONFIG_NODE_ADDRESS_RESOLVE_TIMEOUT_MSECS, AddressResolveTimeout, this);
+        layer->StartTimer(System::Clock::Milliseconds32(CHIP_CONFIG_NODE_ADDRESS_RESOLVE_TIMEOUT_MSECS), AddressResolveTimeout,
+                          this);
         Retain(); // Keep the pointer in the timer
     }
 }
@@ -206,7 +207,7 @@ void ChannelContext::AddressResolveTimeout()
     EnterFailedState(CHIP_ERROR_PEER_NODE_NOT_FOUND);
 }
 
-void ChannelContext::HandleNodeIdResolve(CHIP_ERROR error, uint64_t nodeId, const Mdns::MdnsService & address)
+void ChannelContext::HandleNodeIdResolve(CHIP_ERROR error, uint64_t nodeId, const Dnssd::DnssdService & address)
 {
     switch (mState)
     {
@@ -270,11 +271,13 @@ void ChannelContext::EnterCasePairingState()
         EnterFailedState(CHIP_ERROR_NO_MEMORY);
         return;
     }
+    session.Value().GetUnauthenticatedSession()->SetMRPIntervals(CHIP_CONFIG_MRP_DEFAULT_IDLE_RETRY_INTERVAL,
+                                                                 CHIP_CONFIG_MRP_DEFAULT_ACTIVE_RETRY_INTERVAL);
 
     ExchangeContext * ctxt = mExchangeManager->NewContext(session.Value(), prepare.mCasePairingSession);
     VerifyOrReturn(ctxt != nullptr);
 
-    Transport::FabricInfo * fabric = mFabricsTable->FindFabricWithIndex(mFabricIndex);
+    FabricInfo * fabric = mFabricsTable->FindFabricWithIndex(mFabricIndex);
     VerifyOrReturn(fabric != nullptr);
     CHIP_ERROR err = prepare.mCasePairingSession->EstablishSession(addr, fabric, prepare.mBuilder.GetPeerNodeId(),
                                                                    mExchangeManager->GetNextKeyId(), ctxt, this);

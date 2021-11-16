@@ -21,6 +21,8 @@ class {{filename}}: public TestCommand
           return;
       }
 
+      Wait();
+
       // Ensure we increment mTestIndex before we start running the relevant
       // command.  That way if we lose the timeslice after we send the message
       // but before our function call returns, we won't end up with an
@@ -30,7 +32,7 @@ class {{filename}}: public TestCommand
         {{#chip_tests_items}}
         case {{index}}:
           ChipLogProgress(chipTool, " ***** Test Step {{index}} : {{label}}\n");
-          err = Test{{asUpperCamelCase label}}_{{index}}();
+          err = {{#if PICS}}ShouldSkip("{{PICS}}") ? CHIP_NO_ERROR : {{/if}}Test{{asUpperCamelCase label}}_{{index}}();
           break;
         {{/chip_tests_items}}
       }
@@ -51,26 +53,49 @@ class {{filename}}: public TestCommand
     {{#*inline "successCallback"}}mOnSuccessCallback_{{index}}{{/inline}}
     {{#*inline "failureResponse"}}OnFailureCallback_{{index}}{{/inline}}
     {{#*inline "successResponse"}}OnSuccessCallback_{{index}}{{/inline}}
-    {{#*inline "successArguments"}}void * context{{#chip_tests_item_response_parameters}}, {{#if isList}}uint16_t count, {{/if}}{{chipType}} {{#if isList}}* {{/if}}{{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}}{{/inline}}
+    {{#*inline "successArguments"}}void * context{{#chip_tests_item_response_parameters}}, {{zapTypeToDecodableClusterObjectType type ns=parent.cluster isArgument=true}} {{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}}{{/inline}}
     {{#*inline "failureArguments"}}void * context, uint8_t status{{/inline}}
 
     {{#chip_tests_items}}
     {{#unless (isTestOnlyCluster cluster)}}
+    {{#unless isWait}}
+    {{#unless isCommand}}
+    {{#unless isWriteAttribute}}
+    {{#unless isReadAttribute}}
     chip::Callback::Callback<void (*) ({{>failureArguments}})> {{>failureCallback}} { {{>failureResponse}}, this };
     chip::Callback::Callback<void (*) ({{>successArguments}})> {{>successCallback}} { {{>successResponse}}, this };
+    {{/unless}}
+    {{/unless}}
+    {{/unless}}
+    {{/unless}}
     {{/unless}}
     {{/chip_tests_items}}
 
     {{#chip_tests_items}}
     {{#unless (isTestOnlyCluster cluster)}}
+    {{#unless isWait}}
+    {{#unless isCommand}}
+    {{#if isWriteAttribute}}
+    static void {{>failureResponse}}(void * context, EmberAfStatus status)
+    {
+        (static_cast<{{filename}} *>(context))->OnFailureResponse_{{index}}(chip::to_underlying(status));
+    }
+    {{else if isReadAttribute}}
+    static void {{>failureResponse}}(void * context, EmberAfStatus status)
+    {
+        (static_cast<{{filename}} *>(context))->OnFailureResponse_{{index}}(chip::to_underlying(status));
+    }
+    {{else}}
     static void {{>failureResponse}}({{> failureArguments}})
     {
         (static_cast<{{filename}} *>(context))->OnFailureResponse_{{index}}(status);
     }
+    {{/if}}
+
 
     static void {{>successResponse}}({{> successArguments}})
     {
-        (static_cast<{{filename}} *>(context))->OnSuccessResponse_{{index}}({{#chip_tests_item_response_parameters}}{{#not_first}}, {{/not_first}}{{#if isList}}count, {{/if}}{{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}});
+        (static_cast<{{filename}} *>(context))->OnSuccessResponse_{{index}}({{#chip_tests_item_response_parameters}}{{#not_first}}, {{/not_first}}{{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}});
     }
 
     {{! "isWaitForReport" can be replaced by "async" if there is a mechanism to remove the report handler}}
@@ -78,6 +103,8 @@ class {{filename}}: public TestCommand
     bool mReceivedReport_{{index}} = false;
     {{/if}}
 
+    {{/unless}}
+    {{/unless}}
     {{/unless}}
     {{/chip_tests_items}}
 
@@ -90,25 +117,69 @@ class {{filename}}: public TestCommand
     {{#if (isTestOnlyCluster cluster)}}
     CHIP_ERROR {{>testCommand}}()
     {
-        return {{command}}({{#chip_tests_item_parameters}}{{#not_first}}, {{/not_first}}{{definedValue}}{{/chip_tests_item_parameters}});
+        return {{command}}({{#chip_tests_item_parameters}}{{#not_first}}, {{/not_first}}{{#if (isString type)}}"{{/if}}{{definedValue}}{{#if (isString type)}}"{{/if}}{{/chip_tests_item_parameters}});
+    }
+    {{else if isWait}}
+    CHIP_ERROR {{>testCommand}}()
+    {
+      const chip::EndpointId endpoint = mEndpointId.HasValue() ? mEndpointId.Value() : {{endpoint}};
+      ChipLogError(chipTool, "[Endpoint: 0x%08x Cluster: {{cluster}} {{#if isAttribute}}Attribute: {{attribute}}{{else}}Command: {{wait}}{{/if}}] {{label}}", endpoint);
+      {{#*inline "waitForTypeName"}}{{#if isAttribute}}Attribute{{else}}Command{{/if}}{{/inline}}
+      {{#*inline "waitForTypeId"}}chip::app::Clusters::{{asUpperCamelCase cluster}}::{{#if isAttribute}}Attributes::{{attribute}}{{else}}Commands::{{wait}}{{/if}}::Id{{/inline}}
+      ClearAttributeAndCommandPaths();
+      m{{>waitForTypeName}}Path = chip::app::Concrete{{>waitForTypeName}}Path(endpoint, chip::app::Clusters::{{asUpperCamelCase cluster}}::Id, {{>waitForTypeId}});
+      return CHIP_NO_ERROR;
     }
     {{else}}
     {{#*inline "failureResponse"}}OnFailureResponse_{{index}}{{/inline}}
     {{#*inline "successResponse"}}OnSuccessResponse_{{index}}{{/inline}}
     {{#*inline "failureArguments"}}uint8_t status{{/inline}}
-    {{#*inline "successArguments"}}{{#chip_tests_item_response_parameters}}{{#not_first}}, {{/not_first}}{{#if isList}}uint16_t count, {{/if}}{{chipType}} {{#if isList}}* {{/if}}{{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}}{{/inline}}
+    {{#*inline "successArguments"}}{{#chip_tests_item_response_parameters}}{{#not_first}}, {{/not_first}}{{zapTypeToDecodableClusterObjectType type ns=parent.cluster isArgument=true}} {{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}}{{/inline}}
 
     CHIP_ERROR {{>testCommand}}()
     {
-        chip::Controller::{{asUpperCamelCase cluster}}ClusterTest cluster;
-        cluster.Associate(mDevice, {{endpoint}});
+        const chip::EndpointId endpoint = mEndpointId.HasValue() ? mEndpointId.Value() : {{endpoint}};
+        {{#if isCommand}}
+        using RequestType = chip::app::Clusters::{{asUpperCamelCase cluster}}::Commands::{{asUpperCamelCase command}}::Type;
 
+        RequestType request;
         {{#chip_tests_item_parameters}}
-        {{chipType}} {{asLowerCamelCase name}}Argument = {{#if (isString type)}}chip::ByteSpan(chip::Uint8::from_const_char("{{definedValue}}"), strlen("{{definedValue}}")){{else}}{{definedValue}}{{asTypeLiteralSuffix chipType}}{{/if}};
+        {{>commandValue ns=parent.cluster container=(concat "request." (asLowerCamelCase label)) definedValue=definedValue}}
         {{/chip_tests_item_parameters}}
 
-        {{~#*inline "commandName"}}{{asUpperCamelCase commandName}}{{#if isAttribute}}Attribute{{asUpperCamelCase attribute}}{{/if}}{{/inline}}
-        {{#if async}}ReturnErrorOnFailure({{else}}return {{/if}}cluster.{{>commandName}}({{>successCallback}}.Cancel(){{#unless isWaitForReport}}, {{>failureCallback}}.Cancel(){{/unless}}{{#chip_tests_item_parameters}}, {{asLowerCamelCase name}}Argument{{/chip_tests_item_parameters}}){{#if async}}){{/if}};
+        auto success = [](void * context, const typename RequestType::ResponseType & data) {
+            (static_cast<{{filename}} *>(context))->OnSuccessResponse_{{index}}({{#chip_tests_item_response_parameters}}{{#not_first}}, {{/not_first}}data.{{asLowerCamelCase name}}{{/chip_tests_item_response_parameters}});
+        };
+
+        auto failure = [](void * context, EmberAfStatus status) {
+            (static_cast<{{filename}} *>(context))->OnFailureResponse_{{index}}(status);
+        };
+
+        ReturnErrorOnFailure(chip::Controller::InvokeCommand(mDevice, this, success, failure, endpoint, request));
+        {{#unless async}}return CHIP_NO_ERROR;{{/unless}}
+        {{else}}
+        chip::Controller::{{asUpperCamelCase cluster}}ClusterTest cluster;
+        cluster.Associate(mDevice, endpoint);
+
+        {{#chip_tests_item_parameters}}
+        {{zapTypeToEncodableClusterObjectType type ns=parent.cluster}} {{asLowerCamelCase name}}Argument;
+        {{>commandValue ns=parent.cluster container=(concat (asLowerCamelCase name) "Argument") definedValue=definedValue}}
+        {{/chip_tests_item_parameters}}
+
+        {{#if isWriteAttribute}}
+          {{#*inline "failureResponse"}}OnFailureCallback_{{index}}{{/inline}}
+          {{#*inline "successResponse"}}OnSuccessCallback_{{index}}{{/inline}}
+          {{#if async}}ReturnErrorOnFailure({{else}}return {{/if}}cluster.WriteAttribute<chip::app::Clusters::{{asUpperCamelCase cluster}}::Attributes::{{asUpperCamelCase attribute}}::TypeInfo>({{#chip_tests_item_parameters}}{{asLowerCamelCase name}}Argument, {{/chip_tests_item_parameters}}this, {{>successResponse}}, {{>failureResponse}}){{#if async}}){{/if}};
+        {{else if isReadAttribute}}
+          {{#*inline "failureResponse"}}OnFailureCallback_{{index}}{{/inline}}
+          {{#*inline "successResponse"}}OnSuccessCallback_{{index}}{{/inline}}
+          {{#if async}}ReturnErrorOnFailure({{else}}return {{/if}}cluster.ReadAttribute<chip::app::Clusters::{{asUpperCamelCase cluster}}::Attributes::{{asUpperCamelCase attribute}}::TypeInfo>({{#chip_tests_item_parameters}}{{asLowerCamelCase name}}Argument, {{/chip_tests_item_parameters}}this, {{>successResponse}}, {{>failureResponse}}){{#if async}}){{/if}};
+        {{else}}
+          {{~#*inline "commandName"}}{{asUpperCamelCase commandName}}{{#if isAttribute}}Attribute{{asUpperCamelCase attribute}}{{/if}}{{/inline}}
+          {{#if async}}ReturnErrorOnFailure({{else}}return {{/if}}cluster.{{>commandName}}({{>successCallback}}.Cancel(){{#unless isWaitForReport}}, {{>failureCallback}}.Cancel(){{/unless}}{{#chip_tests_item_parameters}}, {{asLowerCamelCase name}}Argument{{/chip_tests_item_parameters}}){{#if async}}){{/if}};
+        {{/if}}
+
+        {{/if}}
         {{#if async}}return WaitForMs(0);{{/if}}
     }
 
@@ -135,16 +206,15 @@ class {{filename}}: public TestCommand
           VerifyOrReturn(mReceivedReport_{{waitForReport.index}}, Exit("Initial report not received!"));
           {{/if}}
           {{#chip_tests_item_response_parameters}}
-            {{~#*inline "item"}}{{asLowerCamelCase name}}{{/inline}}
+            {{~#*inline "item"}}{{asLowerCamelCase name}}{{#if isOptional}}.Value(){{/if}}{{/inline}}
             {{#if hasExpectedValue}}
-              VerifyOrReturn(CheckValue
-                {{~#if isList}}AsList("{{>item}}", count, {{expectedValue.length}})
-                {{else if (isString type)}}AsString("{{>item}}", {{>item}}, "{{expectedValue}}")
-                {{else}}<{{chipType}}>("{{>item}}", {{>item}}, {{expectedValue}}{{asTypeLiteralSuffix chipType}})
-                {{/if}}
-              );
+              {{>valueEquals actual=(asLowerCamelCase name) label=(asLowerCamelCase name) expected=expectedValue}}
             {{/if}}
             {{#if hasExpectedConstraints}}
+              {{#if isOptional}}
+                {{~#*inline "item"}}{{asLowerCamelCase name}}{{/inline}}
+                VerifyOrReturn(CheckValuePresent("{{> item}}", {{> item}}));
+              {{/if}}
               {{#if expectedConstraints.type}}VerifyOrReturn(CheckConstraintType("{{>item}}", "", "{{expectedConstraints.type}}"));{{/if}}
               {{~#if expectedConstraints.format}}VerifyOrReturn(CheckConstraintFormat("{{>item}}", "", "{{expectedConstraints.format}}"));{{/if}}
               {{~#if expectedConstraints.minLength}}VerifyOrReturn(CheckConstraintMinLength("{{>item}}", {{>item}}.size(), {{expectedConstraints.minLength}}));{{/if}}
@@ -163,16 +233,3 @@ class {{filename}}: public TestCommand
 };
 
 {{/chip_tests}}
-
-void registerCommandsTests(Commands & commands)
-{
-    const char * clusterName = "Tests";
-
-    commands_list clusterCommands = {
-      {{#chip_tests tests}}
-        make_unique<{{filename}}>(),
-      {{/chip_tests}}
-    };
-
-    commands.Register(clusterName, clusterCommands);
-}

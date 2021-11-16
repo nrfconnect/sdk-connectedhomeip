@@ -26,13 +26,19 @@
 
 const WaitForMs = {
   name : 'WaitForMs',
-  arguments : [ { name : 'ms' } ],
+  arguments : [ { type : 'INT32U', name : 'ms' } ],
+  response : { arguments : [] }
+};
+
+const WaitForCommissioning = {
+  name : 'WaitForCommissioning',
+  arguments : [],
   response : { arguments : [] }
 };
 
 const DelayCommands = {
   name : 'DelayCommands',
-  commands : [ WaitForMs ],
+  commands : [ WaitForMs, WaitForCommissioning ],
 };
 
 //

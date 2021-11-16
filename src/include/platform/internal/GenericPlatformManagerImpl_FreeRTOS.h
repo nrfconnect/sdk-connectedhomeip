@@ -39,6 +39,8 @@
 #include "task.h"
 #endif
 
+#include <atomic>
+
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {
@@ -73,7 +75,7 @@ protected:
     void _RunEventLoop(void);
     CHIP_ERROR _StartEventLoopTask(void);
     CHIP_ERROR _StopEventLoopTask();
-    CHIP_ERROR _StartChipTimer(uint32_t durationMS);
+    CHIP_ERROR _StartChipTimer(System::Clock::Timeout duration);
     CHIP_ERROR _Shutdown(void);
 
     // ===== Methods available to the implementation subclass.
@@ -92,6 +94,7 @@ private:
     StaticQueue_t mEventQueueStruct;
 #endif
 
+    std::atomic<bool> mShouldRunEventLoop;
 #if defined(CHIP_CONFIG_FREERTOS_USE_STATIC_TASK) && CHIP_CONFIG_FREERTOS_USE_STATIC_TASK
     StackType_t mEventLoopStack[CHIP_DEVICE_CONFIG_CHIP_TASK_STACK_SIZE / sizeof(StackType_t)];
     StaticTask_t mventLoopTaskStruct;

@@ -18,6 +18,7 @@
 package com.google.chip.chiptool
 
 import android.content.Intent
+import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.os.Bundle
@@ -30,6 +31,10 @@ import chip.setuppayload.SetupPayload
 import chip.setuppayload.SetupPayloadParser
 import chip.setuppayload.SetupPayloadParser.UnrecognizedQrCodeException
 import com.google.chip.chiptool.attestation.AttestationTestFragment
+import com.google.chip.chiptool.clusterclient.clusterinteraction.ClusterInteractionFragment
+import com.google.chip.chiptool.clusterclient.MultiAdminClientFragment
+import com.google.chip.chiptool.clusterclient.OpCredClientFragment
+import com.google.chip.chiptool.clusterclient.BasicClientFragment
 import com.google.chip.chiptool.clusterclient.OnOffClientFragment
 import com.google.chip.chiptool.clusterclient.SensorClientFragment
 import com.google.chip.chiptool.provisioning.AddressCommissioningFragment
@@ -38,12 +43,15 @@ import com.google.chip.chiptool.provisioning.ProvisionNetworkType
 import com.google.chip.chiptool.setuppayloadscanner.BarcodeFragment
 import com.google.chip.chiptool.setuppayloadscanner.CHIPDeviceDetailsFragment
 import com.google.chip.chiptool.setuppayloadscanner.CHIPDeviceInfo
+import com.google.chip.chiptool.setuppayloadscanner.CHIPLedgerDetailsFragment
 
 class CHIPToolActivity :
     AppCompatActivity(),
     BarcodeFragment.Callback,
     SelectActionFragment.Callback,
-    DeviceProvisioningFragment.Callback {
+    DeviceProvisioningFragment.Callback,
+    CHIPDeviceDetailsFragment.Callback,
+    CHIPLedgerDetailsFragment.Callback {
 
   private var networkType: ProvisionNetworkType? = null
 
@@ -109,6 +117,10 @@ class CHIPToolActivity :
     showFragment(AddressCommissioningFragment.newInstance(), false)
   }
 
+  override fun handleClusterInteractionClicked() {
+    showFragment(ClusterInteractionFragment.newInstance())
+  }
+
   override fun handleOnOffClicked() {
     showFragment(OnOffClientFragment.newInstance())
   }
@@ -117,8 +129,29 @@ class CHIPToolActivity :
     showFragment(SensorClientFragment.newInstance())
   }
 
+  override fun handleMultiAdminClicked() {
+    showFragment(MultiAdminClientFragment.newInstance())
+  }
+
+  override fun handleOpCredClicked() {
+    showFragment(OpCredClientFragment.newInstance())
+  }
+
+  override fun handleBasicClicked() {
+    showFragment(BasicClientFragment.newInstance())
+  }
+
   override fun handleAttestationTestClicked() {
     showFragment(AttestationTestFragment.newInstance())
+  }
+
+  override fun handleReadFromLedgerClicked(deviceInfo: CHIPDeviceInfo) {
+    showFragment(CHIPLedgerDetailsFragment.newInstance(deviceInfo))
+  }
+
+  override fun handleCustomFlowRedirectClicked(redirectUrl: String) {
+    val redirectIntent = Intent(Intent.ACTION_VIEW, Uri.parse(redirectUrl))
+    startActivity(redirectIntent)
   }
 
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -128,6 +161,10 @@ class CHIPToolActivity :
       // Simply ignore the commissioning result.
       // TODO: tracking commissioned devices.
     }
+  }
+
+  override fun handleCustomFlowClicked() {
+    showFragment(BarcodeFragment.newInstance())
   }
 
   private fun showFragment(fragment: Fragment, showOnBack: Boolean = true) {

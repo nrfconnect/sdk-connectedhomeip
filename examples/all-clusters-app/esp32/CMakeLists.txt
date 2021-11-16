@@ -23,6 +23,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/cmake/idf_flashing.cmake)
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/config/esp32/components"
     "${CMAKE_CURRENT_LIST_DIR}/../../common/QRCode"
+    "${IDF_PATH}/examples/common_components"
 )
 if(${IDF_TARGET} STREQUAL "esp32")
     list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../common/m5stack-tft/repo/components/tft"
@@ -44,6 +45,7 @@ include(third_party/connectedhomeip/third_party/pigweed/repo/pw_build/pigweed.cm
 pw_set_backend(pw_log pw_log_basic)
 pw_set_backend(pw_assert pw_assert_log)
 pw_set_backend(pw_sys_io pw_sys_io.esp32)
+pw_set_backend(pw_trace pw_trace_tokenized)
 
 add_subdirectory(third_party/connectedhomeip/third_party/pigweed/repo)
 add_subdirectory(third_party/connectedhomeip/third_party/nanopb/repo)

@@ -144,6 +144,28 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 /**
+ * Cluster Boolean State
+ *
+ */
+@interface CHIPTestBooleanState : CHIPBooleanState
+
+- (void)writeAttributeStateValueWithValue:(bool)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+
+@end
+
+/**
+ * Cluster Bridged Actions
+ *
+ */
+@interface CHIPTestBridgedActions : CHIPBridgedActions
+
+- (void)writeAttributeSetupUrlWithValue:(NSString *)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+
+@end
+
+/**
  * Cluster Bridged Device Basic
  *
  */
@@ -283,11 +305,15 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface CHIPTestEthernetNetworkDiagnostics : CHIPEthernetNetworkDiagnostics
 
+- (void)writeAttributePHYRateWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeFullDuplexWithValue:(bool)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributePacketRxCountWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributePacketTxCountWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeTxErrCountWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeCollisionCountWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeOverrunCountWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeCarrierDetectWithValue:(bool)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeTimeSinceResetWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -311,6 +337,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeMeasuredValueWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMinMeasuredValueWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMaxMeasuredValueWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeToleranceWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -332,6 +359,9 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CHIPTestGeneralDiagnostics : CHIPGeneralDiagnostics
 
 - (void)writeAttributeRebootCountWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeUpTimeWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeTotalOperationalHoursWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBootReasonsWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -363,6 +393,22 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface CHIPTestIdentify : CHIPIdentify
 
+- (void)writeAttributeIdentifyTypeWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+
+@end
+
+/**
+ * Cluster Illuminance Measurement
+ *
+ */
+@interface CHIPTestIlluminanceMeasurement : CHIPIlluminanceMeasurement
+
+- (void)writeAttributeMeasuredValueWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinMeasuredValueWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxMeasuredValueWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeToleranceWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeLightSensorTypeWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -384,6 +430,12 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CHIPTestLevelControl : CHIPLevelControl
 
 - (void)writeAttributeCurrentLevelWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeRemainingTimeWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinLevelWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxLevelWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeCurrentFrequencyWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinFrequencyWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxFrequencyWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -423,6 +475,19 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributePlaybackSpeedWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeSeekRangeEndWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeSeekRangeStartWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+
+@end
+
+/**
+ * Cluster Mode Select
+ *
+ */
+@interface CHIPTestModeSelect : CHIPModeSelect
+
+- (void)writeAttributeCurrentModeWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeStartUpModeWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeDescriptionWithValue:(NSString *)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -504,6 +569,26 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)writeAttributeSupportedFabricsWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeCommissionedFabricsWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeCurrentFabricIndexWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+
+@end
+
+/**
+ * Cluster Power Source
+ *
+ */
+@interface CHIPTestPowerSource : CHIPPowerSource
+
+- (void)writeAttributeStatusWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeOrderWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeDescriptionWithValue:(NSString *)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBatteryVoltageWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBatteryPercentRemainingWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBatteryTimeRemainingWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBatteryChargeLevelWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBatteryChargeStateWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeFeatureMapWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -530,9 +615,24 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeMaxPressureWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMaxSpeedWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMaxFlowWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinConstPressureWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxConstPressureWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinCompPressureWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxCompPressureWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinConstSpeedWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxConstSpeedWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinConstFlowWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxConstFlowWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMinConstTempWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMaxConstTempWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributePumpStatusWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeEffectiveOperationModeWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeEffectiveControlModeWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeCapacityWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeSpeedWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeLifetimeEnergyConsumedWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeAlarmMaskWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeFeatureMapWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -546,6 +646,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeMeasuredValueWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMinMeasuredValueWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMaxMeasuredValueWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeToleranceWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -571,6 +672,8 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface CHIPTestSoftwareDiagnostics : CHIPSoftwareDiagnostics
 
+- (void)writeAttributeCurrentHeapFreeWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeCurrentHeapUsedWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeCurrentHeapHighWatermarkWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
@@ -584,6 +687,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)writeAttributeNumberOfPositionsWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeCurrentPositionWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeMultiPressMaxWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeFeatureMapWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -619,6 +724,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeMeasuredValueWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMinMeasuredValueWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeMaxMeasuredValueWithValue:(int16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeToleranceWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -722,7 +828,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeRxErrSecCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeRxErrFcsCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeRxErrOtherCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
-- (void)writeAttributeChannelMaskWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeActiveTimestampWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributePendingTimestampWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeDelayWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeChannelMaskWithValue:(NSData *)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -749,6 +858,14 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeWiFiVersionWithValue:(uint8_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeChannelNumberWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeRssiWithValue:(int8_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBeaconLostCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeBeaconRxCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributePacketMulticastRxCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributePacketMulticastTxCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributePacketUnicastRxCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributePacketUnicastTxCountWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeCurrentMaxRateWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeOverrunCountWithValue:(uint64_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end
@@ -776,6 +893,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)writeAttributeInstalledOpenLimitTiltWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeInstalledClosedLimitTiltWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeSafetyStatusWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
+- (void)writeAttributeFeatureMapWithValue:(uint32_t)value responseHandler:(ResponseHandler)responseHandler;
 - (void)writeAttributeClusterRevisionWithValue:(uint16_t)value responseHandler:(ResponseHandler)responseHandler;
 
 @end

@@ -202,7 +202,7 @@ class DeviceMgrCmd(Cmd):
         "resolve",
         "zcl",
         "zclread",
-        "zclconfigure",
+        "zclsubscribe",
 
         "discover",
 
@@ -445,9 +445,7 @@ class DeviceMgrCmd(Cmd):
 
     def ConnectFromSetupPayload(self, setupPayload, nodeid):
         # TODO(cecille): Get this from the C++ code?
-        softap = 1 << 0
         ble = 1 << 1
-        onnetwork = 1 << 2
         # Devices may be uncommissioned, or may already be on the network. Need to check both ways.
         # TODO(cecille): implement soft-ap connection.
 
@@ -571,21 +569,20 @@ class DeviceMgrCmd(Cmd):
 
     def do_resolve(self, line):
         """
-        resolve <fabricid> <nodeid>
+        resolve <nodeid>
 
-        Resolve DNS-SD name corresponding with the given fabric and node IDs and
+        Resolve DNS-SD name corresponding with the given node ID and
         update address of the node in the device controller.
         """
         try:
             args = shlex.split(line)
-            if len(args) == 2:
-                err = self.devCtrl.ResolveNode(int(args[0]), int(args[1]))
+            if len(args) == 1:
+                err = self.devCtrl.ResolveNode(int(args[0]))
                 if err == 0:
-                    address = self.devCtrl.GetAddressAndPort(int(args[1]))
+                    address = self.devCtrl.GetAddressAndPort(int(args[0]))
                     address = "{}:{}".format(
                         *address) if address else "unknown"
                     print("Current address: " + address)
-                    self.devCtrl.CommissioningComplete(int(args[1]))
             else:
                 self.do_help("resolve")
         except exceptions.ChipStackException as ex:
@@ -721,7 +718,7 @@ class DeviceMgrCmd(Cmd):
                     raise exceptions.UnknownCluster(args[0])
                 command = all_commands.get(args[0]).get(args[1], None)
                 # When command takes no arguments, (not command) is True
-                if command == None:
+                if command is None:
                     raise exceptions.UnknownCommand(args[0], args[1])
                 err, res = self.devCtrl.ZCLSend(args[0], args[1], int(
                     args[2]), int(args[3]), int(args[4]), FormatZCLArguments(args[5:], command), blocking=True)
@@ -738,7 +735,6 @@ class DeviceMgrCmd(Cmd):
             print("An exception occurred during process ZCL command:")
             print(str(ex))
         except Exception as ex:
-            import traceback
             print("An exception occurred during processing input:")
             traceback.print_exc()
             print(str(ex))
@@ -806,10 +802,13 @@ class DeviceMgrCmd(Cmd):
             print("An exception occurred during processing input:")
             print(str(ex))
 
-    def do_zclconfigure(self, line):
+    def do_zclsubscribe(self, line):
         """
-        To configure ZCL attribute reporting:
-        zclconfigure <cluster> <attribute> <nodeid> <endpoint> <minInterval> <maxInterval> <change>
+        To subscribe ZCL attribute reporting:
+        zclsubscribe <cluster> <attribute> <nodeid> <endpoint> <minInterval> <maxInterval>
+
+        To shut down a subscription:
+        zclsubscribe -shutdown <subscriptionId>
         """
         try:
             args = shlex.split(line)
@@ -822,13 +821,16 @@ class DeviceMgrCmd(Cmd):
                 cluster_attrs = all_attrs.get(args[1], {})
                 print('\n'.join([key for key in cluster_attrs.keys(
                 ) if cluster_attrs[key].get("reportable", False)]))
-            elif len(args) == 7:
+            elif len(args) == 6:
                 if args[0] not in all_attrs:
                     raise exceptions.UnknownCluster(args[0])
-                self.devCtrl.ZCLConfigureAttribute(args[0], args[1], int(
-                    args[2]), int(args[3]), int(args[4]), int(args[5]), int(args[6]))
+                self.devCtrl.ZCLSubscribeAttribute(args[0], args[1], int(
+                    args[2]), int(args[3]), int(args[4]), int(args[5]))
+            elif len(args) == 2 and args[0] == '-shutdown':
+                subscriptionId = int(args[1], base=0)
+                self.devCtrl.ZCLShutdownSubscription(subscriptionId)
             else:
-                self.do_help("zclconfigure")
+                self.do_help("zclsubscribe")
         except exceptions.ChipStackException as ex:
             print("An exception occurred during configuring reporting of ZCL attribute:")
             print(str(ex))
@@ -858,7 +860,7 @@ class DeviceMgrCmd(Cmd):
 
         Options:
           -t  Timeout (in seconds)     
-          -o  Option  [OriginalSetupCode = 0, TokenWithRandomPIN = 1, TokenWithProvidedPIN = 2]
+          -o  Option  [TokenWithRandomPIN = 1, TokenWithProvidedPIN = 2]
           -d  Discriminator Value
           -i  Iteration
 
@@ -875,12 +877,16 @@ class DeviceMgrCmd(Cmd):
             parser.add_argument(
                 "-t", type=int, default=0, dest='timeout')
             parser.add_argument(
-                "-o", type=int, default=0, dest='option')
+                "-o", type=int, default=1, dest='option')
             parser.add_argument(
                 "-i", type=int, default=0, dest='iteration')
             parser.add_argument(
                 "-d", type=int, default=0, dest='discriminator')
             args = parser.parse_args(arglist[1:])
+
+            if args.option < 1 or args.option > 2:
+                print("Invalid option specified!")
+                raise ValueError("Invalid option specified")
 
             self.devCtrl.OpenCommissioningWindow(
                 int(arglist[0]), args.timeout, args.iteration, args.discriminator, args.option)

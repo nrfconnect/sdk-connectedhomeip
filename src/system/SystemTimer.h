@@ -32,11 +32,12 @@
 
 // Include dependent headers
 #include <lib/support/DLLUtil.h>
+#include <lib/support/Pool.h>
 
 #include <system/SystemClock.h>
 #include <system/SystemError.h>
+#include <system/SystemLayer.h>
 #include <system/SystemMutex.h>
-#include <system/SystemObject.h>
 #include <system/SystemStats.h>
 
 #if CHIP_SYSTEM_CONFIG_USE_DISPATCH
@@ -57,7 +58,7 @@ using TimerCompleteCallback = void (*)(Layer * aLayer, void * appState);
 /**
  * This is an Object-pool based class that System::Layer implementations can use to assist in providing timer functions.
  */
-class DLL_EXPORT Timer : public Object
+class DLL_EXPORT Timer
 {
 public:
     /**
@@ -106,14 +107,14 @@ public:
          *
          * @return  The earliest timer expiring before @a t, or nullptr if there is no such timer.
          */
-        Timer * PopIfEarlier(Clock::MonotonicMilliseconds t);
+        Timer * PopIfEarlier(Clock::Timestamp t);
 
         /**
          * Remove and return all timers that expire before the given time @a t.
          *
          * @return  An ordered linked list (by `mNextTimer`) of all timers that expire before @a t, or nullptr if there are none.
          */
-        Timer * ExtractEarlier(Clock::MonotonicMilliseconds t);
+        Timer * ExtractEarlier(Clock::Timestamp t);
 
         /**
          * Get the earliest timer in the list.
@@ -160,12 +161,12 @@ public:
             std::lock_guard<Mutex> lock(mMutex);
             return List::PopEarliest();
         }
-        Timer * PopIfEarlier(Clock::MonotonicMilliseconds t)
+        Timer * PopIfEarlier(Clock::Timestamp t)
         {
             std::lock_guard<Mutex> lock(mMutex);
             return List::PopIfEarlier(t);
         }
-        Timer * ExtractEarlier(Clock::MonotonicMilliseconds t)
+        Timer * ExtractEarlier(Clock::Timestamp t)
         {
             std::lock_guard<Mutex> lock(mMutex);
             return List::ExtractEarlier(t);
@@ -185,14 +186,20 @@ public:
     Timer() = default;
 
     /**
-     * Obtain a new timer from the system object pool.
+     * Obtain a new timer from the object pool.
      */
-    static Timer * New(System::Layer & systemLayer, uint32_t delayMilliseconds, TimerCompleteCallback onComplete, void * appState);
+    static Timer * New(System::Layer & systemLayer, System::Clock::Timeout delay, TimerCompleteCallback onComplete,
+                       void * appState);
+
+    /**
+     * Return a timer to the object pool.
+     */
+    void Release();
 
     /**
      * Return the expiration time.
      */
-    Clock::MonotonicMilliseconds AwakenTime() const { return mAwakenTime; }
+    Clock::Timestamp AwakenTime() const { return mAwakenTime; }
 
     /**
      * Fire the timer.
@@ -214,20 +221,24 @@ public:
     /**
      * Read timer pool statistics.
      */
-    static void GetStatistics(chip::System::Stats::count_t & aNumInUse, chip::System::Stats::count_t & aHighWatermark)
+    static void GetStatistics(Stats::count_t & aNumInUse, Stats::count_t & aHighWatermark)
     {
-        sPool.GetStatistics(aNumInUse, aHighWatermark);
+        aNumInUse      = mNumInUse;
+        aHighWatermark = mHighWatermark;
     }
 
 private:
     friend class LayerImplLwIP;
-    static ObjectPool<Timer, CHIP_SYSTEM_CONFIG_NUM_TIMERS> sPool;
+    static BitMapObjectPool<Timer, CHIP_SYSTEM_CONFIG_NUM_TIMERS> sPool;
+    static Stats::count_t mNumInUse;
+    static Stats::count_t mHighWatermark;
 
     TimerCompleteCallback mOnComplete;
-    Clock::MonotonicMilliseconds mAwakenTime;
+    Clock::Timestamp mAwakenTime;
     Timer * mNextTimer;
 
     Layer * mSystemLayer;
+    void * mAppState;
 
 #if CHIP_SYSTEM_CONFIG_USE_DISPATCH
     friend class LayerImplSelect;

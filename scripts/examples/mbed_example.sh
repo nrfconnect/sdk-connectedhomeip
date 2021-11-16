@@ -21,13 +21,13 @@ CHIP_ROOT=$PWD
 cd "$CHIP_ROOT"/examples
 
 SUPPORTED_TOOLCHAIN=(GCC_ARM ARM)
-SUPPORTED_TARGET_BOARD=(DISCO_L475VG_IOT01A CY8CPROTO_062_4343W)
-SUPPORTED_APP=(lock-app lighting-app)
+SUPPORTED_TARGET_BOARD=(CY8CPROTO_062_4343W)
+SUPPORTED_APP=(lock-app lighting-app pigweed-app all-clusters-app shell)
 SUPPORTED_PROFILES=(release develop debug)
 SUPPORTED_COMMAND=(build flash build-flash)
 
 COMMAND=build
-APP=shell
+APP=lock-app
 TARGET_BOARD=CY8CPROTO_062_4343W
 TOOLCHAIN=GCC_ARM
 PROFILE=release
@@ -85,8 +85,7 @@ if [[ ! " ${SUPPORTED_PROFILES[@]} " =~ " ${PROFILE} " ]]; then
     exit 1
 fi
 
-set -e
-pwd
+set -e # Exit immediately if a command exits with a non-zero status.
 
 # Activate Matter environment
 source "$CHIP_ROOT"/scripts/activate.sh
@@ -97,39 +96,20 @@ BUILD_DIRECTORY="$APP"/mbed/build-"$TARGET_BOARD"/"$PROFILE"/
 if [[ "$COMMAND" == *"build"* ]]; then
     echo "Build $APP app for $TARGET_BOARD target with $TOOLCHAIN toolchain and $PROFILE profile"
 
-    # Config directory setup
-    MBED_CONFIG_PATH="$APP"/mbed/cmake_build/"$TARGET_BOARD"/develop/"$TOOLCHAIN"/
-
-    # Override Mbed OS path to development directory
+    # Set Mbed OS path
     MBED_OS_PATH="$CHIP_ROOT"/third_party/mbed-os/repo
 
-    # Create symlinks to mbed-os submodule
-    ln -sfTr "$MBED_OS_PATH" "$APP/mbed/mbed-os"
-
-    # Create symlinks to mbed-os-posix-socket submodule
+    # Set Mbed OS posix socket submodule path
     MBED_OS_POSIX_SOCKET_PATH="$CHIP_ROOT"/third_party/mbed-os-posix-socket/repo
-    ln -sfTr "$MBED_OS_POSIX_SOCKET_PATH" "$APP/mbed/mbed-os-posix-socket"
-
-    if [ "$TARGET_BOARD" == "DISCO_L475VG_IOT01A" ]; then
-        # Add the Mbed OS driver for the ISM43362 Wi-Fi module
-        WIFI_ISM43362_PATH="$CHIP_ROOT"/third_party/wifi-ism43362/repo
-
-        # Create symlinks to WIFI-ISM43362 submodule
-        ln -sfTr "$WIFI_ISM43362_PATH" "$APP/mbed/wifi-ism43362"
-    fi
 
     # Generate config file for selected target, toolchain and hardware
-    mbed-tools configure -t "$TOOLCHAIN" -m "$TARGET_BOARD" -p "$APP"/mbed/
+    mbed-tools configure -t "$TOOLCHAIN" -m "$TARGET_BOARD" -p "$APP"/mbed/ -o "$BUILD_DIRECTORY" --mbed-os-path "$MBED_OS_PATH"
 
     # Remove old artifacts to force linking
     rm -rf "$BUILD_DIRECTORY/chip-"*
 
-    # Create output directory and copy config file there.
-    mkdir -p "$BUILD_DIRECTORY"
-    cp -f "$MBED_CONFIG_PATH"/mbed_config.cmake "$BUILD_DIRECTORY"/mbed_config.cmake
-
     # Build application
-    cmake -S "$APP/mbed" -B "$BUILD_DIRECTORY" -GNinja -DCMAKE_BUILD_TYPE="$PROFILE"
+    cmake -S "$APP/mbed" -B "$BUILD_DIRECTORY" -GNinja -DCMAKE_BUILD_TYPE="$PROFILE" -DMBED_OS_PATH="$MBED_OS_PATH" -DMBED_OS_POSIX_SOCKET_PATH="$MBED_OS_POSIX_SOCKET_PATH"
     cmake --build "$BUILD_DIRECTORY"
 fi
 
@@ -141,5 +121,5 @@ if [[ "$COMMAND" == *"flash"* ]]; then
     MBED_FLASH_SCRIPTS_PATH=$CHIP_ROOT/config/mbed/scripts
 
     # Flash application
-    openocd -f "$MBED_FLASH_SCRIPTS_PATH/$TARGET_BOARD".tcl -c "program $BUILD_DIRECTORY/chip-mbed-$APP-example verify reset exit"
+    "$OPENOCD_PATH"/bin/openocd -f "$MBED_FLASH_SCRIPTS_PATH/$TARGET_BOARD".tcl -c "program $BUILD_DIRECTORY/chip-mbed-$APP-example.elf verify reset exit"
 fi

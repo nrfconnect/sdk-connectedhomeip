@@ -71,8 +71,8 @@ private:
     bool _IsWiFiStationEnabled(void);
     bool _IsWiFiStationApplicationControlled(void);
     bool _IsWiFiStationConnected(void);
-    uint32_t _GetWiFiStationReconnectIntervalMS(void);
-    CHIP_ERROR _SetWiFiStationReconnectIntervalMS(uint32_t val);
+    System::Clock::Timeout _GetWiFiStationReconnectInterval(void);
+    CHIP_ERROR _SetWiFiStationReconnectInterval(System::Clock::Timeout val);
     bool _IsWiFiStationProvisioned(void);
     void _ClearWiFiStationProvision(void);
     CHIP_ERROR _GetAndLogWifiStatsCounters(void);
@@ -84,15 +84,10 @@ private:
     void _DemandStartWiFiAP(void);
     void _StopOnDemandWiFiAP(void);
     void _MaintainOnDemandWiFiAP(void);
-    uint32_t _GetWiFiAPIdleTimeoutMS(void);
-    void _SetWiFiAPIdleTimeoutMS(uint32_t val);
-
-    // Internet connectivity methods
-    bool _HaveIPv4InternetConnectivity();
-    bool _HaveIPv6InternetConnectivity();
+    System::Clock::Timeout _GetWiFiAPIdleTimeout(void);
+    void _SetWiFiAPIdleTimeout(System::Clock::Timeout val);
 
     // Service connectivity methods
-    bool _HaveServiceConnectivity();
 
     CHIP_ERROR _Init(void);
     void _OnPlatformEvent(const ChipDeviceEvent * event);
@@ -108,14 +103,14 @@ private:
     static ConnectivityManagerImpl sInstance;
 
     // ===== Private members reserved for use by this class only.
-    uint64_t mLastStationConnectFailTime;
-    uint64_t mLastAPDemandTime;
+    System::Clock::Timestamp mLastStationConnectFailTime;
+    System::Clock::Timestamp mLastAPDemandTime;
     WiFiStationMode mWiFiStationMode;
     WiFiStationState mWiFiStationState;
     WiFiAPMode mWiFiAPMode;
     WiFiAPState mWiFiAPState;
-    uint32_t mWiFiStationReconnectIntervalMS;
-    uint32_t mWiFiAPIdleTimeoutMS;
+    System::Clock::Timeout mWiFiStationReconnectInterval;
+    System::Clock::Timeout mWiFiAPIdleTimeout;
     BitFlags<Flags> mFlags;
     bool eventcallback;
 
@@ -146,9 +141,9 @@ inline bool ConnectivityManagerImpl::_IsWiFiAPApplicationControlled(void)
     return mWiFiAPMode == kWiFiAPMode_ApplicationControlled;
 }
 
-inline uint32_t ConnectivityManagerImpl::_GetWiFiStationReconnectIntervalMS(void)
+inline System::Clock::Timeout ConnectivityManagerImpl::_GetWiFiStationReconnectInterval(void)
 {
-    return mWiFiStationReconnectIntervalMS;
+    return mWiFiStationReconnectInterval;
 }
 
 inline ConnectivityManager::WiFiAPMode ConnectivityManagerImpl::_GetWiFiAPMode(void)
@@ -161,29 +156,14 @@ inline bool ConnectivityManagerImpl::_IsWiFiAPActive(void)
     return mWiFiAPState == kWiFiAPState_Active;
 }
 
-inline uint32_t ConnectivityManagerImpl::_GetWiFiAPIdleTimeoutMS(void)
+inline System::Clock::Timeout ConnectivityManagerImpl::_GetWiFiAPIdleTimeout(void)
 {
-    return mWiFiAPIdleTimeoutMS;
-}
-
-inline bool ConnectivityManagerImpl::_HaveIPv4InternetConnectivity(void)
-{
-    return mFlags.Has(Flags::kHaveIPv4InternetConnectivity);
-}
-
-inline bool ConnectivityManagerImpl::_HaveIPv6InternetConnectivity(void)
-{
-    return mFlags.Has(Flags::kHaveIPv6InternetConnectivity);
+    return mWiFiAPIdleTimeout;
 }
 
 inline bool ConnectivityManagerImpl::_CanStartWiFiScan()
 {
     return mWiFiStationState != kWiFiStationState_Connecting;
-}
-
-inline bool ConnectivityManagerImpl::_HaveServiceConnectivity(void)
-{
-    return HaveServiceConnectivityViaThread();
 }
 
 /**

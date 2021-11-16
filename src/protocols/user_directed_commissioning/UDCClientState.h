@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <lib/mdns/Resolver.h>
+#include <lib/dnssd/Resolver.h>
 #include <transport/raw/Base.h>
 #include <transport/raw/PeerAddress.h>
 
@@ -63,23 +63,28 @@ public:
     UDCClientState & operator=(const UDCClientState &) = default;
     UDCClientState & operator=(UDCClientState &&) = default;
 
-    const PeerAddress & GetPeerAddress() const { return mPeerAddress; }
-    PeerAddress & GetPeerAddress() { return mPeerAddress; }
+    const PeerAddress GetPeerAddress() const { return mPeerAddress; }
     void SetPeerAddress(const PeerAddress & address) { mPeerAddress = address; }
 
     const char * GetInstanceName() const { return mInstanceName; }
     void SetInstanceName(const char * instanceName) { strncpy(mInstanceName, instanceName, sizeof(mInstanceName)); }
 
+    const char * GetDeviceName() const { return mDeviceName; }
+    void SetDeviceName(const char * deviceName) { strncpy(mDeviceName, deviceName, sizeof(mDeviceName)); }
+
+    uint16_t GetLongDiscriminator() const { return mLongDiscriminator; }
+    void SetLongDiscriminator(uint16_t value) { mLongDiscriminator = value; }
+
     UDCClientProcessingState GetUDCClientProcessingState() const { return mUDCClientProcessingState; }
     void SetUDCClientProcessingState(UDCClientProcessingState state) { mUDCClientProcessingState = state; }
 
-    uint64_t GetExpirationTimeMs() const { return mExpirationTimeMs; }
-    void SetExpirationTimeMs(uint64_t value) { mExpirationTimeMs = value; }
+    System::Clock::Timestamp GetExpirationTime() const { return mExpirationTime; }
+    void SetExpirationTime(System::Clock::Timestamp value) { mExpirationTime = value; }
 
-    bool IsInitialized(uint64_t currentTime)
+    bool IsInitialized(System::Clock::Timestamp currentTime)
     {
         // if state is not the "not-initialized" and it has not expired
-        return (mUDCClientProcessingState != UDCClientProcessingState::kNotInitialized && mExpirationTimeMs > currentTime);
+        return (mUDCClientProcessingState != UDCClientProcessingState::kNotInitialized && mExpirationTime > currentTime);
     }
 
     /**
@@ -88,15 +93,17 @@ public:
     void Reset()
     {
         mPeerAddress              = PeerAddress::Uninitialized();
-        mExpirationTimeMs         = 0;
+        mExpirationTime           = System::Clock::kZero;
         mUDCClientProcessingState = UDCClientProcessingState::kNotInitialized;
     }
 
 private:
     PeerAddress mPeerAddress;
-    char mInstanceName[chip::Mdns::kMaxInstanceNameSize + 1];
+    char mInstanceName[Dnssd::Commissionable::kInstanceNameMaxLength + 1];
+    char mDeviceName[Dnssd::kMaxDeviceNameLen + 1];
+    uint16_t mLongDiscriminator = 0;
     UDCClientProcessingState mUDCClientProcessingState;
-    uint64_t mExpirationTimeMs = 0;
+    System::Clock::Timestamp mExpirationTime = System::Clock::kZero;
 };
 
 } // namespace UserDirectedCommissioning

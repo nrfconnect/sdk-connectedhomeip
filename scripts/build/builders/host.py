@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import os
-from platform import uname, release
+
+from platform import uname
 from enum import Enum, auto
 
 from .gn import GnBuilder
@@ -23,6 +24,8 @@ class HostApp(Enum):
     ALL_CLUSTERS = auto()
     CHIP_TOOL = auto()
     THERMOSTAT = auto()
+    RPC_CONSOLE = auto()
+    MIN_MDNS = auto()
 
     def ExamplePath(self):
         if self == HostApp.ALL_CLUSTERS:
@@ -31,42 +34,129 @@ class HostApp(Enum):
             return 'chip-tool'
         elif self == HostApp.THERMOSTAT:
             return 'thermostat/linux'
+        elif self == HostApp.RPC_CONSOLE:
+            return 'common/pigweed/rpc_console'
+        if self == HostApp.MIN_MDNS:
+            return 'minimal-mdns'
         else:
             raise Exception('Unknown app type: %r' % self)
 
-    def BinaryName(self):
+    def OutputNames(self):
         if self == HostApp.ALL_CLUSTERS:
-            return 'chip-all-clusters-app'
+            yield 'chip-all-clusters-app'
+            yield 'chip-all-clusters-app.map'
         elif self == HostApp.CHIP_TOOL:
-            return 'chip-tool'
+            yield 'chip-tool'
+            yield 'chip-tool.map'
         elif self == HostApp.THERMOSTAT:
-            return 'thermostat-app'
+            yield 'thermostat-app'
+            yield 'thermostat-app.map'
+        elif self == HostApp.RPC_CONSOLE:
+            yield 'chip_rpc_console_wheels'
+        elif self == HostApp.MIN_MDNS:
+            yield 'mdns-advertiser'
+            yield 'mdns-advertiser.map'
+            yield 'minimal-mdns-client'
+            yield 'minimal-mdns-client.map'
+            yield 'minimal-mdns-server'
+            yield 'minimal-mdns-server.map'
         else:
             raise Exception('Unknown app type: %r' % self)
 
 
-def ConcretePlatformName():
-    uname_result = uname()
-    return '-'.join([uname_result.system.lower(), release(), uname_result.machine])
+class HostBoard(Enum):
+    NATIVE = auto()
+
+    # cross-compile support
+    ARM64 = auto()
+
+    def BoardName(self):
+        if self == HostBoard.NATIVE:
+            uname_result = uname()
+            arch = uname_result.machine
+
+            # standardize some common platforms
+            if arch == 'x86_64':
+                arch = 'x64'
+            elif arch == 'i386' or arch == 'i686':
+                arch = 'x86'
+            elif arch == 'aarch64' or arch == 'aarch64_be' or arch == 'armv8b' or arch == 'armv8l':
+                arch = 'arm64'
+
+            return arch
+        elif self == HostBoard.ARM64:
+            return 'arm64'
+        else:
+            raise Exception('Unknown host board type: %r' % self)
+
+    def PlatformName(self):
+        if self == HostBoard.NATIVE:
+            return uname().system.lower()
+        else:
+            # Cross compilation assumes linux currently
+            return 'linux'
 
 
 class HostBuilder(GnBuilder):
 
-    def __init__(self, root, runner, output_prefix: str, app: HostApp):
+    def __init__(self, root, runner, app: HostApp, board=HostBoard.NATIVE, enable_ipv4=True):
         super(HostBuilder, self).__init__(
             root=os.path.join(root, 'examples', app.ExamplePath()),
-            runner=runner,
-            output_prefix=output_prefix)
+            runner=runner)
 
-        self.app_name = app.BinaryName()
-        self.map_name = self.app_name + '.map'
+        self.app = app
+        self.board = board
+        self.extra_gn_options = []
+
+        if not enable_ipv4:
+            self.extra_gn_options.append('chip_inet_config_enable_ipv4=false')
+
+    def GnBuildArgs(self):
+        if self.board == HostBoard.NATIVE:
+            return self.extra_gn_options
+        elif self.board == HostBoard.ARM64:
+            self.extra_gn_options.extend(
+                [
+                    'target_cpu="arm64"',
+                    'is_clang=true',
+                    'chip_crypto="mbedtls"',
+                    'sysroot="%s"' % self.SysRootPath('SYSROOT_AARCH64')
+                ]
+            )
+
+            return self.extra_gn_options
+        else:
+            raise Exception('Unknown host board type: %r' % self)
+
+    def GnBuildEnv(self):
+        if self.board == HostBoard.NATIVE:
+            return None
+        elif self.board == HostBoard.ARM64:
+            return {
+                'PKG_CONFIG_PATH': self.SysRootPath('SYSROOT_AARCH64') + '/lib/aarch64-linux-gnu/pkgconfig',
+            }
+        else:
+            raise Exception('Unknown host board type: %r' % self)
+
+    def SysRootPath(self, name):
+        if not name in os.environ:
+            raise Exception('Missing environment variable "%s"' % name)
+        return os.environ[name]
 
     def build_outputs(self):
-        return {
-            self.app_name: os.path.join(self.output_dir, self.app_name),
-            self.map_name: os.path.join(self.output_dir, self.map_name)
-        }
+        outputs = {}
 
-    def SetIdentifier(self, platform: str, board: str, app: str):
-        super(HostBuilder, self).SetIdentifier(
-            ConcretePlatformName(), board, app)
+        for name in self.app.OutputNames():
+            path = os.path.join(self.output_dir, name)
+            if os.path.isdir(path):
+                for root, dirs, files in os.walk(path):
+                    for file in files:
+                        outputs.update({
+                            file: os.path.join(root, file)
+                        })
+            else:
+                outputs.update({
+                    name: os.path.join(self.output_dir, name)
+                })
+
+        return outputs

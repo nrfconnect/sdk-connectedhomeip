@@ -21,7 +21,9 @@
 import os
 import sys
 from optparse import OptionParser
-from base import TestTimeout, BaseTestHelper, FailIfNot, logger
+from base import TestFail, TestTimeout, BaseTestHelper, FailIfNot, logger
+from cluster_objects import ClusterObjectTests
+import asyncio
 
 # The thread network dataset tlv for testing, splited into T-L-V.
 
@@ -83,6 +85,13 @@ def main():
                                    nodeid=1),
               "Failed to finish key exchange")
 
+    logger.info("Testing closing sessions")
+    FailIfNot(test.TestCloseSession(nodeid=1), "Failed to close sessions")
+
+    logger.info("Testing resolve")
+    FailIfNot(test.TestResolve(nodeid=1),
+              "Failed to resolve nodeid")
+
     logger.info("Testing network commissioning")
     FailIfNot(test.TestNetworkCommissioning(nodeid=1,
                                             endpoint=ENDPOINT_ID,
@@ -96,15 +105,26 @@ def main():
                                     endpoint=LIGHTING_ENDPOINT_ID,
                                     group=GROUP_ID), "Failed to test on off cluster")
 
+    logger.info("Testing level control cluster")
+    FailIfNot(test.TestLevelControlCluster(nodeid=1,
+                                           endpoint=LIGHTING_ENDPOINT_ID,
+                                           group=GROUP_ID),
+              "Failed to test level control cluster")
+
     logger.info("Testing sending commands to non exist endpoint")
     FailIfNot(not test.TestOnOffCluster(nodeid=1,
                                         endpoint=233,
                                         group=GROUP_ID), "Failed to test on off cluster on non-exist endpoint")
 
+    # Test experimental Python cluster objects API
+    logger.info("Testing cluster objects API")
+    FailIfNot(asyncio.run(ClusterObjectTests.RunTest(test.devCtrl)),
+              "Failed when testing Python Cluster Object APIs")
+
     logger.info("Testing attribute reading")
-    FailIfNot(test.TestReadBasicAttribiutes(nodeid=1,
-                                            endpoint=ENDPOINT_ID,
-                                            group=GROUP_ID),
+    FailIfNot(test.TestReadBasicAttributes(nodeid=1,
+                                           endpoint=ENDPOINT_ID,
+                                           group=GROUP_ID),
               "Failed to test Read Basic Attributes")
 
     logger.info("Testing attribute writing")
@@ -117,12 +137,9 @@ def main():
     FailIfNot(test.TestSubscription(nodeid=1, endpoint=LIGHTING_ENDPOINT_ID),
               "Failed to subscribe attributes.")
 
-    logger.info("Testing closing sessions")
-    FailIfNot(test.TestCloseSession(nodeid=1), "Failed to close sessions")
-
-    logger.info("Testing resolve")
-    FailIfNot(test.TestResolve(nodeid=1),
-              "Failed to resolve nodeid")
+    logger.info("Testing another subscription that kills previous subscriptions")
+    FailIfNot(test.TestSubscription(nodeid=1, endpoint=LIGHTING_ENDPOINT_ID),
+              "Failed to subscribe attributes.")
 
     logger.info("Testing on off cluster over resolved connection")
     FailIfNot(test.TestOnOffCluster(nodeid=1,
@@ -142,4 +159,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as ex:
+        logger.exception(ex)
+        TestFail("Exception occurred when running tests.")

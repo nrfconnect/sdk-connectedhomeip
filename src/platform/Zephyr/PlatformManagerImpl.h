@@ -52,6 +52,9 @@ private:
     // ===== Methods that implement the PlatformManager abstract interface.
 
     CHIP_ERROR _InitChipStack(void);
+    CHIP_ERROR _GetCurrentHeapFree(uint64_t & currentHeapFree);
+    CHIP_ERROR _GetCurrentHeapUsed(uint64_t & currentHeapUsed);
+    CHIP_ERROR _GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark);
 
     // ===== Members for internal use by the following friends.
 
@@ -74,5 +77,17 @@ inline PlatformManager & PlatformMgr(void)
 {
     return PlatformManagerImpl::sInstance;
 }
+
+/**
+ * Returns the platform-specific implementation of the PlatformManager singleton object.
+ *
+ * chip applications can use this to gain access to features of the PlatformManager
+ * that are specific to the ESP32 platform.
+ */
+inline PlatformManagerImpl & PlatformMgrImpl()
+{
+    return PlatformManagerImpl::sInstance;
+}
+
 } // namespace DeviceLayer
 } // namespace chip

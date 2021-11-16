@@ -18,12 +18,13 @@
 #if CONFIG_NETWORK_LAYER_BLE
 #include <ble/BleLayer.h>
 #endif // CONFIG_NETWORK_LAYER_BLE
-#include <controller/CHIPDevice.h>
+#include <controller/CommissioneeDeviceProxy.h>
 #include <inet/IPAddress.h>
 #include <inet/InetLayer.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <nlunit-test.h>
+#include <platform/CHIPDeviceLayer.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <protocols/secure_channel/SessionIDAllocator.h>
 #include <system/SystemLayerImpl.h>
@@ -37,7 +38,6 @@ using namespace chip::Transport;
 using namespace chip::Controller;
 using namespace chip::Messaging;
 
-#if INET_CONFIG_ENABLE_IPV4
 namespace {
 
 using TestTransportMgr = TransportMgr<Transport::UDP>;
@@ -45,6 +45,7 @@ using TestTransportMgr = TransportMgr<Transport::UDP>;
 void TestDevice_EstablishSessionDirectly(nlTestSuite * inSuite, void * inContext)
 {
     Platform::MemoryInit();
+    chip::DeviceLayer::SetConfigurationMgr(&chip::DeviceLayer::ConfigurationManagerImpl::GetDefaultInstance());
     DeviceTransportMgr transportMgr;
     SessionManager sessionManager;
     ExchangeManager exchangeMgr;
@@ -61,18 +62,17 @@ void TestDevice_EstablishSessionDirectly(nlTestSuite * inSuite, void * inContext
 
     systemLayer.Init();
     inetLayer.Init(systemLayer, nullptr);
-    transportMgr.Init(
-        UdpListenParameters(&inetLayer).SetAddressType(Inet::IPAddressType::kIPAddressType_IPv4).SetListenPort(CHIP_PORT)
+    transportMgr.Init(UdpListenParameters(&inetLayer).SetAddressType(Inet::IPAddressType::kIPv6).SetListenPort(CHIP_PORT)
 #if INET_CONFIG_ENABLE_IPV4
-            ,
-        UdpListenParameters(&inetLayer).SetAddressType(Inet::kIPAddressType_IPv4).SetListenPort(CHIP_PORT)
+                          ,
+                      UdpListenParameters(&inetLayer).SetAddressType(Inet::IPAddressType::kIPv4).SetListenPort(CHIP_PORT)
 #endif
 #if CONFIG_NETWORK_LAYER_BLE
-            ,
-        BleListenParameters(&blelayer)
+                          ,
+                      BleListenParameters(&blelayer)
 #endif
     );
-    sessionManager.Init(&systemLayer, &transportMgr, fabrics, &messageCounterManager);
+    sessionManager.Init(&systemLayer, &transportMgr, &messageCounterManager);
     exchangeMgr.Init(&sessionManager);
     messageCounterManager.Init(&exchangeMgr);
 
@@ -85,13 +85,13 @@ void TestDevice_EstablishSessionDirectly(nlTestSuite * inSuite, void * inContext
         .idAllocator     = &idAllocator,
         .fabricsTable    = fabrics,
     };
-    Device device;
+    CommissioneeDeviceProxy device;
     NodeId mockNodeId           = 1;
     FabricIndex mockFabricIndex = 1;
     Inet::IPAddress mockAddr;
-    Inet::IPAddress::FromString("127.0.0.1", mockAddr);
+    Inet::IPAddress::FromString("::1", mockAddr);
     PeerAddress addr = PeerAddress::UDP(mockAddr, CHIP_PORT);
-    device.Init(params, CHIP_PORT, mockNodeId, addr, mockFabricIndex);
+    device.Init(params, mockNodeId, addr, mockFabricIndex);
 
     device.OperationalCertProvisioned();
     NL_TEST_ASSERT(inSuite, device.EstablishConnectivity(nullptr, nullptr) == CHIP_NO_ERROR);
@@ -125,5 +125,3 @@ int TestDevice()
 }
 
 CHIP_REGISTER_TEST_SUITE(TestDevice)
-
-#endif // INET_CONFIG_ENABLE_IPV4

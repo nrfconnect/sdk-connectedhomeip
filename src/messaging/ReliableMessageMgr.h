@@ -39,6 +39,9 @@
 namespace chip {
 namespace Messaging {
 
+class ExchangeContext;
+using ExchangeHandle = ReferenceCountedHandle<ExchangeContext>;
+
 enum class SendMessageFlags : uint16_t;
 class ReliableMessageContext;
 
@@ -57,9 +60,10 @@ public:
      */
     struct RetransTableEntry
     {
-        RetransTableEntry();
+        RetransTableEntry(ReliableMessageContext * rc);
+        ~RetransTableEntry();
 
-        ReliableMessageContext * rc;             /**< The context for the stored CHIP message. */
+        ExchangeHandle ec;                       /**< The context for the stored CHIP message. */
         EncryptedPacketBufferHandle retainedBuf; /**< The packet buffer holding the CHIP message. */
         uint16_t nextRetransTimeTick;            /**< A counter representing the next retransmission time for the message. */
         uint8_t sendCount;                       /**< A counter representing the number of times the message has been sent. */
@@ -79,7 +83,7 @@ public:
      *
      * @return Tick count for the time period.
      */
-    uint64_t GetTickCounterFromTimePeriod(uint64_t period);
+    uint64_t GetTickCounterFromTimePeriod(System::Clock::Milliseconds64 period);
 
     /**
      * Return a tick counter value between the given time and the stored time.
@@ -88,7 +92,7 @@ public:
      *
      * @return Tick count of the difference between the given time and the stored time.
      */
-    uint64_t GetTickCounterFromTimeDelta(uint64_t newTime);
+    uint64_t GetTickCounterFromTimeDelta(System::Clock::Timestamp newTime);
 
     /**
      * Iterate through active exchange contexts and retrans table entries.  If an
@@ -226,10 +230,9 @@ public:
 private:
     BitMapObjectPool<ExchangeContext, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS> & mContextPool;
     chip::System::Layer * mSystemLayer;
-    SessionManager * mSessionManager;
-    uint64_t mTimeStampBase; // ReliableMessageProtocol timer base value to add offsets to evaluate timeouts
-    System::Clock::MonotonicMilliseconds mCurrentTimerExpiry; // Tracks when the ReliableMessageProtocol timer will next expire
-    uint16_t mTimerIntervalShift;                             // ReliableMessageProtocol Timer tick period shift
+    System::Clock::Timestamp mTimeStampBase;      // ReliableMessageProtocol timer base value to add offsets to evaluate timeouts
+    System::Clock::Timestamp mCurrentTimerExpiry; // Tracks when the ReliableMessageProtocol timer will next expire
+    uint16_t mTimerIntervalShift;                 // ReliableMessageProtocol Timer tick period shift
 
     /* Placeholder function to run a function for all exchanges */
     template <typename Function>
@@ -244,7 +247,7 @@ private:
     void TicklessDebugDumpRetransTable(const char * log);
 
     // ReliableMessageProtocol Global tables for timer context
-    RetransTableEntry mRetransTable[CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE];
+    BitMapObjectPool<RetransTableEntry, CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE> mRetransTable;
 };
 
 } // namespace Messaging

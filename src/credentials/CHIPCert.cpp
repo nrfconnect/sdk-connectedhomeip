@@ -575,7 +575,7 @@ CHIP_ERROR ChipDN::AddAttribute(chip::ASN1::OID oid, uint64_t val)
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR ChipDN::AddAttribute(chip::ASN1::OID oid, ByteSpan val)
+CHIP_ERROR ChipDN::AddAttribute(chip::ASN1::OID oid, CharSpan val)
 {
     uint8_t rdnCount = RDNCount();
 
@@ -881,6 +881,32 @@ CHIP_ERROR ExtractFabricIdFromCert(const ChipCertificateData & cert, FabricId * 
     }
 
     return CHIP_ERROR_INVALID_ARGUMENT;
+}
+
+CHIP_ERROR ExtractCATsFromOpCert(const ChipCertificateData & opcert, uint32_t * cats, uint8_t catsSize)
+{
+    uint8_t catCount = 0;
+    uint8_t certType;
+
+    ReturnErrorOnFailure(opcert.mSubjectDN.GetCertType(certType));
+    VerifyOrReturnError(certType == kCertType_Node, CHIP_ERROR_INVALID_ARGUMENT);
+
+    const ChipDN & subjectDN = opcert.mSubjectDN;
+    for (uint8_t i = 0; i < subjectDN.RDNCount(); ++i)
+    {
+        const auto & rdn = subjectDN.rdn[i];
+        if (rdn.mAttrOID == ASN1::kOID_AttributeType_ChipCASEAuthenticatedTag)
+        {
+            ReturnErrorCodeIf(catCount == catsSize, CHIP_ERROR_BUFFER_TOO_SMALL);
+            cats[catCount++] = static_cast<uint32_t>(rdn.mChipVal);
+        }
+    }
+    for (uint8_t i = catCount; i < catsSize; ++i)
+    {
+        cats[i] = 0;
+    }
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR ExtractNodeIdFabricIdFromOpCert(const ByteSpan & opcert, NodeId * nodeId, FabricId * fabricId)

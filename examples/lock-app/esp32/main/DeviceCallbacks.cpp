@@ -27,11 +27,14 @@
 #include "AppConfig.h"
 #include "BoltLockManager.h"
 
+#include "esp_check.h"
+#include "esp_err.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "route_hook/esp_route_hook.h"
 #include <app-common/zap-generated/attribute-id.h>
 #include <app-common/zap-generated/cluster-id.h>
-#include <app/server/Mdns.h>
+#include <app/server/Dnssd.h>
 #include <lib/support/CodeUtils.h>
 
 static const char * TAG = "lock-devicecallbacks";
@@ -61,15 +64,20 @@ void DeviceCallbacks::DeviceEventCallback(const ChipDeviceEvent * event, intptr_
             // will not trigger a 'internet connectivity change' as there is no internet
             // connectivity. MDNS still wants to refresh its listening interfaces to include the
             // newly selected address.
-            chip::app::MdnsServer::Instance().StartServer();
+            chip::app::DnssdServer::Instance().StartServer();
+        }
+        if (event->InterfaceIpAddressChanged.Type == InterfaceIpChangeType::kIpV6_Assigned)
+        {
+            ESP_ERROR_CHECK(esp_route_hook_init(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF")));
         }
         break;
     }
 
     ESP_LOGI(TAG, "Current free heap: %d\n", heap_caps_get_free_size(MALLOC_CAP_8BIT));
 }
+
 void DeviceCallbacks::PostAttributeChangeCallback(EndpointId endpointId, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                                  uint16_t manufacturerCode, uint8_t type, uint16_t size, uint8_t * value)
+                                                  uint8_t type, uint16_t size, uint8_t * value)
 {
     ESP_LOGI(TAG, "PostAttributeChangeCallback - Cluster ID: '0x%04x', EndPoint ID: '0x%02x', Attribute ID: '0x%04x'", clusterId,
              endpointId, attributeId);
@@ -93,7 +101,7 @@ void DeviceCallbacks::OnInternetConnectivityChange(const ChipDeviceEvent * event
     if (event->InternetConnectivityChange.IPv4 == kConnectivity_Established)
     {
         ESP_LOGI(TAG, "Server ready at: %s:%d", event->InternetConnectivityChange.address, CHIP_PORT);
-        chip::app::MdnsServer::Instance().StartServer();
+        chip::app::DnssdServer::Instance().StartServer();
     }
     else if (event->InternetConnectivityChange.IPv4 == kConnectivity_Lost)
     {
@@ -102,7 +110,7 @@ void DeviceCallbacks::OnInternetConnectivityChange(const ChipDeviceEvent * event
     if (event->InternetConnectivityChange.IPv6 == kConnectivity_Established)
     {
         ESP_LOGI(TAG, "IPv6 Server ready...");
-        chip::app::MdnsServer::Instance().StartServer();
+        chip::app::DnssdServer::Instance().StartServer();
     }
     else if (event->InternetConnectivityChange.IPv6 == kConnectivity_Lost)
     {

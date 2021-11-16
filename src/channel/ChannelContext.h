@@ -26,7 +26,7 @@
 
 #include <channel/Channel.h>
 #include <lib/core/ReferenceCounted.h>
-#include <lib/mdns/platform/Mdns.h>
+#include <lib/dnssd/platform/Dnssd.h>
 #include <lib/support/Variant.h>
 #include <protocols/secure_channel/CASESession.h>
 #include <transport/SecureSession.h>
@@ -80,7 +80,7 @@ class ChannelContext : public ReferenceCounted<ChannelContext, ChannelContextDel
 public:
     ChannelContext(ExchangeManager * exchangeManager, ChannelManager * channelManager) :
         mState(ChannelState::kNone), mExchangeManager(exchangeManager), mChannelManager(channelManager), mFabricsTable(nullptr),
-        mFabricIndex(Transport::kUndefinedFabricIndex)
+        mFabricIndex(kUndefinedFabricIndex)
     {}
 
     void Start(const ChannelBuilder & builder);
@@ -106,7 +106,7 @@ public:
     bool MatchesSession(SessionHandle session, SessionManager * sessionManager);
 
     // events of ResolveDelegate, propagated from ExchangeManager
-    void HandleNodeIdResolve(CHIP_ERROR error, uint64_t nodeId, const Mdns::MdnsService & address);
+    void HandleNodeIdResolve(CHIP_ERROR error, uint64_t nodeId, const Dnssd::DnssdService & address);
 
     // events of SecureSessionManager, propagated from ExchangeManager
     void OnNewConnection(SessionHandle session);
@@ -123,7 +123,7 @@ private:
     ChannelState mState;
     ExchangeManager * mExchangeManager;
     ChannelManager * mChannelManager;
-    Transport::FabricTable * mFabricsTable;
+    FabricTable * mFabricsTable;
     FabricIndex mFabricIndex;
 
     enum class PrepareState

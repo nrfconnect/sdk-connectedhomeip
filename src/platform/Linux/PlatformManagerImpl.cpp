@@ -24,6 +24,7 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#include <app-common/zap-generated/enums.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/PlatformManager.h>
@@ -32,11 +33,13 @@
 #include <thread>
 
 #include <arpa/inet.h>
+#include <dirent.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <malloc.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <unistd.h>
 
 namespace chip {
@@ -44,8 +47,60 @@ namespace DeviceLayer {
 
 PlatformManagerImpl PlatformManagerImpl::sInstance;
 
+namespace {
+
+void SignalHandler(int signum)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    ChipLogDetail(DeviceLayer, "Caught signal %d", signum);
+
+    // The BootReason attribute SHALL indicate the reason for the Node’s most recent boot, the real usecase
+    // for this attribute is embedded system. In Linux simulation, we use different signals to tell the current
+    // running process to terminate with different reasons.
+    switch (signum)
+    {
+    case SIGINT:
+        ConfigurationMgr().StoreBootReasons(EMBER_ZCL_BOOT_REASON_TYPE_SOFTWARE_RESET);
+        err = CHIP_ERROR_REBOOT_SIGNAL_RECEIVED;
+        break;
+    case SIGHUP:
+        ConfigurationMgr().StoreBootReasons(EMBER_ZCL_BOOT_REASON_TYPE_BROWN_OUT_RESET);
+        err = CHIP_ERROR_REBOOT_SIGNAL_RECEIVED;
+        break;
+    case SIGTERM:
+        ConfigurationMgr().StoreBootReasons(EMBER_ZCL_BOOT_REASON_TYPE_POWER_ON_REBOOT);
+        err = CHIP_ERROR_REBOOT_SIGNAL_RECEIVED;
+        break;
+    case SIGUSR1:
+        ConfigurationMgr().StoreBootReasons(EMBER_ZCL_BOOT_REASON_TYPE_HARDWARE_WATCHDOG_RESET);
+        err = CHIP_ERROR_REBOOT_SIGNAL_RECEIVED;
+        break;
+    case SIGUSR2:
+        ConfigurationMgr().StoreBootReasons(EMBER_ZCL_BOOT_REASON_TYPE_SOFTWARE_WATCHDOG_RESET);
+        err = CHIP_ERROR_REBOOT_SIGNAL_RECEIVED;
+        break;
+    case SIGTSTP:
+        ConfigurationMgr().StoreBootReasons(EMBER_ZCL_BOOT_REASON_TYPE_SOFTWARE_UPDATE_COMPLETED);
+        err = CHIP_ERROR_REBOOT_SIGNAL_RECEIVED;
+        break;
+    default:
+        break;
+    }
+
+    if (err != CHIP_NO_ERROR)
+    {
+        PlatformMgr().Shutdown();
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        ChipLogDetail(DeviceLayer, "Ignore signal %d", signum);
+    }
+}
+
 #if CHIP_WITH_GIO
-static void GDBus_Thread()
+void GDBus_Thread()
 {
     GMainLoop * loop = g_main_loop_new(nullptr, false);
 
@@ -53,7 +108,9 @@ static void GDBus_Thread()
     g_main_loop_unref(loop);
 }
 #endif
+} // namespace
 
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
 void PlatformManagerImpl::WiFIIPChangeListener()
 {
     int sock;
@@ -95,7 +152,7 @@ void PlatformManagerImpl::WiFIIPChangeListener()
                         char name[IFNAMSIZ];
                         ChipDeviceEvent event;
                         if_indextoname(addressMessage->ifa_index, name);
-                        if (strcmp(name, CHIP_DEVICE_CONFIG_WIFI_STATION_IF_NAME) != 0)
+                        if (strcmp(name, ConnectivityManagerImpl::GetWiFiIfName()) != 0)
                         {
                             continue;
                         }
@@ -120,10 +177,21 @@ void PlatformManagerImpl::WiFIIPChangeListener()
         }
     }
 }
+#endif // #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
 
 CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 {
     CHIP_ERROR err;
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = SignalHandler;
+    sigaction(SIGINT, &action, NULL);
+    sigaction(SIGHUP, &action, NULL);
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGUSR1, &action, NULL);
+    sigaction(SIGUSR2, &action, NULL);
+    sigaction(SIGTSTP, &action, NULL);
 
 #if CHIP_WITH_GIO
     GError * error = nullptr;
@@ -134,19 +202,51 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
     gdbusThread.detach();
 #endif
 
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
     std::thread wifiIPThread(WiFIIPChangeListener);
     wifiIPThread.detach();
+#endif
 
     // Initialize the configuration system.
     err = Internal::PosixConfig::Init();
     SuccessOrExit(err);
+    SetConfigurationMgr(&ConfigurationManagerImpl::GetDefaultInstance());
     // Call _InitChipStack() on the generic implementation base class
     // to finish the initialization process.
     err = Internal::GenericPlatformManagerImpl_POSIX<PlatformManagerImpl>::_InitChipStack();
     SuccessOrExit(err);
 
+    mStartTime = System::SystemClock().GetMonotonicTimestamp();
+
+    ScheduleWork(HandleDeviceRebooted, 0);
+
 exit:
     return err;
+}
+
+CHIP_ERROR PlatformManagerImpl::_Shutdown()
+{
+    uint64_t upTime = 0;
+
+    if (_GetUpTime(upTime) == CHIP_NO_ERROR)
+    {
+        uint32_t totalOperationalHours = 0;
+
+        if (ConfigurationMgr().GetTotalOperationalHours(totalOperationalHours) == CHIP_NO_ERROR)
+        {
+            ConfigurationMgr().StoreTotalOperationalHours(totalOperationalHours + static_cast<uint32_t>(upTime / 3600));
+        }
+        else
+        {
+            ChipLogError(DeviceLayer, "Failed to get total operational hours of the Node");
+        }
+    }
+    else
+    {
+        ChipLogError(DeviceLayer, "Failed to get current uptime since the Node’s last reboot");
+    }
+
+    return Internal::GenericPlatformManagerImpl_POSIX<PlatformManagerImpl>::_Shutdown();
 }
 
 CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapFree(uint64_t & currentHeapFree)
@@ -185,6 +285,131 @@ CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapHighWatermark(uint64_t & currentH
     currentHeapHighWatermark = mallocInfo.uordblks;
 
     return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetThreadMetrics(ThreadMetrics ** threadMetricsOut)
+{
+    CHIP_ERROR err = CHIP_ERROR_READ_FAILED;
+    DIR * proc_dir = opendir("/proc/self/task");
+
+    if (proc_dir == nullptr)
+    {
+        ChipLogError(DeviceLayer, "Failed to open current process task directory");
+    }
+    else
+    {
+        ThreadMetrics * head = nullptr;
+        struct dirent * entry;
+
+        /* proc available, iterate through tasks... */
+        while ((entry = readdir(proc_dir)) != NULL)
+        {
+            if (entry->d_name[0] == '.')
+                continue;
+
+            ThreadMetrics * thread = new ThreadMetrics();
+
+            strncpy(thread->NameBuf, entry->d_name, kMaxThreadNameLength);
+            thread->NameBuf[kMaxThreadNameLength] = '\0';
+            thread->name                          = CharSpan(thread->NameBuf, strlen(thread->NameBuf));
+            thread->id                            = atoi(entry->d_name);
+
+            // TODO: Get stack info of each thread
+            thread->stackFreeCurrent = 0;
+            thread->stackFreeMinimum = 0;
+            thread->stackSize        = 0;
+
+            thread->Next = head;
+            head         = thread;
+        }
+
+        closedir(proc_dir);
+
+        *threadMetricsOut = head;
+        err               = CHIP_NO_ERROR;
+    }
+
+    return err;
+}
+
+void PlatformManagerImpl::_ReleaseThreadMetrics(ThreadMetrics * threadMetrics)
+{
+    while (threadMetrics)
+    {
+        ThreadMetrics * del = threadMetrics;
+        threadMetrics       = threadMetrics->Next;
+        delete del;
+    }
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetRebootCount(uint16_t & rebootCount)
+{
+    uint32_t count = 0;
+
+    CHIP_ERROR err = ConfigurationMgr().GetRebootCount(count);
+
+    if (err == CHIP_NO_ERROR)
+    {
+        VerifyOrReturnError(count <= UINT16_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
+        rebootCount = static_cast<uint16_t>(count);
+    }
+
+    return err;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetUpTime(uint64_t & upTime)
+{
+    System::Clock::Timestamp currentTime = System::SystemClock().GetMonotonicTimestamp();
+
+    if (currentTime >= mStartTime)
+    {
+        upTime = std::chrono::duration_cast<System::Clock::Seconds64>(currentTime - mStartTime).count();
+        return CHIP_NO_ERROR;
+    }
+
+    return CHIP_ERROR_INVALID_TIME;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetTotalOperationalHours(uint32_t & totalOperationalHours)
+{
+    uint64_t upTime = 0;
+
+    if (_GetUpTime(upTime) == CHIP_NO_ERROR)
+    {
+        uint32_t totalHours = 0;
+        if (ConfigurationMgr().GetTotalOperationalHours(totalHours) == CHIP_NO_ERROR)
+        {
+            VerifyOrReturnError(upTime / 3600 <= UINT32_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
+            totalOperationalHours = totalHours + static_cast<uint32_t>(upTime / 3600);
+        }
+    }
+
+    return CHIP_ERROR_INVALID_TIME;
+}
+
+CHIP_ERROR PlatformManagerImpl::_GetBootReasons(uint8_t & bootReasons)
+{
+    uint32_t reason = 0;
+
+    CHIP_ERROR err = ConfigurationMgr().GetBootReasons(reason);
+
+    if (err == CHIP_NO_ERROR)
+    {
+        VerifyOrReturnError(reason <= UINT8_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
+        bootReasons = static_cast<uint8_t>(reason);
+    }
+
+    return err;
+}
+
+void PlatformManagerImpl::HandleDeviceRebooted(intptr_t arg)
+{
+    PlatformManagerDelegate * delegate = PlatformMgr().GetDelegate();
+
+    if (delegate != nullptr)
+    {
+        delegate->OnDeviceRebooted();
+    }
 }
 
 #if CHIP_WITH_GIO

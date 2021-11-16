@@ -27,12 +27,18 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+import asyncio
 from ctypes import *
 from .ChipStack import *
-from .clusters.CHIPClusters import *
 from .interaction_model import delegate as im
 from .exceptions import *
+from .clusters import Command as ClusterCommand
+from .clusters import Attribute as ClusterAttribute
+from .clusters import ClusterObjects as ClusterObjects
+from .clusters.CHIPClusters import *
 import enum
+import threading
+import typing
 
 
 __all__ = ["ChipDeviceController"]
@@ -127,8 +133,12 @@ class ChipDeviceController(object):
             self.state = DCState.IDLE
             self._ChipStack.callbackRes = err
             self._ChipStack.completeEvent.set()
+            self._ChipStack.commissioningCompleteEvent.set()
+            self._ChipStack.commissioningEventRes = err
 
         im.InitIMDelegate()
+        ClusterCommand.Init(self)
+        ClusterAttribute.Init()
 
         self.cbHandleKeyExchangeCompleteFunct = _DevicePairingDelegate_OnPairingCompleteFunct(
             HandleKeyExchangeComplete)
@@ -189,15 +199,25 @@ class ChipDeviceController(object):
         )
 
     def ConnectIP(self, ipaddr, setupPinCode, nodeid):
+        # IP connection will run through full commissioning, so we need to wait
+        # for the commissioning complete event, not just any callback.
         self.state = DCState.RENDEZVOUS_ONGOING
-        return self._ChipStack.CallAsync(
+        self._ChipStack.CallAsync(
             lambda: self._dmLib.pychip_DeviceController_ConnectIP(
                 self.devCtrl, ipaddr, setupPinCode, nodeid)
         )
+        # Wait up to 5 additional seconds for the commissioning complete event
+        if not self._ChipStack.commissioningCompleteEvent.isSet():
+            self._ChipStack.commissioningCompleteEvent.wait(5.0)
+        if not self._ChipStack.commissioningCompleteEvent.isSet():
+            # Error 50 is a timeout
+            return False
+        return self._ChipStack.commissioningEventRes == 0
 
-    def ResolveNode(self, fabricid, nodeid):
+    def ResolveNode(self, nodeid):
         return self._ChipStack.CallAsync(
-            lambda: self._dmLib.pychip_Resolver_ResolveNode(fabricid, nodeid)
+            lambda: self._dmLib.pychip_DeviceController_UpdateDevice(
+                self.devCtrl, nodeid)
         )
 
     def GetAddressAndPort(self, nodeid):
@@ -210,12 +230,6 @@ class ChipDeviceController(object):
         )
 
         return (address.value.decode(), port.value) if error == 0 else None
-
-    def CommissioningComplete(self, nodeid):
-        return self._ChipStack.Call(
-            lambda: self._dmLib.pychip_DeviceController_CommissioningComplete(
-                self.devCtrl, nodeid)
-        )
 
     def DiscoverCommissionableNodesLongDiscriminator(self, long_discriminator):
         return self._ChipStack.Call(
@@ -310,14 +324,124 @@ class ChipDeviceController(object):
     def GetClusterHandler(self):
         return self._Cluster
 
-    def ZCLSend(self, cluster, command, nodeid, endpoint, groupid, args, blocking=False):
-        device = c_void_p(None)
-        # We should really use pychip_GetConnectedDeviceByNodeId and do the
-        # command off its callback....
-        res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetDeviceByNodeId(
-            self.devCtrl, nodeid, pointer(device)))
+    def GetConnectedDeviceSync(self, nodeid):
+        returnDevice = c_void_p(None)
+        deviceAvailableCV = threading.Condition()
+
+        def DeviceAvailableCallback(device, err):
+            nonlocal returnDevice
+            nonlocal deviceAvailableCV
+            with deviceAvailableCV:
+                returnDevice = c_void_p(device)
+                deviceAvailableCV.notify_all()
+            if err != 0:
+                print("Failed in getting the connected device: {}".format(err))
+                raise self._ChipStack.ErrorToException(err)
+
+        res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetConnectedDeviceByNodeId(
+            self.devCtrl, nodeid, _DeviceAvailableFunct(DeviceAvailableCallback)))
         if res != 0:
             raise self._ChipStack.ErrorToException(res)
+
+        # The callback might have been received synchronously (during self._ChipStack.Call()).
+        # Check if the device is already set before waiting for the callback.
+        if returnDevice.value == None:
+            with deviceAvailableCV:
+                deviceAvailableCV.wait()
+
+        if returnDevice.value == None:
+            raise self._ChipStack.ErrorToException(CHIP_ERROR_INTERNAL)
+        return returnDevice
+
+    async def SendCommand(self, nodeid: int, endpoint: int, payload: ClusterObjects.ClusterCommand, responseType=None):
+        '''
+        Send a cluster-object encapsulated command to a node and get returned a future that can be awaited upon to receive the response.
+        If a valid responseType is passed in, that will be used to deserialize the object. If not, the type will be automatically deduced
+        from the metadata received over the wire.
+        '''
+
+        eventLoop = asyncio.get_running_loop()
+        future = eventLoop.create_future()
+
+        device = self.GetConnectedDeviceSync(nodeid)
+        res = self._ChipStack.Call(
+            lambda: ClusterCommand.SendCommand(
+                future, eventLoop, responseType, device, ClusterCommand.CommandPath(
+                    EndpointId=endpoint,
+                    ClusterId=payload.cluster_id,
+                    CommandId=payload.command_id,
+                ), payload)
+        )
+        if res != 0:
+            future.set_exception(self._ChipStack.ErrorToException(res))
+        return await future
+
+    def WriteAttribute(self, nodeid: int, attributes):
+        eventLoop = asyncio.get_running_loop()
+        future = eventLoop.create_future()
+
+        device = self.GetConnectedDeviceSync(nodeid)
+        res = self._ChipStack.Call(
+            lambda: ClusterAttribute.WriteAttributes(
+                future, eventLoop, device, attributes)
+        )
+        if res != 0:
+            raise self._ChipStack.ErrorToException(res)
+        return future
+
+    def ReadAttribute(self, nodeid: int, attributes: typing.List[typing.Union[
+        None,  # Empty tuple, all wildcard
+        typing.Tuple[int],  # Endpoint
+        # Wildcard endpoint, Cluster id present
+        typing.Tuple[typing.Type[ClusterObjects.Cluster]],
+        # Wildcard endpoint, Cluster + Attribute present
+        typing.Tuple[typing.Type[ClusterObjects.ClusterAttributeDescriptor]],
+        # Wildcard attribute id
+        typing.Tuple[int, typing.Type[ClusterObjects.Cluster]],
+        # Concrete path
+        typing.Tuple[int, typing.Type[ClusterObjects.ClusterAttributeDescriptor]]
+    ]]):
+        eventLoop = asyncio.get_running_loop()
+        future = eventLoop.create_future()
+
+        device = self.GetConnectedDeviceSync(nodeid)
+        attrs = []
+        for v in attributes:
+            endpoint = None
+            cluster = None
+            attribute = None
+            if v == () or v == ('*'):
+                # Wildcard
+                pass
+            elif len(v) == 1:
+                if v[0] is int:
+                    endpoint = v[0]
+                elif issubclass(v[0], ClusterObjects.Cluster):
+                    cluster = v[0]
+                elif issubclass(v[0], ClusterObjects.ClusterAttributeDescriptor):
+                    attribute = v[0]
+                else:
+                    raise ValueError("Unsupported Attribute Path")
+            elif len(v) == 2:
+                # endpoint + (cluster) attribute / endpoint + cluster
+                endpoint = v[0]
+                if issubclass(v[1], ClusterObjects.Cluster):
+                    cluster = v[1]
+                elif issubclass(v[1], ClusterAttribute.ClusterAttributeDescriptor):
+                    attribute = v[1]
+                else:
+                    raise ValueError("Unsupported Attribute Path")
+            attrs.append(ClusterAttribute.AttributePath(
+                EndpointId=endpoint, Cluster=cluster, Attribute=attribute))
+        res = self._ChipStack.Call(
+            lambda: ClusterAttribute.ReadAttributes(future, eventLoop, device, attrs))
+        if res != 0:
+            raise self._ChipStack.ErrorToException(res)
+        return future
+
+    def ZCLSend(self, cluster, command, nodeid, endpoint, groupid, args, blocking=False):
+        device = self.GetConnectedDeviceSync(nodeid)
+
         im.ClearCommandStatus(im.PLACEHOLDER_COMMAND_HANDLE)
         self._Cluster.SendCommand(
             device, cluster, command, endpoint, groupid, args, True)
@@ -327,51 +451,39 @@ class ChipDeviceController(object):
         return (0, None)
 
     def ZCLReadAttribute(self, cluster, attribute, nodeid, endpoint, groupid, blocking=True):
-        device = c_void_p(None)
-        # We should really use pychip_GetConnectedDeviceByNodeId and do the
-        # read off its callback....
-        res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetDeviceByNodeId(
-            self.devCtrl, nodeid, pointer(device)))
-        if res != 0:
-            raise self._ChipStack.ErrorToException(res)
+        device = self.GetConnectedDeviceSync(nodeid)
 
         # We are not using IM for Attributes.
-        res = self._Cluster.ReadAttribute(
+        self._Cluster.ReadAttribute(
             device, cluster, attribute, endpoint, groupid, False)
         if blocking:
             return im.GetAttributeReadResponse(im.DEFAULT_ATTRIBUTEREAD_APPID)
 
     def ZCLWriteAttribute(self, cluster, attribute, nodeid, endpoint, groupid, value, blocking=True):
-        device = c_void_p(None)
-        # We should really use pychip_GetConnectedDeviceByNodeId and do the
-        # write off its callback....
-        res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetDeviceByNodeId(
-            self.devCtrl, nodeid, pointer(device)))
-        if res != 0:
-            raise self._ChipStack.ErrorToException(res)
+        device = self.GetConnectedDeviceSync(nodeid)
 
         # We are not using IM for Attributes.
-        res = self._Cluster.WriteAttribute(
+        self._Cluster.WriteAttribute(
             device, cluster, attribute, endpoint, groupid, value, False)
         if blocking:
             return im.GetAttributeWriteResponse(im.DEFAULT_ATTRIBUTEWRITE_APPID)
 
-    def ZCLConfigureAttribute(self, cluster, attribute, nodeid, endpoint, minInterval, maxInterval, change, blocking=True):
-        device = c_void_p(None)
-        # We should really use pychip_GetConnectedDeviceByNodeId and do the
-        # ConfigureAttribute off its callback....
-        res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetDeviceByNodeId(
-            self.devCtrl, nodeid, pointer(device)))
-        if res != 0:
-            raise self._ChipStack.ErrorToException(res)
+    def ZCLSubscribeAttribute(self, cluster, attribute, nodeid, endpoint, minInterval, maxInterval, blocking=True):
+        device = self.GetConnectedDeviceSync(nodeid)
 
         commandSenderHandle = self._dmLib.pychip_GetCommandSenderHandle(device)
         im.ClearCommandStatus(commandSenderHandle)
-        res = self._Cluster.ConfigureAttribute(
-            device, cluster, attribute, endpoint, minInterval, maxInterval, change, commandSenderHandle != 0)
+        self._Cluster.SubscribeAttribute(
+            device, cluster, attribute, endpoint, minInterval, maxInterval, commandSenderHandle != 0)
         if blocking:
             # We only send 1 command by this function, so index is always 0
             return im.WaitCommandIndexStatus(commandSenderHandle, 1)
+
+    def ZCLShutdownSubscription(self, subscriptionId: int):
+        res = self._ChipStack.Call(
+            lambda: self._dmLib.pychip_InteractionModel_ShutdownSubscription(subscriptionId))
+        if res != 0:
+            raise self._ChipStack.ErrorToException(res)
 
     def ZCLCommandList(self):
         return self._Cluster.ListClusterCommands()
@@ -469,17 +581,13 @@ class ChipDeviceController(object):
                 _DeviceAddressUpdateDelegate_OnUpdateComplete]
             self._dmLib.pychip_ScriptDeviceAddressUpdateDelegate_SetOnAddressUpdateComplete.restype = None
 
-            self._dmLib.pychip_Resolver_ResolveNode.argtypes = [
-                c_uint64, c_uint64]
-            self._dmLib.pychip_Resolver_ResolveNode.restype = c_uint32
-
-            self._dmLib.pychip_GetDeviceByNodeId.argtypes = [
-                c_void_p, c_uint64, POINTER(c_void_p)]
-            self._dmLib.pychip_GetDeviceByNodeId.restype = c_uint32
+            self._dmLib.pychip_DeviceController_UpdateDevice.argtypes = [
+                c_void_p, c_uint64]
+            self._dmLib.pychip_DeviceController_UpdateDevice.restype = c_uint32
 
             self._dmLib.pychip_GetConnectedDeviceByNodeId.argtypes = [
                 c_void_p, c_uint64, _DeviceAvailableFunct]
-            self._dmLib.pychip_GetDeviceByNodeId.restype = c_uint32
+            self._dmLib.pychip_GetConnectedDeviceByNodeId.restype = c_uint32
 
             self._dmLib.pychip_DeviceCommissioner_CloseBleConnection.argtypes = [
                 c_void_p]
@@ -495,3 +603,7 @@ class ChipDeviceController(object):
             self._dmLib.pychip_DeviceController_OpenCommissioningWindow.argtypes = [
                 c_void_p, c_uint64, c_uint16, c_uint16, c_uint16, c_uint8]
             self._dmLib.pychip_DeviceController_OpenCommissioningWindow.restype = c_uint32
+
+            self._dmLib.pychip_InteractionModel_ShutdownSubscription.argtypes = [
+                c_uint64]
+            self._dmLib.pychip_InteractionModel_ShutdownSubscription.restype = c_uint32

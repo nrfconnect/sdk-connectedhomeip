@@ -18,18 +18,17 @@
 
 #pragma once
 
+#include "CommissionedListCommand.h"
+#include "ConfigureFabricCommand.h"
 #include "PairingCommand.h"
+
+#include <app/server/Dnssd.h>
+#include <lib/dnssd/Resolver.h>
 
 class Unpair : public PairingCommand
 {
 public:
     Unpair() : PairingCommand("unpair", PairingMode::None, PairingNetworkType::None) {}
-};
-
-class PairBypass : public PairingCommand
-{
-public:
-    PairBypass() : PairingCommand("bypass", PairingMode::Bypass, PairingNetworkType::None) {}
 };
 
 class PairQRCode : public PairingCommand
@@ -48,6 +47,77 @@ class PairOnNetwork : public PairingCommand
 {
 public:
     PairOnNetwork() : PairingCommand("onnetwork", PairingMode::OnNetwork, PairingNetworkType::None) {}
+};
+
+class PairOnNetworkShort : public PairingCommand
+{
+public:
+    PairOnNetworkShort() :
+        PairingCommand("onnetwork-short", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kShort)
+    {}
+};
+
+class PairOnNetworkLong : public PairingCommand
+{
+public:
+    PairOnNetworkLong() :
+        PairingCommand("onnetwork-long", PairingMode::OnNetwork, PairingNetworkType::None, chip::Dnssd::DiscoveryFilterType::kLong)
+    {}
+};
+
+class PairOnNetworkVendor : public PairingCommand
+{
+public:
+    PairOnNetworkVendor() :
+        PairingCommand("onnetwork-vendor", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kVendor)
+    {}
+};
+
+class PairOnNetworkFabric : public PairingCommand
+{
+public:
+    PairOnNetworkFabric() :
+        PairingCommand("onnetwork-fabric", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kCompressedFabricId)
+    {}
+};
+
+class PairOnNetworkCommissioningMode : public PairingCommand
+{
+public:
+    PairOnNetworkCommissioningMode() :
+        PairingCommand("onnetwork-commissioning-mode", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kCommissioningMode)
+    {}
+};
+
+class PairOnNetworkCommissioner : public PairingCommand
+{
+public:
+    PairOnNetworkCommissioner() :
+        PairingCommand("onnetwork-commissioner", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kCommissioner)
+    {}
+};
+
+class PairOnNetworkDeviceType : public PairingCommand
+{
+public:
+    PairOnNetworkDeviceType() :
+        PairingCommand("onnetwork-device-type", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kDeviceType)
+    {}
+};
+
+class PairOnNetworkInstanceName : public PairingCommand
+{
+public:
+    PairOnNetworkInstanceName() :
+        PairingCommand("onnetwork-instance-name", PairingMode::OnNetwork, PairingNetworkType::None,
+                       chip::Dnssd::DiscoveryFilterType::kInstanceName)
+    {}
 };
 
 class PairBleWiFi : public PairingCommand
@@ -82,16 +152,45 @@ public:
     {}
 };
 
+class StartUdcServerCommand : public CHIPCommand
+{
+public:
+    StartUdcServerCommand() : CHIPCommand("start-udc-server") {}
+    chip::System::Clock::Timeout GetWaitDuration() const override { return chip::System::Clock::Seconds16(300); }
+
+    CHIP_ERROR RunCommand() override
+    {
+        chip::app::DnssdServer::Instance().StartServer(chip::Dnssd::CommissioningMode::kDisabled);
+        return CHIP_NO_ERROR;
+    }
+};
+
 void registerCommandsPairing(Commands & commands)
 {
     const char * clusterName = "Pairing";
 
     commands_list clusterCommands = {
-        make_unique<Unpair>(),        make_unique<PairBypass>(),
-        make_unique<PairQRCode>(),    make_unique<PairManualCode>(),
-        make_unique<PairBleWiFi>(),   make_unique<PairBleThread>(),
-        make_unique<PairSoftAP>(),    make_unique<Ethernet>(),
-        make_unique<PairOnNetwork>(), make_unique<OpenCommissioningWindow>(),
+        make_unique<Unpair>(),
+        make_unique<PairQRCode>(),
+        make_unique<PairManualCode>(),
+        make_unique<PairBleWiFi>(),
+        make_unique<PairBleThread>(),
+        make_unique<PairSoftAP>(),
+        make_unique<Ethernet>(),
+        make_unique<PairOnNetwork>(),
+        make_unique<PairOnNetworkShort>(),
+        make_unique<PairOnNetworkLong>(),
+        make_unique<PairOnNetworkVendor>(),
+        make_unique<PairOnNetworkCommissioningMode>(),
+        make_unique<PairOnNetworkCommissioner>(),
+        make_unique<PairOnNetworkDeviceType>(),
+        make_unique<PairOnNetworkDeviceType>(),
+        make_unique<PairOnNetworkInstanceName>(),
+        make_unique<OpenCommissioningWindow>(),
+        // TODO - enable CommissionedListCommand once DNS Cache is implemented
+        //        make_unique<CommissionedListCommand>(),
+        make_unique<ConfigureFabricCommand>(),
+        make_unique<StartUdcServerCommand>(),
     };
 
     commands.Register(clusterName, clusterCommands);

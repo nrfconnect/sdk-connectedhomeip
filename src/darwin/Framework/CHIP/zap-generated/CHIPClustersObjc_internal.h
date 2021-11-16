@@ -57,6 +57,14 @@
 @property (readonly) chip::Controller::BindingCluster cppCluster;
 @end
 
+@interface CHIPBooleanState ()
+@property (readonly) chip::Controller::BooleanStateCluster cppCluster;
+@end
+
+@interface CHIPBridgedActions ()
+@property (readonly) chip::Controller::BridgedActionsCluster cppCluster;
+@end
+
 @interface CHIPBridgedDeviceBasic ()
 @property (readonly) chip::Controller::BridgedDeviceBasicCluster cppCluster;
 @end
@@ -117,6 +125,10 @@
 @property (readonly) chip::Controller::IdentifyCluster cppCluster;
 @end
 
+@interface CHIPIlluminanceMeasurement ()
+@property (readonly) chip::Controller::IlluminanceMeasurementCluster cppCluster;
+@end
+
 @interface CHIPKeypadInput ()
 @property (readonly) chip::Controller::KeypadInputCluster cppCluster;
 @end
@@ -135,6 +147,10 @@
 
 @interface CHIPMediaPlayback ()
 @property (readonly) chip::Controller::MediaPlaybackCluster cppCluster;
+@end
+
+@interface CHIPModeSelect ()
+@property (readonly) chip::Controller::ModeSelectCluster cppCluster;
 @end
 
 @interface CHIPNetworkCommissioning ()
@@ -163,6 +179,10 @@
 
 @interface CHIPOperationalCredentials ()
 @property (readonly) chip::Controller::OperationalCredentialsCluster cppCluster;
+@end
+
+@interface CHIPPowerSource ()
+@property (readonly) chip::Controller::PowerSourceCluster cppCluster;
 @end
 
 @interface CHIPPressureMeasurement ()

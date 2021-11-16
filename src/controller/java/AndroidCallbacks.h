@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2020-2021 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ struct GetConnectedDeviceCallback
     GetConnectedDeviceCallback(jobject javaCallback);
     ~GetConnectedDeviceCallback();
 
-    static void OnDeviceConnectedFn(void * context, Device * device);
+    static void OnDeviceConnectedFn(void * context, DeviceProxy * device);
     static void OnDeviceConnectionFailureFn(void * context, NodeId nodeId, CHIP_ERROR error);
 
     Callback::Callback<OnDeviceConnected> mOnSuccess;

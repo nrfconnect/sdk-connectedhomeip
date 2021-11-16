@@ -45,32 +45,25 @@ public:
         Session,
     };
 
-    virtual ~MessageCounter() = 0;
+    virtual ~MessageCounter() = default;
 
-    virtual Type GetType()                        = 0;
-    virtual uint32_t Value()                      = 0; /** Get current value */
-    virtual CHIP_ERROR Advance()                  = 0; /** Advance the counter */
-    virtual CHIP_ERROR SetCounter(uint32_t count) = 0; /** Set the counter to the specified value */
+    virtual Type GetType()       = 0;
+    virtual uint32_t Value()     = 0; /** Get current value */
+    virtual CHIP_ERROR Advance() = 0; /** Advance the counter */
 };
-
-inline MessageCounter::~MessageCounter() {}
 
 class GlobalUnencryptedMessageCounter : public MessageCounter
 {
 public:
-    GlobalUnencryptedMessageCounter();
-    ~GlobalUnencryptedMessageCounter() override {}
+    GlobalUnencryptedMessageCounter() : value(0) {}
+
+    void Init();
 
     Type GetType() override { return GlobalUnencrypted; }
     uint32_t Value() override { return value; }
     CHIP_ERROR Advance() override
     {
         ++value;
-        return CHIP_NO_ERROR;
-    }
-    CHIP_ERROR SetCounter(uint32_t count) override
-    {
-        value = count;
         return CHIP_NO_ERROR;
     }
 
@@ -82,13 +75,11 @@ class GlobalEncryptedMessageCounter : public MessageCounter
 {
 public:
     GlobalEncryptedMessageCounter() {}
-    ~GlobalEncryptedMessageCounter() override {}
 
     CHIP_ERROR Init();
     Type GetType() override { return GlobalEncrypted; }
     uint32_t Value() override { return persisted.GetValue(); }
     CHIP_ERROR Advance() override { return persisted.Advance(); }
-    CHIP_ERROR SetCounter(uint32_t count) override { return CHIP_ERROR_NOT_IMPLEMENTED; }
 
 private:
 #if CONFIG_DEVICE_LAYER
@@ -117,18 +108,12 @@ class LocalSessionMessageCounter : public MessageCounter
 public:
     static constexpr uint32_t kInitialValue = 1;
     LocalSessionMessageCounter() : value(kInitialValue) {}
-    ~LocalSessionMessageCounter() override {}
 
     Type GetType() override { return Session; }
     uint32_t Value() override { return value; }
     CHIP_ERROR Advance() override
     {
         ++value;
-        return CHIP_NO_ERROR;
-    }
-    CHIP_ERROR SetCounter(uint32_t count) override
-    {
-        value = count;
         return CHIP_NO_ERROR;
     }
 

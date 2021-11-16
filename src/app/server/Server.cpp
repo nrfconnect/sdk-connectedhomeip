@@ -18,8 +18,8 @@
 #include <app/server/Server.h>
 
 #include <app/InteractionModelEngine.h>
+#include <app/server/Dnssd.h>
 #include <app/server/EchoHandler.h>
-#include <app/server/Mdns.h>
 #include <app/util/DataModelHandler.h>
 
 #include <ble/BLEEndPoint.h>
@@ -27,8 +27,8 @@
 #include <inet/InetError.h>
 #include <inet/InetLayer.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
-#include <lib/mdns/Advertiser.h>
-#include <lib/mdns/ServiceNaming.h>
+#include <lib/dnssd/Advertiser.h>
+#include <lib/dnssd/ServiceNaming.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -41,14 +41,13 @@
 #include <sys/param.h>
 #include <system/SystemPacketBuffer.h>
 #include <system/TLVPacketBufferBackingStore.h>
-#include <transport/FabricTable.h>
 #include <transport/SessionManager.h>
 
+using chip::kMinValidFabricIndex;
 using chip::RendezvousInformationFlag;
 using chip::DeviceLayer::PersistedStorage::KeyValueStoreMgr;
 using chip::Inet::IPAddressType;
 using chip::Transport::BleListenParameters;
-using chip::Transport::kMinValidFabricIndex;
 using chip::Transport::PeerAddress;
 using chip::Transport::UdpListenParameters;
 
@@ -73,7 +72,6 @@ Server Server::sServer;
 
 CHIP_ERROR Server::Init(AppDelegate * delegate, uint16_t secureServicePort, uint16_t unsecureServicePort)
 {
-    mAppDelegate          = delegate;
     mSecuredServicePort   = secureServicePort;
     mUnsecuredServicePort = unsecureServicePort;
 
@@ -96,25 +94,25 @@ CHIP_ERROR Server::Init(AppDelegate * delegate, uint16_t secureServicePort, uint
     SuccessOrExit(err);
 
     // Init transport before operations with secure session mgr.
-    err = mTransports.Init(UdpListenParameters(&DeviceLayer::InetLayer)
-                               .SetAddressType(IPAddressType::kIPAddressType_IPv6)
-                               .SetListenPort(mSecuredServicePort)
+    err = mTransports.Init(
+        UdpListenParameters(&DeviceLayer::InetLayer()).SetAddressType(IPAddressType::kIPv6).SetListenPort(mSecuredServicePort)
 
 #if INET_CONFIG_ENABLE_IPV4
-                               ,
-                           UdpListenParameters(&DeviceLayer::InetLayer)
-                               .SetAddressType(IPAddressType::kIPAddressType_IPv4)
-                               .SetListenPort(mSecuredServicePort)
+            ,
+        UdpListenParameters(&DeviceLayer::InetLayer()).SetAddressType(IPAddressType::kIPv4).SetListenPort(mSecuredServicePort)
 #endif
 #if CONFIG_NETWORK_LAYER_BLE
-                               ,
-                           BleListenParameters(DeviceLayer::ConnectivityMgr().GetBleLayer())
+            ,
+        BleListenParameters(DeviceLayer::ConnectivityMgr().GetBleLayer())
 #endif
     );
 
+#if CONFIG_NETWORK_LAYER_BLE
+    mBleLayer = DeviceLayer::ConnectivityMgr().GetBleLayer();
+#endif
     SuccessOrExit(err);
 
-    err = mSessions.Init(&DeviceLayer::SystemLayer(), &mTransports, &mFabrics, &mMessageCounterManager);
+    err = mSessions.Init(&DeviceLayer::SystemLayer(), &mTransports, &mMessageCounterManager);
     SuccessOrExit(err);
 
     err = mExchangeMgr.Init(&mSessions);
@@ -135,10 +133,11 @@ CHIP_ERROR Server::Init(AppDelegate * delegate, uint16_t secureServicePort, uint
         ChipLogProgress(AppServer, "Rendezvous and secure pairing skipped");
         SuccessOrExit(err = AddTestCommissioning());
     }
-    else if (DeviceLayer::ConnectivityMgr().IsWiFiStationProvisioned() || DeviceLayer::ConnectivityMgr().IsThreadProvisioned())
+    else if ((DeviceLayer::ConnectivityMgr().IsWiFiStationProvisioned() || DeviceLayer::ConnectivityMgr().IsThreadProvisioned()) &&
+             (GetFabricTable().FabricCount() != 0))
     {
-        // If the network is already provisioned, proactively disable BLE advertisement.
-        ChipLogProgress(AppServer, "Network already provisioned. Disabling BLE advertisement");
+        // The device is already commissioned, proactively disable BLE advertisement.
+        ChipLogProgress(AppServer, "Fabric already commissioned. Disabling BLE advertisement");
         chip::DeviceLayer::ConnectivityMgr().SetBLEAdvertisingEnabled(false);
     }
     else
@@ -149,22 +148,18 @@ CHIP_ERROR Server::Init(AppDelegate * delegate, uint16_t secureServicePort, uint
 #endif
     }
 
-#if CHIP_DEVICE_CONFIG_ENABLE_MDNS
-    app::MdnsServer::Instance().SetSecuredPort(mSecuredServicePort);
-    app::MdnsServer::Instance().SetUnsecuredPort(mUnsecuredServicePort);
-#endif // CHIP_DEVICE_CONFIG_ENABLE_MDNS
+#if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
+    app::DnssdServer::Instance().SetSecuredPort(mSecuredServicePort);
+    app::DnssdServer::Instance().SetUnsecuredPort(mUnsecuredServicePort);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
 
     // TODO @bzbarsky-apple @cecille Move to examples
     // ESP32 and Mbed OS examples have a custom logic for enabling DNS-SD
-#if CHIP_DEVICE_CONFIG_ENABLE_MDNS && !CHIP_DEVICE_LAYER_TARGET_ESP32 && !CHIP_DEVICE_LAYER_TARGET_MBED
+#if CHIP_DEVICE_CONFIG_ENABLE_DNSSD && !CHIP_DEVICE_LAYER_TARGET_ESP32 && !CHIP_DEVICE_LAYER_TARGET_MBED &&                        \
+    (!CHIP_DEVICE_LAYER_TARGET_AMEBA || !CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE)
     // StartServer only enables commissioning mode if device has not been commissioned
-    app::MdnsServer::Instance().StartServer();
+    app::DnssdServer::Instance().StartServer();
 #endif
-
-    // TODO @pan-apple Use IM protocol ID.
-    // Register to receive unsolicited legacy ZCL messages from the exchange manager.
-    err = mExchangeMgr.RegisterUnsolicitedMessageHandlerForProtocol(Protocols::TempZCL::Id, this);
-    SuccessOrExit(err);
 
     err = mCASEServer.ListenForSessionEstablishment(&mExchangeMgr, &mTransports, chip::DeviceLayer::ConnectivityMgr().GetBleLayer(),
                                                     &mSessions, &mFabrics, &mSessionIDAllocator);
@@ -184,7 +179,7 @@ exit:
 
 void Server::Shutdown()
 {
-    chip::Mdns::ServiceAdvertiser::Instance().StopPublishDevice();
+    chip::Dnssd::ServiceAdvertiser::Instance().Shutdown();
     chip::app::InteractionModelEngine::GetInstance()->Shutdown();
     mExchangeMgr.Shutdown();
     mSessions.Shutdown();
@@ -202,8 +197,8 @@ CHIP_ERROR Server::SendUserDirectedCommissioningRequest(chip::Transport::PeerAdd
     ChipLogDetail(AppServer, "SendUserDirectedCommissioningRequest2");
 
     CHIP_ERROR err;
-    char nameBuffer[chip::Mdns::kMaxInstanceNameSize + 1];
-    err = app::MdnsServer::Instance().GetCommissionableInstanceName(nameBuffer, sizeof(nameBuffer));
+    char nameBuffer[chip::Dnssd::Commissionable::kInstanceNameMaxLength + 1];
+    err = app::DnssdServer::Instance().GetCommissionableInstanceName(nameBuffer, sizeof(nameBuffer));
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(AppServer, "Failed to get mdns instance name error: %s", ErrorStr(err));
@@ -256,26 +251,6 @@ exit:
         mFabrics.ReleaseFabricIndex(kMinValidFabricIndex);
     }
     return err;
-}
-
-CHIP_ERROR Server::OnMessageReceived(Messaging::ExchangeContext * exchangeContext, const PayloadHeader & payloadHeader,
-                                     System::PacketBufferHandle && buffer)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    VerifyOrReturnError(!buffer.IsNull(), err = CHIP_ERROR_INVALID_ARGUMENT);
-    // TODO: BDX messages will also be possible in the future.
-    HandleDataModelMessage(exchangeContext, std::move(buffer));
-
-    return err;
-}
-
-void Server::OnResponseTimeout(Messaging::ExchangeContext * ec)
-{
-    ChipLogProgress(AppServer, "Failed to receive response");
-    if (mAppDelegate != nullptr)
-    {
-        mAppDelegate->OnReceiveError();
-    }
 }
 
 } // namespace chip

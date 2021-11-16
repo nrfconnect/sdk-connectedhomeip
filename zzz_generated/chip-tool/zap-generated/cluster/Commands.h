@@ -20,12 +20,2023 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <type_traits>
 
+#include <app-common/zap-generated/cluster-objects.h>
+#include <app/data-model/DecodableList.h>
+#include <app/data-model/Nullable.h>
 #include <commands/clusters/ModelCommand.h>
+#include <commands/common/CommandInvoker.h>
 #include <lib/core/CHIPSafeCasts.h>
 #include <lib/support/BytesToHex.h>
+#include <lib/support/Span.h>
+#include <lib/support/TypeTraits.h>
 #include <zap-generated/CHIPClientCallbacks.h>
 #include <zap-generated/CHIPClusters.h>
+
+// Value logging functions.  The non-generated ones depend on the
+// generated ones, so are placed here.
+namespace {
+
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::Scenes::Structs::SceneExtensionFieldSet::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::PowerProfile::Structs::PowerProfileRecord::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::PowerProfile::Structs::ScheduledPhase::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::PowerProfile::Structs::TransferredPhase::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::Descriptor::Structs::DeviceType::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::BridgedActions::Structs::ActionStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::BridgedActions::Structs::EndpointListStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GeneralCommissioning::Structs::BasicCommissioningInfoType::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::NetworkCommissioning::Structs::ThreadInterfaceScanResult::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::NetworkCommissioning::Structs::WiFiInterfaceScanResult::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GeneralDiagnostics::Structs::NetworkInterfaceType::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::SoftwareDiagnostics::Structs::SoftwareFault::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::SoftwareDiagnostics::Structs::ThreadMetrics::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::NeighborTable::DecodableType & value);
+CHIP_ERROR
+LogValue(const char * label, size_t indent,
+         const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::OperationalDatasetComponents::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::RouteTable::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::SecurityPolicy::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::OperationalCredentials::Structs::FabricDescriptor::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::OperationalCredentials::Structs::NOCStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::FixedLabel::Structs::LabelStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ModeSelect::Structs::ModeOptionStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ModeSelect::Structs::SemanticTag::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::IasAce::Structs::IasAceZoneStatusResult::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TvChannel::Structs::TvChannelInfo::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TvChannel::Structs::TvChannelLineupInfo::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TargetNavigator::Structs::NavigateTargetTargetInfo::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::MediaPlayback::Structs::MediaPlaybackPosition::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::MediaInput::Structs::MediaInputInfo::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchAdditionalInfo::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchParamater::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchBrandingInformation::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchDimension::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchStyleInformation::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::AudioOutput::Structs::AudioOutputInfo::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ApplicationLauncher::Structs::ApplicationLauncherApp::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::SimpleStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::NullablesAndOptionalsStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::NestedStruct::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::NestedStructList::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::DoubleNestedStructList::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::TestListStructOctet::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GroupKeyManagement::Structs::GroupKey::DecodableType & value);
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GroupKeyManagement::Structs::GroupState::DecodableType & value);
+
+#if CHIP_PROGRESS_LOGGING
+std::string IndentStr(size_t indent)
+{
+    std::string str;
+    for (size_t i = 0; i < indent; ++i)
+    {
+        str.append("  ");
+    }
+    return str;
+}
+#endif // CHIP_PROGRESS_LOGGING
+
+template <typename X,
+          typename std::enable_if_t<
+              std::is_integral<X>::value && !std::is_same<std::remove_cv_t<std::remove_reference_t<X>>, bool>::value, int> = 0>
+CHIP_ERROR LogValue(const char * label, size_t indent, X value)
+{
+    ChipLogProgress(chipTool, "%s%s: %s", IndentStr(indent).c_str(), label, std::to_string(value).c_str());
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR LogValue(const char * label, size_t indent, bool value)
+{
+    ChipLogProgress(chipTool, "%s%s: %s", IndentStr(indent).c_str(), label, value ? "TRUE" : "FALSE");
+    return CHIP_NO_ERROR;
+}
+
+template <typename X, typename std::enable_if_t<std::is_enum<X>::value, int> = 0>
+CHIP_ERROR LogValue(const char * label, size_t indent, X value)
+{
+    return LogValue(label, indent, chip::to_underlying(value));
+}
+
+CHIP_ERROR LogValue(const char * label, size_t indent, chip::CharSpan value)
+{
+    ChipLogProgress(chipTool, "%s%s: %.*s", IndentStr(indent).c_str(), label, static_cast<int>(value.size()), value.data());
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR LogValue(const char * label, size_t indent, chip::ByteSpan value)
+{
+    ChipLogProgress(chipTool, "%s%s: %zu", IndentStr(indent).c_str(), label, value.size());
+    return CHIP_NO_ERROR;
+}
+
+template <typename X>
+CHIP_ERROR LogValue(const char * label, size_t indent, chip::BitFlags<X> value)
+{
+    return LogValue(label, indent, value.Raw());
+}
+
+template <typename T>
+CHIP_ERROR LogValue(const char * label, size_t indent, const chip::app::DataModel::DecodableList<T> & value)
+{
+    size_t count   = 0;
+    CHIP_ERROR err = value.ComputeSize(&count);
+    if (err != CHIP_NO_ERROR)
+    {
+        return err;
+    }
+    ChipLogProgress(chipTool, "%s%s: %zu entries", IndentStr(indent).c_str(), label, count);
+
+    auto iter = value.begin();
+    size_t i  = 0;
+    while (iter.Next())
+    {
+        ++i;
+        std::string itemLabel = std::string("[") + std::to_string(i) + "]";
+        ReturnErrorOnFailure(LogValue(itemLabel.c_str(), indent + 1, iter.GetValue()));
+    }
+    if (iter.GetStatus() != CHIP_NO_ERROR)
+    {
+        ChipLogProgress(chipTool, "%sList truncated due to invalid value", IndentStr(indent + 1).c_str());
+    }
+    return iter.GetStatus();
+}
+
+template <typename T>
+CHIP_ERROR LogValue(const char * label, size_t indent, const chip::app::DataModel::Nullable<T> & value)
+{
+    if (!value.IsNull())
+    {
+        return LogValue(label, indent, value.Value());
+    }
+    ChipLogProgress(chipTool, "%s%s: null", IndentStr(indent).c_str(), label);
+    return CHIP_NO_ERROR;
+}
+
+template <typename T>
+CHIP_ERROR LogValue(const char * label, size_t indent, const chip::Optional<T> & value)
+{
+    if (value.HasValue())
+    {
+        return LogValue(label, indent, value.Value());
+    }
+
+    return CHIP_NO_ERROR;
+}
+
+// We output helpers for all structs here, including ones we might not actually
+// be logging.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::Scenes::Structs::SceneExtensionFieldSet::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ClusterId", indent + 1, value.clusterId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ClusterId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Length", indent + 1, value.length);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Length'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Value", indent + 1, value.value);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Value'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::PowerProfile::Structs::PowerProfileRecord::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("PowerProfileId", indent + 1, value.powerProfileId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PowerProfileId'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("EnergyPhaseId", indent + 1, value.energyPhaseId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'EnergyPhaseId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PowerProfileRemoteControl", indent + 1, value.powerProfileRemoteControl);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PowerProfileRemoteControl'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PowerProfileState", indent + 1, value.powerProfileState);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PowerProfileState'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::PowerProfile::Structs::ScheduledPhase::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("EnergyPhaseId", indent + 1, value.energyPhaseId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'EnergyPhaseId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ScheduledTime", indent + 1, value.scheduledTime);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ScheduledTime'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::PowerProfile::Structs::TransferredPhase::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("EnergyPhaseId", indent + 1, value.energyPhaseId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'EnergyPhaseId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MacroPhaseId", indent + 1, value.macroPhaseId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MacroPhaseId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ExpectedDuration", indent + 1, value.expectedDuration);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ExpectedDuration'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PeakPower", indent + 1, value.peakPower);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PeakPower'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Energy", indent + 1, value.energy);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Energy'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MaxActivationDelay", indent + 1, value.maxActivationDelay);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MaxActivationDelay'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::Descriptor::Structs::DeviceType::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Type", indent + 1, value.type);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Type'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Revision", indent + 1, value.revision);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Revision'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::BridgedActions::Structs::ActionStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ActionID", indent + 1, value.actionID);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ActionID'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Type", indent + 1, value.type);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Type'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("EndpointListID", indent + 1, value.endpointListID);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'EndpointListID'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("SupportedCommands", indent + 1, value.supportedCommands);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'SupportedCommands'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Status", indent + 1, value.status);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Status'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::BridgedActions::Structs::EndpointListStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("EndpointListID", indent + 1, value.endpointListID);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'EndpointListID'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Type", indent + 1, value.type);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Type'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Endpoints", indent + 1, value.endpoints);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Endpoints'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GeneralCommissioning::Structs::BasicCommissioningInfoType::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("FailSafeExpiryLengthMs", indent + 1, value.failSafeExpiryLengthMs);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FailSafeExpiryLengthMs'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::NetworkCommissioning::Structs::ThreadInterfaceScanResult::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("DiscoveryResponse", indent + 1, value.discoveryResponse);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'DiscoveryResponse'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::NetworkCommissioning::Structs::WiFiInterfaceScanResult::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Security", indent + 1, value.security);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Security'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Ssid", indent + 1, value.ssid);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Ssid'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Bssid", indent + 1, value.bssid);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Bssid'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Channel", indent + 1, value.channel);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Channel'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FrequencyBand", indent + 1, value.frequencyBand);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FrequencyBand'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GeneralDiagnostics::Structs::NetworkInterfaceType::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FabricConnected", indent + 1, value.fabricConnected);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FabricConnected'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OffPremiseServicesReachableIPv4", indent + 1, value.offPremiseServicesReachableIPv4);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OffPremiseServicesReachableIPv4'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OffPremiseServicesReachableIPv6", indent + 1, value.offPremiseServicesReachableIPv6);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OffPremiseServicesReachableIPv6'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("HardwareAddress", indent + 1, value.hardwareAddress);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'HardwareAddress'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Type", indent + 1, value.type);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Type'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::SoftwareDiagnostics::Structs::SoftwareFault::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Id", indent + 1, value.id);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Id'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FaultRecording", indent + 1, value.faultRecording);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FaultRecording'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::SoftwareDiagnostics::Structs::ThreadMetrics::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Id", indent + 1, value.id);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Id'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("StackFreeCurrent", indent + 1, value.stackFreeCurrent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'StackFreeCurrent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("StackFreeMinimum", indent + 1, value.stackFreeMinimum);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'StackFreeMinimum'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("StackSize", indent + 1, value.stackSize);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'StackSize'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::NeighborTable::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ExtAddress", indent + 1, value.extAddress);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ExtAddress'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Age", indent + 1, value.age);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Age'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Rloc16", indent + 1, value.rloc16);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Rloc16'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LinkFrameCounter", indent + 1, value.linkFrameCounter);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LinkFrameCounter'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MleFrameCounter", indent + 1, value.mleFrameCounter);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MleFrameCounter'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Lqi", indent + 1, value.lqi);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Lqi'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("AverageRssi", indent + 1, value.averageRssi);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'AverageRssi'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LastRssi", indent + 1, value.lastRssi);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LastRssi'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FrameErrorRate", indent + 1, value.frameErrorRate);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FrameErrorRate'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MessageErrorRate", indent + 1, value.messageErrorRate);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MessageErrorRate'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("RxOnWhenIdle", indent + 1, value.rxOnWhenIdle);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'RxOnWhenIdle'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FullThreadDevice", indent + 1, value.fullThreadDevice);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FullThreadDevice'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FullNetworkData", indent + 1, value.fullNetworkData);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FullNetworkData'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("IsChild", indent + 1, value.isChild);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'IsChild'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR
+LogValue(const char * label, size_t indent,
+         const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::OperationalDatasetComponents::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ActiveTimestampPresent", indent + 1, value.activeTimestampPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ActiveTimestampPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PendingTimestampPresent", indent + 1, value.pendingTimestampPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PendingTimestampPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MasterKeyPresent", indent + 1, value.masterKeyPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MasterKeyPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NetworkNamePresent", indent + 1, value.networkNamePresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NetworkNamePresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ExtendedPanIdPresent", indent + 1, value.extendedPanIdPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ExtendedPanIdPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MeshLocalPrefixPresent", indent + 1, value.meshLocalPrefixPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MeshLocalPrefixPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("DelayPresent", indent + 1, value.delayPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'DelayPresent'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PanIdPresent", indent + 1, value.panIdPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PanIdPresent'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ChannelPresent", indent + 1, value.channelPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ChannelPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PskcPresent", indent + 1, value.pskcPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PskcPresent'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("SecurityPolicyPresent", indent + 1, value.securityPolicyPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'SecurityPolicyPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ChannelMaskPresent", indent + 1, value.channelMaskPresent);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ChannelMaskPresent'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::RouteTable::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ExtAddress", indent + 1, value.extAddress);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ExtAddress'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Rloc16", indent + 1, value.rloc16);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Rloc16'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("RouterId", indent + 1, value.routerId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'RouterId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NextHop", indent + 1, value.nextHop);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NextHop'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PathCost", indent + 1, value.pathCost);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PathCost'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LQIIn", indent + 1, value.LQIIn);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LQIIn'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LQIOut", indent + 1, value.LQIOut);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LQIOut'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Age", indent + 1, value.age);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Age'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Allocated", indent + 1, value.allocated);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Allocated'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LinkEstablished", indent + 1, value.linkEstablished);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LinkEstablished'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ThreadNetworkDiagnostics::Structs::SecurityPolicy::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("RotationTime", indent + 1, value.rotationTime);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'RotationTime'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Flags", indent + 1, value.flags);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Flags'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::OperationalCredentials::Structs::FabricDescriptor::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("FabricIndex", indent + 1, value.fabricIndex);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FabricIndex'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("RootPublicKey", indent + 1, value.rootPublicKey);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'RootPublicKey'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("VendorId", indent + 1, value.vendorId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'VendorId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("FabricId", indent + 1, value.fabricId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FabricId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NodeId", indent + 1, value.nodeId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NodeId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Label", indent + 1, value.label);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Label'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::OperationalCredentials::Structs::NOCStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("FabricIndex", indent + 1, value.fabricIndex);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FabricIndex'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Noc", indent + 1, value.noc);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Noc'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::FixedLabel::Structs::LabelStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Label", indent + 1, value.label);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Label'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Value", indent + 1, value.value);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Value'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ModeSelect::Structs::ModeOptionStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Label", indent + 1, value.label);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Label'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Mode", indent + 1, value.mode);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Mode'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("SemanticTag", indent + 1, value.semanticTag);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'SemanticTag'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ModeSelect::Structs::SemanticTag::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("MfgCode", indent + 1, value.mfgCode);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MfgCode'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Value", indent + 1, value.value);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Value'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::IasAce::Structs::IasAceZoneStatusResult::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ZoneId", indent + 1, value.zoneId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ZoneId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ZoneStatus", indent + 1, value.zoneStatus);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ZoneStatus'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TvChannel::Structs::TvChannelInfo::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("MajorNumber", indent + 1, value.majorNumber);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MajorNumber'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("MinorNumber", indent + 1, value.minorNumber);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'MinorNumber'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("CallSign", indent + 1, value.callSign);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'CallSign'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("AffiliateCallSign", indent + 1, value.affiliateCallSign);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'AffiliateCallSign'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TvChannel::Structs::TvChannelLineupInfo::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("OperatorName", indent + 1, value.operatorName);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OperatorName'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LineupName", indent + 1, value.lineupName);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LineupName'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("PostalCode", indent + 1, value.postalCode);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'PostalCode'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("LineupInfoType", indent + 1, value.lineupInfoType);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'LineupInfoType'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TargetNavigator::Structs::NavigateTargetTargetInfo::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Identifier", indent + 1, value.identifier);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Identifier'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::MediaPlayback::Structs::MediaPlaybackPosition::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("UpdatedAt", indent + 1, value.updatedAt);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'UpdatedAt'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Position", indent + 1, value.position);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Position'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::MediaInput::Structs::MediaInputInfo::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Index", indent + 1, value.index);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Index'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("InputType", indent + 1, value.inputType);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'InputType'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Description", indent + 1, value.description);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Description'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchAdditionalInfo::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Value", indent + 1, value.value);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Value'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchParamater::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Type", indent + 1, value.type);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Type'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Value", indent + 1, value.value);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Value'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ExternalIDList", indent + 1, value.externalIDList);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ExternalIDList'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchBrandingInformation::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ProviderName", indent + 1, value.providerName);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ProviderName'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Background", indent + 1, value.background);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Background'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Logo", indent + 1, value.logo);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Logo'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ProgressBar", indent + 1, value.progressBar);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ProgressBar'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Splash", indent + 1, value.splash);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Splash'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("WaterMark", indent + 1, value.waterMark);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'WaterMark'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchDimension::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Width", indent + 1, value.width);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Width'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Height", indent + 1, value.height);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Height'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Metric", indent + 1, value.metric);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Metric'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ContentLauncher::Structs::ContentLaunchStyleInformation::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("ImageUrl", indent + 1, value.imageUrl);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ImageUrl'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Color", indent + 1, value.color);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Color'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Size", indent + 1, value.size);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Size'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::AudioOutput::Structs::AudioOutputInfo::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("Index", indent + 1, value.index);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Index'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OutputType", indent + 1, value.outputType);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OutputType'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("Name", indent + 1, value.name);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'Name'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::ApplicationLauncher::Structs::ApplicationLauncherApp::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("CatalogVendorId", indent + 1, value.catalogVendorId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'CatalogVendorId'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("ApplicationId", indent + 1, value.applicationId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'ApplicationId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::SimpleStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("A", indent + 1, value.a);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'A'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("B", indent + 1, value.b);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'B'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("C", indent + 1, value.c);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'C'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("D", indent + 1, value.d);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'D'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("E", indent + 1, value.e);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'E'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("F", indent + 1, value.f);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'F'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::NullablesAndOptionalsStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("NullableInt", indent + 1, value.nullableInt);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableInt'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OptionalInt", indent + 1, value.optionalInt);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OptionalInt'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableOptionalInt", indent + 1, value.nullableOptionalInt);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableOptionalInt'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableString", indent + 1, value.nullableString);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableString'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OptionalString", indent + 1, value.optionalString);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OptionalString'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableOptionalString", indent + 1, value.nullableOptionalString);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableOptionalString'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableStruct", indent + 1, value.nullableStruct);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableStruct'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OptionalStruct", indent + 1, value.optionalStruct);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OptionalStruct'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableOptionalStruct", indent + 1, value.nullableOptionalStruct);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableOptionalStruct'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableList", indent + 1, value.nullableList);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableList'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OptionalList", indent + 1, value.optionalList);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OptionalList'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("NullableOptionalList", indent + 1, value.nullableOptionalList);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'NullableOptionalList'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::NestedStruct::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("A", indent + 1, value.a);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'A'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("B", indent + 1, value.b);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'B'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("C", indent + 1, value.c);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'C'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::NestedStructList::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("A", indent + 1, value.a);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'A'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("B", indent + 1, value.b);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'B'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("C", indent + 1, value.c);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'C'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("D", indent + 1, value.d);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'D'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("E", indent + 1, value.e);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'E'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("F", indent + 1, value.f);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'F'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("G", indent + 1, value.g);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'G'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::DoubleNestedStructList::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("A", indent + 1, value.a);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'A'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::TestCluster::Structs::TestListStructOctet::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("FabricIndex", indent + 1, value.fabricIndex);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'FabricIndex'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("OperationalCert", indent + 1, value.operationalCert);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'OperationalCert'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GroupKeyManagement::Structs::GroupKey::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("VendorId", indent + 1, value.vendorId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'VendorId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("GroupKeyIndex", indent + 1, value.groupKeyIndex);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'GroupKeyIndex'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("GroupKeyRoot", indent + 1, value.groupKeyRoot);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'GroupKeyRoot'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("GroupKeyEpochStartTime", indent + 1, value.groupKeyEpochStartTime);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'GroupKeyEpochStartTime'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("GroupKeySecurityPolicy", indent + 1, value.groupKeySecurityPolicy);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'GroupKeySecurityPolicy'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR LogValue(const char * label, size_t indent,
+                    const chip::app::Clusters::GroupKeyManagement::Structs::GroupState::DecodableType & value)
+{
+    ChipLogProgress(chipTool, "%s%s: {", IndentStr(indent).c_str(), label);
+    {
+        CHIP_ERROR err = LogValue("VendorId", indent + 1, value.vendorId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'VendorId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("VendorGroupId", indent + 1, value.vendorGroupId);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'VendorGroupId'", IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    {
+        CHIP_ERROR err = LogValue("GroupKeySetIndex", indent + 1, value.groupKeySetIndex);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogProgress(chipTool, "%sStruct truncated due to invalid value for 'GroupKeySetIndex'",
+                            IndentStr(indent + 1).c_str());
+            return err;
+        }
+    }
+    ChipLogProgress(chipTool, "%s}", IndentStr(indent).c_str());
+    return CHIP_NO_ERROR;
+}
+#pragma GCC diagnostic pop
+
+} // anonymous namespace
+
+static void OnDefaultSuccessResponseWithoutExit(void * context)
+{
+    ChipLogProgress(chipTool, "Default Success Response");
+}
 
 static void OnDefaultSuccessResponse(void * context)
 {
@@ -43,79 +2054,134 @@ static void OnDefaultFailureResponse(void * context, uint8_t status)
     command->SetCommandExitStatus(CHIP_ERROR_INTERNAL);
 }
 
-static void OnBooleanAttributeResponse(void * context, bool value)
+static void OnDefaultSuccess(void * context, const chip::app::DataModel::NullObjectType & data)
+{
+    OnDefaultSuccessResponse(context);
+};
+
+static void OnDefaultFailure(void * context, EmberAfStatus status)
+{
+    OnDefaultFailureResponse(context, status);
+};
+
+static void OnBooleanAttributeReport(void * context, bool value)
 {
     ChipLogProgress(chipTool, "Boolean attribute Response: %d", value);
+}
+
+static void OnBooleanAttributeResponse(void * context, bool value)
+{
+    OnBooleanAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt8uAttributeReport(void * context, uint8_t value)
+{
+    ChipLogProgress(chipTool, "Int8u attribute Response: %" PRIu8, value);
 }
 
 static void OnInt8uAttributeResponse(void * context, uint8_t value)
 {
-    ChipLogProgress(chipTool, "Int8u attribute Response: %" PRIu8, value);
+    OnInt8uAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt16uAttributeReport(void * context, uint16_t value)
+{
+    ChipLogProgress(chipTool, "Int16u attribute Response: %" PRIu16, value);
 }
 
 static void OnInt16uAttributeResponse(void * context, uint16_t value)
 {
-    ChipLogProgress(chipTool, "Int16u attribute Response: %" PRIu16, value);
+    OnInt16uAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt32uAttributeReport(void * context, uint32_t value)
+{
+    ChipLogProgress(chipTool, "Int32u attribute Response: %" PRIu32, value);
 }
 
 static void OnInt32uAttributeResponse(void * context, uint32_t value)
 {
-    ChipLogProgress(chipTool, "Int32u attribute Response: %" PRIu32, value);
+    OnInt32uAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt64uAttributeReport(void * context, uint64_t value)
+{
+    ChipLogProgress(chipTool, "Int64u attribute Response: %" PRIu64, value);
 }
 
 static void OnInt64uAttributeResponse(void * context, uint64_t value)
 {
-    ChipLogProgress(chipTool, "Int64u attribute Response: %" PRIu64, value);
+    OnInt64uAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt8sAttributeReport(void * context, int8_t value)
+{
+    ChipLogProgress(chipTool, "Int8s attribute Response: %" PRId8, value);
 }
 
 static void OnInt8sAttributeResponse(void * context, int8_t value)
 {
-    ChipLogProgress(chipTool, "Int8s attribute Response: %" PRId8, value);
+    OnInt8sAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt16sAttributeReport(void * context, int16_t value)
+{
+    ChipLogProgress(chipTool, "Int16s attribute Response: %" PRId16, value);
 }
 
 static void OnInt16sAttributeResponse(void * context, int16_t value)
 {
-    ChipLogProgress(chipTool, "Int16s attribute Response: %" PRId16, value);
+    OnInt16sAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt32sAttributeReport(void * context, int32_t value)
+{
+    ChipLogProgress(chipTool, "Int32s attribute Response: %" PRId32, value);
 }
 
 static void OnInt32sAttributeResponse(void * context, int32_t value)
 {
-    ChipLogProgress(chipTool, "Int32s attribute Response: %" PRId32, value);
+    OnInt32sAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
+}
+
+static void OnInt64sAttributeReport(void * context, int64_t value)
+{
+    ChipLogProgress(chipTool, "Int64s attribute Response: %" PRId64, value);
 }
 
 static void OnInt64sAttributeResponse(void * context, int64_t value)
 {
-    ChipLogProgress(chipTool, "Int64s attribute Response: %" PRId64, value);
+    OnInt64sAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
 }
 
-static void OnOctetStringAttributeResponse(void * context, const chip::ByteSpan value)
+static void OnOctetStringAttributeReport(void * context, const chip::ByteSpan value)
 {
     char buffer[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
     if (CHIP_NO_ERROR ==
@@ -127,1001 +2193,1781 @@ static void OnOctetStringAttributeResponse(void * context, const chip::ByteSpan 
     {
         ChipLogProgress(chipTool, "OctetString attribute Response len: %zu", value.size());
     }
+}
+
+static void OnOctetStringAttributeResponse(void * context, const chip::ByteSpan value)
+{
+    OnOctetStringAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
 }
 
-static void OnCharStringAttributeResponse(void * context, const chip::ByteSpan value)
+static void OnCharStringAttributeReport(void * context, const chip::CharSpan value)
 {
     ChipLogProgress(chipTool, "CharString attribute Response: %.*s", static_cast<int>(value.size()), value.data());
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
 }
 
-static void OnAccountLoginClusterGetSetupPINResponse(void * context, uint8_t * setupPIN)
+static void OnCharStringAttributeResponse(void * context, const chip::CharSpan value)
 {
-    ChipLogProgress(chipTool, "AccountLoginClusterGetSetupPINResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnApplicationLauncherClusterLaunchAppResponse(void * context, uint8_t status, uint8_t * data)
-{
-    ChipLogProgress(chipTool, "ApplicationLauncherClusterLaunchAppResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnContentLauncherClusterLaunchContentResponse(void * context, uint8_t * data, uint8_t contentLaunchStatus)
-{
-    ChipLogProgress(chipTool, "ContentLauncherClusterLaunchContentResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnContentLauncherClusterLaunchURLResponse(void * context, uint8_t * data, uint8_t contentLaunchStatus)
-{
-    ChipLogProgress(chipTool, "ContentLauncherClusterLaunchURLResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearAllPinsResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearAllPinsResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearAllRfidsResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearAllRfidsResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearHolidayScheduleResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearHolidayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearPinResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearPinResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearRfidResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearRfidResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearWeekdayScheduleResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearWeekdayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterClearYeardayScheduleResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterClearYeardayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetHolidayScheduleResponse(void * context, uint8_t scheduleId, uint8_t status, uint32_t localStartTime,
-                                                        uint32_t localEndTime, uint8_t operatingModeDuringHoliday)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetHolidayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetLogRecordResponse(void * context, uint16_t logEntryId, uint32_t timestamp, uint8_t eventType,
-                                                  uint8_t source, uint8_t eventIdOrAlarmCode, uint16_t userId, uint8_t * pin)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetLogRecordResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetPinResponse(void * context, uint16_t userId, uint8_t userStatus, uint8_t userType, uint8_t * pin)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetPinResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetRfidResponse(void * context, uint16_t userId, uint8_t userStatus, uint8_t userType, uint8_t * rfid)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetRfidResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetUserTypeResponse(void * context, uint16_t userId, uint8_t userType)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetUserTypeResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetWeekdayScheduleResponse(void * context, uint8_t scheduleId, uint16_t userId, uint8_t status,
-                                                        uint8_t daysMask, uint8_t startHour, uint8_t startMinute, uint8_t endHour,
-                                                        uint8_t endMinute)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetWeekdayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterGetYeardayScheduleResponse(void * context, uint8_t scheduleId, uint16_t userId, uint8_t status,
-                                                        uint32_t localStartTime, uint32_t localEndTime)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterGetYeardayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterLockDoorResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterLockDoorResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterSetHolidayScheduleResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterSetHolidayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterSetPinResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterSetPinResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterSetRfidResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterSetRfidResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterSetUserTypeResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterSetUserTypeResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterSetWeekdayScheduleResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterSetWeekdayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterSetYeardayScheduleResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterSetYeardayScheduleResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterUnlockDoorResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterUnlockDoorResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnDoorLockClusterUnlockWithTimeoutResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "DoorLockClusterUnlockWithTimeoutResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGeneralCommissioningClusterArmFailSafeResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "GeneralCommissioningClusterArmFailSafeResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGeneralCommissioningClusterCommissioningCompleteResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "GeneralCommissioningClusterCommissioningCompleteResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGeneralCommissioningClusterSetRegulatoryConfigResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "GeneralCommissioningClusterSetRegulatoryConfigResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGroupsClusterAddGroupResponse(void * context, uint8_t status, uint16_t groupId)
-{
-    ChipLogProgress(chipTool, "GroupsClusterAddGroupResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGroupsClusterGetGroupMembershipResponse(void * context, uint8_t capacity, uint8_t groupCount,
-                                                      /* TYPE WARNING: array array defaults to */ uint8_t * groupList)
-{
-    ChipLogProgress(chipTool, "GroupsClusterGetGroupMembershipResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGroupsClusterRemoveGroupResponse(void * context, uint8_t status, uint16_t groupId)
-{
-    ChipLogProgress(chipTool, "GroupsClusterRemoveGroupResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnGroupsClusterViewGroupResponse(void * context, uint8_t status, uint16_t groupId, uint8_t * groupName)
-{
-    ChipLogProgress(chipTool, "GroupsClusterViewGroupResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnIdentifyClusterIdentifyQueryResponse(void * context, uint16_t timeout)
-{
-    ChipLogProgress(chipTool, "IdentifyClusterIdentifyQueryResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnKeypadInputClusterSendKeyResponse(void * context, uint8_t status)
-{
-    ChipLogProgress(chipTool, "KeypadInputClusterSendKeyResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaFastForwardResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaFastForwardResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaNextResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaNextResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaPauseResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaPauseResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaPlayResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaPlayResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaPreviousResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaPreviousResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaRewindResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaRewindResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaSeekResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaSeekResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaSkipBackwardResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaSkipBackwardResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaSkipForwardResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaSkipForwardResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaStartOverResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaStartOverResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnMediaPlaybackClusterMediaStopResponse(void * context, uint8_t mediaPlaybackStatus)
-{
-    ChipLogProgress(chipTool, "MediaPlaybackClusterMediaStopResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnNetworkCommissioningClusterAddThreadNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterAddThreadNetworkResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnNetworkCommissioningClusterAddWiFiNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterAddWiFiNetworkResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnNetworkCommissioningClusterDisableNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterDisableNetworkResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnNetworkCommissioningClusterEnableNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterEnableNetworkResponse");
-
-    ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
-
-static void OnNetworkCommissioningClusterRemoveNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
-{
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterRemoveNetworkResponse");
+    OnCharStringAttributeReport(context, value);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
     command->SetCommandExitStatus(CHIP_NO_ERROR);
 }
 
 static void
-OnNetworkCommissioningClusterScanNetworksResponse(void * context, uint8_t errorCode, uint8_t * debugText,
-                                                  /* TYPE WARNING: array array defaults to */ uint8_t * wifiScanResults,
-                                                  /* TYPE WARNING: array array defaults to */ uint8_t * threadScanResults)
+OnApplicationLauncherApplicationLauncherListListAttributeResponse(void * context,
+                                                                  const chip::app::DataModel::DecodableList<uint16_t> & list)
 {
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterScanNetworksResponse");
+    CHIP_ERROR err = LogValue("OnApplicationLauncherApplicationLauncherListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnNetworkCommissioningClusterUpdateThreadNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
+static void OnAudioOutputAudioOutputListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::AudioOutput::Structs::AudioOutputInfo::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterUpdateThreadNetworkResponse");
+    CHIP_ERROR err = LogValue("OnAudioOutputAudioOutputListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnNetworkCommissioningClusterUpdateWiFiNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText)
+static void OnBridgedActionsActionListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::BridgedActions::Structs::ActionStruct::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "NetworkCommissioningClusterUpdateWiFiNetworkResponse");
+    CHIP_ERROR err = LogValue("OnBridgedActionsActionListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnOtaSoftwareUpdateProviderClusterApplyUpdateRequestResponse(void * context, uint8_t action, uint32_t delayedActionTime)
+static void OnBridgedActionsEndpointListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::BridgedActions::Structs::EndpointListStruct::DecodableType> &
+        list)
 {
-    ChipLogProgress(chipTool, "OtaSoftwareUpdateProviderClusterApplyUpdateRequestResponse");
+    CHIP_ERROR err = LogValue("OnBridgedActionsEndpointListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnOtaSoftwareUpdateProviderClusterQueryImageResponse(void * context, uint8_t status, uint32_t delayedActionTime,
-                                                                 uint8_t * imageURI, uint32_t softwareVersion,
-                                                                 chip::ByteSpan updateToken, bool userConsentNeeded,
-                                                                 chip::ByteSpan metadataForRequestor)
+static void
+OnContentLauncherAcceptsHeaderListListAttributeResponse(void * context,
+                                                        const chip::app::DataModel::DecodableList<chip::ByteSpan> & list)
 {
-    ChipLogProgress(chipTool, "OtaSoftwareUpdateProviderClusterQueryImageResponse");
+    CHIP_ERROR err = LogValue("OnContentLauncherAcceptsHeaderListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnOperationalCredentialsClusterNOCResponse(void * context, uint8_t StatusCode, uint8_t FabricIndex,
-                                                       chip::ByteSpan DebugText)
+static void OnContentLauncherSupportedStreamingTypesListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::ContentLauncher::ContentLaunchStreamingType> & list)
 {
-    ChipLogProgress(chipTool, "OperationalCredentialsClusterNOCResponse");
+    CHIP_ERROR err = LogValue("OnContentLauncherSupportedStreamingTypesListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnOperationalCredentialsClusterOpCSRResponse(void * context, chip::ByteSpan NOCSRElements,
-                                                         chip::ByteSpan AttestationSignature)
+static void OnDescriptorDeviceListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::Descriptor::Structs::DeviceType::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "OperationalCredentialsClusterOpCSRResponse");
+    CHIP_ERROR err = LogValue("OnDescriptorDeviceListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnScenesClusterAddSceneResponse(void * context, uint8_t status, uint16_t groupId, uint8_t sceneId)
+static void OnDescriptorServerListListAttributeResponse(void * context,
+                                                        const chip::app::DataModel::DecodableList<chip::ClusterId> & list)
 {
-    ChipLogProgress(chipTool, "ScenesClusterAddSceneResponse");
+    CHIP_ERROR err = LogValue("OnDescriptorServerListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnScenesClusterGetSceneMembershipResponse(void * context, uint8_t status, uint8_t capacity, uint16_t groupId,
-                                                      uint8_t sceneCount,
-                                                      /* TYPE WARNING: array array defaults to */ uint8_t * sceneList)
+static void OnDescriptorClientListListAttributeResponse(void * context,
+                                                        const chip::app::DataModel::DecodableList<chip::ClusterId> & list)
 {
-    ChipLogProgress(chipTool, "ScenesClusterGetSceneMembershipResponse");
+    CHIP_ERROR err = LogValue("OnDescriptorClientListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnScenesClusterRemoveAllScenesResponse(void * context, uint8_t status, uint16_t groupId)
+static void OnDescriptorPartsListListAttributeResponse(void * context,
+                                                       const chip::app::DataModel::DecodableList<chip::EndpointId> & list)
 {
-    ChipLogProgress(chipTool, "ScenesClusterRemoveAllScenesResponse");
+    CHIP_ERROR err = LogValue("OnDescriptorPartsListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnScenesClusterRemoveSceneResponse(void * context, uint8_t status, uint16_t groupId, uint8_t sceneId)
+static void OnFixedLabelLabelListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::FixedLabel::Structs::LabelStruct::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "ScenesClusterRemoveSceneResponse");
+    CHIP_ERROR err = LogValue("OnFixedLabelLabelListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnScenesClusterStoreSceneResponse(void * context, uint8_t status, uint16_t groupId, uint8_t sceneId)
+static void OnGeneralCommissioningBasicCommissioningInfoListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::GeneralCommissioning::Structs::BasicCommissioningInfoType::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "ScenesClusterStoreSceneResponse");
+    CHIP_ERROR err = LogValue("OnGeneralCommissioningBasicCommissioningInfoListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnScenesClusterViewSceneResponse(void * context, uint8_t status, uint16_t groupId, uint8_t sceneId,
-                                             uint16_t transitionTime, uint8_t * sceneName,
-                                             /* TYPE WARNING: array array defaults to */ uint8_t * extensionFieldSets)
+static void OnGeneralDiagnosticsNetworkInterfacesListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::GeneralDiagnostics::Structs::NetworkInterfaceType::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "ScenesClusterViewSceneResponse");
+    CHIP_ERROR err = LogValue("OnGeneralDiagnosticsNetworkInterfacesListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnTvChannelClusterChangeChannelResponse(void * context,
-                                                    /* TYPE WARNING: array array defaults to */ uint8_t * ChannelMatch,
-                                                    uint8_t ErrorType)
+static void OnGroupKeyManagementGroupsListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::GroupKeyManagement::Structs::GroupState::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "TvChannelClusterChangeChannelResponse");
+    CHIP_ERROR err = LogValue("OnGroupKeyManagementGroupsListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnTargetNavigatorClusterNavigateTargetResponse(void * context, uint8_t status, uint8_t * data)
+static void OnGroupKeyManagementGroupKeysListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::GroupKeyManagement::Structs::GroupKey::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "TargetNavigatorClusterNavigateTargetResponse");
+    CHIP_ERROR err = LogValue("OnGroupKeyManagementGroupKeysListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnTestClusterClusterTestAddArgumentsResponse(void * context, uint8_t returnValue)
+static void OnMediaInputMediaInputListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::MediaInput::Structs::MediaInputInfo::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "TestClusterClusterTestAddArgumentsResponse");
+    CHIP_ERROR err = LogValue("OnMediaInputMediaInputListListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnTestClusterClusterTestSpecificResponse(void * context, uint8_t returnValue)
+static void OnModeSelectSupportedModesListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::ModeSelect::Structs::ModeOptionStruct::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "TestClusterClusterTestSpecificResponse");
+    CHIP_ERROR err = LogValue("OnModeSelectSupportedModesListAttributeResponse", 0, list);
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
+    command->SetCommandExitStatus(err);
 }
 
-static void OnApplicationLauncherApplicationLauncherListListAttributeResponse(void * context, uint16_t count, uint16_t * entries)
+static void OnOperationalCredentialsFabricsListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::OperationalCredentials::Structs::FabricDescriptor::DecodableType> & list)
 {
-    ChipLogProgress(chipTool, "OnApplicationLauncherApplicationLauncherListListAttributeResponse: %" PRIu16 " entries", count);
+    CHIP_ERROR err = LogValue("OnOperationalCredentialsFabricsListListAttributeResponse", 0, list);
 
-    for (uint16_t i = 0; i < count; i++)
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnOperationalCredentialsTrustedRootCertificatesListAttributeResponse(
+    void * context, const chip::app::DataModel::DecodableList<chip::ByteSpan> & list)
+{
+    CHIP_ERROR err = LogValue("OnOperationalCredentialsTrustedRootCertificatesListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnPowerSourceActiveBatteryFaultsListAttributeResponse(void * context,
+                                                                  const chip::app::DataModel::DecodableList<uint8_t> & list)
+{
+    CHIP_ERROR err = LogValue("OnPowerSourceActiveBatteryFaultsListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnSoftwareDiagnosticsThreadMetricsListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::SoftwareDiagnostics::Structs::ThreadMetrics::DecodableType> &
+        list)
+{
+    CHIP_ERROR err = LogValue("OnSoftwareDiagnosticsThreadMetricsListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnTvChannelTvChannelListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::TvChannel::Structs::TvChannelInfo::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnTvChannelTvChannelListListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnTargetNavigatorTargetNavigatorListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::TargetNavigator::Structs::NavigateTargetTargetInfo::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnTargetNavigatorTargetNavigatorListListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnTestClusterListInt8uListAttributeResponse(void * context, const chip::app::DataModel::DecodableList<uint8_t> & list)
+{
+    CHIP_ERROR err = LogValue("OnTestClusterListInt8uListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnTestClusterListOctetStringListAttributeResponse(void * context,
+                                                              const chip::app::DataModel::DecodableList<chip::ByteSpan> & list)
+{
+    CHIP_ERROR err = LogValue("OnTestClusterListOctetStringListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnTestClusterListStructOctetStringListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::TestCluster::Structs::TestListStructOctet::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnTestClusterListStructOctetStringListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnTestClusterListNullablesAndOptionalsStructListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::TestCluster::Structs::NullablesAndOptionalsStruct::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnTestClusterListNullablesAndOptionalsStructListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnThreadNetworkDiagnosticsNeighborTableListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::ThreadNetworkDiagnostics::Structs::NeighborTable::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnThreadNetworkDiagnosticsNeighborTableListListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnThreadNetworkDiagnosticsRouteTableListListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::ThreadNetworkDiagnostics::Structs::RouteTable::DecodableType> &
+        list)
+{
+    CHIP_ERROR err = LogValue("OnThreadNetworkDiagnosticsRouteTableListListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnThreadNetworkDiagnosticsSecurityPolicyListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::ThreadNetworkDiagnostics::Structs::SecurityPolicy::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnThreadNetworkDiagnosticsSecurityPolicyListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnThreadNetworkDiagnosticsOperationalDatasetComponentsListAttributeResponse(
+    void * context,
+    const chip::app::DataModel::DecodableList<
+        chip::app::Clusters::ThreadNetworkDiagnostics::Structs::OperationalDatasetComponents::DecodableType> & list)
+{
+    CHIP_ERROR err = LogValue("OnThreadNetworkDiagnosticsOperationalDatasetComponentsListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeResponse(
+    void * context, const chip::app::DataModel::DecodableList<chip::app::Clusters::ThreadNetworkDiagnostics::NetworkFault> & list)
+{
+    CHIP_ERROR err = LogValue("OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeResponse", 0, list);
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+}
+
+static void OnAccountLoginGetSetupPINResponseSuccess(
+    void * context, const chip::app::Clusters::AccountLogin::Commands::GetSetupPINResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received GetSetupPINResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "INT16U[%" PRIu16 "]: %" PRIu16 "", i, entries[i]);
+        err = LogValue("setupPIN", 1, data.setupPIN);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnAudioOutputAudioOutputListListAttributeResponse(void * context, uint16_t count, _AudioOutputInfo * entries)
+static void OnApplicationLauncherLaunchAppResponseSuccess(
+    void * context, const chip::app::Clusters::ApplicationLauncher::Commands::LaunchAppResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnAudioOutputAudioOutputListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received LaunchAppResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "AudioOutputInfo[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  index: %" PRIu8 "", entries[i].index);
-        ChipLogProgress(chipTool, "  outputType: %" PRIu8 "", entries[i].outputType);
-        ChipLogProgress(Zcl, "  name: %zu", entries[i].name.size());
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("data", 1, data.data);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnContentLauncherAcceptsHeaderListListAttributeResponse(void * context, uint16_t count, chip::ByteSpan * entries)
+static void OnContentLauncherLaunchContentResponseSuccess(
+    void * context, const chip::app::Clusters::ContentLauncher::Commands::LaunchContentResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnContentLauncherAcceptsHeaderListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received LaunchContentResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(Zcl, "  : %zu", entries[i].size());
+        err = LogValue("data", 1, data.data);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("contentLaunchStatus", 1, data.contentLaunchStatus);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnContentLauncherSupportedStreamingTypesListAttributeResponse(void * context, uint16_t count, uint8_t * entries)
+static void OnContentLauncherLaunchURLResponseSuccess(
+    void * context, const chip::app::Clusters::ContentLauncher::Commands::LaunchURLResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnContentLauncherSupportedStreamingTypesListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received LaunchURLResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "ContentLaunchStreamingType[%" PRIu16 "]: %" PRIu8 "", i, entries[i]);
+        err = LogValue("data", 1, data.data);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("contentLaunchStatus", 1, data.contentLaunchStatus);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnDescriptorDeviceListListAttributeResponse(void * context, uint16_t count, _DeviceType * entries)
+static void OnDiagnosticLogsRetrieveLogsResponseSuccess(
+    void * context, const chip::app::Clusters::DiagnosticLogs::Commands::RetrieveLogsResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnDescriptorDeviceListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received RetrieveLogsResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "DeviceType[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  type: %" PRIu32 "", entries[i].type);
-        ChipLogProgress(chipTool, "  revision: %" PRIu16 "", entries[i].revision);
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("content", 1, data.content);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("timeStamp", 1, data.timeStamp);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("timeSinceBoot", 1, data.timeSinceBoot);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnDescriptorServerListListAttributeResponse(void * context, uint16_t count, chip::ClusterId * entries)
+static void
+OnDoorLockClearAllPinsResponseSuccess(void * context,
+                                      const chip::app::Clusters::DoorLock::Commands::ClearAllPinsResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnDescriptorServerListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearAllPinsResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "CLUSTER_ID[%" PRIu16 "]: %" PRIu32 "", i, entries[i]);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnDescriptorClientListListAttributeResponse(void * context, uint16_t count, chip::ClusterId * entries)
+static void
+OnDoorLockClearAllRfidsResponseSuccess(void * context,
+                                       const chip::app::Clusters::DoorLock::Commands::ClearAllRfidsResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnDescriptorClientListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearAllRfidsResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "CLUSTER_ID[%" PRIu16 "]: %" PRIu32 "", i, entries[i]);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnDescriptorPartsListListAttributeResponse(void * context, uint16_t count, chip::EndpointId * entries)
+static void OnDoorLockClearHolidayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::ClearHolidayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnDescriptorPartsListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearHolidayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "ENDPOINT_NO[%" PRIu16 "]: %" PRIu16 "", i, entries[i]);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnFixedLabelLabelListListAttributeResponse(void * context, uint16_t count, _LabelStruct * entries)
+static void OnDoorLockClearPinResponseSuccess(void * context,
+                                              const chip::app::Clusters::DoorLock::Commands::ClearPinResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnFixedLabelLabelListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearPinResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "LabelStruct[%" PRIu16 "]:", i);
-        ChipLogProgress(Zcl, "  label: %zu", entries[i].label.size());
-        ChipLogProgress(Zcl, "  value: %zu", entries[i].value.size());
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnGeneralCommissioningBasicCommissioningInfoListListAttributeResponse(void * context, uint16_t count,
-                                                                                  _BasicCommissioningInfoType * entries)
+static void
+OnDoorLockClearRfidResponseSuccess(void * context,
+                                   const chip::app::Clusters::DoorLock::Commands::ClearRfidResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnGeneralCommissioningBasicCommissioningInfoListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearRfidResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "BasicCommissioningInfoType[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  FailSafeExpiryLengthMs: %" PRIu32 "", entries[i].FailSafeExpiryLengthMs);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnGeneralDiagnosticsNetworkInterfacesListAttributeResponse(void * context, uint16_t count,
-                                                                       _NetworkInterfaceType * entries)
+static void OnDoorLockClearWeekdayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::ClearWeekdayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnGeneralDiagnosticsNetworkInterfacesListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearWeekdayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "NetworkInterfaceType[%" PRIu16 "]:", i);
-        ChipLogProgress(Zcl, "  Name: %zu", entries[i].Name.size());
-        ChipLogProgress(chipTool, "  FabricConnected: %d", entries[i].FabricConnected);
-        ChipLogProgress(chipTool, "  OffPremiseServicesReachableIPv4: %d", entries[i].OffPremiseServicesReachableIPv4);
-        ChipLogProgress(chipTool, "  OffPremiseServicesReachableIPv6: %d", entries[i].OffPremiseServicesReachableIPv6);
-        ChipLogProgress(Zcl, "  HardwareAddress: %zu", entries[i].HardwareAddress.size());
-        ChipLogProgress(chipTool, "  Type: %" PRIu8 "", entries[i].Type);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnGroupKeyManagementGroupsListAttributeResponse(void * context, uint16_t count, _GroupState * entries)
+static void OnDoorLockClearYeardayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::ClearYeardayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnGroupKeyManagementGroupsListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received ClearYeardayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "GroupState[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  VendorId: %" PRIu16 "", entries[i].VendorId);
-        ChipLogProgress(chipTool, "  VendorGroupId: %" PRIu16 "", entries[i].VendorGroupId);
-        ChipLogProgress(chipTool, "  GroupKeySetIndex: %" PRIu16 "", entries[i].GroupKeySetIndex);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnGroupKeyManagementGroupKeysListAttributeResponse(void * context, uint16_t count, _GroupKey * entries)
+static void OnDoorLockGetHolidayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::GetHolidayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnGroupKeyManagementGroupKeysListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetHolidayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "GroupKey[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  VendorId: %" PRIu16 "", entries[i].VendorId);
-        ChipLogProgress(chipTool, "  GroupKeyIndex: %" PRIu16 "", entries[i].GroupKeyIndex);
-        ChipLogProgress(Zcl, "  GroupKeyRoot: %zu", entries[i].GroupKeyRoot.size());
-        ChipLogProgress(chipTool, "  GroupKeyEpochStartTime: %" PRIu64 "", entries[i].GroupKeyEpochStartTime);
-        ChipLogProgress(chipTool, "  GroupKeySecurityPolicy: %" PRIu8 "", entries[i].GroupKeySecurityPolicy);
+        err = LogValue("scheduleId", 1, data.scheduleId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("localStartTime", 1, data.localStartTime);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("localEndTime", 1, data.localEndTime);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("operatingModeDuringHoliday", 1, data.operatingModeDuringHoliday);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnMediaInputMediaInputListListAttributeResponse(void * context, uint16_t count, _MediaInputInfo * entries)
+static void
+OnDoorLockGetLogRecordResponseSuccess(void * context,
+                                      const chip::app::Clusters::DoorLock::Commands::GetLogRecordResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnMediaInputMediaInputListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetLogRecordResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "MediaInputInfo[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  index: %" PRIu8 "", entries[i].index);
-        ChipLogProgress(chipTool, "  inputType: %" PRIu8 "", entries[i].inputType);
-        ChipLogProgress(Zcl, "  name: %zu", entries[i].name.size());
-        ChipLogProgress(Zcl, "  description: %zu", entries[i].description.size());
+        err = LogValue("logEntryId", 1, data.logEntryId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("timestamp", 1, data.timestamp);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("eventType", 1, data.eventType);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("source", 1, data.source);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("eventIdOrAlarmCode", 1, data.eventIdOrAlarmCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userId", 1, data.userId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("pin", 1, data.pin);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnOperationalCredentialsFabricsListListAttributeResponse(void * context, uint16_t count, _FabricDescriptor * entries)
+static void OnDoorLockGetPinResponseSuccess(void * context,
+                                            const chip::app::Clusters::DoorLock::Commands::GetPinResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnOperationalCredentialsFabricsListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetPinResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "FabricDescriptor[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  FabricIndex: %" PRIu8 "", entries[i].FabricIndex);
-        ChipLogProgress(Zcl, "  RootPublicKey: %zu", entries[i].RootPublicKey.size());
-        ChipLogProgress(chipTool, "  VendorId: %" PRIu16 "", entries[i].VendorId);
-        ChipLogProgress(chipTool, "  FabricId: %" PRIu64 "", entries[i].FabricId);
-        ChipLogProgress(chipTool, "  NodeId: %" PRIu64 "", entries[i].NodeId);
-        ChipLogProgress(Zcl, "  Label: %zu", entries[i].Label.size());
+        err = LogValue("userId", 1, data.userId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userStatus", 1, data.userStatus);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userType", 1, data.userType);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("pin", 1, data.pin);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnTvChannelTvChannelListListAttributeResponse(void * context, uint16_t count, _TvChannelInfo * entries)
+static void OnDoorLockGetRfidResponseSuccess(void * context,
+                                             const chip::app::Clusters::DoorLock::Commands::GetRfidResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnTvChannelTvChannelListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetRfidResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "TvChannelInfo[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  majorNumber: %" PRIu16 "", entries[i].majorNumber);
-        ChipLogProgress(chipTool, "  minorNumber: %" PRIu16 "", entries[i].minorNumber);
-        ChipLogProgress(Zcl, "  name: %zu", entries[i].name.size());
-        ChipLogProgress(Zcl, "  callSign: %zu", entries[i].callSign.size());
-        ChipLogProgress(Zcl, "  affiliateCallSign: %zu", entries[i].affiliateCallSign.size());
+        err = LogValue("userId", 1, data.userId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userStatus", 1, data.userStatus);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userType", 1, data.userType);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("rfid", 1, data.rfid);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnTargetNavigatorTargetNavigatorListListAttributeResponse(void * context, uint16_t count,
-                                                                      _NavigateTargetTargetInfo * entries)
+static void
+OnDoorLockGetUserTypeResponseSuccess(void * context,
+                                     const chip::app::Clusters::DoorLock::Commands::GetUserTypeResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnTargetNavigatorTargetNavigatorListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetUserTypeResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "NavigateTargetTargetInfo[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  identifier: %" PRIu8 "", entries[i].identifier);
-        ChipLogProgress(Zcl, "  name: %zu", entries[i].name.size());
+        err = LogValue("userId", 1, data.userId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userType", 1, data.userType);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnTestClusterListInt8uListAttributeResponse(void * context, uint16_t count, uint8_t * entries)
+static void OnDoorLockGetWeekdayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::GetWeekdayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnTestClusterListInt8uListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetWeekdayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "INT8U[%" PRIu16 "]: %" PRIu8 "", i, entries[i]);
+        err = LogValue("scheduleId", 1, data.scheduleId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userId", 1, data.userId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("daysMask", 1, data.daysMask);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("startHour", 1, data.startHour);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("startMinute", 1, data.startMinute);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("endHour", 1, data.endHour);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("endMinute", 1, data.endMinute);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnTestClusterListOctetStringListAttributeResponse(void * context, uint16_t count, chip::ByteSpan * entries)
+static void OnDoorLockGetYeardayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::GetYeardayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnTestClusterListOctetStringListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received GetYeardayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(Zcl, "  : %zu", entries[i].size());
+        err = LogValue("scheduleId", 1, data.scheduleId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userId", 1, data.userId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("localStartTime", 1, data.localStartTime);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("localEndTime", 1, data.localEndTime);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnTestClusterListStructOctetStringListAttributeResponse(void * context, uint16_t count, _TestListStructOctet * entries)
+static void OnDoorLockLockDoorResponseSuccess(void * context,
+                                              const chip::app::Clusters::DoorLock::Commands::LockDoorResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnTestClusterListStructOctetStringListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received LockDoorResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "TestListStructOctet[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  fabricIndex: %" PRIu64 "", entries[i].fabricIndex);
-        ChipLogProgress(Zcl, "  operationalCert: %zu", entries[i].operationalCert.size());
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnThreadNetworkDiagnosticsNeighborTableListListAttributeResponse(void * context, uint16_t count,
-                                                                             _NeighborTable * entries)
+static void OnDoorLockSetHolidayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::SetHolidayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnThreadNetworkDiagnosticsNeighborTableListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received SetHolidayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "NeighborTable[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  ExtAddress: %" PRIu64 "", entries[i].ExtAddress);
-        ChipLogProgress(chipTool, "  Age: %" PRIu32 "", entries[i].Age);
-        ChipLogProgress(chipTool, "  Rloc16: %" PRIu16 "", entries[i].Rloc16);
-        ChipLogProgress(chipTool, "  LinkFrameCounter: %" PRIu32 "", entries[i].LinkFrameCounter);
-        ChipLogProgress(chipTool, "  MleFrameCounter: %" PRIu32 "", entries[i].MleFrameCounter);
-        ChipLogProgress(chipTool, "  LQI: %" PRIu8 "", entries[i].LQI);
-        ChipLogProgress(chipTool, "  AverageRssi: %" PRId8 "", entries[i].AverageRssi);
-        ChipLogProgress(chipTool, "  LastRssi: %" PRId8 "", entries[i].LastRssi);
-        ChipLogProgress(chipTool, "  FrameErrorRate: %" PRIu8 "", entries[i].FrameErrorRate);
-        ChipLogProgress(chipTool, "  MessageErrorRate: %" PRIu8 "", entries[i].MessageErrorRate);
-        ChipLogProgress(chipTool, "  RxOnWhenIdle: %d", entries[i].RxOnWhenIdle);
-        ChipLogProgress(chipTool, "  FullThreadDevice: %d", entries[i].FullThreadDevice);
-        ChipLogProgress(chipTool, "  FullNetworkData: %d", entries[i].FullNetworkData);
-        ChipLogProgress(chipTool, "  IsChild: %d", entries[i].IsChild);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnThreadNetworkDiagnosticsRouteTableListListAttributeResponse(void * context, uint16_t count, _RouteTable * entries)
+static void OnDoorLockSetPinResponseSuccess(void * context,
+                                            const chip::app::Clusters::DoorLock::Commands::SetPinResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnThreadNetworkDiagnosticsRouteTableListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received SetPinResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "RouteTable[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  ExtAddress: %" PRIu64 "", entries[i].ExtAddress);
-        ChipLogProgress(chipTool, "  Rloc16: %" PRIu16 "", entries[i].Rloc16);
-        ChipLogProgress(chipTool, "  RouterId: %" PRIu8 "", entries[i].RouterId);
-        ChipLogProgress(chipTool, "  NextHop: %" PRIu8 "", entries[i].NextHop);
-        ChipLogProgress(chipTool, "  PathCost: %" PRIu8 "", entries[i].PathCost);
-        ChipLogProgress(chipTool, "  LQIIn: %" PRIu8 "", entries[i].LQIIn);
-        ChipLogProgress(chipTool, "  LQIOut: %" PRIu8 "", entries[i].LQIOut);
-        ChipLogProgress(chipTool, "  Age: %" PRIu8 "", entries[i].Age);
-        ChipLogProgress(chipTool, "  Allocated: %d", entries[i].Allocated);
-        ChipLogProgress(chipTool, "  LinkEstablished: %d", entries[i].LinkEstablished);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnThreadNetworkDiagnosticsSecurityPolicyListAttributeResponse(void * context, uint16_t count, _SecurityPolicy * entries)
+static void OnDoorLockSetRfidResponseSuccess(void * context,
+                                             const chip::app::Clusters::DoorLock::Commands::SetRfidResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnThreadNetworkDiagnosticsSecurityPolicyListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received SetRfidResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "SecurityPolicy[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  RotationTime: %" PRIu16 "", entries[i].RotationTime);
-        ChipLogProgress(chipTool, "  Flags: %" PRIu8 "", entries[i].Flags);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnThreadNetworkDiagnosticsOperationalDatasetComponentsListAttributeResponse(void * context, uint16_t count,
-                                                                                        _OperationalDatasetComponents * entries)
+static void
+OnDoorLockSetUserTypeResponseSuccess(void * context,
+                                     const chip::app::Clusters::DoorLock::Commands::SetUserTypeResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnThreadNetworkDiagnosticsOperationalDatasetComponentsListAttributeResponse: %" PRIu16 " entries",
-                    count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received SetUserTypeResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "OperationalDatasetComponents[%" PRIu16 "]:", i);
-        ChipLogProgress(chipTool, "  ActiveTimestampPresent: %d", entries[i].ActiveTimestampPresent);
-        ChipLogProgress(chipTool, "  PendingTimestampPresent: %d", entries[i].PendingTimestampPresent);
-        ChipLogProgress(chipTool, "  MasterKeyPresent: %d", entries[i].MasterKeyPresent);
-        ChipLogProgress(chipTool, "  NetworkNamePresent: %d", entries[i].NetworkNamePresent);
-        ChipLogProgress(chipTool, "  ExtendedPanIdPresent: %d", entries[i].ExtendedPanIdPresent);
-        ChipLogProgress(chipTool, "  MeshLocalPrefixPresent: %d", entries[i].MeshLocalPrefixPresent);
-        ChipLogProgress(chipTool, "  DelayPresent: %d", entries[i].DelayPresent);
-        ChipLogProgress(chipTool, "  PanIdPresent: %d", entries[i].PanIdPresent);
-        ChipLogProgress(chipTool, "  ChannelPresent: %d", entries[i].ChannelPresent);
-        ChipLogProgress(chipTool, "  PskcPresent: %d", entries[i].PskcPresent);
-        ChipLogProgress(chipTool, "  SecurityPolicyPresent: %d", entries[i].SecurityPolicyPresent);
-        ChipLogProgress(chipTool, "  ChannelMaskPresent: %d", entries[i].ChannelMaskPresent);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
 
-static void OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeResponse(void * context, uint16_t count,
-                                                                                   uint8_t * entries)
+static void OnDoorLockSetWeekdayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::SetWeekdayScheduleResponse::DecodableType & data)
 {
-    ChipLogProgress(chipTool, "OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeResponse: %" PRIu16 " entries", count);
-
-    for (uint16_t i = 0; i < count; i++)
+    ChipLogProgress(Zcl, "Received SetWeekdayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
     {
-        ChipLogProgress(chipTool, "NetworkFault[%" PRIu16 "]: %" PRIu8 "", i, entries[i]);
+        err = LogValue("status", 1, data.status);
     }
 
     ModelCommand * command = static_cast<ModelCommand *>(context);
-    command->SetCommandExitStatus(CHIP_NO_ERROR);
-}
+    command->SetCommandExitStatus(err);
+};
+
+static void OnDoorLockSetYeardayScheduleResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::SetYeardayScheduleResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received SetYeardayScheduleResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnDoorLockUnlockDoorResponseSuccess(void * context,
+                                    const chip::app::Clusters::DoorLock::Commands::UnlockDoorResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received UnlockDoorResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnDoorLockUnlockWithTimeoutResponseSuccess(
+    void * context, const chip::app::Clusters::DoorLock::Commands::UnlockWithTimeoutResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received UnlockWithTimeoutResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnGeneralCommissioningArmFailSafeResponseSuccess(
+    void * context, const chip::app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received ArmFailSafeResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnGeneralCommissioningCommissioningCompleteResponseSuccess(
+    void * context, const chip::app::Clusters::GeneralCommissioning::Commands::CommissioningCompleteResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received CommissioningCompleteResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnGeneralCommissioningSetRegulatoryConfigResponseSuccess(
+    void * context, const chip::app::Clusters::GeneralCommissioning::Commands::SetRegulatoryConfigResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received SetRegulatoryConfigResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnGroupsAddGroupResponseSuccess(void * context,
+                                            const chip::app::Clusters::Groups::Commands::AddGroupResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received AddGroupResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnGroupsGetGroupMembershipResponseSuccess(
+    void * context, const chip::app::Clusters::Groups::Commands::GetGroupMembershipResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received GetGroupMembershipResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("capacity", 1, data.capacity);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupCount", 1, data.groupCount);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupList", 1, data.groupList);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnGroupsRemoveGroupResponseSuccess(void * context,
+                                   const chip::app::Clusters::Groups::Commands::RemoveGroupResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received RemoveGroupResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnGroupsViewGroupResponseSuccess(void * context,
+                                             const chip::app::Clusters::Groups::Commands::ViewGroupResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received ViewGroupResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupName", 1, data.groupName);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnIdentifyIdentifyQueryResponseSuccess(void * context,
+                                       const chip::app::Clusters::Identify::Commands::IdentifyQueryResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received IdentifyQueryResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("timeout", 1, data.timeout);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnKeypadInputSendKeyResponseSuccess(void * context,
+                                    const chip::app::Clusters::KeypadInput::Commands::SendKeyResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received SendKeyResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaFastForwardResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaFastForwardResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaFastForwardResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnMediaPlaybackMediaNextResponseSuccess(void * context,
+                                        const chip::app::Clusters::MediaPlayback::Commands::MediaNextResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaNextResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaPauseResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaPauseResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaPauseResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnMediaPlaybackMediaPlayResponseSuccess(void * context,
+                                        const chip::app::Clusters::MediaPlayback::Commands::MediaPlayResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaPlayResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaPreviousResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaPreviousResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaPreviousResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaRewindResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaRewindResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaRewindResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnMediaPlaybackMediaSeekResponseSuccess(void * context,
+                                        const chip::app::Clusters::MediaPlayback::Commands::MediaSeekResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaSeekResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaSkipBackwardResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaSkipBackwardResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaSkipBackwardResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaSkipForwardResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaSkipForwardResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaSkipForwardResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnMediaPlaybackMediaStartOverResponseSuccess(
+    void * context, const chip::app::Clusters::MediaPlayback::Commands::MediaStartOverResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaStartOverResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnMediaPlaybackMediaStopResponseSuccess(void * context,
+                                        const chip::app::Clusters::MediaPlayback::Commands::MediaStopResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received MediaStopResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("mediaPlaybackStatus", 1, data.mediaPlaybackStatus);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningAddThreadNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::AddThreadNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received AddThreadNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningAddWiFiNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::AddWiFiNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received AddWiFiNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningDisableNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::DisableNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received DisableNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningEnableNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::EnableNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received EnableNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningRemoveNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::RemoveNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received RemoveNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningScanNetworksResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::ScanNetworksResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received ScanNetworksResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("wifiScanResults", 1, data.wifiScanResults);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("threadScanResults", 1, data.threadScanResults);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningUpdateThreadNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::UpdateThreadNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received UpdateThreadNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnNetworkCommissioningUpdateWiFiNetworkResponseSuccess(
+    void * context, const chip::app::Clusters::NetworkCommissioning::Commands::UpdateWiFiNetworkResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received UpdateWiFiNetworkResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorCode", 1, data.errorCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnOtaSoftwareUpdateProviderApplyUpdateResponseSuccess(
+    void * context, const chip::app::Clusters::OtaSoftwareUpdateProvider::Commands::ApplyUpdateResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received ApplyUpdateResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("action", 1, data.action);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("delayedActionTime", 1, data.delayedActionTime);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnOtaSoftwareUpdateProviderQueryImageResponseSuccess(
+    void * context, const chip::app::Clusters::OtaSoftwareUpdateProvider::Commands::QueryImageResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received QueryImageResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("delayedActionTime", 1, data.delayedActionTime);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("imageURI", 1, data.imageURI);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("softwareVersion", 1, data.softwareVersion);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("softwareVersionString", 1, data.softwareVersionString);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("updateToken", 1, data.updateToken);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("userConsentNeeded", 1, data.userConsentNeeded);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("metadataForRequestor", 1, data.metadataForRequestor);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnOperationalCredentialsAttestationResponseSuccess(
+    void * context, const chip::app::Clusters::OperationalCredentials::Commands::AttestationResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received AttestationResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("attestationElements", 1, data.attestationElements);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("signature", 1, data.signature);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnOperationalCredentialsCertificateChainResponseSuccess(
+    void * context, const chip::app::Clusters::OperationalCredentials::Commands::CertificateChainResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received CertificateChainResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("certificate", 1, data.certificate);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnOperationalCredentialsNOCResponseSuccess(
+    void * context, const chip::app::Clusters::OperationalCredentials::Commands::NOCResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received NOCResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("statusCode", 1, data.statusCode);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("fabricIndex", 1, data.fabricIndex);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("debugText", 1, data.debugText);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnOperationalCredentialsOpCSRResponseSuccess(
+    void * context, const chip::app::Clusters::OperationalCredentials::Commands::OpCSRResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received OpCSRResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("NOCSRElements", 1, data.NOCSRElements);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("attestationSignature", 1, data.attestationSignature);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnScenesAddSceneResponseSuccess(void * context,
+                                            const chip::app::Clusters::Scenes::Commands::AddSceneResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received AddSceneResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneId", 1, data.sceneId);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnScenesGetSceneMembershipResponseSuccess(
+    void * context, const chip::app::Clusters::Scenes::Commands::GetSceneMembershipResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received GetSceneMembershipResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("capacity", 1, data.capacity);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneCount", 1, data.sceneCount);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneList", 1, data.sceneList);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnScenesRemoveAllScenesResponseSuccess(void * context,
+                                       const chip::app::Clusters::Scenes::Commands::RemoveAllScenesResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received RemoveAllScenesResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnScenesRemoveSceneResponseSuccess(void * context,
+                                   const chip::app::Clusters::Scenes::Commands::RemoveSceneResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received RemoveSceneResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneId", 1, data.sceneId);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnScenesStoreSceneResponseSuccess(void * context,
+                                              const chip::app::Clusters::Scenes::Commands::StoreSceneResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received StoreSceneResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneId", 1, data.sceneId);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnScenesViewSceneResponseSuccess(void * context,
+                                             const chip::app::Clusters::Scenes::Commands::ViewSceneResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received ViewSceneResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("groupId", 1, data.groupId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneId", 1, data.sceneId);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("transitionTime", 1, data.transitionTime);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("sceneName", 1, data.sceneName);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("extensionFieldSets", 1, data.extensionFieldSets);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnTvChannelChangeChannelResponseSuccess(void * context,
+                                        const chip::app::Clusters::TvChannel::Commands::ChangeChannelResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received ChangeChannelResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("channelMatch", 1, data.channelMatch);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("errorType", 1, data.errorType);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnTargetNavigatorNavigateTargetResponseSuccess(
+    void * context, const chip::app::Clusters::TargetNavigator::Commands::NavigateTargetResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received NavigateTargetResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("status", 1, data.status);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("data", 1, data.data);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnTestClusterBooleanResponseSuccess(void * context,
+                                    const chip::app::Clusters::TestCluster::Commands::BooleanResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received BooleanResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("value", 1, data.value);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnTestClusterTestAddArgumentsResponseSuccess(
+    void * context, const chip::app::Clusters::TestCluster::Commands::TestAddArgumentsResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received TestAddArgumentsResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("returnValue", 1, data.returnValue);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void
+OnTestClusterTestEnumsResponseSuccess(void * context,
+                                      const chip::app::Clusters::TestCluster::Commands::TestEnumsResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received TestEnumsResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("arg1", 1, data.arg1);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("arg2", 1, data.arg2);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnTestClusterTestListInt8UReverseResponseSuccess(
+    void * context, const chip::app::Clusters::TestCluster::Commands::TestListInt8UReverseResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received TestListInt8UReverseResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("arg1", 1, data.arg1);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnTestClusterTestNullableOptionalResponseSuccess(
+    void * context, const chip::app::Clusters::TestCluster::Commands::TestNullableOptionalResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received TestNullableOptionalResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("wasPresent", 1, data.wasPresent);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("wasNull", 1, data.wasNull);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("value", 1, data.value);
+    }
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("originalValue", 1, data.originalValue);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
+
+static void OnTestClusterTestSpecificResponseSuccess(
+    void * context, const chip::app::Clusters::TestCluster::Commands::TestSpecificResponse::DecodableType & data)
+{
+    ChipLogProgress(Zcl, "Received TestSpecificResponse:");
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    if (err == CHIP_NO_ERROR)
+    {
+        err = LogValue("returnValue", 1, data.returnValue);
+    }
+
+    ModelCommand * command = static_cast<ModelCommand *>(context);
+    command->SetCommandExitStatus(err);
+};
 
 /*----------------------------------------------------------------------------*\
 | Cluster Name                                                        |   ID   |
@@ -1135,6 +3981,8 @@ static void OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeRespon
 | Basic                                                               | 0x0028 |
 | BinaryInputBasic                                                    | 0x000F |
 | Binding                                                             | 0xF000 |
+| BooleanState                                                        | 0x0045 |
+| BridgedActions                                                      | 0x0025 |
 | BridgedDeviceBasic                                                  | 0x0039 |
 | ColorControl                                                        | 0x0300 |
 | ContentLauncher                                                     | 0x050A |
@@ -1150,11 +3998,13 @@ static void OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeRespon
 | GroupKeyManagement                                                  | 0xF004 |
 | Groups                                                              | 0x0004 |
 | Identify                                                            | 0x0003 |
+| IlluminanceMeasurement                                              | 0x0400 |
 | KeypadInput                                                         | 0x0509 |
 | LevelControl                                                        | 0x0008 |
 | LowPower                                                            | 0x0508 |
 | MediaInput                                                          | 0x0507 |
 | MediaPlayback                                                       | 0x0506 |
+| ModeSelect                                                          | 0x0050 |
 | NetworkCommissioning                                                | 0x0031 |
 | OtaSoftwareUpdateProvider                                           | 0x0029 |
 | OtaSoftwareUpdateRequestor                                          | 0x002A |
@@ -1162,6 +4012,7 @@ static void OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeRespon
 | OnOff                                                               | 0x0006 |
 | OnOffSwitchConfiguration                                            | 0x0007 |
 | OperationalCredentials                                              | 0x003E |
+| PowerSource                                                         | 0x002F |
 | PressureMeasurement                                                 | 0x0403 |
 | PumpConfigurationAndControl                                         | 0x0200 |
 | RelativeHumidityMeasurement                                         | 0x0405 |
@@ -1179,59 +4030,6 @@ static void OnThreadNetworkDiagnosticsActiveNetworkFaultsListListAttributeRespon
 | WiFiNetworkDiagnostics                                              | 0x0036 |
 | WindowCovering                                                      | 0x0102 |
 \*----------------------------------------------------------------------------*/
-
-constexpr chip::ClusterId kAccountLoginClusterId                         = 0x050E;
-constexpr chip::ClusterId kAdministratorCommissioningClusterId           = 0x003C;
-constexpr chip::ClusterId kApplicationBasicClusterId                     = 0x050D;
-constexpr chip::ClusterId kApplicationLauncherClusterId                  = 0x050C;
-constexpr chip::ClusterId kAudioOutputClusterId                          = 0x050B;
-constexpr chip::ClusterId kBarrierControlClusterId                       = 0x0103;
-constexpr chip::ClusterId kBasicClusterId                                = 0x0028;
-constexpr chip::ClusterId kBinaryInputBasicClusterId                     = 0x000F;
-constexpr chip::ClusterId kBindingClusterId                              = 0xF000;
-constexpr chip::ClusterId kBridgedDeviceBasicClusterId                   = 0x0039;
-constexpr chip::ClusterId kColorControlClusterId                         = 0x0300;
-constexpr chip::ClusterId kContentLauncherClusterId                      = 0x050A;
-constexpr chip::ClusterId kDescriptorClusterId                           = 0x001D;
-constexpr chip::ClusterId kDiagnosticLogsClusterId                       = 0x0032;
-constexpr chip::ClusterId kDoorLockClusterId                             = 0x0101;
-constexpr chip::ClusterId kElectricalMeasurementClusterId                = 0x0B04;
-constexpr chip::ClusterId kEthernetNetworkDiagnosticsClusterId           = 0x0037;
-constexpr chip::ClusterId kFixedLabelClusterId                           = 0x0040;
-constexpr chip::ClusterId kFlowMeasurementClusterId                      = 0x0404;
-constexpr chip::ClusterId kGeneralCommissioningClusterId                 = 0x0030;
-constexpr chip::ClusterId kGeneralDiagnosticsClusterId                   = 0x0033;
-constexpr chip::ClusterId kGroupKeyManagementClusterId                   = 0xF004;
-constexpr chip::ClusterId kGroupsClusterId                               = 0x0004;
-constexpr chip::ClusterId kIdentifyClusterId                             = 0x0003;
-constexpr chip::ClusterId kKeypadInputClusterId                          = 0x0509;
-constexpr chip::ClusterId kLevelControlClusterId                         = 0x0008;
-constexpr chip::ClusterId kLowPowerClusterId                             = 0x0508;
-constexpr chip::ClusterId kMediaInputClusterId                           = 0x0507;
-constexpr chip::ClusterId kMediaPlaybackClusterId                        = 0x0506;
-constexpr chip::ClusterId kNetworkCommissioningClusterId                 = 0x0031;
-constexpr chip::ClusterId kOtaSoftwareUpdateProviderClusterId            = 0x0029;
-constexpr chip::ClusterId kOtaSoftwareUpdateRequestorClusterId           = 0x002A;
-constexpr chip::ClusterId kOccupancySensingClusterId                     = 0x0406;
-constexpr chip::ClusterId kOnOffClusterId                                = 0x0006;
-constexpr chip::ClusterId kOnOffSwitchConfigurationClusterId             = 0x0007;
-constexpr chip::ClusterId kOperationalCredentialsClusterId               = 0x003E;
-constexpr chip::ClusterId kPressureMeasurementClusterId                  = 0x0403;
-constexpr chip::ClusterId kPumpConfigurationAndControlClusterId          = 0x0200;
-constexpr chip::ClusterId kRelativeHumidityMeasurementClusterId          = 0x0405;
-constexpr chip::ClusterId kScenesClusterId                               = 0x0005;
-constexpr chip::ClusterId kSoftwareDiagnosticsClusterId                  = 0x0034;
-constexpr chip::ClusterId kSwitchClusterId                               = 0x003B;
-constexpr chip::ClusterId kTvChannelClusterId                            = 0x0504;
-constexpr chip::ClusterId kTargetNavigatorClusterId                      = 0x0505;
-constexpr chip::ClusterId kTemperatureMeasurementClusterId               = 0x0402;
-constexpr chip::ClusterId kTestClusterClusterId                          = 0x050F;
-constexpr chip::ClusterId kThermostatClusterId                           = 0x0201;
-constexpr chip::ClusterId kThermostatUserInterfaceConfigurationClusterId = 0x0204;
-constexpr chip::ClusterId kThreadNetworkDiagnosticsClusterId             = 0x0035;
-constexpr chip::ClusterId kWakeOnLanClusterId                            = 0x0503;
-constexpr chip::ClusterId kWiFiNetworkDiagnosticsClusterId               = 0x0036;
-constexpr chip::ClusterId kWindowCoveringClusterId                       = 0x0102;
 
 /*----------------------------------------------------------------------------*\
 | Cluster AccountLogin                                                | 0x050E |
@@ -1252,32 +4050,20 @@ class AccountLoginGetSetupPIN : public ModelCommand
 public:
     AccountLoginGetSetupPIN() : ModelCommand("get-setup-pin")
     {
-        AddArgument("TempAccountIdentifier", &mTempAccountIdentifier);
+        AddArgument("TempAccountIdentifier", &mRequest.tempAccountIdentifier);
         ModelCommand::AddArguments();
-    }
-    ~AccountLoginGetSetupPIN()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050E) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050E) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AccountLoginCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetSetupPIN(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                   chip::ByteSpan(chip::Uint8::from_char(mTempAccountIdentifier), strlen(mTempAccountIdentifier)));
+        return chip::Controller::InvokeCommand(device, this, OnAccountLoginGetSetupPINResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<AccountLoginClusterGetSetupPINResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<AccountLoginClusterGetSetupPINResponseCallback>(OnAccountLoginClusterGetSetupPINResponse,
-                                                                                     this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mTempAccountIdentifier;
+    chip::app::Clusters::AccountLogin::Commands::GetSetupPIN::Type mRequest;
 };
 
 /*
@@ -1288,34 +4074,20 @@ class AccountLoginLogin : public ModelCommand
 public:
     AccountLoginLogin() : ModelCommand("login")
     {
-        AddArgument("TempAccountIdentifier", &mTempAccountIdentifier);
-        AddArgument("SetupPIN", &mSetupPIN);
+        AddArgument("TempAccountIdentifier", &mRequest.tempAccountIdentifier);
+        AddArgument("SetupPIN", &mRequest.setupPIN);
         ModelCommand::AddArguments();
-    }
-    ~AccountLoginLogin()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050E) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050E) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AccountLoginCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Login(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                             chip::ByteSpan(chip::Uint8::from_char(mTempAccountIdentifier), strlen(mTempAccountIdentifier)),
-                             chip::ByteSpan(chip::Uint8::from_char(mSetupPIN), strlen(mSetupPIN)));
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mTempAccountIdentifier;
-    char * mSetupPIN;
+    chip::app::Clusters::AccountLogin::Commands::Login::Type mRequest;
 };
 
 /*
@@ -1372,31 +4144,19 @@ class AdministratorCommissioningOpenBasicCommissioningWindow : public ModelComma
 public:
     AdministratorCommissioningOpenBasicCommissioningWindow() : ModelCommand("open-basic-commissioning-window")
     {
-        AddArgument("CommissioningTimeout", 0, UINT16_MAX, &mCommissioningTimeout);
+        AddArgument("CommissioningTimeout", 0, UINT16_MAX, &mRequest.commissioningTimeout);
         ModelCommand::AddArguments();
-    }
-    ~AdministratorCommissioningOpenBasicCommissioningWindow()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003C) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003C) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AdministratorCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.OpenBasicCommissioningWindow(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                    mCommissioningTimeout);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mCommissioningTimeout;
+    chip::app::Clusters::AdministratorCommissioning::Commands::OpenBasicCommissioningWindow::Type mRequest;
 };
 
 /*
@@ -1407,41 +4167,24 @@ class AdministratorCommissioningOpenCommissioningWindow : public ModelCommand
 public:
     AdministratorCommissioningOpenCommissioningWindow() : ModelCommand("open-commissioning-window")
     {
-        AddArgument("CommissioningTimeout", 0, UINT16_MAX, &mCommissioningTimeout);
-        AddArgument("PAKEVerifier", &mPAKEVerifier);
-        AddArgument("Discriminator", 0, UINT16_MAX, &mDiscriminator);
-        AddArgument("Iterations", 0, UINT32_MAX, &mIterations);
-        AddArgument("Salt", &mSalt);
-        AddArgument("PasscodeID", 0, UINT16_MAX, &mPasscodeID);
+        AddArgument("CommissioningTimeout", 0, UINT16_MAX, &mRequest.commissioningTimeout);
+        AddArgument("PAKEVerifier", &mRequest.PAKEVerifier);
+        AddArgument("Discriminator", 0, UINT16_MAX, &mRequest.discriminator);
+        AddArgument("Iterations", 0, UINT32_MAX, &mRequest.iterations);
+        AddArgument("Salt", &mRequest.salt);
+        AddArgument("PasscodeID", 0, UINT16_MAX, &mRequest.passcodeID);
         ModelCommand::AddArguments();
-    }
-    ~AdministratorCommissioningOpenCommissioningWindow()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003C) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003C) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AdministratorCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.OpenCommissioningWindow(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mCommissioningTimeout,
-                                               mPAKEVerifier, mDiscriminator, mIterations, mSalt, mPasscodeID);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mCommissioningTimeout;
-    chip::ByteSpan mPAKEVerifier;
-    uint16_t mDiscriminator;
-    uint32_t mIterations;
-    chip::ByteSpan mSalt;
-    uint16_t mPasscodeID;
+    chip::app::Clusters::AdministratorCommissioning::Commands::OpenCommissioningWindow::Type mRequest;
 };
 
 /*
@@ -1451,26 +4194,16 @@ class AdministratorCommissioningRevokeCommissioning : public ModelCommand
 {
 public:
     AdministratorCommissioningRevokeCommissioning() : ModelCommand("revoke-commissioning") { ModelCommand::AddArguments(); }
-    ~AdministratorCommissioningRevokeCommissioning()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003C) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003C) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AdministratorCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RevokeCommissioning(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::AdministratorCommissioning::Commands::RevokeCommissioning::Type mRequest;
 };
 
 /*
@@ -1532,30 +4265,20 @@ class ApplicationBasicChangeStatus : public ModelCommand
 public:
     ApplicationBasicChangeStatus() : ModelCommand("change-status")
     {
-        AddArgument("Status", 0, UINT8_MAX, &mStatus);
+        AddArgument("Status", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.status)> *>(&mRequest.status));
         ModelCommand::AddArguments();
-    }
-    ~ApplicationBasicChangeStatus()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050D) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050D) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ApplicationBasicCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ChangeStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStatus);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStatus;
+    chip::app::Clusters::ApplicationBasic::Commands::ChangeStatus::Type mRequest;
 };
 
 /*
@@ -1851,37 +4574,22 @@ class ApplicationLauncherLaunchApp : public ModelCommand
 public:
     ApplicationLauncherLaunchApp() : ModelCommand("launch-app")
     {
-        AddArgument("Data", &mData);
-        AddArgument("CatalogVendorId", 0, UINT16_MAX, &mCatalogVendorId);
-        AddArgument("ApplicationId", &mApplicationId);
+        AddArgument("Data", &mRequest.data);
+        AddArgument("CatalogVendorId", 0, UINT16_MAX, &mRequest.catalogVendorId);
+        AddArgument("ApplicationId", &mRequest.applicationId);
         ModelCommand::AddArguments();
-    }
-    ~ApplicationLauncherLaunchApp()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050C) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050C) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ApplicationLauncherCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.LaunchApp(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                 chip::ByteSpan(chip::Uint8::from_char(mData), strlen(mData)), mCatalogVendorId,
-                                 chip::ByteSpan(chip::Uint8::from_char(mApplicationId), strlen(mApplicationId)));
+        return chip::Controller::InvokeCommand(device, this, OnApplicationLauncherLaunchAppResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<ApplicationLauncherClusterLaunchAppResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ApplicationLauncherClusterLaunchAppResponseCallback>(
-            OnApplicationLauncherClusterLaunchAppResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mData;
-    uint16_t mCatalogVendorId;
-    char * mApplicationId;
+    chip::app::Clusters::ApplicationLauncher::Commands::LaunchApp::Type mRequest;
 };
 
 /*
@@ -2042,33 +4750,20 @@ class AudioOutputRenameOutput : public ModelCommand
 public:
     AudioOutputRenameOutput() : ModelCommand("rename-output")
     {
-        AddArgument("Index", 0, UINT8_MAX, &mIndex);
-        AddArgument("Name", &mName);
+        AddArgument("Index", 0, UINT8_MAX, &mRequest.index);
+        AddArgument("Name", &mRequest.name);
         ModelCommand::AddArguments();
-    }
-    ~AudioOutputRenameOutput()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050B) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050B) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AudioOutputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RenameOutput(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mIndex,
-                                    chip::ByteSpan(chip::Uint8::from_char(mName), strlen(mName)));
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mIndex;
-    char * mName;
+    chip::app::Clusters::AudioOutput::Commands::RenameOutput::Type mRequest;
 };
 
 /*
@@ -2079,30 +4774,19 @@ class AudioOutputSelectOutput : public ModelCommand
 public:
     AudioOutputSelectOutput() : ModelCommand("select-output")
     {
-        AddArgument("Index", 0, UINT8_MAX, &mIndex);
+        AddArgument("Index", 0, UINT8_MAX, &mRequest.index);
         ModelCommand::AddArguments();
-    }
-    ~AudioOutputSelectOutput()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050B) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050B) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::AudioOutputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SelectOutput(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mIndex);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mIndex;
+    chip::app::Clusters::AudioOutput::Commands::SelectOutput::Type mRequest;
 };
 
 /*
@@ -2231,30 +4915,19 @@ class BarrierControlBarrierControlGoToPercent : public ModelCommand
 public:
     BarrierControlBarrierControlGoToPercent() : ModelCommand("barrier-control-go-to-percent")
     {
-        AddArgument("PercentOpen", 0, UINT8_MAX, &mPercentOpen);
+        AddArgument("PercentOpen", 0, UINT8_MAX, &mRequest.percentOpen);
         ModelCommand::AddArguments();
-    }
-    ~BarrierControlBarrierControlGoToPercent()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0103) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000103) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::BarrierControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.BarrierControlGoToPercent(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mPercentOpen);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mPercentOpen;
+    chip::app::Clusters::BarrierControl::Commands::BarrierControlGoToPercent::Type mRequest;
 };
 
 /*
@@ -2264,26 +4937,16 @@ class BarrierControlBarrierControlStop : public ModelCommand
 {
 public:
     BarrierControlBarrierControlStop() : ModelCommand("barrier-control-stop") { ModelCommand::AddArguments(); }
-    ~BarrierControlBarrierControlStop()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0103) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000103) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::BarrierControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.BarrierControlStop(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::BarrierControl::Commands::BarrierControlStop::Type mRequest;
 };
 
 /*
@@ -2491,26 +5154,16 @@ class BasicMfgSpecificPing : public ModelCommand
 {
 public:
     BasicMfgSpecificPing() : ModelCommand("mfg-specific-ping") { ModelCommand::AddArguments(); }
-    ~BasicMfgSpecificPing()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0028) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000028) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::BasicCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MfgSpecificPing(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::Basic::Commands::MfgSpecificPing::Type mRequest;
 };
 
 /*
@@ -2739,8 +5392,7 @@ public:
 
         chip::Controller::BasicCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.WriteAttributeUserLabel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                               chip::ByteSpan(chip::Uint8::from_char(mValue), strlen(mValue)));
+        return cluster.WriteAttributeUserLabel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
     }
 
 private:
@@ -2748,7 +5400,7 @@ private:
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mValue;
+    chip::CharSpan mValue;
 };
 
 /*
@@ -2807,8 +5459,7 @@ public:
 
         chip::Controller::BasicCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.WriteAttributeLocation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                              chip::ByteSpan(chip::Uint8::from_char(mValue), strlen(mValue)));
+        return cluster.WriteAttributeLocation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
     }
 
 private:
@@ -2816,7 +5467,7 @@ private:
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mValue;
+    chip::CharSpan mValue;
 };
 
 /*
@@ -3414,12 +6065,14 @@ public:
         AddArgument("attr-name", "present-value");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportBinaryInputBasicPresentValue()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -3431,25 +6084,29 @@ public:
         chip::Controller::BinaryInputBasicCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributePresentValue(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributePresentValue(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributePresentValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                      mMaxInterval);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributePresentValue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<BooleanAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeResponse, this);
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -3494,12 +6151,14 @@ public:
         AddArgument("attr-name", "status-flags");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportBinaryInputBasicStatusFlags()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -3511,25 +6170,29 @@ public:
         chip::Controller::BinaryInputBasicCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeStatusFlags(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeStatusFlags(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeStatusFlags(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                     mMaxInterval);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeStatusFlags(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -3585,36 +6248,22 @@ class BindingBind : public ModelCommand
 public:
     BindingBind() : ModelCommand("bind")
     {
-        AddArgument("NodeId", 0, UINT64_MAX, &mNodeId);
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("EndpointId", 0, UINT16_MAX, &mEndpointId);
-        AddArgument("ClusterId", 0, UINT32_MAX, &mClusterId);
+        AddArgument("NodeId", 0, UINT64_MAX, &mRequest.nodeId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("EndpointId", 0, UINT16_MAX, &mRequest.endpointId);
+        AddArgument("ClusterId", 0, UINT32_MAX, &mRequest.clusterId);
         ModelCommand::AddArguments();
-    }
-    ~BindingBind()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0xF000) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000F000) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::BindingCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Bind(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNodeId, mGroupId, mEndpointId, mClusterId);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::NodeId mNodeId;
-    chip::GroupId mGroupId;
-    chip::EndpointId mEndpointId;
-    chip::ClusterId mClusterId;
+    chip::app::Clusters::Binding::Commands::Bind::Type mRequest;
 };
 
 /*
@@ -3625,36 +6274,22 @@ class BindingUnbind : public ModelCommand
 public:
     BindingUnbind() : ModelCommand("unbind")
     {
-        AddArgument("NodeId", 0, UINT64_MAX, &mNodeId);
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("EndpointId", 0, UINT16_MAX, &mEndpointId);
-        AddArgument("ClusterId", 0, UINT32_MAX, &mClusterId);
+        AddArgument("NodeId", 0, UINT64_MAX, &mRequest.nodeId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("EndpointId", 0, UINT16_MAX, &mRequest.endpointId);
+        AddArgument("ClusterId", 0, UINT32_MAX, &mRequest.clusterId);
         ModelCommand::AddArguments();
-    }
-    ~BindingUnbind()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0xF000) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000F000) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::BindingCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Unbind(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNodeId, mGroupId, mEndpointId, mClusterId);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::NodeId mNodeId;
-    chip::GroupId mGroupId;
-    chip::EndpointId mEndpointId;
-    chip::ClusterId mClusterId;
+    chip::app::Clusters::Binding::Commands::Unbind::Type mRequest;
 };
 
 /*
@@ -3680,6 +6315,591 @@ public:
         ChipLogProgress(chipTool, "Sending cluster (0xF000) command (0x00) on endpoint %" PRIu8, endpointId);
 
         chip::Controller::BindingCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*----------------------------------------------------------------------------*\
+| Cluster BooleanState                                                | 0x0045 |
+|------------------------------------------------------------------------------|
+| Commands:                                                           |        |
+|------------------------------------------------------------------------------|
+| Attributes:                                                         |        |
+| * StateValue                                                        | 0x0000 |
+| * ClusterRevision                                                   | 0xFFFD |
+\*----------------------------------------------------------------------------*/
+
+/*
+ * Attribute StateValue
+ */
+class ReadBooleanStateStateValue : public ModelCommand
+{
+public:
+    ReadBooleanStateStateValue() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "state-value");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadBooleanStateStateValue()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0045) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BooleanStateCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeStateValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<BooleanAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class ReportBooleanStateStateValue : public ModelCommand
+{
+public:
+    ReportBooleanStateStateValue() : ModelCommand("report")
+    {
+        AddArgument("attr-name", "state-value");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
+        ModelCommand::AddArguments();
+    }
+
+    ~ReportBooleanStateStateValue()
+    {
+        delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
+        delete onFailureCallback;
+        delete onReportCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0045) command (0x06) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BooleanStateCluster cluster;
+        cluster.Associate(device, endpointId);
+
+        ReturnErrorOnFailure(cluster.ReportAttributeStateValue(onReportCallback->Cancel()));
+
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeStateValue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<BooleanAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
+ * Attribute ClusterRevision
+ */
+class ReadBooleanStateClusterRevision : public ModelCommand
+{
+public:
+    ReadBooleanStateClusterRevision() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "cluster-revision");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadBooleanStateClusterRevision()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0045) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BooleanStateCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*----------------------------------------------------------------------------*\
+| Cluster BridgedActions                                              | 0x0025 |
+|------------------------------------------------------------------------------|
+| Commands:                                                           |        |
+| * DisableAction                                                     |   0x0A |
+| * DisableActionWithDuration                                         |   0x0B |
+| * EnableAction                                                      |   0x08 |
+| * EnableActionWithDuration                                          |   0x09 |
+| * InstantAction                                                     |   0x00 |
+| * InstantActionWithTransition                                       |   0x01 |
+| * PauseAction                                                       |   0x05 |
+| * PauseActionWithDuration                                           |   0x06 |
+| * ResumeAction                                                      |   0x07 |
+| * StartAction                                                       |   0x02 |
+| * StartActionWithDuration                                           |   0x03 |
+| * StopAction                                                        |   0x04 |
+|------------------------------------------------------------------------------|
+| Attributes:                                                         |        |
+| * ActionList                                                        | 0x0000 |
+| * EndpointList                                                      | 0x0001 |
+| * SetupUrl                                                          | 0x0002 |
+| * ClusterRevision                                                   | 0xFFFD |
+\*----------------------------------------------------------------------------*/
+
+/*
+ * Command DisableAction
+ */
+class BridgedActionsDisableAction : public ModelCommand
+{
+public:
+    BridgedActionsDisableAction() : ModelCommand("disable-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x0000000A) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::DisableAction::Type mRequest;
+};
+
+/*
+ * Command DisableActionWithDuration
+ */
+class BridgedActionsDisableActionWithDuration : public ModelCommand
+{
+public:
+    BridgedActionsDisableActionWithDuration() : ModelCommand("disable-action-with-duration")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        AddArgument("Duration", 0, UINT32_MAX, &mRequest.duration);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x0000000B) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::DisableActionWithDuration::Type mRequest;
+};
+
+/*
+ * Command EnableAction
+ */
+class BridgedActionsEnableAction : public ModelCommand
+{
+public:
+    BridgedActionsEnableAction() : ModelCommand("enable-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000008) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::EnableAction::Type mRequest;
+};
+
+/*
+ * Command EnableActionWithDuration
+ */
+class BridgedActionsEnableActionWithDuration : public ModelCommand
+{
+public:
+    BridgedActionsEnableActionWithDuration() : ModelCommand("enable-action-with-duration")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        AddArgument("Duration", 0, UINT32_MAX, &mRequest.duration);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000009) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::EnableActionWithDuration::Type mRequest;
+};
+
+/*
+ * Command InstantAction
+ */
+class BridgedActionsInstantAction : public ModelCommand
+{
+public:
+    BridgedActionsInstantAction() : ModelCommand("instant-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000000) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::InstantAction::Type mRequest;
+};
+
+/*
+ * Command InstantActionWithTransition
+ */
+class BridgedActionsInstantActionWithTransition : public ModelCommand
+{
+public:
+    BridgedActionsInstantActionWithTransition() : ModelCommand("instant-action-with-transition")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000001) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::InstantActionWithTransition::Type mRequest;
+};
+
+/*
+ * Command PauseAction
+ */
+class BridgedActionsPauseAction : public ModelCommand
+{
+public:
+    BridgedActionsPauseAction() : ModelCommand("pause-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000005) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::PauseAction::Type mRequest;
+};
+
+/*
+ * Command PauseActionWithDuration
+ */
+class BridgedActionsPauseActionWithDuration : public ModelCommand
+{
+public:
+    BridgedActionsPauseActionWithDuration() : ModelCommand("pause-action-with-duration")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        AddArgument("Duration", 0, UINT32_MAX, &mRequest.duration);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000006) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::PauseActionWithDuration::Type mRequest;
+};
+
+/*
+ * Command ResumeAction
+ */
+class BridgedActionsResumeAction : public ModelCommand
+{
+public:
+    BridgedActionsResumeAction() : ModelCommand("resume-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000007) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::ResumeAction::Type mRequest;
+};
+
+/*
+ * Command StartAction
+ */
+class BridgedActionsStartAction : public ModelCommand
+{
+public:
+    BridgedActionsStartAction() : ModelCommand("start-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000002) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::StartAction::Type mRequest;
+};
+
+/*
+ * Command StartActionWithDuration
+ */
+class BridgedActionsStartActionWithDuration : public ModelCommand
+{
+public:
+    BridgedActionsStartActionWithDuration() : ModelCommand("start-action-with-duration")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        AddArgument("Duration", 0, UINT32_MAX, &mRequest.duration);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000003) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::StartActionWithDuration::Type mRequest;
+};
+
+/*
+ * Command StopAction
+ */
+class BridgedActionsStopAction : public ModelCommand
+{
+public:
+    BridgedActionsStopAction() : ModelCommand("stop-action")
+    {
+        AddArgument("ActionID", 0, UINT16_MAX, &mRequest.actionID);
+        AddArgument("InvokeID", 0, UINT32_MAX, &mRequest.invokeID);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000025) command (0x00000004) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::BridgedActions::Commands::StopAction::Type mRequest;
+};
+
+/*
+ * Attribute ActionList
+ */
+class ReadBridgedActionsActionList : public ModelCommand
+{
+public:
+    ReadBridgedActionsActionList() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "action-list");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadBridgedActionsActionList()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0025) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BridgedActionsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeActionList(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<BridgedActionsActionListListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<BridgedActionsActionListListAttributeCallback>(OnBridgedActionsActionListListAttributeResponse,
+                                                                                    this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute EndpointList
+ */
+class ReadBridgedActionsEndpointList : public ModelCommand
+{
+public:
+    ReadBridgedActionsEndpointList() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "endpoint-list");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadBridgedActionsEndpointList()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0025) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BridgedActionsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeEndpointList(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<BridgedActionsEndpointListListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<BridgedActionsEndpointListListAttributeCallback>(
+            OnBridgedActionsEndpointListListAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute SetupUrl
+ */
+class ReadBridgedActionsSetupUrl : public ModelCommand
+{
+public:
+    ReadBridgedActionsSetupUrl() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "setup-url");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadBridgedActionsSetupUrl()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0025) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BridgedActionsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeSetupUrl(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<CharStringAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<CharStringAttributeCallback>(OnCharStringAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute ClusterRevision
+ */
+class ReadBridgedActionsClusterRevision : public ModelCommand
+{
+public:
+    ReadBridgedActionsClusterRevision() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "cluster-revision");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadBridgedActionsClusterRevision()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0025) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::BridgedActionsCluster cluster;
         cluster.Associate(device, endpointId);
         return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
     }
@@ -3872,8 +7092,7 @@ public:
 
         chip::Controller::BridgedDeviceBasicCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.WriteAttributeUserLabel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                               chip::ByteSpan(chip::Uint8::from_char(mValue), strlen(mValue)));
+        return cluster.WriteAttributeUserLabel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
     }
 
 private:
@@ -3881,7 +7100,7 @@ private:
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mValue;
+    chip::CharSpan mValue;
 };
 
 /*
@@ -4346,43 +7565,29 @@ class ColorControlColorLoopSet : public ModelCommand
 public:
     ColorControlColorLoopSet() : ModelCommand("color-loop-set")
     {
-        AddArgument("UpdateFlags", 0, UINT8_MAX, &mUpdateFlags);
-        AddArgument("Action", 0, UINT8_MAX, &mAction);
-        AddArgument("Direction", 0, UINT8_MAX, &mDirection);
-        AddArgument("Time", 0, UINT16_MAX, &mTime);
-        AddArgument("StartHue", 0, UINT16_MAX, &mStartHue);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("UpdateFlags", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<chip::app::Clusters::ColorControl::ColorLoopUpdateFlags> *>(
+                        &mRequest.updateFlags));
+        AddArgument("Action", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.action)> *>(&mRequest.action));
+        AddArgument("Direction", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.direction)> *>(&mRequest.direction));
+        AddArgument("Time", 0, UINT16_MAX, &mRequest.time);
+        AddArgument("StartHue", 0, UINT16_MAX, &mRequest.startHue);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlColorLoopSet()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x44) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000044) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ColorLoopSet(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUpdateFlags, mAction, mDirection,
-                                    mTime, mStartHue, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mUpdateFlags;
-    uint8_t mAction;
-    uint8_t mDirection;
-    uint16_t mTime;
-    uint16_t mStartHue;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::ColorLoopSet::Type mRequest;
 };
 
 /*
@@ -4393,37 +7598,23 @@ class ColorControlEnhancedMoveHue : public ModelCommand
 public:
     ColorControlEnhancedMoveHue() : ModelCommand("enhanced-move-hue")
     {
-        AddArgument("MoveMode", 0, UINT8_MAX, &mMoveMode);
-        AddArgument("Rate", 0, UINT16_MAX, &mRate);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("MoveMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.moveMode)> *>(&mRequest.moveMode));
+        AddArgument("Rate", 0, UINT16_MAX, &mRequest.rate);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlEnhancedMoveHue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x41) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000041) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.EnhancedMoveHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMoveMode, mRate, mOptionsMask,
-                                       mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMoveMode;
-    uint16_t mRate;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::EnhancedMoveHue::Type mRequest;
 };
 
 /*
@@ -4434,39 +7625,24 @@ class ColorControlEnhancedMoveToHue : public ModelCommand
 public:
     ColorControlEnhancedMoveToHue() : ModelCommand("enhanced-move-to-hue")
     {
-        AddArgument("EnhancedHue", 0, UINT16_MAX, &mEnhancedHue);
-        AddArgument("Direction", 0, UINT8_MAX, &mDirection);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("EnhancedHue", 0, UINT16_MAX, &mRequest.enhancedHue);
+        AddArgument("Direction", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.direction)> *>(&mRequest.direction));
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlEnhancedMoveToHue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x40) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000040) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.EnhancedMoveToHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mEnhancedHue, mDirection,
-                                         mTransitionTime, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mEnhancedHue;
-    uint8_t mDirection;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::EnhancedMoveToHue::Type mRequest;
 };
 
 /*
@@ -4477,39 +7653,23 @@ class ColorControlEnhancedMoveToHueAndSaturation : public ModelCommand
 public:
     ColorControlEnhancedMoveToHueAndSaturation() : ModelCommand("enhanced-move-to-hue-and-saturation")
     {
-        AddArgument("EnhancedHue", 0, UINT16_MAX, &mEnhancedHue);
-        AddArgument("Saturation", 0, UINT8_MAX, &mSaturation);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("EnhancedHue", 0, UINT16_MAX, &mRequest.enhancedHue);
+        AddArgument("Saturation", 0, UINT8_MAX, &mRequest.saturation);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlEnhancedMoveToHueAndSaturation()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x43) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000043) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.EnhancedMoveToHueAndSaturation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mEnhancedHue,
-                                                      mSaturation, mTransitionTime, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mEnhancedHue;
-    uint8_t mSaturation;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::EnhancedMoveToHueAndSaturation::Type mRequest;
 };
 
 /*
@@ -4520,39 +7680,24 @@ class ColorControlEnhancedStepHue : public ModelCommand
 public:
     ColorControlEnhancedStepHue() : ModelCommand("enhanced-step-hue")
     {
-        AddArgument("StepMode", 0, UINT8_MAX, &mStepMode);
-        AddArgument("StepSize", 0, UINT16_MAX, &mStepSize);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("StepMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.stepMode)> *>(&mRequest.stepMode));
+        AddArgument("StepSize", 0, UINT16_MAX, &mRequest.stepSize);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlEnhancedStepHue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x42) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000042) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.EnhancedStepHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepMode, mStepSize,
-                                       mTransitionTime, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStepMode;
-    uint16_t mStepSize;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::EnhancedStepHue::Type mRequest;
 };
 
 /*
@@ -4563,37 +7708,22 @@ class ColorControlMoveColor : public ModelCommand
 public:
     ColorControlMoveColor() : ModelCommand("move-color")
     {
-        AddArgument("RateX", INT16_MIN, INT16_MAX, &mRateX);
-        AddArgument("RateY", INT16_MIN, INT16_MAX, &mRateY);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("RateX", INT16_MIN, INT16_MAX, &mRequest.rateX);
+        AddArgument("RateY", INT16_MIN, INT16_MAX, &mRequest.rateY);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveColor()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x08) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000008) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveColor(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mRateX, mRateY, mOptionsMask,
-                                 mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    int16_t mRateX;
-    int16_t mRateY;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveColor::Type mRequest;
 };
 
 /*
@@ -4604,41 +7734,25 @@ class ColorControlMoveColorTemperature : public ModelCommand
 public:
     ColorControlMoveColorTemperature() : ModelCommand("move-color-temperature")
     {
-        AddArgument("MoveMode", 0, UINT8_MAX, &mMoveMode);
-        AddArgument("Rate", 0, UINT16_MAX, &mRate);
-        AddArgument("ColorTemperatureMinimum", 0, UINT16_MAX, &mColorTemperatureMinimum);
-        AddArgument("ColorTemperatureMaximum", 0, UINT16_MAX, &mColorTemperatureMaximum);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("MoveMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.moveMode)> *>(&mRequest.moveMode));
+        AddArgument("Rate", 0, UINT16_MAX, &mRequest.rate);
+        AddArgument("ColorTemperatureMinimum", 0, UINT16_MAX, &mRequest.colorTemperatureMinimum);
+        AddArgument("ColorTemperatureMaximum", 0, UINT16_MAX, &mRequest.colorTemperatureMaximum);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveColorTemperature()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x4B) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x0000004B) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveColorTemperature(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMoveMode, mRate,
-                                            mColorTemperatureMinimum, mColorTemperatureMaximum, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMoveMode;
-    uint16_t mRate;
-    uint16_t mColorTemperatureMinimum;
-    uint16_t mColorTemperatureMaximum;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveColorTemperature::Type mRequest;
 };
 
 /*
@@ -4649,37 +7763,23 @@ class ColorControlMoveHue : public ModelCommand
 public:
     ColorControlMoveHue() : ModelCommand("move-hue")
     {
-        AddArgument("MoveMode", 0, UINT8_MAX, &mMoveMode);
-        AddArgument("Rate", 0, UINT8_MAX, &mRate);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("MoveMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.moveMode)> *>(&mRequest.moveMode));
+        AddArgument("Rate", 0, UINT8_MAX, &mRequest.rate);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveHue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMoveMode, mRate, mOptionsMask,
-                               mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMoveMode;
-    uint8_t mRate;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveHue::Type mRequest;
 };
 
 /*
@@ -4690,37 +7790,23 @@ class ColorControlMoveSaturation : public ModelCommand
 public:
     ColorControlMoveSaturation() : ModelCommand("move-saturation")
     {
-        AddArgument("MoveMode", 0, UINT8_MAX, &mMoveMode);
-        AddArgument("Rate", 0, UINT8_MAX, &mRate);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("MoveMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.moveMode)> *>(&mRequest.moveMode));
+        AddArgument("Rate", 0, UINT8_MAX, &mRequest.rate);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveSaturation()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveSaturation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMoveMode, mRate, mOptionsMask,
-                                      mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMoveMode;
-    uint8_t mRate;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveSaturation::Type mRequest;
 };
 
 /*
@@ -4731,39 +7817,23 @@ class ColorControlMoveToColor : public ModelCommand
 public:
     ColorControlMoveToColor() : ModelCommand("move-to-color")
     {
-        AddArgument("ColorX", 0, UINT16_MAX, &mColorX);
-        AddArgument("ColorY", 0, UINT16_MAX, &mColorY);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("ColorX", 0, UINT16_MAX, &mRequest.colorX);
+        AddArgument("ColorY", 0, UINT16_MAX, &mRequest.colorY);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveToColor()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x07) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToColor(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mColorX, mColorY, mTransitionTime,
-                                   mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mColorX;
-    uint16_t mColorY;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveToColor::Type mRequest;
 };
 
 /*
@@ -4774,37 +7844,22 @@ class ColorControlMoveToColorTemperature : public ModelCommand
 public:
     ColorControlMoveToColorTemperature() : ModelCommand("move-to-color-temperature")
     {
-        AddArgument("ColorTemperature", 0, UINT16_MAX, &mColorTemperature);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("ColorTemperature", 0, UINT16_MAX, &mRequest.colorTemperature);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveToColorTemperature()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x0A) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x0000000A) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToColorTemperature(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mColorTemperature,
-                                              mTransitionTime, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mColorTemperature;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveToColorTemperature::Type mRequest;
 };
 
 /*
@@ -4815,39 +7870,24 @@ class ColorControlMoveToHue : public ModelCommand
 public:
     ColorControlMoveToHue() : ModelCommand("move-to-hue")
     {
-        AddArgument("Hue", 0, UINT8_MAX, &mHue);
-        AddArgument("Direction", 0, UINT8_MAX, &mDirection);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("Hue", 0, UINT8_MAX, &mRequest.hue);
+        AddArgument("Direction", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.direction)> *>(&mRequest.direction));
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveToHue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mHue, mDirection, mTransitionTime,
-                                 mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mHue;
-    uint8_t mDirection;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveToHue::Type mRequest;
 };
 
 /*
@@ -4858,39 +7898,23 @@ class ColorControlMoveToHueAndSaturation : public ModelCommand
 public:
     ColorControlMoveToHueAndSaturation() : ModelCommand("move-to-hue-and-saturation")
     {
-        AddArgument("Hue", 0, UINT8_MAX, &mHue);
-        AddArgument("Saturation", 0, UINT8_MAX, &mSaturation);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("Hue", 0, UINT8_MAX, &mRequest.hue);
+        AddArgument("Saturation", 0, UINT8_MAX, &mRequest.saturation);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveToHueAndSaturation()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToHueAndSaturation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mHue, mSaturation,
-                                              mTransitionTime, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mHue;
-    uint8_t mSaturation;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveToHueAndSaturation::Type mRequest;
 };
 
 /*
@@ -4901,37 +7925,22 @@ class ColorControlMoveToSaturation : public ModelCommand
 public:
     ColorControlMoveToSaturation() : ModelCommand("move-to-saturation")
     {
-        AddArgument("Saturation", 0, UINT8_MAX, &mSaturation);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("Saturation", 0, UINT8_MAX, &mRequest.saturation);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlMoveToSaturation()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToSaturation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mSaturation, mTransitionTime,
-                                        mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mSaturation;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::MoveToSaturation::Type mRequest;
 };
 
 /*
@@ -4942,39 +7951,23 @@ class ColorControlStepColor : public ModelCommand
 public:
     ColorControlStepColor() : ModelCommand("step-color")
     {
-        AddArgument("StepX", INT16_MIN, INT16_MAX, &mStepX);
-        AddArgument("StepY", INT16_MIN, INT16_MAX, &mStepY);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("StepX", INT16_MIN, INT16_MAX, &mRequest.stepX);
+        AddArgument("StepY", INT16_MIN, INT16_MAX, &mRequest.stepY);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlStepColor()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x09) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000009) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StepColor(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepX, mStepY, mTransitionTime,
-                                 mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    int16_t mStepX;
-    int16_t mStepY;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::StepColor::Type mRequest;
 };
 
 /*
@@ -4985,44 +7978,26 @@ class ColorControlStepColorTemperature : public ModelCommand
 public:
     ColorControlStepColorTemperature() : ModelCommand("step-color-temperature")
     {
-        AddArgument("StepMode", 0, UINT8_MAX, &mStepMode);
-        AddArgument("StepSize", 0, UINT16_MAX, &mStepSize);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("ColorTemperatureMinimum", 0, UINT16_MAX, &mColorTemperatureMinimum);
-        AddArgument("ColorTemperatureMaximum", 0, UINT16_MAX, &mColorTemperatureMaximum);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("StepMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.stepMode)> *>(&mRequest.stepMode));
+        AddArgument("StepSize", 0, UINT16_MAX, &mRequest.stepSize);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("ColorTemperatureMinimum", 0, UINT16_MAX, &mRequest.colorTemperatureMinimum);
+        AddArgument("ColorTemperatureMaximum", 0, UINT16_MAX, &mRequest.colorTemperatureMaximum);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlStepColorTemperature()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x4C) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x0000004C) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StepColorTemperature(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepMode, mStepSize,
-                                            mTransitionTime, mColorTemperatureMinimum, mColorTemperatureMaximum, mOptionsMask,
-                                            mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStepMode;
-    uint16_t mStepSize;
-    uint16_t mTransitionTime;
-    uint16_t mColorTemperatureMinimum;
-    uint16_t mColorTemperatureMaximum;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::StepColorTemperature::Type mRequest;
 };
 
 /*
@@ -5033,39 +8008,24 @@ class ColorControlStepHue : public ModelCommand
 public:
     ColorControlStepHue() : ModelCommand("step-hue")
     {
-        AddArgument("StepMode", 0, UINT8_MAX, &mStepMode);
-        AddArgument("StepSize", 0, UINT8_MAX, &mStepSize);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("StepMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.stepMode)> *>(&mRequest.stepMode));
+        AddArgument("StepSize", 0, UINT8_MAX, &mRequest.stepSize);
+        AddArgument("TransitionTime", 0, UINT8_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlStepHue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StepHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepMode, mStepSize, mTransitionTime,
-                               mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStepMode;
-    uint8_t mStepSize;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::StepHue::Type mRequest;
 };
 
 /*
@@ -5076,39 +8036,24 @@ class ColorControlStepSaturation : public ModelCommand
 public:
     ColorControlStepSaturation() : ModelCommand("step-saturation")
     {
-        AddArgument("StepMode", 0, UINT8_MAX, &mStepMode);
-        AddArgument("StepSize", 0, UINT8_MAX, &mStepSize);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("StepMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.stepMode)> *>(&mRequest.stepMode));
+        AddArgument("StepSize", 0, UINT8_MAX, &mRequest.stepSize);
+        AddArgument("TransitionTime", 0, UINT8_MAX, &mRequest.transitionTime);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlStepSaturation()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StepSaturation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepMode, mStepSize,
-                                      mTransitionTime, mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStepMode;
-    uint8_t mStepSize;
-    uint16_t mTransitionTime;
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::StepSaturation::Type mRequest;
 };
 
 /*
@@ -5119,32 +8064,20 @@ class ColorControlStopMoveStep : public ModelCommand
 public:
     ColorControlStopMoveStep() : ModelCommand("stop-move-step")
     {
-        AddArgument("OptionsMask", 0, UINT8_MAX, &mOptionsMask);
-        AddArgument("OptionsOverride", 0, UINT8_MAX, &mOptionsOverride);
+        AddArgument("OptionsMask", 0, UINT8_MAX, &mRequest.optionsMask);
+        AddArgument("OptionsOverride", 0, UINT8_MAX, &mRequest.optionsOverride);
         ModelCommand::AddArguments();
-    }
-    ~ColorControlStopMoveStep()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0300) command (0x47) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000300) command (0x00000047) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ColorControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StopMoveStep(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mOptionsMask, mOptionsOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mOptionsMask;
-    uint8_t mOptionsOverride;
+    chip::app::Clusters::ColorControl::Commands::StopMoveStep::Type mRequest;
 };
 
 /*
@@ -5189,13 +8122,14 @@ public:
         AddArgument("attr-name", "current-hue");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT8_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportColorControlCurrentHue()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -5207,26 +8141,29 @@ public:
         chip::Controller::ColorControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentHue(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentHue(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentHue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                    mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentHue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint8_t mChange;
+    bool mWait;
 };
 
 /*
@@ -5271,13 +8208,14 @@ public:
         AddArgument("attr-name", "current-saturation");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT8_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportColorControlCurrentSaturation()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -5289,26 +8227,30 @@ public:
         chip::Controller::ColorControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentSaturation(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentSaturation(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentSaturation(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                           mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentSaturation(successCallback, onFailureCallback->Cancel(), mMinInterval,
+                                                           mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint8_t mChange;
+    bool mWait;
 };
 
 /*
@@ -5387,13 +8329,14 @@ public:
         AddArgument("attr-name", "current-x");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportColorControlCurrentX()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -5405,26 +8348,29 @@ public:
         chip::Controller::ColorControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentX(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentX(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentX(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                  mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentX(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -5469,13 +8415,14 @@ public:
         AddArgument("attr-name", "current-y");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportColorControlCurrentY()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -5487,26 +8434,29 @@ public:
         chip::Controller::ColorControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentY(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentY(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentY(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                  mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentY(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -5619,13 +8569,14 @@ public:
         AddArgument("attr-name", "color-temperature");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportColorControlColorTemperature()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -5637,26 +8588,29 @@ public:
         chip::Controller::ColorControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeColorTemperature(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeColorTemperature(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeColorTemperature(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                          mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeColorTemperature(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -7640,34 +10594,21 @@ class ContentLauncherLaunchContent : public ModelCommand
 public:
     ContentLauncherLaunchContent() : ModelCommand("launch-content")
     {
-        AddArgument("AutoPlay", 0, 1, &mAutoPlay);
-        AddArgument("Data", &mData);
+        AddArgument("AutoPlay", 0, 1, &mRequest.autoPlay);
+        AddArgument("Data", &mRequest.data);
         ModelCommand::AddArguments();
-    }
-    ~ContentLauncherLaunchContent()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050A) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050A) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ContentLauncherCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.LaunchContent(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mAutoPlay,
-                                     chip::ByteSpan(chip::Uint8::from_char(mData), strlen(mData)));
+        return chip::Controller::InvokeCommand(device, this, OnContentLauncherLaunchContentResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<ContentLauncherClusterLaunchContentResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ContentLauncherClusterLaunchContentResponseCallback>(
-            OnContentLauncherClusterLaunchContentResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    bool mAutoPlay;
-    char * mData;
+    chip::app::Clusters::ContentLauncher::Commands::LaunchContent::Type mRequest;
 };
 
 /*
@@ -7678,35 +10619,21 @@ class ContentLauncherLaunchURL : public ModelCommand
 public:
     ContentLauncherLaunchURL() : ModelCommand("launch-url")
     {
-        AddArgument("ContentURL", &mContentURL);
-        AddArgument("DisplayString", &mDisplayString);
+        AddArgument("ContentURL", &mRequest.contentURL);
+        AddArgument("DisplayString", &mRequest.displayString);
         ModelCommand::AddArguments();
-    }
-    ~ContentLauncherLaunchURL()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050A) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050A) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ContentLauncherCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.LaunchURL(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                 chip::ByteSpan(chip::Uint8::from_char(mContentURL), strlen(mContentURL)),
-                                 chip::ByteSpan(chip::Uint8::from_char(mDisplayString), strlen(mDisplayString)));
+        return chip::Controller::InvokeCommand(device, this, OnContentLauncherLaunchURLResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<ContentLauncherClusterLaunchURLResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ContentLauncherClusterLaunchURLResponseCallback>(OnContentLauncherClusterLaunchURLResponse,
-                                                                                      this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mContentURL;
-    char * mDisplayString;
+    chip::app::Clusters::ContentLauncher::Commands::LaunchURL::Type mRequest;
 };
 
 /*
@@ -8013,35 +10940,24 @@ class DiagnosticLogsRetrieveLogsRequest : public ModelCommand
 public:
     DiagnosticLogsRetrieveLogsRequest() : ModelCommand("retrieve-logs-request")
     {
-        AddArgument("Intent", 0, UINT8_MAX, &mIntent);
-        AddArgument("RequestedProtocol", 0, UINT8_MAX, &mRequestedProtocol);
-        AddArgument("TransferFileDesignator", &mTransferFileDesignator);
+        AddArgument("Intent", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.intent)> *>(&mRequest.intent));
+        AddArgument("RequestedProtocol", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.requestedProtocol)> *>(&mRequest.requestedProtocol));
+        AddArgument("TransferFileDesignator", &mRequest.transferFileDesignator);
         ModelCommand::AddArguments();
-    }
-    ~DiagnosticLogsRetrieveLogsRequest()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0032) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000032) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DiagnosticLogsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RetrieveLogsRequest(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mIntent, mRequestedProtocol,
-                                           mTransferFileDesignator);
+        return chip::Controller::InvokeCommand(device, this, OnDiagnosticLogsRetrieveLogsResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mIntent;
-    uint8_t mRequestedProtocol;
-    chip::ByteSpan mTransferFileDesignator;
+    chip::app::Clusters::DiagnosticLogs::Commands::RetrieveLogsRequest::Type mRequest;
 };
 
 /*----------------------------------------------------------------------------*\
@@ -8086,26 +11002,17 @@ class DoorLockClearAllPins : public ModelCommand
 {
 public:
     DoorLockClearAllPins() : ModelCommand("clear-all-pins") { ModelCommand::AddArguments(); }
-    ~DoorLockClearAllPins()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x08) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000008) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearAllPins(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearAllPinsResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearAllPinsResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearAllPinsResponseCallback>(OnDoorLockClusterClearAllPinsResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::DoorLock::Commands::ClearAllPins::Type mRequest;
 };
 
 /*
@@ -8115,26 +11022,17 @@ class DoorLockClearAllRfids : public ModelCommand
 {
 public:
     DoorLockClearAllRfids() : ModelCommand("clear-all-rfids") { ModelCommand::AddArguments(); }
-    ~DoorLockClearAllRfids()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x19) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000019) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearAllRfids(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearAllRfidsResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearAllRfidsResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearAllRfidsResponseCallback>(OnDoorLockClusterClearAllRfidsResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::DoorLock::Commands::ClearAllRfids::Type mRequest;
 };
 
 /*
@@ -8145,31 +11043,20 @@ class DoorLockClearHolidaySchedule : public ModelCommand
 public:
     DoorLockClearHolidaySchedule() : ModelCommand("clear-holiday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockClearHolidaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x13) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000013) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearHolidaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearHolidayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearHolidayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearHolidayScheduleResponseCallback>(
-            OnDoorLockClusterClearHolidayScheduleResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
+    chip::app::Clusters::DoorLock::Commands::ClearHolidaySchedule::Type mRequest;
 };
 
 /*
@@ -8180,30 +11067,20 @@ class DoorLockClearPin : public ModelCommand
 public:
     DoorLockClearPin() : ModelCommand("clear-pin")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockClearPin()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x07) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearPin(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearPinResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearPinResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearPinResponseCallback>(OnDoorLockClusterClearPinResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::ClearPin::Type mRequest;
 };
 
 /*
@@ -8214,30 +11091,20 @@ class DoorLockClearRfid : public ModelCommand
 public:
     DoorLockClearRfid() : ModelCommand("clear-rfid")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockClearRfid()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x18) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000018) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearRfid(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearRfidResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearRfidResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearRfidResponseCallback>(OnDoorLockClusterClearRfidResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::ClearRfid::Type mRequest;
 };
 
 /*
@@ -8248,33 +11115,21 @@ class DoorLockClearWeekdaySchedule : public ModelCommand
 public:
     DoorLockClearWeekdaySchedule() : ModelCommand("clear-weekday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockClearWeekdaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x0D) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x0000000D) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearWeekdaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearWeekdayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearWeekdayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearWeekdayScheduleResponseCallback>(
-            OnDoorLockClusterClearWeekdayScheduleResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::ClearWeekdaySchedule::Type mRequest;
 };
 
 /*
@@ -8285,33 +11140,21 @@ class DoorLockClearYeardaySchedule : public ModelCommand
 public:
     DoorLockClearYeardaySchedule() : ModelCommand("clear-yearday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockClearYeardaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x10) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000010) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearYeardaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockClearYeardayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterClearYeardayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterClearYeardayScheduleResponseCallback>(
-            OnDoorLockClusterClearYeardayScheduleResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::ClearYeardaySchedule::Type mRequest;
 };
 
 /*
@@ -8322,31 +11165,20 @@ class DoorLockGetHolidaySchedule : public ModelCommand
 public:
     DoorLockGetHolidaySchedule() : ModelCommand("get-holiday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetHolidaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x12) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000012) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetHolidaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetHolidayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetHolidayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetHolidayScheduleResponseCallback>(OnDoorLockClusterGetHolidayScheduleResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
+    chip::app::Clusters::DoorLock::Commands::GetHolidaySchedule::Type mRequest;
 };
 
 /*
@@ -8357,30 +11189,20 @@ class DoorLockGetLogRecord : public ModelCommand
 public:
     DoorLockGetLogRecord() : ModelCommand("get-log-record")
     {
-        AddArgument("LogIndex", 0, UINT16_MAX, &mLogIndex);
+        AddArgument("LogIndex", 0, UINT16_MAX, &mRequest.logIndex);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetLogRecord()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetLogRecord(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mLogIndex);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetLogRecordResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetLogRecordResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetLogRecordResponseCallback>(OnDoorLockClusterGetLogRecordResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mLogIndex;
+    chip::app::Clusters::DoorLock::Commands::GetLogRecord::Type mRequest;
 };
 
 /*
@@ -8391,30 +11213,20 @@ class DoorLockGetPin : public ModelCommand
 public:
     DoorLockGetPin() : ModelCommand("get-pin")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetPin()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetPin(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetPinResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetPinResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetPinResponseCallback>(OnDoorLockClusterGetPinResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::GetPin::Type mRequest;
 };
 
 /*
@@ -8425,30 +11237,20 @@ class DoorLockGetRfid : public ModelCommand
 public:
     DoorLockGetRfid() : ModelCommand("get-rfid")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetRfid()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x17) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000017) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetRfid(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetRfidResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetRfidResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetRfidResponseCallback>(OnDoorLockClusterGetRfidResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::GetRfid::Type mRequest;
 };
 
 /*
@@ -8459,30 +11261,20 @@ class DoorLockGetUserType : public ModelCommand
 public:
     DoorLockGetUserType() : ModelCommand("get-user-type")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetUserType()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x15) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000015) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetUserType(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetUserTypeResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetUserTypeResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetUserTypeResponseCallback>(OnDoorLockClusterGetUserTypeResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::GetUserType::Type mRequest;
 };
 
 /*
@@ -8493,33 +11285,21 @@ class DoorLockGetWeekdaySchedule : public ModelCommand
 public:
     DoorLockGetWeekdaySchedule() : ModelCommand("get-weekday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetWeekdaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x0C) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x0000000C) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetWeekdaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetWeekdayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetWeekdayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetWeekdayScheduleResponseCallback>(OnDoorLockClusterGetWeekdayScheduleResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::GetWeekdaySchedule::Type mRequest;
 };
 
 /*
@@ -8530,33 +11310,21 @@ class DoorLockGetYeardaySchedule : public ModelCommand
 public:
     DoorLockGetYeardaySchedule() : ModelCommand("get-yearday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockGetYeardaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x0F) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x0000000F) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetYeardaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mUserId);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockGetYeardayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterGetYeardayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterGetYeardayScheduleResponseCallback>(OnDoorLockClusterGetYeardayScheduleResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint16_t mUserId;
+    chip::app::Clusters::DoorLock::Commands::GetYeardaySchedule::Type mRequest;
 };
 
 /*
@@ -8567,31 +11335,20 @@ class DoorLockLockDoor : public ModelCommand
 public:
     DoorLockLockDoor() : ModelCommand("lock-door")
     {
-        AddArgument("Pin", &mPin);
+        AddArgument("Pin", &mRequest.pin);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockLockDoor()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.LockDoor(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                chip::ByteSpan(chip::Uint8::from_char(mPin), strlen(mPin)));
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockLockDoorResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterLockDoorResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterLockDoorResponseCallback>(OnDoorLockClusterLockDoorResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mPin;
+    chip::app::Clusters::DoorLock::Commands::LockDoor::Type mRequest;
 };
 
 /*
@@ -8602,38 +11359,23 @@ class DoorLockSetHolidaySchedule : public ModelCommand
 public:
     DoorLockSetHolidaySchedule() : ModelCommand("set-holiday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("LocalStartTime", 0, UINT32_MAX, &mLocalStartTime);
-        AddArgument("LocalEndTime", 0, UINT32_MAX, &mLocalEndTime);
-        AddArgument("OperatingModeDuringHoliday", 0, UINT8_MAX, &mOperatingModeDuringHoliday);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("LocalStartTime", 0, UINT32_MAX, &mRequest.localStartTime);
+        AddArgument("LocalEndTime", 0, UINT32_MAX, &mRequest.localEndTime);
+        AddArgument("OperatingModeDuringHoliday", 0, UINT8_MAX, &mRequest.operatingModeDuringHoliday);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockSetHolidaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x11) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000011) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetHolidaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mLocalStartTime,
-                                          mLocalEndTime, mOperatingModeDuringHoliday);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockSetHolidayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterSetHolidayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterSetHolidayScheduleResponseCallback>(OnDoorLockClusterSetHolidayScheduleResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint32_t mLocalStartTime;
-    uint32_t mLocalEndTime;
-    uint8_t mOperatingModeDuringHoliday;
+    chip::app::Clusters::DoorLock::Commands::SetHolidaySchedule::Type mRequest;
 };
 
 /*
@@ -8644,37 +11386,25 @@ class DoorLockSetPin : public ModelCommand
 public:
     DoorLockSetPin() : ModelCommand("set-pin")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
-        AddArgument("UserStatus", 0, UINT8_MAX, &mUserStatus);
-        AddArgument("UserType", 0, UINT8_MAX, &mUserType);
-        AddArgument("Pin", &mPin);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
+        AddArgument("UserStatus", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.userStatus)> *>(&mRequest.userStatus));
+        AddArgument("UserType", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.userType)> *>(&mRequest.userType));
+        AddArgument("Pin", &mRequest.pin);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockSetPin()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetPin(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId, mUserStatus, mUserType,
-                              chip::ByteSpan(chip::Uint8::from_char(mPin), strlen(mPin)));
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockSetPinResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterSetPinResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterSetPinResponseCallback>(OnDoorLockClusterSetPinResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
-    uint8_t mUserStatus;
-    uint8_t mUserType;
-    char * mPin;
+    chip::app::Clusters::DoorLock::Commands::SetPin::Type mRequest;
 };
 
 /*
@@ -8685,37 +11415,25 @@ class DoorLockSetRfid : public ModelCommand
 public:
     DoorLockSetRfid() : ModelCommand("set-rfid")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
-        AddArgument("UserStatus", 0, UINT8_MAX, &mUserStatus);
-        AddArgument("UserType", 0, UINT8_MAX, &mUserType);
-        AddArgument("Id", &mId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
+        AddArgument("UserStatus", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.userStatus)> *>(&mRequest.userStatus));
+        AddArgument("UserType", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.userType)> *>(&mRequest.userType));
+        AddArgument("Id", &mRequest.id);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockSetRfid()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x16) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000016) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetRfid(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId, mUserStatus, mUserType,
-                               chip::ByteSpan(chip::Uint8::from_char(mId), strlen(mId)));
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockSetRfidResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterSetRfidResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterSetRfidResponseCallback>(OnDoorLockClusterSetRfidResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
-    uint8_t mUserStatus;
-    uint8_t mUserType;
-    char * mId;
+    chip::app::Clusters::DoorLock::Commands::SetRfid::Type mRequest;
 };
 
 /*
@@ -8726,32 +11444,22 @@ class DoorLockSetUserType : public ModelCommand
 public:
     DoorLockSetUserType() : ModelCommand("set-user-type")
     {
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
-        AddArgument("UserType", 0, UINT8_MAX, &mUserType);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
+        AddArgument("UserType", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.userType)> *>(&mRequest.userType));
         ModelCommand::AddArguments();
-    }
-    ~DoorLockSetUserType()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x14) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000014) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetUserType(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUserId, mUserType);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockSetUserTypeResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterSetUserTypeResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterSetUserTypeResponseCallback>(OnDoorLockClusterSetUserTypeResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mUserId;
-    uint8_t mUserType;
+    chip::app::Clusters::DoorLock::Commands::SetUserType::Type mRequest;
 };
 
 /*
@@ -8762,44 +11470,28 @@ class DoorLockSetWeekdaySchedule : public ModelCommand
 public:
     DoorLockSetWeekdaySchedule() : ModelCommand("set-weekday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
-        AddArgument("DaysMask", 0, UINT8_MAX, &mDaysMask);
-        AddArgument("StartHour", 0, UINT8_MAX, &mStartHour);
-        AddArgument("StartMinute", 0, UINT8_MAX, &mStartMinute);
-        AddArgument("EndHour", 0, UINT8_MAX, &mEndHour);
-        AddArgument("EndMinute", 0, UINT8_MAX, &mEndMinute);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
+        AddArgument(
+            "DaysMask", 0, UINT8_MAX,
+            reinterpret_cast<std::underlying_type_t<chip::app::Clusters::DoorLock::DoorLockDayOfWeek> *>(&mRequest.daysMask));
+        AddArgument("StartHour", 0, UINT8_MAX, &mRequest.startHour);
+        AddArgument("StartMinute", 0, UINT8_MAX, &mRequest.startMinute);
+        AddArgument("EndHour", 0, UINT8_MAX, &mRequest.endHour);
+        AddArgument("EndMinute", 0, UINT8_MAX, &mRequest.endMinute);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockSetWeekdaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x0B) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x0000000B) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetWeekdaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mUserId, mDaysMask,
-                                          mStartHour, mStartMinute, mEndHour, mEndMinute);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockSetWeekdayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterSetWeekdayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterSetWeekdayScheduleResponseCallback>(OnDoorLockClusterSetWeekdayScheduleResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint16_t mUserId;
-    uint8_t mDaysMask;
-    uint8_t mStartHour;
-    uint8_t mStartMinute;
-    uint8_t mEndHour;
-    uint8_t mEndMinute;
+    chip::app::Clusters::DoorLock::Commands::SetWeekdaySchedule::Type mRequest;
 };
 
 /*
@@ -8810,38 +11502,23 @@ class DoorLockSetYeardaySchedule : public ModelCommand
 public:
     DoorLockSetYeardaySchedule() : ModelCommand("set-yearday-schedule")
     {
-        AddArgument("ScheduleId", 0, UINT8_MAX, &mScheduleId);
-        AddArgument("UserId", 0, UINT16_MAX, &mUserId);
-        AddArgument("LocalStartTime", 0, UINT32_MAX, &mLocalStartTime);
-        AddArgument("LocalEndTime", 0, UINT32_MAX, &mLocalEndTime);
+        AddArgument("ScheduleId", 0, UINT8_MAX, &mRequest.scheduleId);
+        AddArgument("UserId", 0, UINT16_MAX, &mRequest.userId);
+        AddArgument("LocalStartTime", 0, UINT32_MAX, &mRequest.localStartTime);
+        AddArgument("LocalEndTime", 0, UINT32_MAX, &mRequest.localEndTime);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockSetYeardaySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x0E) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x0000000E) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetYeardaySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mScheduleId, mUserId,
-                                          mLocalStartTime, mLocalEndTime);
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockSetYeardayScheduleResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterSetYeardayScheduleResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterSetYeardayScheduleResponseCallback>(OnDoorLockClusterSetYeardayScheduleResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mScheduleId;
-    uint16_t mUserId;
-    uint32_t mLocalStartTime;
-    uint32_t mLocalEndTime;
+    chip::app::Clusters::DoorLock::Commands::SetYeardaySchedule::Type mRequest;
 };
 
 /*
@@ -8852,31 +11529,20 @@ class DoorLockUnlockDoor : public ModelCommand
 public:
     DoorLockUnlockDoor() : ModelCommand("unlock-door")
     {
-        AddArgument("Pin", &mPin);
+        AddArgument("Pin", &mRequest.pin);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockUnlockDoor()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UnlockDoor(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                  chip::ByteSpan(chip::Uint8::from_char(mPin), strlen(mPin)));
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockUnlockDoorResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterUnlockDoorResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterUnlockDoorResponseCallback>(OnDoorLockClusterUnlockDoorResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mPin;
+    chip::app::Clusters::DoorLock::Commands::UnlockDoor::Type mRequest;
 };
 
 /*
@@ -8887,34 +11553,21 @@ class DoorLockUnlockWithTimeout : public ModelCommand
 public:
     DoorLockUnlockWithTimeout() : ModelCommand("unlock-with-timeout")
     {
-        AddArgument("TimeoutInSeconds", 0, UINT16_MAX, &mTimeoutInSeconds);
-        AddArgument("Pin", &mPin);
+        AddArgument("TimeoutInSeconds", 0, UINT16_MAX, &mRequest.timeoutInSeconds);
+        AddArgument("Pin", &mRequest.pin);
         ModelCommand::AddArguments();
-    }
-    ~DoorLockUnlockWithTimeout()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0101) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000101) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::DoorLockCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UnlockWithTimeout(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mTimeoutInSeconds,
-                                         chip::ByteSpan(chip::Uint8::from_char(mPin), strlen(mPin)));
+        return chip::Controller::InvokeCommand(device, this, OnDoorLockUnlockWithTimeoutResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DoorLockClusterUnlockWithTimeoutResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DoorLockClusterUnlockWithTimeoutResponseCallback>(OnDoorLockClusterUnlockWithTimeoutResponse,
-                                                                                       this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mTimeoutInSeconds;
-    char * mPin;
+    chip::app::Clusters::DoorLock::Commands::UnlockWithTimeout::Type mRequest;
 };
 
 /*
@@ -8959,12 +11612,14 @@ public:
         AddArgument("attr-name", "lock-state");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportDoorLockLockState()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -8976,25 +11631,29 @@ public:
         chip::Controller::DoorLockCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeLockState(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeLockState(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeLockState(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                   mMaxInterval);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeLockState(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -9534,11 +12193,15 @@ private:
 | * ResetCounts                                                       |   0x00 |
 |------------------------------------------------------------------------------|
 | Attributes:                                                         |        |
+| * PHYRate                                                           | 0x0000 |
+| * FullDuplex                                                        | 0x0001 |
 | * PacketRxCount                                                     | 0x0002 |
 | * PacketTxCount                                                     | 0x0003 |
 | * TxErrCount                                                        | 0x0004 |
 | * CollisionCount                                                    | 0x0005 |
 | * OverrunCount                                                      | 0x0006 |
+| * CarrierDetect                                                     | 0x0007 |
+| * TimeSinceReset                                                    | 0x0008 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -9549,7 +12212,31 @@ class EthernetNetworkDiagnosticsResetCounts : public ModelCommand
 {
 public:
     EthernetNetworkDiagnosticsResetCounts() : ModelCommand("reset-counts") { ModelCommand::AddArguments(); }
-    ~EthernetNetworkDiagnosticsResetCounts()
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000037) command (0x00000000) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::EthernetNetworkDiagnostics::Commands::ResetCounts::Type mRequest;
+};
+
+/*
+ * Attribute PHYRate
+ */
+class ReadEthernetNetworkDiagnosticsPHYRate : public ModelCommand
+{
+public:
+    ReadEthernetNetworkDiagnosticsPHYRate() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "phyrate");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadEthernetNetworkDiagnosticsPHYRate()
     {
         delete onSuccessCallback;
         delete onFailureCallback;
@@ -9561,12 +12248,46 @@ public:
 
         chip::Controller::EthernetNetworkDiagnosticsCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.ResetCounts(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return cluster.ReadAttributePHYRate(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute FullDuplex
+ */
+class ReadEthernetNetworkDiagnosticsFullDuplex : public ModelCommand
+{
+public:
+    ReadEthernetNetworkDiagnosticsFullDuplex() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "full-duplex");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadEthernetNetworkDiagnosticsFullDuplex()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0037) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::EthernetNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeFullDuplex(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<BooleanAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
@@ -9742,6 +12463,74 @@ private:
 };
 
 /*
+ * Attribute CarrierDetect
+ */
+class ReadEthernetNetworkDiagnosticsCarrierDetect : public ModelCommand
+{
+public:
+    ReadEthernetNetworkDiagnosticsCarrierDetect() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "carrier-detect");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadEthernetNetworkDiagnosticsCarrierDetect()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0037) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::EthernetNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCarrierDetect(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<BooleanAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute TimeSinceReset
+ */
+class ReadEthernetNetworkDiagnosticsTimeSinceReset : public ModelCommand
+{
+public:
+    ReadEthernetNetworkDiagnosticsTimeSinceReset() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "time-since-reset");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadEthernetNetworkDiagnosticsTimeSinceReset()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0037) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::EthernetNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTimeSinceReset(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadEthernetNetworkDiagnosticsClusterRevision : public ModelCommand
@@ -9862,6 +12651,7 @@ private:
 | * MeasuredValue                                                     | 0x0000 |
 | * MinMeasuredValue                                                  | 0x0001 |
 | * MaxMeasuredValue                                                  | 0x0002 |
+| * Tolerance                                                         | 0x0003 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -9968,6 +12758,40 @@ private:
 };
 
 /*
+ * Attribute Tolerance
+ */
+class ReadFlowMeasurementTolerance : public ModelCommand
+{
+public:
+    ReadFlowMeasurementTolerance() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "tolerance");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadFlowMeasurementTolerance()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0404) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::FlowMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTolerance(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadFlowMeasurementClusterRevision : public ModelCommand
@@ -10023,36 +12847,22 @@ class GeneralCommissioningArmFailSafe : public ModelCommand
 public:
     GeneralCommissioningArmFailSafe() : ModelCommand("arm-fail-safe")
     {
-        AddArgument("ExpiryLengthSeconds", 0, UINT16_MAX, &mExpiryLengthSeconds);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("ExpiryLengthSeconds", 0, UINT16_MAX, &mRequest.expiryLengthSeconds);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~GeneralCommissioningArmFailSafe()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0030) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000030) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GeneralCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ArmFailSafe(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mExpiryLengthSeconds, mBreadcrumb,
-                                   mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnGeneralCommissioningArmFailSafeResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<GeneralCommissioningClusterArmFailSafeResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GeneralCommissioningClusterArmFailSafeResponseCallback>(
-            OnGeneralCommissioningClusterArmFailSafeResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mExpiryLengthSeconds;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::GeneralCommissioning::Commands::ArmFailSafe::Type mRequest;
 };
 
 /*
@@ -10062,27 +12872,17 @@ class GeneralCommissioningCommissioningComplete : public ModelCommand
 {
 public:
     GeneralCommissioningCommissioningComplete() : ModelCommand("commissioning-complete") { ModelCommand::AddArguments(); }
-    ~GeneralCommissioningCommissioningComplete()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0030) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000030) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GeneralCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.CommissioningComplete(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnGeneralCommissioningCommissioningCompleteResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<GeneralCommissioningClusterCommissioningCompleteResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GeneralCommissioningClusterCommissioningCompleteResponseCallback>(
-            OnGeneralCommissioningClusterCommissioningCompleteResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::GeneralCommissioning::Commands::CommissioningComplete::Type mRequest;
 };
 
 /*
@@ -10093,39 +12893,24 @@ class GeneralCommissioningSetRegulatoryConfig : public ModelCommand
 public:
     GeneralCommissioningSetRegulatoryConfig() : ModelCommand("set-regulatory-config")
     {
-        AddArgument("Location", 0, UINT8_MAX, &mLocation);
-        AddArgument("CountryCode", &mCountryCode);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("Location", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.location)> *>(&mRequest.location));
+        AddArgument("CountryCode", &mRequest.countryCode);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~GeneralCommissioningSetRegulatoryConfig()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0030) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000030) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GeneralCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetRegulatoryConfig(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mLocation,
-                                           chip::ByteSpan(chip::Uint8::from_char(mCountryCode), strlen(mCountryCode)), mBreadcrumb,
-                                           mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnGeneralCommissioningSetRegulatoryConfigResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<GeneralCommissioningClusterSetRegulatoryConfigResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GeneralCommissioningClusterSetRegulatoryConfigResponseCallback>(
-            OnGeneralCommissioningClusterSetRegulatoryConfigResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mLocation;
-    char * mCountryCode;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::GeneralCommissioning::Commands::SetRegulatoryConfig::Type mRequest;
 };
 
 /*
@@ -10272,6 +13057,9 @@ private:
 | Attributes:                                                         |        |
 | * NetworkInterfaces                                                 | 0x0000 |
 | * RebootCount                                                       | 0x0001 |
+| * UpTime                                                            | 0x0002 |
+| * TotalOperationalHours                                             | 0x0003 |
+| * BootReasons                                                       | 0x0004 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -10340,6 +13128,108 @@ public:
 private:
     chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
         new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute UpTime
+ */
+class ReadGeneralDiagnosticsUpTime : public ModelCommand
+{
+public:
+    ReadGeneralDiagnosticsUpTime() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "up-time");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadGeneralDiagnosticsUpTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0033) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::GeneralDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeUpTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute TotalOperationalHours
+ */
+class ReadGeneralDiagnosticsTotalOperationalHours : public ModelCommand
+{
+public:
+    ReadGeneralDiagnosticsTotalOperationalHours() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "total-operational-hours");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadGeneralDiagnosticsTotalOperationalHours()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0033) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::GeneralDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTotalOperationalHours(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BootReasons
+ */
+class ReadGeneralDiagnosticsBootReasons : public ModelCommand
+{
+public:
+    ReadGeneralDiagnosticsBootReasons() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "boot-reasons");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadGeneralDiagnosticsBootReasons()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0033) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::GeneralDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBootReasons(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
@@ -10517,33 +13407,21 @@ class GroupsAddGroup : public ModelCommand
 public:
     GroupsAddGroup() : ModelCommand("add-group")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("GroupName", &mGroupName);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("GroupName", &mRequest.groupName);
         ModelCommand::AddArguments();
-    }
-    ~GroupsAddGroup()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0004) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000004) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GroupsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddGroup(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId,
-                                chip::ByteSpan(chip::Uint8::from_char(mGroupName), strlen(mGroupName)));
+        return chip::Controller::InvokeCommand(device, this, OnGroupsAddGroupResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<GroupsClusterAddGroupResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GroupsClusterAddGroupResponseCallback>(OnGroupsClusterAddGroupResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    char * mGroupName;
+    chip::app::Clusters::Groups::Commands::AddGroup::Type mRequest;
 };
 
 /*
@@ -10554,33 +13432,20 @@ class GroupsAddGroupIfIdentifying : public ModelCommand
 public:
     GroupsAddGroupIfIdentifying() : ModelCommand("add-group-if-identifying")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("GroupName", &mGroupName);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("GroupName", &mRequest.groupName);
         ModelCommand::AddArguments();
-    }
-    ~GroupsAddGroupIfIdentifying()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0004) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000004) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GroupsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddGroupIfIdentifying(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId,
-                                             chip::ByteSpan(chip::Uint8::from_char(mGroupName), strlen(mGroupName)));
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    char * mGroupName;
+    chip::app::Clusters::Groups::Commands::AddGroupIfIdentifying::Type mRequest;
 };
 
 /*
@@ -10591,33 +13456,21 @@ class GroupsGetGroupMembership : public ModelCommand
 public:
     GroupsGetGroupMembership() : ModelCommand("get-group-membership")
     {
-        AddArgument("GroupCount", 0, UINT8_MAX, &mGroupCount);
-        AddArgument("GroupList", 0, UINT16_MAX, &mGroupList);
+        AddArgument("GroupCount", 0, UINT8_MAX, &mRequest.groupCount);
+        // groupList Array parsing is not supported yet
         ModelCommand::AddArguments();
-    }
-    ~GroupsGetGroupMembership()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0004) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000004) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GroupsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetGroupMembership(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupCount, mGroupList);
+        return chip::Controller::InvokeCommand(device, this, OnGroupsGetGroupMembershipResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<GroupsClusterGetGroupMembershipResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GroupsClusterGetGroupMembershipResponseCallback>(OnGroupsClusterGetGroupMembershipResponse,
-                                                                                      this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mGroupCount;
-    uint16_t mGroupList;
+    chip::app::Clusters::Groups::Commands::GetGroupMembership::Type mRequest;
 };
 
 /*
@@ -10627,26 +13480,16 @@ class GroupsRemoveAllGroups : public ModelCommand
 {
 public:
     GroupsRemoveAllGroups() : ModelCommand("remove-all-groups") { ModelCommand::AddArguments(); }
-    ~GroupsRemoveAllGroups()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0004) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000004) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GroupsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveAllGroups(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::Groups::Commands::RemoveAllGroups::Type mRequest;
 };
 
 /*
@@ -10657,30 +13500,20 @@ class GroupsRemoveGroup : public ModelCommand
 public:
     GroupsRemoveGroup() : ModelCommand("remove-group")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
         ModelCommand::AddArguments();
-    }
-    ~GroupsRemoveGroup()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0004) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000004) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GroupsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveGroup(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId);
+        return chip::Controller::InvokeCommand(device, this, OnGroupsRemoveGroupResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<GroupsClusterRemoveGroupResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GroupsClusterRemoveGroupResponseCallback>(OnGroupsClusterRemoveGroupResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
+    chip::app::Clusters::Groups::Commands::RemoveGroup::Type mRequest;
 };
 
 /*
@@ -10691,30 +13524,20 @@ class GroupsViewGroup : public ModelCommand
 public:
     GroupsViewGroup() : ModelCommand("view-group")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
         ModelCommand::AddArguments();
-    }
-    ~GroupsViewGroup()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0004) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000004) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::GroupsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ViewGroup(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId);
+        return chip::Controller::InvokeCommand(device, this, OnGroupsViewGroupResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<GroupsClusterViewGroupResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<GroupsClusterViewGroupResponseCallback>(OnGroupsClusterViewGroupResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
+    chip::app::Clusters::Groups::Commands::ViewGroup::Type mRequest;
 };
 
 /*
@@ -10791,9 +13614,11 @@ private:
 | Commands:                                                           |        |
 | * Identify                                                          |   0x00 |
 | * IdentifyQuery                                                     |   0x01 |
+| * TriggerEffect                                                     |   0x40 |
 |------------------------------------------------------------------------------|
 | Attributes:                                                         |        |
 | * IdentifyTime                                                      | 0x0000 |
+| * IdentifyType                                                      | 0x0001 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -10805,30 +13630,19 @@ class IdentifyIdentify : public ModelCommand
 public:
     IdentifyIdentify() : ModelCommand("identify")
     {
-        AddArgument("IdentifyTime", 0, UINT16_MAX, &mIdentifyTime);
+        AddArgument("IdentifyTime", 0, UINT16_MAX, &mRequest.identifyTime);
         ModelCommand::AddArguments();
-    }
-    ~IdentifyIdentify()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0003) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000003) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::IdentifyCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Identify(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mIdentifyTime);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mIdentifyTime;
+    chip::app::Clusters::Identify::Commands::Identify::Type mRequest;
 };
 
 /*
@@ -10838,26 +13652,43 @@ class IdentifyIdentifyQuery : public ModelCommand
 {
 public:
     IdentifyIdentifyQuery() : ModelCommand("identify-query") { ModelCommand::AddArguments(); }
-    ~IdentifyIdentifyQuery()
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        delete onSuccessCallback;
-        delete onFailureCallback;
+        ChipLogProgress(chipTool, "Sending cluster (0x00000003) command (0x00000001) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnIdentifyIdentifyQueryResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
+    }
+
+private:
+    chip::app::Clusters::Identify::Commands::IdentifyQuery::Type mRequest;
+};
+
+/*
+ * Command TriggerEffect
+ */
+class IdentifyTriggerEffect : public ModelCommand
+{
+public:
+    IdentifyTriggerEffect() : ModelCommand("trigger-effect")
+    {
+        AddArgument("EffectIdentifier", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.effectIdentifier)> *>(&mRequest.effectIdentifier));
+        AddArgument("EffectVariant", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.effectVariant)> *>(&mRequest.effectVariant));
+        ModelCommand::AddArguments();
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0003) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000003) command (0x00000040) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::IdentifyCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.IdentifyQuery(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<IdentifyClusterIdentifyQueryResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<IdentifyClusterIdentifyQueryResponseCallback>(OnIdentifyClusterIdentifyQueryResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::Identify::Commands::TriggerEffect::Type mRequest;
 };
 
 /*
@@ -10928,6 +13759,40 @@ private:
 };
 
 /*
+ * Attribute IdentifyType
+ */
+class ReadIdentifyIdentifyType : public ModelCommand
+{
+public:
+    ReadIdentifyIdentifyType() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "identify-type");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIdentifyIdentifyType()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0003) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IdentifyCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeIdentifyType(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadIdentifyClusterRevision : public ModelCommand
@@ -10962,6 +13827,276 @@ private:
 };
 
 /*----------------------------------------------------------------------------*\
+| Cluster IlluminanceMeasurement                                      | 0x0400 |
+|------------------------------------------------------------------------------|
+| Commands:                                                           |        |
+|------------------------------------------------------------------------------|
+| Attributes:                                                         |        |
+| * MeasuredValue                                                     | 0x0000 |
+| * MinMeasuredValue                                                  | 0x0001 |
+| * MaxMeasuredValue                                                  | 0x0002 |
+| * Tolerance                                                         | 0x0003 |
+| * LightSensorType                                                   | 0x0004 |
+| * ClusterRevision                                                   | 0xFFFD |
+\*----------------------------------------------------------------------------*/
+
+/*
+ * Attribute MeasuredValue
+ */
+class ReadIlluminanceMeasurementMeasuredValue : public ModelCommand
+{
+public:
+    ReadIlluminanceMeasurementMeasuredValue() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "measured-value");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIlluminanceMeasurementMeasuredValue()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMeasuredValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class ReportIlluminanceMeasurementMeasuredValue : public ModelCommand
+{
+public:
+    ReportIlluminanceMeasurementMeasuredValue() : ModelCommand("report")
+    {
+        AddArgument("attr-name", "measured-value");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
+        ModelCommand::AddArguments();
+    }
+
+    ~ReportIlluminanceMeasurementMeasuredValue()
+    {
+        delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
+        delete onFailureCallback;
+        delete onReportCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x06) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+
+        ReturnErrorOnFailure(cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel()));
+
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeMeasuredValue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
+ * Attribute MinMeasuredValue
+ */
+class ReadIlluminanceMeasurementMinMeasuredValue : public ModelCommand
+{
+public:
+    ReadIlluminanceMeasurementMinMeasuredValue() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-measured-value");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIlluminanceMeasurementMinMeasuredValue()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinMeasuredValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxMeasuredValue
+ */
+class ReadIlluminanceMeasurementMaxMeasuredValue : public ModelCommand
+{
+public:
+    ReadIlluminanceMeasurementMaxMeasuredValue() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-measured-value");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIlluminanceMeasurementMaxMeasuredValue()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxMeasuredValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute Tolerance
+ */
+class ReadIlluminanceMeasurementTolerance : public ModelCommand
+{
+public:
+    ReadIlluminanceMeasurementTolerance() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "tolerance");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIlluminanceMeasurementTolerance()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTolerance(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute LightSensorType
+ */
+class ReadIlluminanceMeasurementLightSensorType : public ModelCommand
+{
+public:
+    ReadIlluminanceMeasurementLightSensorType() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "light-sensor-type");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIlluminanceMeasurementLightSensorType()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeLightSensorType(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute ClusterRevision
+ */
+class ReadIlluminanceMeasurementClusterRevision : public ModelCommand
+{
+public:
+    ReadIlluminanceMeasurementClusterRevision() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "cluster-revision");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadIlluminanceMeasurementClusterRevision()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0400) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::IlluminanceMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*----------------------------------------------------------------------------*\
 | Cluster KeypadInput                                                 | 0x0509 |
 |------------------------------------------------------------------------------|
 | Commands:                                                           |        |
@@ -10979,30 +14114,21 @@ class KeypadInputSendKey : public ModelCommand
 public:
     KeypadInputSendKey() : ModelCommand("send-key")
     {
-        AddArgument("KeyCode", 0, UINT8_MAX, &mKeyCode);
+        AddArgument("KeyCode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.keyCode)> *>(&mRequest.keyCode));
         ModelCommand::AddArguments();
-    }
-    ~KeypadInputSendKey()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0509) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000509) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::KeypadInputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SendKey(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mKeyCode);
+        return chip::Controller::InvokeCommand(device, this, OnKeypadInputSendKeyResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<KeypadInputClusterSendKeyResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<KeypadInputClusterSendKeyResponseCallback>(OnKeypadInputClusterSendKeyResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mKeyCode;
+    chip::app::Clusters::KeypadInput::Commands::SendKey::Type mRequest;
 };
 
 /*
@@ -11054,6 +14180,19 @@ private:
 |------------------------------------------------------------------------------|
 | Attributes:                                                         |        |
 | * CurrentLevel                                                      | 0x0000 |
+| * RemainingTime                                                     | 0x0001 |
+| * MinLevel                                                          | 0x0002 |
+| * MaxLevel                                                          | 0x0003 |
+| * CurrentFrequency                                                  | 0x0004 |
+| * MinFrequency                                                      | 0x0005 |
+| * MaxFrequency                                                      | 0x0006 |
+| * Options                                                           | 0x000F |
+| * OnOffTransitionTime                                               | 0x0010 |
+| * OnLevel                                                           | 0x0011 |
+| * OnTransitionTime                                                  | 0x0012 |
+| * OffTransitionTime                                                 | 0x0013 |
+| * DefaultMoveRate                                                   | 0x0014 |
+| * StartUpCurrentLevel                                               | 0x4000 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -11065,37 +14204,23 @@ class LevelControlMove : public ModelCommand
 public:
     LevelControlMove() : ModelCommand("move")
     {
-        AddArgument("MoveMode", 0, UINT8_MAX, &mMoveMode);
-        AddArgument("Rate", 0, UINT8_MAX, &mRate);
-        AddArgument("OptionMask", 0, UINT8_MAX, &mOptionMask);
-        AddArgument("OptionOverride", 0, UINT8_MAX, &mOptionOverride);
+        AddArgument("MoveMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.moveMode)> *>(&mRequest.moveMode));
+        AddArgument("Rate", 0, UINT8_MAX, &mRequest.rate);
+        AddArgument("OptionMask", 0, UINT8_MAX, &mRequest.optionMask);
+        AddArgument("OptionOverride", 0, UINT8_MAX, &mRequest.optionOverride);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlMove()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Move(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMoveMode, mRate, mOptionMask,
-                            mOptionOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMoveMode;
-    uint8_t mRate;
-    uint8_t mOptionMask;
-    uint8_t mOptionOverride;
+    chip::app::Clusters::LevelControl::Commands::Move::Type mRequest;
 };
 
 /*
@@ -11106,37 +14231,22 @@ class LevelControlMoveToLevel : public ModelCommand
 public:
     LevelControlMoveToLevel() : ModelCommand("move-to-level")
     {
-        AddArgument("Level", 0, UINT8_MAX, &mLevel);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionMask", 0, UINT8_MAX, &mOptionMask);
-        AddArgument("OptionOverride", 0, UINT8_MAX, &mOptionOverride);
+        AddArgument("Level", 0, UINT8_MAX, &mRequest.level);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionMask", 0, UINT8_MAX, &mRequest.optionMask);
+        AddArgument("OptionOverride", 0, UINT8_MAX, &mRequest.optionOverride);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlMoveToLevel()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mLevel, mTransitionTime, mOptionMask,
-                                   mOptionOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mLevel;
-    uint16_t mTransitionTime;
-    uint8_t mOptionMask;
-    uint8_t mOptionOverride;
+    chip::app::Clusters::LevelControl::Commands::MoveToLevel::Type mRequest;
 };
 
 /*
@@ -11147,32 +14257,20 @@ class LevelControlMoveToLevelWithOnOff : public ModelCommand
 public:
     LevelControlMoveToLevelWithOnOff() : ModelCommand("move-to-level-with-on-off")
     {
-        AddArgument("Level", 0, UINT8_MAX, &mLevel);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
+        AddArgument("Level", 0, UINT8_MAX, &mRequest.level);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlMoveToLevelWithOnOff()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveToLevelWithOnOff(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mLevel, mTransitionTime);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mLevel;
-    uint16_t mTransitionTime;
+    chip::app::Clusters::LevelControl::Commands::MoveToLevelWithOnOff::Type mRequest;
 };
 
 /*
@@ -11183,32 +14281,21 @@ class LevelControlMoveWithOnOff : public ModelCommand
 public:
     LevelControlMoveWithOnOff() : ModelCommand("move-with-on-off")
     {
-        AddArgument("MoveMode", 0, UINT8_MAX, &mMoveMode);
-        AddArgument("Rate", 0, UINT8_MAX, &mRate);
+        AddArgument("MoveMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.moveMode)> *>(&mRequest.moveMode));
+        AddArgument("Rate", 0, UINT8_MAX, &mRequest.rate);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlMoveWithOnOff()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MoveWithOnOff(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMoveMode, mRate);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMoveMode;
-    uint8_t mRate;
+    chip::app::Clusters::LevelControl::Commands::MoveWithOnOff::Type mRequest;
 };
 
 /*
@@ -11219,39 +14306,24 @@ class LevelControlStep : public ModelCommand
 public:
     LevelControlStep() : ModelCommand("step")
     {
-        AddArgument("StepMode", 0, UINT8_MAX, &mStepMode);
-        AddArgument("StepSize", 0, UINT8_MAX, &mStepSize);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("OptionMask", 0, UINT8_MAX, &mOptionMask);
-        AddArgument("OptionOverride", 0, UINT8_MAX, &mOptionOverride);
+        AddArgument("StepMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.stepMode)> *>(&mRequest.stepMode));
+        AddArgument("StepSize", 0, UINT8_MAX, &mRequest.stepSize);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("OptionMask", 0, UINT8_MAX, &mRequest.optionMask);
+        AddArgument("OptionOverride", 0, UINT8_MAX, &mRequest.optionOverride);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlStep()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Step(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepMode, mStepSize, mTransitionTime,
-                            mOptionMask, mOptionOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStepMode;
-    uint8_t mStepSize;
-    uint16_t mTransitionTime;
-    uint8_t mOptionMask;
-    uint8_t mOptionOverride;
+    chip::app::Clusters::LevelControl::Commands::Step::Type mRequest;
 };
 
 /*
@@ -11262,35 +14334,22 @@ class LevelControlStepWithOnOff : public ModelCommand
 public:
     LevelControlStepWithOnOff() : ModelCommand("step-with-on-off")
     {
-        AddArgument("StepMode", 0, UINT8_MAX, &mStepMode);
-        AddArgument("StepSize", 0, UINT8_MAX, &mStepSize);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
+        AddArgument("StepMode", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.stepMode)> *>(&mRequest.stepMode));
+        AddArgument("StepSize", 0, UINT8_MAX, &mRequest.stepSize);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlStepWithOnOff()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StepWithOnOff(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mStepMode, mStepSize,
-                                     mTransitionTime);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mStepMode;
-    uint8_t mStepSize;
-    uint16_t mTransitionTime;
+    chip::app::Clusters::LevelControl::Commands::StepWithOnOff::Type mRequest;
 };
 
 /*
@@ -11301,32 +14360,20 @@ class LevelControlStop : public ModelCommand
 public:
     LevelControlStop() : ModelCommand("stop")
     {
-        AddArgument("OptionMask", 0, UINT8_MAX, &mOptionMask);
-        AddArgument("OptionOverride", 0, UINT8_MAX, &mOptionOverride);
+        AddArgument("OptionMask", 0, UINT8_MAX, &mRequest.optionMask);
+        AddArgument("OptionOverride", 0, UINT8_MAX, &mRequest.optionOverride);
         ModelCommand::AddArguments();
-    }
-    ~LevelControlStop()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Stop(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mOptionMask, mOptionOverride);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mOptionMask;
-    uint8_t mOptionOverride;
+    chip::app::Clusters::LevelControl::Commands::Stop::Type mRequest;
 };
 
 /*
@@ -11336,26 +14383,16 @@ class LevelControlStopWithOnOff : public ModelCommand
 {
 public:
     LevelControlStopWithOnOff() : ModelCommand("stop-with-on-off") { ModelCommand::AddArguments(); }
-    ~LevelControlStopWithOnOff()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x07) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000008) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LevelControlCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StopWithOnOff(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::LevelControl::Commands::StopWithOnOff::Type mRequest;
 };
 
 /*
@@ -11400,13 +14437,14 @@ public:
         AddArgument("attr-name", "current-level");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT8_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportLevelControlCurrentLevel()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -11418,14 +14456,292 @@ public:
         chip::Controller::LevelControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentLevel(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentLevel(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                      mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentLevel(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
+ * Attribute RemainingTime
+ */
+class ReadLevelControlRemainingTime : public ModelCommand
+{
+public:
+    ReadLevelControlRemainingTime() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "remaining-time");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlRemainingTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeRemainingTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinLevel
+ */
+class ReadLevelControlMinLevel : public ModelCommand
+{
+public:
+    ReadLevelControlMinLevel() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-level");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlMinLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxLevel
+ */
+class ReadLevelControlMaxLevel : public ModelCommand
+{
+public:
+    ReadLevelControlMaxLevel() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-level");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlMaxLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute CurrentFrequency
+ */
+class ReadLevelControlCurrentFrequency : public ModelCommand
+{
+public:
+    ReadLevelControlCurrentFrequency() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "current-frequency");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlCurrentFrequency()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCurrentFrequency(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinFrequency
+ */
+class ReadLevelControlMinFrequency : public ModelCommand
+{
+public:
+    ReadLevelControlMinFrequency() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-frequency");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlMinFrequency()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinFrequency(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxFrequency
+ */
+class ReadLevelControlMaxFrequency : public ModelCommand
+{
+public:
+    ReadLevelControlMaxFrequency() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-frequency");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlMaxFrequency()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxFrequency(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute Options
+ */
+class ReadLevelControlOptions : public ModelCommand
+{
+public:
+    ReadLevelControlOptions() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "options");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlOptions()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOptions(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlOptions : public ModelCommand
+{
+public:
+    WriteLevelControlOptions() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "options");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlOptions()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeOptions(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
     }
 
 private:
@@ -11433,11 +14749,409 @@ private:
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
+    uint8_t mValue;
+};
+
+/*
+ * Attribute OnOffTransitionTime
+ */
+class ReadLevelControlOnOffTransitionTime : public ModelCommand
+{
+public:
+    ReadLevelControlOnOffTransitionTime() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "on-off-transition-time");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlOnOffTransitionTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOnOffTransitionTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlOnOffTransitionTime : public ModelCommand
+{
+public:
+    WriteLevelControlOnOffTransitionTime() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "on-off-transition-time");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlOnOffTransitionTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeOnOffTransitionTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint16_t mValue;
+};
+
+/*
+ * Attribute OnLevel
+ */
+class ReadLevelControlOnLevel : public ModelCommand
+{
+public:
+    ReadLevelControlOnLevel() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "on-level");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlOnLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOnLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
         new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
-    uint16_t mMinInterval;
-    uint16_t mMaxInterval;
-    uint8_t mChange;
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlOnLevel : public ModelCommand
+{
+public:
+    WriteLevelControlOnLevel() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "on-level");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlOnLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeOnLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute OnTransitionTime
+ */
+class ReadLevelControlOnTransitionTime : public ModelCommand
+{
+public:
+    ReadLevelControlOnTransitionTime() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "on-transition-time");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlOnTransitionTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOnTransitionTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlOnTransitionTime : public ModelCommand
+{
+public:
+    WriteLevelControlOnTransitionTime() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "on-transition-time");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlOnTransitionTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeOnTransitionTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint16_t mValue;
+};
+
+/*
+ * Attribute OffTransitionTime
+ */
+class ReadLevelControlOffTransitionTime : public ModelCommand
+{
+public:
+    ReadLevelControlOffTransitionTime() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "off-transition-time");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlOffTransitionTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOffTransitionTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlOffTransitionTime : public ModelCommand
+{
+public:
+    WriteLevelControlOffTransitionTime() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "off-transition-time");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlOffTransitionTime()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeOffTransitionTime(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint16_t mValue;
+};
+
+/*
+ * Attribute DefaultMoveRate
+ */
+class ReadLevelControlDefaultMoveRate : public ModelCommand
+{
+public:
+    ReadLevelControlDefaultMoveRate() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "default-move-rate");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlDefaultMoveRate()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeDefaultMoveRate(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlDefaultMoveRate : public ModelCommand
+{
+public:
+    WriteLevelControlDefaultMoveRate() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "default-move-rate");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlDefaultMoveRate()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeDefaultMoveRate(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute StartUpCurrentLevel
+ */
+class ReadLevelControlStartUpCurrentLevel : public ModelCommand
+{
+public:
+    ReadLevelControlStartUpCurrentLevel() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "start-up-current-level");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadLevelControlStartUpCurrentLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeStartUpCurrentLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteLevelControlStartUpCurrentLevel : public ModelCommand
+{
+public:
+    WriteLevelControlStartUpCurrentLevel() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "start-up-current-level");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteLevelControlStartUpCurrentLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0008) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::LevelControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeStartUpCurrentLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
 };
 
 /*
@@ -11491,26 +15205,16 @@ class LowPowerSleep : public ModelCommand
 {
 public:
     LowPowerSleep() : ModelCommand("sleep") { ModelCommand::AddArguments(); }
-    ~LowPowerSleep()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0508) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000508) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::LowPowerCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Sleep(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::LowPower::Commands::Sleep::Type mRequest;
 };
 
 /*
@@ -11569,26 +15273,16 @@ class MediaInputHideInputStatus : public ModelCommand
 {
 public:
     MediaInputHideInputStatus() : ModelCommand("hide-input-status") { ModelCommand::AddArguments(); }
-    ~MediaInputHideInputStatus()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0507) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000507) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaInputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.HideInputStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaInput::Commands::HideInputStatus::Type mRequest;
 };
 
 /*
@@ -11599,33 +15293,20 @@ class MediaInputRenameInput : public ModelCommand
 public:
     MediaInputRenameInput() : ModelCommand("rename-input")
     {
-        AddArgument("Index", 0, UINT8_MAX, &mIndex);
-        AddArgument("Name", &mName);
+        AddArgument("Index", 0, UINT8_MAX, &mRequest.index);
+        AddArgument("Name", &mRequest.name);
         ModelCommand::AddArguments();
-    }
-    ~MediaInputRenameInput()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0507) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000507) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaInputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RenameInput(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mIndex,
-                                   chip::ByteSpan(chip::Uint8::from_char(mName), strlen(mName)));
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mIndex;
-    char * mName;
+    chip::app::Clusters::MediaInput::Commands::RenameInput::Type mRequest;
 };
 
 /*
@@ -11636,30 +15317,19 @@ class MediaInputSelectInput : public ModelCommand
 public:
     MediaInputSelectInput() : ModelCommand("select-input")
     {
-        AddArgument("Index", 0, UINT8_MAX, &mIndex);
+        AddArgument("Index", 0, UINT8_MAX, &mRequest.index);
         ModelCommand::AddArguments();
-    }
-    ~MediaInputSelectInput()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0507) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000507) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaInputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SelectInput(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mIndex);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mIndex;
+    chip::app::Clusters::MediaInput::Commands::SelectInput::Type mRequest;
 };
 
 /*
@@ -11669,26 +15339,16 @@ class MediaInputShowInputStatus : public ModelCommand
 {
 public:
     MediaInputShowInputStatus() : ModelCommand("show-input-status") { ModelCommand::AddArguments(); }
-    ~MediaInputShowInputStatus()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0507) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000507) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaInputCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ShowInputStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaInput::Commands::ShowInputStatus::Type mRequest;
 };
 
 /*
@@ -11829,27 +15489,17 @@ class MediaPlaybackMediaFastForward : public ModelCommand
 {
 public:
     MediaPlaybackMediaFastForward() : ModelCommand("media-fast-forward") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaFastForward()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x07) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaFastForward(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaFastForwardResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaFastForwardResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaFastForwardResponseCallback>(
-            OnMediaPlaybackClusterMediaFastForwardResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaFastForward::Type mRequest;
 };
 
 /*
@@ -11859,26 +15509,17 @@ class MediaPlaybackMediaNext : public ModelCommand
 {
 public:
     MediaPlaybackMediaNext() : ModelCommand("media-next") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaNext()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaNext(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaNextResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaNextResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaNextResponseCallback>(OnMediaPlaybackClusterMediaNextResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaNext::Type mRequest;
 };
 
 /*
@@ -11888,27 +15529,17 @@ class MediaPlaybackMediaPause : public ModelCommand
 {
 public:
     MediaPlaybackMediaPause() : ModelCommand("media-pause") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaPause()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaPause(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaPauseResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaPauseResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaPauseResponseCallback>(OnMediaPlaybackClusterMediaPauseResponse,
-                                                                                     this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaPause::Type mRequest;
 };
 
 /*
@@ -11918,26 +15549,17 @@ class MediaPlaybackMediaPlay : public ModelCommand
 {
 public:
     MediaPlaybackMediaPlay() : ModelCommand("media-play") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaPlay()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaPlay(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaPlayResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaPlayResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaPlayResponseCallback>(OnMediaPlaybackClusterMediaPlayResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaPlay::Type mRequest;
 };
 
 /*
@@ -11947,27 +15569,17 @@ class MediaPlaybackMediaPrevious : public ModelCommand
 {
 public:
     MediaPlaybackMediaPrevious() : ModelCommand("media-previous") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaPrevious()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaPrevious(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaPreviousResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaPreviousResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaPreviousResponseCallback>(OnMediaPlaybackClusterMediaPreviousResponse,
-                                                                                        this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaPrevious::Type mRequest;
 };
 
 /*
@@ -11977,27 +15589,17 @@ class MediaPlaybackMediaRewind : public ModelCommand
 {
 public:
     MediaPlaybackMediaRewind() : ModelCommand("media-rewind") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaRewind()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaRewind(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaRewindResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaRewindResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaRewindResponseCallback>(OnMediaPlaybackClusterMediaRewindResponse,
-                                                                                      this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaRewind::Type mRequest;
 };
 
 /*
@@ -12008,30 +15610,20 @@ class MediaPlaybackMediaSeek : public ModelCommand
 public:
     MediaPlaybackMediaSeek() : ModelCommand("media-seek")
     {
-        AddArgument("Position", 0, UINT64_MAX, &mPosition);
+        AddArgument("Position", 0, UINT64_MAX, &mRequest.position);
         ModelCommand::AddArguments();
-    }
-    ~MediaPlaybackMediaSeek()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x0A) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x0000000A) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaSeek(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mPosition);
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaSeekResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaSeekResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaSeekResponseCallback>(OnMediaPlaybackClusterMediaSeekResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint64_t mPosition;
+    chip::app::Clusters::MediaPlayback::Commands::MediaSeek::Type mRequest;
 };
 
 /*
@@ -12042,31 +15634,20 @@ class MediaPlaybackMediaSkipBackward : public ModelCommand
 public:
     MediaPlaybackMediaSkipBackward() : ModelCommand("media-skip-backward")
     {
-        AddArgument("DeltaPositionMilliseconds", 0, UINT64_MAX, &mDeltaPositionMilliseconds);
+        AddArgument("DeltaPositionMilliseconds", 0, UINT64_MAX, &mRequest.deltaPositionMilliseconds);
         ModelCommand::AddArguments();
-    }
-    ~MediaPlaybackMediaSkipBackward()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x09) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000009) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaSkipBackward(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mDeltaPositionMilliseconds);
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaSkipBackwardResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaSkipBackwardResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaSkipBackwardResponseCallback>(
-            OnMediaPlaybackClusterMediaSkipBackwardResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint64_t mDeltaPositionMilliseconds;
+    chip::app::Clusters::MediaPlayback::Commands::MediaSkipBackward::Type mRequest;
 };
 
 /*
@@ -12077,31 +15658,20 @@ class MediaPlaybackMediaSkipForward : public ModelCommand
 public:
     MediaPlaybackMediaSkipForward() : ModelCommand("media-skip-forward")
     {
-        AddArgument("DeltaPositionMilliseconds", 0, UINT64_MAX, &mDeltaPositionMilliseconds);
+        AddArgument("DeltaPositionMilliseconds", 0, UINT64_MAX, &mRequest.deltaPositionMilliseconds);
         ModelCommand::AddArguments();
-    }
-    ~MediaPlaybackMediaSkipForward()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x08) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000008) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaSkipForward(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mDeltaPositionMilliseconds);
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaSkipForwardResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaSkipForwardResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaSkipForwardResponseCallback>(
-            OnMediaPlaybackClusterMediaSkipForwardResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint64_t mDeltaPositionMilliseconds;
+    chip::app::Clusters::MediaPlayback::Commands::MediaSkipForward::Type mRequest;
 };
 
 /*
@@ -12111,27 +15681,17 @@ class MediaPlaybackMediaStartOver : public ModelCommand
 {
 public:
     MediaPlaybackMediaStartOver() : ModelCommand("media-start-over") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaStartOver()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaStartOver(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaStartOverResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaStartOverResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaStartOverResponseCallback>(
-            OnMediaPlaybackClusterMediaStartOverResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaStartOver::Type mRequest;
 };
 
 /*
@@ -12141,26 +15701,17 @@ class MediaPlaybackMediaStop : public ModelCommand
 {
 public:
     MediaPlaybackMediaStop() : ModelCommand("media-stop") { ModelCommand::AddArguments(); }
-    ~MediaPlaybackMediaStop()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0506) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000506) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::MediaPlaybackCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.MediaStop(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnMediaPlaybackMediaStopResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<MediaPlaybackClusterMediaStopResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<MediaPlaybackClusterMediaStopResponseCallback>(OnMediaPlaybackClusterMediaStopResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::MediaPlayback::Commands::MediaStop::Type mRequest;
 };
 
 /*
@@ -12470,6 +16021,334 @@ private:
 };
 
 /*----------------------------------------------------------------------------*\
+| Cluster ModeSelect                                                  | 0x0050 |
+|------------------------------------------------------------------------------|
+| Commands:                                                           |        |
+| * ChangeToMode                                                      |   0x00 |
+|------------------------------------------------------------------------------|
+| Attributes:                                                         |        |
+| * CurrentMode                                                       | 0x0000 |
+| * SupportedModes                                                    | 0x0001 |
+| * OnMode                                                            | 0x0002 |
+| * StartUpMode                                                       | 0x0003 |
+| * Description                                                       | 0x0004 |
+| * ClusterRevision                                                   | 0xFFFD |
+\*----------------------------------------------------------------------------*/
+
+/*
+ * Command ChangeToMode
+ */
+class ModeSelectChangeToMode : public ModelCommand
+{
+public:
+    ModeSelectChangeToMode() : ModelCommand("change-to-mode")
+    {
+        AddArgument("NewMode", 0, UINT8_MAX, &mRequest.newMode);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000050) command (0x00000000) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::ModeSelect::Commands::ChangeToMode::Type mRequest;
+};
+
+/*
+ * Attribute CurrentMode
+ */
+class ReadModeSelectCurrentMode : public ModelCommand
+{
+public:
+    ReadModeSelectCurrentMode() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "current-mode");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadModeSelectCurrentMode()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCurrentMode(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class ReportModeSelectCurrentMode : public ModelCommand
+{
+public:
+    ReportModeSelectCurrentMode() : ModelCommand("report")
+    {
+        AddArgument("attr-name", "current-mode");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
+        ModelCommand::AddArguments();
+    }
+
+    ~ReportModeSelectCurrentMode()
+    {
+        delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
+        delete onFailureCallback;
+        delete onReportCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x06) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentMode(onReportCallback->Cancel()));
+
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentMode(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
+ * Attribute SupportedModes
+ */
+class ReadModeSelectSupportedModes : public ModelCommand
+{
+public:
+    ReadModeSelectSupportedModes() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "supported-modes");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadModeSelectSupportedModes()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeSupportedModes(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<ModeSelectSupportedModesListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<ModeSelectSupportedModesListAttributeCallback>(OnModeSelectSupportedModesListAttributeResponse,
+                                                                                    this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute OnMode
+ */
+class ReadModeSelectOnMode : public ModelCommand
+{
+public:
+    ReadModeSelectOnMode() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "on-mode");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadModeSelectOnMode()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOnMode(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteModeSelectOnMode : public ModelCommand
+{
+public:
+    WriteModeSelectOnMode() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "on-mode");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteModeSelectOnMode()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeOnMode(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute StartUpMode
+ */
+class ReadModeSelectStartUpMode : public ModelCommand
+{
+public:
+    ReadModeSelectStartUpMode() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "start-up-mode");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadModeSelectStartUpMode()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeStartUpMode(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute Description
+ */
+class ReadModeSelectDescription : public ModelCommand
+{
+public:
+    ReadModeSelectDescription() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "description");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadModeSelectDescription()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeDescription(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<CharStringAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<CharStringAttributeCallback>(OnCharStringAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute ClusterRevision
+ */
+class ReadModeSelectClusterRevision : public ModelCommand
+{
+public:
+    ReadModeSelectClusterRevision() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "cluster-revision");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadModeSelectClusterRevision()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0050) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ModeSelectCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*----------------------------------------------------------------------------*\
 | Cluster NetworkCommissioning                                        | 0x0031 |
 |------------------------------------------------------------------------------|
 | Commands:                                                           |        |
@@ -12477,7 +16356,6 @@ private:
 | * AddWiFiNetwork                                                    |   0x02 |
 | * DisableNetwork                                                    |   0x0E |
 | * EnableNetwork                                                     |   0x0C |
-| * GetLastNetworkCommissioningResult                                 |   0x10 |
 | * RemoveNetwork                                                     |   0x0A |
 | * ScanNetworks                                                      |   0x00 |
 | * UpdateThreadNetwork                                               |   0x08 |
@@ -12496,36 +16374,22 @@ class NetworkCommissioningAddThreadNetwork : public ModelCommand
 public:
     NetworkCommissioningAddThreadNetwork() : ModelCommand("add-thread-network")
     {
-        AddArgument("OperationalDataset", &mOperationalDataset);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("OperationalDataset", &mRequest.operationalDataset);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningAddThreadNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddThreadNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mOperationalDataset, mBreadcrumb,
-                                        mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningAddThreadNetworkResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterAddThreadNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterAddThreadNetworkResponseCallback>(
-            OnNetworkCommissioningClusterAddThreadNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mOperationalDataset;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::AddThreadNetwork::Type mRequest;
 };
 
 /*
@@ -12536,38 +16400,23 @@ class NetworkCommissioningAddWiFiNetwork : public ModelCommand
 public:
     NetworkCommissioningAddWiFiNetwork() : ModelCommand("add-wi-fi-network")
     {
-        AddArgument("Ssid", &mSsid);
-        AddArgument("Credentials", &mCredentials);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("Ssid", &mRequest.ssid);
+        AddArgument("Credentials", &mRequest.credentials);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningAddWiFiNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddWiFiNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mSsid, mCredentials, mBreadcrumb,
-                                      mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningAddWiFiNetworkResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterAddWiFiNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterAddWiFiNetworkResponseCallback>(
-            OnNetworkCommissioningClusterAddWiFiNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mSsid;
-    chip::ByteSpan mCredentials;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::AddWiFiNetwork::Type mRequest;
 };
 
 /*
@@ -12578,36 +16427,22 @@ class NetworkCommissioningDisableNetwork : public ModelCommand
 public:
     NetworkCommissioningDisableNetwork() : ModelCommand("disable-network")
     {
-        AddArgument("NetworkID", &mNetworkID);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("NetworkID", &mRequest.networkID);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningDisableNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x0E) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x0000000E) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.DisableNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNetworkID, mBreadcrumb,
-                                      mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningDisableNetworkResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterDisableNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterDisableNetworkResponseCallback>(
-            OnNetworkCommissioningClusterDisableNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mNetworkID;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::DisableNetwork::Type mRequest;
 };
 
 /*
@@ -12618,69 +16453,22 @@ class NetworkCommissioningEnableNetwork : public ModelCommand
 public:
     NetworkCommissioningEnableNetwork() : ModelCommand("enable-network")
     {
-        AddArgument("NetworkID", &mNetworkID);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("NetworkID", &mRequest.networkID);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningEnableNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x0C) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x0000000C) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.EnableNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNetworkID, mBreadcrumb, mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningEnableNetworkResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterEnableNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterEnableNetworkResponseCallback>(
-            OnNetworkCommissioningClusterEnableNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mNetworkID;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
-};
-
-/*
- * Command GetLastNetworkCommissioningResult
- */
-class NetworkCommissioningGetLastNetworkCommissioningResult : public ModelCommand
-{
-public:
-    NetworkCommissioningGetLastNetworkCommissioningResult() : ModelCommand("get-last-network-commissioning-result")
-    {
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
-        ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningGetLastNetworkCommissioningResult()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
-
-    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
-    {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x10) on endpoint %" PRIu8, endpointId);
-
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetLastNetworkCommissioningResult(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mTimeoutMs);
-    }
-
-private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::EnableNetwork::Type mRequest;
 };
 
 /*
@@ -12691,35 +16479,22 @@ class NetworkCommissioningRemoveNetwork : public ModelCommand
 public:
     NetworkCommissioningRemoveNetwork() : ModelCommand("remove-network")
     {
-        AddArgument("NetworkID", &mNetworkID);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("NetworkID", &mRequest.networkID);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningRemoveNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x0A) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x0000000A) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNetworkID, mBreadcrumb, mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningRemoveNetworkResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterRemoveNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterRemoveNetworkResponseCallback>(
-            OnNetworkCommissioningClusterRemoveNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mNetworkID;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::RemoveNetwork::Type mRequest;
 };
 
 /*
@@ -12730,35 +16505,22 @@ class NetworkCommissioningScanNetworks : public ModelCommand
 public:
     NetworkCommissioningScanNetworks() : ModelCommand("scan-networks")
     {
-        AddArgument("Ssid", &mSsid);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("Ssid", &mRequest.ssid);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningScanNetworks()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ScanNetworks(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mSsid, mBreadcrumb, mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningScanNetworksResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterScanNetworksResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterScanNetworksResponseCallback>(
-            OnNetworkCommissioningClusterScanNetworksResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mSsid;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::ScanNetworks::Type mRequest;
 };
 
 /*
@@ -12769,36 +16531,22 @@ class NetworkCommissioningUpdateThreadNetwork : public ModelCommand
 public:
     NetworkCommissioningUpdateThreadNetwork() : ModelCommand("update-thread-network")
     {
-        AddArgument("OperationalDataset", &mOperationalDataset);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("OperationalDataset", &mRequest.operationalDataset);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningUpdateThreadNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x08) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x00000008) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UpdateThreadNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mOperationalDataset,
-                                           mBreadcrumb, mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningUpdateThreadNetworkResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterUpdateThreadNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterUpdateThreadNetworkResponseCallback>(
-            OnNetworkCommissioningClusterUpdateThreadNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mOperationalDataset;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::UpdateThreadNetwork::Type mRequest;
 };
 
 /*
@@ -12809,38 +16557,23 @@ class NetworkCommissioningUpdateWiFiNetwork : public ModelCommand
 public:
     NetworkCommissioningUpdateWiFiNetwork() : ModelCommand("update-wi-fi-network")
     {
-        AddArgument("Ssid", &mSsid);
-        AddArgument("Credentials", &mCredentials);
-        AddArgument("Breadcrumb", 0, UINT64_MAX, &mBreadcrumb);
-        AddArgument("TimeoutMs", 0, UINT32_MAX, &mTimeoutMs);
+        AddArgument("Ssid", &mRequest.ssid);
+        AddArgument("Credentials", &mRequest.credentials);
+        AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+        AddArgument("TimeoutMs", 0, UINT32_MAX, &mRequest.timeoutMs);
         ModelCommand::AddArguments();
-    }
-    ~NetworkCommissioningUpdateWiFiNetwork()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0031) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000031) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::NetworkCommissioningCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UpdateWiFiNetwork(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mSsid, mCredentials, mBreadcrumb,
-                                         mTimeoutMs);
+        return chip::Controller::InvokeCommand(device, this, OnNetworkCommissioningUpdateWiFiNetworkResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<NetworkCommissioningClusterUpdateWiFiNetworkResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<NetworkCommissioningClusterUpdateWiFiNetworkResponseCallback>(
-            OnNetworkCommissioningClusterUpdateWiFiNetworkResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mSsid;
-    chip::ByteSpan mCredentials;
-    uint64_t mBreadcrumb;
-    uint32_t mTimeoutMs;
+    chip::app::Clusters::NetworkCommissioning::Commands::UpdateWiFiNetwork::Type mRequest;
 };
 
 /*
@@ -12931,33 +16664,21 @@ class OtaSoftwareUpdateProviderApplyUpdateRequest : public ModelCommand
 public:
     OtaSoftwareUpdateProviderApplyUpdateRequest() : ModelCommand("apply-update-request")
     {
-        AddArgument("UpdateToken", &mUpdateToken);
-        AddArgument("NewVersion", 0, UINT32_MAX, &mNewVersion);
+        AddArgument("UpdateToken", &mRequest.updateToken);
+        AddArgument("NewVersion", 0, UINT32_MAX, &mRequest.newVersion);
         ModelCommand::AddArguments();
-    }
-    ~OtaSoftwareUpdateProviderApplyUpdateRequest()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0029) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000029) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OtaSoftwareUpdateProviderCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ApplyUpdateRequest(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUpdateToken, mNewVersion);
+        return chip::Controller::InvokeCommand(device, this, OnOtaSoftwareUpdateProviderApplyUpdateResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OtaSoftwareUpdateProviderClusterApplyUpdateRequestResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OtaSoftwareUpdateProviderClusterApplyUpdateRequestResponseCallback>(
-            OnOtaSoftwareUpdateProviderClusterApplyUpdateRequestResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mUpdateToken;
-    uint32_t mNewVersion;
+    chip::app::Clusters::OtaSoftwareUpdateProvider::Commands::ApplyUpdateRequest::Type mRequest;
 };
 
 /*
@@ -12968,32 +16689,20 @@ class OtaSoftwareUpdateProviderNotifyUpdateApplied : public ModelCommand
 public:
     OtaSoftwareUpdateProviderNotifyUpdateApplied() : ModelCommand("notify-update-applied")
     {
-        AddArgument("UpdateToken", &mUpdateToken);
-        AddArgument("CurrentVersion", 0, UINT32_MAX, &mCurrentVersion);
+        AddArgument("UpdateToken", &mRequest.updateToken);
+        AddArgument("SoftwareVersion", 0, UINT32_MAX, &mRequest.softwareVersion);
         ModelCommand::AddArguments();
-    }
-    ~OtaSoftwareUpdateProviderNotifyUpdateApplied()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0029) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000029) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OtaSoftwareUpdateProviderCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.NotifyUpdateApplied(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mUpdateToken, mCurrentVersion);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mUpdateToken;
-    uint32_t mCurrentVersion;
+    chip::app::Clusters::OtaSoftwareUpdateProvider::Commands::NotifyUpdateApplied::Type mRequest;
 };
 
 /*
@@ -13004,50 +16713,27 @@ class OtaSoftwareUpdateProviderQueryImage : public ModelCommand
 public:
     OtaSoftwareUpdateProviderQueryImage() : ModelCommand("query-image")
     {
-        AddArgument("VendorId", 0, UINT16_MAX, &mVendorId);
-        AddArgument("ProductId", 0, UINT16_MAX, &mProductId);
-        AddArgument("ImageType", 0, UINT16_MAX, &mImageType);
-        AddArgument("HardwareVersion", 0, UINT16_MAX, &mHardwareVersion);
-        AddArgument("CurrentVersion", 0, UINT32_MAX, &mCurrentVersion);
-        AddArgument("ProtocolsSupported", 0, UINT8_MAX, &mProtocolsSupported);
-        AddArgument("Location", &mLocation);
-        AddArgument("RequestorCanConsent", 0, 1, &mRequestorCanConsent);
-        AddArgument("MetadataForProvider", &mMetadataForProvider);
+        AddArgument("VendorId", 0, UINT16_MAX, &mRequest.vendorId);
+        AddArgument("ProductId", 0, UINT16_MAX, &mRequest.productId);
+        AddArgument("SoftwareVersion", 0, UINT32_MAX, &mRequest.softwareVersion);
+        // protocolsSupported Array parsing is not supported yet
+        AddArgument("HardwareVersion", 0, UINT16_MAX, &mRequest.hardwareVersion);
+        AddArgument("Location", &mRequest.location);
+        AddArgument("RequestorCanConsent", 0, 1, &mRequest.requestorCanConsent);
+        AddArgument("MetadataForProvider", &mRequest.metadataForProvider);
         ModelCommand::AddArguments();
-    }
-    ~OtaSoftwareUpdateProviderQueryImage()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0029) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000029) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OtaSoftwareUpdateProviderCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.QueryImage(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mVendorId, mProductId, mImageType,
-                                  mHardwareVersion, mCurrentVersion, mProtocolsSupported,
-                                  chip::ByteSpan(chip::Uint8::from_char(mLocation), strlen(mLocation)), mRequestorCanConsent,
-                                  mMetadataForProvider);
+        return chip::Controller::InvokeCommand(device, this, OnOtaSoftwareUpdateProviderQueryImageResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OtaSoftwareUpdateProviderClusterQueryImageResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OtaSoftwareUpdateProviderClusterQueryImageResponseCallback>(
-            OnOtaSoftwareUpdateProviderClusterQueryImageResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mVendorId;
-    uint16_t mProductId;
-    uint16_t mImageType;
-    uint16_t mHardwareVersion;
-    uint32_t mCurrentVersion;
-    uint8_t mProtocolsSupported;
-    char * mLocation;
-    bool mRequestorCanConsent;
-    chip::ByteSpan mMetadataForProvider;
+    chip::app::Clusters::OtaSoftwareUpdateProvider::Commands::QueryImage::Type mRequest;
 };
 
 /*
@@ -13104,37 +16790,24 @@ class OtaSoftwareUpdateRequestorAnnounceOtaProvider : public ModelCommand
 public:
     OtaSoftwareUpdateRequestorAnnounceOtaProvider() : ModelCommand("announce-ota-provider")
     {
-        AddArgument("ServerLocation", &mServerLocation);
-        AddArgument("VendorId", 0, UINT16_MAX, &mVendorId);
-        AddArgument("AnnouncementReason", 0, UINT8_MAX, &mAnnouncementReason);
-        AddArgument("MetadataForNode", &mMetadataForNode);
+        AddArgument("ProviderLocation", 0, UINT64_MAX, &mRequest.providerLocation);
+        AddArgument("VendorId", 0, UINT16_MAX, &mRequest.vendorId);
+        AddArgument(
+            "AnnouncementReason", 0, UINT8_MAX,
+            reinterpret_cast<std::underlying_type_t<decltype(mRequest.announcementReason)> *>(&mRequest.announcementReason));
+        AddArgument("MetadataForNode", &mRequest.metadataForNode);
         ModelCommand::AddArguments();
-    }
-    ~OtaSoftwareUpdateRequestorAnnounceOtaProvider()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x002A) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000002A) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OtaSoftwareUpdateRequestorCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AnnounceOtaProvider(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mServerLocation, mVendorId,
-                                           mAnnouncementReason, mMetadataForNode);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mServerLocation;
-    uint16_t mVendorId;
-    uint8_t mAnnouncementReason;
-    chip::ByteSpan mMetadataForNode;
+    chip::app::Clusters::OtaSoftwareUpdateRequestor::Commands::AnnounceOtaProvider::Type mRequest;
 };
 
 /*
@@ -13326,12 +16999,14 @@ public:
         AddArgument("attr-name", "occupancy");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportOccupancySensingOccupancy()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -13343,25 +17018,29 @@ public:
         chip::Controller::OccupancySensingCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeOccupancy(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeOccupancy(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeOccupancy(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                   mMaxInterval);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeOccupancy(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -13494,26 +17173,16 @@ class OnOffOff : public ModelCommand
 {
 public:
     OnOffOff() : ModelCommand("off") { ModelCommand::AddArguments(); }
-    ~OnOffOff()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0006) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000006) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OnOffCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Off(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::OnOff::Commands::Off::Type mRequest;
 };
 
 /*
@@ -13524,32 +17193,22 @@ class OnOffOffWithEffect : public ModelCommand
 public:
     OnOffOffWithEffect() : ModelCommand("off-with-effect")
     {
-        AddArgument("EffectId", 0, UINT8_MAX, &mEffectId);
-        AddArgument("EffectVariant", 0, UINT8_MAX, &mEffectVariant);
+        AddArgument("EffectId", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.effectId)> *>(&mRequest.effectId));
+        AddArgument("EffectVariant", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<decltype(mRequest.effectVariant)> *>(&mRequest.effectVariant));
         ModelCommand::AddArguments();
-    }
-    ~OnOffOffWithEffect()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0006) command (0x40) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000006) command (0x00000040) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OnOffCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.OffWithEffect(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mEffectId, mEffectVariant);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mEffectId;
-    uint8_t mEffectVariant;
+    chip::app::Clusters::OnOff::Commands::OffWithEffect::Type mRequest;
 };
 
 /*
@@ -13559,26 +17218,16 @@ class OnOffOn : public ModelCommand
 {
 public:
     OnOffOn() : ModelCommand("on") { ModelCommand::AddArguments(); }
-    ~OnOffOn()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0006) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000006) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OnOffCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.On(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::OnOff::Commands::On::Type mRequest;
 };
 
 /*
@@ -13588,26 +17237,16 @@ class OnOffOnWithRecallGlobalScene : public ModelCommand
 {
 public:
     OnOffOnWithRecallGlobalScene() : ModelCommand("on-with-recall-global-scene") { ModelCommand::AddArguments(); }
-    ~OnOffOnWithRecallGlobalScene()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0006) command (0x41) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000006) command (0x00000041) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OnOffCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.OnWithRecallGlobalScene(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::OnOff::Commands::OnWithRecallGlobalScene::Type mRequest;
 };
 
 /*
@@ -13618,35 +17257,22 @@ class OnOffOnWithTimedOff : public ModelCommand
 public:
     OnOffOnWithTimedOff() : ModelCommand("on-with-timed-off")
     {
-        AddArgument("OnOffControl", 0, UINT8_MAX, &mOnOffControl);
-        AddArgument("OnTime", 0, UINT16_MAX, &mOnTime);
-        AddArgument("OffWaitTime", 0, UINT16_MAX, &mOffWaitTime);
+        AddArgument("OnOffControl", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<chip::app::Clusters::OnOff::OnOffControl> *>(&mRequest.onOffControl));
+        AddArgument("OnTime", 0, UINT16_MAX, &mRequest.onTime);
+        AddArgument("OffWaitTime", 0, UINT16_MAX, &mRequest.offWaitTime);
         ModelCommand::AddArguments();
-    }
-    ~OnOffOnWithTimedOff()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0006) command (0x42) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000006) command (0x00000042) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OnOffCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.OnWithTimedOff(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mOnOffControl, mOnTime,
-                                      mOffWaitTime);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mOnOffControl;
-    uint16_t mOnTime;
-    uint16_t mOffWaitTime;
+    chip::app::Clusters::OnOff::Commands::OnWithTimedOff::Type mRequest;
 };
 
 /*
@@ -13656,26 +17282,16 @@ class OnOffToggle : public ModelCommand
 {
 public:
     OnOffToggle() : ModelCommand("toggle") { ModelCommand::AddArguments(); }
-    ~OnOffToggle()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0006) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000006) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OnOffCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Toggle(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::OnOff::Commands::Toggle::Type mRequest;
 };
 
 /*
@@ -13720,12 +17336,14 @@ public:
         AddArgument("attr-name", "on-off");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportOnOffOnOff()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -13737,25 +17355,29 @@ public:
         chip::Controller::OnOffCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeOnOff(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeOnOff(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeOnOff(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                               mMaxInterval);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeOnOff(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<BooleanAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeResponse, this);
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -14213,6 +17835,8 @@ private:
 | Commands:                                                           |        |
 | * AddNOC                                                            |   0x06 |
 | * AddTrustedRootCertificate                                         |   0x0B |
+| * AttestationRequest                                                |   0x00 |
+| * CertificateChainRequest                                           |   0x02 |
 | * OpCSRRequest                                                      |   0x04 |
 | * RemoveFabric                                                      |   0x0A |
 | * RemoveTrustedRootCertificate                                      |   0x0C |
@@ -14223,6 +17847,8 @@ private:
 | * FabricsList                                                       | 0x0001 |
 | * SupportedFabrics                                                  | 0x0002 |
 | * CommissionedFabrics                                               | 0x0003 |
+| * TrustedRootCertificates                                           | 0x0004 |
+| * CurrentFabricIndex                                                | 0x0005 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -14234,40 +17860,24 @@ class OperationalCredentialsAddNOC : public ModelCommand
 public:
     OperationalCredentialsAddNOC() : ModelCommand("add-noc")
     {
-        AddArgument("NOCValue", &mNOCValue);
-        AddArgument("ICACValue", &mICACValue);
-        AddArgument("IPKValue", &mIPKValue);
-        AddArgument("CaseAdminNode", 0, UINT64_MAX, &mCaseAdminNode);
-        AddArgument("AdminVendorId", 0, UINT16_MAX, &mAdminVendorId);
+        AddArgument("NOCValue", &mRequest.NOCValue);
+        AddArgument("ICACValue", &mRequest.ICACValue);
+        AddArgument("IPKValue", &mRequest.IPKValue);
+        AddArgument("CaseAdminNode", 0, UINT64_MAX, &mRequest.caseAdminNode);
+        AddArgument("AdminVendorId", 0, UINT16_MAX, &mRequest.adminVendorId);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsAddNOC()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddNOC(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNOCValue, mICACValue, mIPKValue,
-                              mCaseAdminNode, mAdminVendorId);
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsNOCResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback>(OnOperationalCredentialsClusterNOCResponse,
-                                                                                       this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mNOCValue;
-    chip::ByteSpan mICACValue;
-    chip::ByteSpan mIPKValue;
-    chip::NodeId mCaseAdminNode;
-    uint16_t mAdminVendorId;
+    chip::app::Clusters::OperationalCredentials::Commands::AddNOC::Type mRequest;
 };
 
 /*
@@ -14278,30 +17888,67 @@ class OperationalCredentialsAddTrustedRootCertificate : public ModelCommand
 public:
     OperationalCredentialsAddTrustedRootCertificate() : ModelCommand("add-trusted-root-certificate")
     {
-        AddArgument("RootCertificate", &mRootCertificate);
+        AddArgument("RootCertificate", &mRequest.rootCertificate);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsAddTrustedRootCertificate()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x0B) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x0000000B) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddTrustedRootCertificate(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mRootCertificate);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mRootCertificate;
+    chip::app::Clusters::OperationalCredentials::Commands::AddTrustedRootCertificate::Type mRequest;
+};
+
+/*
+ * Command AttestationRequest
+ */
+class OperationalCredentialsAttestationRequest : public ModelCommand
+{
+public:
+    OperationalCredentialsAttestationRequest() : ModelCommand("attestation-request")
+    {
+        AddArgument("AttestationNonce", &mRequest.attestationNonce);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x00000000) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsAttestationResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::OperationalCredentials::Commands::AttestationRequest::Type mRequest;
+};
+
+/*
+ * Command CertificateChainRequest
+ */
+class OperationalCredentialsCertificateChainRequest : public ModelCommand
+{
+public:
+    OperationalCredentialsCertificateChainRequest() : ModelCommand("certificate-chain-request")
+    {
+        AddArgument("CertificateType", 0, UINT8_MAX, &mRequest.certificateType);
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x00000002) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsCertificateChainResponseSuccess,
+                                               OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::OperationalCredentials::Commands::CertificateChainRequest::Type mRequest;
 };
 
 /*
@@ -14312,31 +17959,20 @@ class OperationalCredentialsOpCSRRequest : public ModelCommand
 public:
     OperationalCredentialsOpCSRRequest() : ModelCommand("op-csrrequest")
     {
-        AddArgument("CSRNonce", &mCSRNonce);
+        AddArgument("CSRNonce", &mRequest.CSRNonce);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsOpCSRRequest()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.OpCSRRequest(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mCSRNonce);
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsOpCSRResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OperationalCredentialsClusterOpCSRResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OperationalCredentialsClusterOpCSRResponseCallback>(
-            OnOperationalCredentialsClusterOpCSRResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mCSRNonce;
+    chip::app::Clusters::OperationalCredentials::Commands::OpCSRRequest::Type mRequest;
 };
 
 /*
@@ -14347,31 +17983,20 @@ class OperationalCredentialsRemoveFabric : public ModelCommand
 public:
     OperationalCredentialsRemoveFabric() : ModelCommand("remove-fabric")
     {
-        AddArgument("FabricIndex", 0, UINT8_MAX, &mFabricIndex);
+        AddArgument("FabricIndex", 0, UINT8_MAX, &mRequest.fabricIndex);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsRemoveFabric()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x0A) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x0000000A) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveFabric(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mFabricIndex);
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsNOCResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback>(OnOperationalCredentialsClusterNOCResponse,
-                                                                                       this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mFabricIndex;
+    chip::app::Clusters::OperationalCredentials::Commands::RemoveFabric::Type mRequest;
 };
 
 /*
@@ -14382,31 +18007,19 @@ class OperationalCredentialsRemoveTrustedRootCertificate : public ModelCommand
 public:
     OperationalCredentialsRemoveTrustedRootCertificate() : ModelCommand("remove-trusted-root-certificate")
     {
-        AddArgument("TrustedRootIdentifier", &mTrustedRootIdentifier);
+        AddArgument("TrustedRootIdentifier", &mRequest.trustedRootIdentifier);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsRemoveTrustedRootCertificate()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x0C) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x0000000C) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveTrustedRootCertificate(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                    mTrustedRootIdentifier);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mTrustedRootIdentifier;
+    chip::app::Clusters::OperationalCredentials::Commands::RemoveTrustedRootCertificate::Type mRequest;
 };
 
 /*
@@ -14417,32 +18030,20 @@ class OperationalCredentialsUpdateFabricLabel : public ModelCommand
 public:
     OperationalCredentialsUpdateFabricLabel() : ModelCommand("update-fabric-label")
     {
-        AddArgument("Label", &mLabel);
+        AddArgument("Label", &mRequest.label);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsUpdateFabricLabel()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x09) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x00000009) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UpdateFabricLabel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                         chip::ByteSpan(chip::Uint8::from_char(mLabel), strlen(mLabel)));
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsNOCResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback>(OnOperationalCredentialsClusterNOCResponse,
-                                                                                       this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mLabel;
+    chip::app::Clusters::OperationalCredentials::Commands::UpdateFabricLabel::Type mRequest;
 };
 
 /*
@@ -14453,33 +18054,21 @@ class OperationalCredentialsUpdateNOC : public ModelCommand
 public:
     OperationalCredentialsUpdateNOC() : ModelCommand("update-noc")
     {
-        AddArgument("NOCValue", &mNOCValue);
-        AddArgument("ICACValue", &mICACValue);
+        AddArgument("NOCValue", &mRequest.NOCValue);
+        AddArgument("ICACValue", &mRequest.ICACValue);
         ModelCommand::AddArguments();
-    }
-    ~OperationalCredentialsUpdateNOC()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x07) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000003E) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::OperationalCredentialsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UpdateNOC(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNOCValue, mICACValue);
+        return chip::Controller::InvokeCommand(device, this, OnOperationalCredentialsNOCResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<OperationalCredentialsClusterNOCResponseCallback>(OnOperationalCredentialsClusterNOCResponse,
-                                                                                       this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    chip::ByteSpan mNOCValue;
-    chip::ByteSpan mICACValue;
+    chip::app::Clusters::OperationalCredentials::Commands::UpdateNOC::Type mRequest;
 };
 
 /*
@@ -14586,6 +18175,75 @@ private:
 };
 
 /*
+ * Attribute TrustedRootCertificates
+ */
+class ReadOperationalCredentialsTrustedRootCertificates : public ModelCommand
+{
+public:
+    ReadOperationalCredentialsTrustedRootCertificates() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "trusted-root-certificates");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadOperationalCredentialsTrustedRootCertificates()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::OperationalCredentialsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTrustedRootCertificates(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<OperationalCredentialsTrustedRootCertificatesListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<OperationalCredentialsTrustedRootCertificatesListAttributeCallback>(
+            OnOperationalCredentialsTrustedRootCertificatesListAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute CurrentFabricIndex
+ */
+class ReadOperationalCredentialsCurrentFabricIndex : public ModelCommand
+{
+public:
+    ReadOperationalCredentialsCurrentFabricIndex() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "current-fabric-index");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadOperationalCredentialsCurrentFabricIndex()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::OperationalCredentialsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCurrentFabricIndex(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadOperationalCredentialsClusterRevision : public ModelCommand
@@ -14608,6 +18266,400 @@ public:
         ChipLogProgress(chipTool, "Sending cluster (0x003E) command (0x00) on endpoint %" PRIu8, endpointId);
 
         chip::Controller::OperationalCredentialsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*----------------------------------------------------------------------------*\
+| Cluster PowerSource                                                 | 0x002F |
+|------------------------------------------------------------------------------|
+| Commands:                                                           |        |
+|------------------------------------------------------------------------------|
+| Attributes:                                                         |        |
+| * Status                                                            | 0x0000 |
+| * Order                                                             | 0x0001 |
+| * Description                                                       | 0x0002 |
+| * BatteryVoltage                                                    | 0x000B |
+| * BatteryPercentRemaining                                           | 0x000C |
+| * BatteryTimeRemaining                                              | 0x000D |
+| * BatteryChargeLevel                                                | 0x000E |
+| * ActiveBatteryFaults                                               | 0x0012 |
+| * BatteryChargeState                                                | 0x001A |
+| * FeatureMap                                                        | 0xFFFC |
+| * ClusterRevision                                                   | 0xFFFD |
+\*----------------------------------------------------------------------------*/
+
+/*
+ * Attribute Status
+ */
+class ReadPowerSourceStatus : public ModelCommand
+{
+public:
+    ReadPowerSourceStatus() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "status");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceStatus()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute Order
+ */
+class ReadPowerSourceOrder : public ModelCommand
+{
+public:
+    ReadPowerSourceOrder() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "order");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceOrder()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOrder(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute Description
+ */
+class ReadPowerSourceDescription : public ModelCommand
+{
+public:
+    ReadPowerSourceDescription() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "description");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceDescription()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeDescription(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<CharStringAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<CharStringAttributeCallback>(OnCharStringAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BatteryVoltage
+ */
+class ReadPowerSourceBatteryVoltage : public ModelCommand
+{
+public:
+    ReadPowerSourceBatteryVoltage() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "battery-voltage");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceBatteryVoltage()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBatteryVoltage(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BatteryPercentRemaining
+ */
+class ReadPowerSourceBatteryPercentRemaining : public ModelCommand
+{
+public:
+    ReadPowerSourceBatteryPercentRemaining() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "battery-percent-remaining");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceBatteryPercentRemaining()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBatteryPercentRemaining(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BatteryTimeRemaining
+ */
+class ReadPowerSourceBatteryTimeRemaining : public ModelCommand
+{
+public:
+    ReadPowerSourceBatteryTimeRemaining() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "battery-time-remaining");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceBatteryTimeRemaining()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBatteryTimeRemaining(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BatteryChargeLevel
+ */
+class ReadPowerSourceBatteryChargeLevel : public ModelCommand
+{
+public:
+    ReadPowerSourceBatteryChargeLevel() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "battery-charge-level");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceBatteryChargeLevel()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBatteryChargeLevel(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute ActiveBatteryFaults
+ */
+class ReadPowerSourceActiveBatteryFaults : public ModelCommand
+{
+public:
+    ReadPowerSourceActiveBatteryFaults() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "active-battery-faults");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceActiveBatteryFaults()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeActiveBatteryFaults(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<PowerSourceActiveBatteryFaultsListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<PowerSourceActiveBatteryFaultsListAttributeCallback>(
+            OnPowerSourceActiveBatteryFaultsListAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BatteryChargeState
+ */
+class ReadPowerSourceBatteryChargeState : public ModelCommand
+{
+public:
+    ReadPowerSourceBatteryChargeState() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "battery-charge-state");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceBatteryChargeState()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBatteryChargeState(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute FeatureMap
+ */
+class ReadPowerSourceFeatureMap : public ModelCommand
+{
+public:
+    ReadPowerSourceFeatureMap() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "feature-map");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceFeatureMap()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeFeatureMap(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute ClusterRevision
+ */
+class ReadPowerSourceClusterRevision : public ModelCommand
+{
+public:
+    ReadPowerSourceClusterRevision() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "cluster-revision");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPowerSourceClusterRevision()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x002F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PowerSourceCluster cluster;
         cluster.Associate(device, endpointId);
         return cluster.ReadAttributeClusterRevision(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
     }
@@ -14673,13 +18725,14 @@ public:
         AddArgument("attr-name", "measured-value");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", INT16_MIN, INT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportPressureMeasurementMeasuredValue()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -14691,26 +18744,29 @@ public:
         chip::Controller::PressureMeasurementCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeMeasuredValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                       mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeMeasuredValue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16sAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    int16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -14824,10 +18880,26 @@ private:
 | * MaxPressure                                                       | 0x0000 |
 | * MaxSpeed                                                          | 0x0001 |
 | * MaxFlow                                                           | 0x0002 |
+| * MinConstPressure                                                  | 0x0003 |
+| * MaxConstPressure                                                  | 0x0004 |
+| * MinCompPressure                                                   | 0x0005 |
+| * MaxCompPressure                                                   | 0x0006 |
+| * MinConstSpeed                                                     | 0x0007 |
+| * MaxConstSpeed                                                     | 0x0008 |
+| * MinConstFlow                                                      | 0x0009 |
+| * MaxConstFlow                                                      | 0x000A |
+| * MinConstTemp                                                      | 0x000B |
+| * MaxConstTemp                                                      | 0x000C |
+| * PumpStatus                                                        | 0x0010 |
 | * EffectiveOperationMode                                            | 0x0011 |
 | * EffectiveControlMode                                              | 0x0012 |
 | * Capacity                                                          | 0x0013 |
+| * Speed                                                             | 0x0014 |
+| * LifetimeEnergyConsumed                                            | 0x0017 |
 | * OperationMode                                                     | 0x0020 |
+| * ControlMode                                                       | 0x0021 |
+| * AlarmMask                                                         | 0x0022 |
+| * FeatureMap                                                        | 0xFFFC |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -14931,6 +19003,432 @@ private:
         new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinConstPressure
+ */
+class ReadPumpConfigurationAndControlMinConstPressure : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMinConstPressure() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-const-pressure");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMinConstPressure()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinConstPressure(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxConstPressure
+ */
+class ReadPumpConfigurationAndControlMaxConstPressure : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMaxConstPressure() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-const-pressure");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMaxConstPressure()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxConstPressure(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinCompPressure
+ */
+class ReadPumpConfigurationAndControlMinCompPressure : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMinCompPressure() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-comp-pressure");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMinCompPressure()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinCompPressure(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxCompPressure
+ */
+class ReadPumpConfigurationAndControlMaxCompPressure : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMaxCompPressure() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-comp-pressure");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMaxCompPressure()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxCompPressure(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinConstSpeed
+ */
+class ReadPumpConfigurationAndControlMinConstSpeed : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMinConstSpeed() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-const-speed");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMinConstSpeed()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinConstSpeed(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxConstSpeed
+ */
+class ReadPumpConfigurationAndControlMaxConstSpeed : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMaxConstSpeed() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-const-speed");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMaxConstSpeed()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxConstSpeed(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinConstFlow
+ */
+class ReadPumpConfigurationAndControlMinConstFlow : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMinConstFlow() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-const-flow");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMinConstFlow()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinConstFlow(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxConstFlow
+ */
+class ReadPumpConfigurationAndControlMaxConstFlow : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMaxConstFlow() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-const-flow");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMaxConstFlow()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxConstFlow(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MinConstTemp
+ */
+class ReadPumpConfigurationAndControlMinConstTemp : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMinConstTemp() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-const-temp");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMinConstTemp()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinConstTemp(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute MaxConstTemp
+ */
+class ReadPumpConfigurationAndControlMaxConstTemp : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlMaxConstTemp() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "max-const-temp");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlMaxConstTemp()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMaxConstTemp(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute PumpStatus
+ */
+class ReadPumpConfigurationAndControlPumpStatus : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlPumpStatus() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "pump-status");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlPumpStatus()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributePumpStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class ReportPumpConfigurationAndControlPumpStatus : public ModelCommand
+{
+public:
+    ReportPumpConfigurationAndControlPumpStatus() : ModelCommand("report")
+    {
+        AddArgument("attr-name", "pump-status");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
+        ModelCommand::AddArguments();
+    }
+
+    ~ReportPumpConfigurationAndControlPumpStatus()
+    {
+        delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
+        delete onFailureCallback;
+        delete onReportCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x06) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+
+        ReturnErrorOnFailure(cluster.ReportAttributePumpStatus(onReportCallback->Cancel()));
+
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributePumpStatus(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -15043,13 +19541,14 @@ public:
         AddArgument("attr-name", "capacity");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", INT16_MIN, INT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportPumpConfigurationAndControlCapacity()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -15061,26 +19560,97 @@ public:
         chip::Controller::PumpConfigurationAndControlCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCapacity(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCapacity(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCapacity(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                  mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCapacity(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16sAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    int16_t mChange;
+    bool mWait;
+};
+
+/*
+ * Attribute Speed
+ */
+class ReadPumpConfigurationAndControlSpeed : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlSpeed() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "speed");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlSpeed()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeSpeed(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute LifetimeEnergyConsumed
+ */
+class ReadPumpConfigurationAndControlLifetimeEnergyConsumed : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlLifetimeEnergyConsumed() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "lifetime-energy-consumed");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlLifetimeEnergyConsumed()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeLifetimeEnergyConsumed(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
 
 /*
@@ -15151,6 +19721,141 @@ private:
 };
 
 /*
+ * Attribute ControlMode
+ */
+class ReadPumpConfigurationAndControlControlMode : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlControlMode() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "control-mode");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlControlMode()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeControlMode(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WritePumpConfigurationAndControlControlMode : public ModelCommand
+{
+public:
+    WritePumpConfigurationAndControlControlMode() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "control-mode");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WritePumpConfigurationAndControlControlMode()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeControlMode(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute AlarmMask
+ */
+class ReadPumpConfigurationAndControlAlarmMask : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlAlarmMask() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "alarm-mask");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlAlarmMask()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeAlarmMask(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute FeatureMap
+ */
+class ReadPumpConfigurationAndControlFeatureMap : public ModelCommand
+{
+public:
+    ReadPumpConfigurationAndControlFeatureMap() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "feature-map");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadPumpConfigurationAndControlFeatureMap()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0200) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::PumpConfigurationAndControlCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeFeatureMap(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadPumpConfigurationAndControlClusterRevision : public ModelCommand
@@ -15193,6 +19898,7 @@ private:
 | * MeasuredValue                                                     | 0x0000 |
 | * MinMeasuredValue                                                  | 0x0001 |
 | * MaxMeasuredValue                                                  | 0x0002 |
+| * Tolerance                                                         | 0x0003 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -15238,13 +19944,14 @@ public:
         AddArgument("attr-name", "measured-value");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportRelativeHumidityMeasurementMeasuredValue()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -15256,26 +19963,29 @@ public:
         chip::Controller::RelativeHumidityMeasurementCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeMeasuredValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                       mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeMeasuredValue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -15347,6 +20057,92 @@ private:
 };
 
 /*
+ * Attribute Tolerance
+ */
+class ReadRelativeHumidityMeasurementTolerance : public ModelCommand
+{
+public:
+    ReadRelativeHumidityMeasurementTolerance() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "tolerance");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadRelativeHumidityMeasurementTolerance()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0405) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::RelativeHumidityMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTolerance(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class ReportRelativeHumidityMeasurementTolerance : public ModelCommand
+{
+public:
+    ReportRelativeHumidityMeasurementTolerance() : ModelCommand("report")
+    {
+        AddArgument("attr-name", "tolerance");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
+        ModelCommand::AddArguments();
+    }
+
+    ~ReportRelativeHumidityMeasurementTolerance()
+    {
+        delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
+        delete onFailureCallback;
+        delete onReportCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0405) command (0x06) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::RelativeHumidityMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+
+        ReturnErrorOnFailure(cluster.ReportAttributeTolerance(onReportCallback->Cancel()));
+
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeTolerance(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadRelativeHumidityMeasurementClusterRevision : public ModelCommand
@@ -15409,44 +20205,24 @@ class ScenesAddScene : public ModelCommand
 public:
     ScenesAddScene() : ModelCommand("add-scene")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("SceneId", 0, UINT8_MAX, &mSceneId);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
-        AddArgument("SceneName", &mSceneName);
-        AddArgument("ClusterId", 0, UINT32_MAX, &mClusterId);
-        AddArgument("Length", 0, UINT8_MAX, &mLength);
-        AddArgument("Value", 0, UINT8_MAX, &mValue);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("SceneId", 0, UINT8_MAX, &mRequest.sceneId);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
+        AddArgument("SceneName", &mRequest.sceneName);
+        // extensionFieldSets Array parsing is not supported yet
         ModelCommand::AddArguments();
-    }
-    ~ScenesAddScene()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.AddScene(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId, mSceneId, mTransitionTime,
-                                chip::ByteSpan(chip::Uint8::from_char(mSceneName), strlen(mSceneName)), mClusterId, mLength,
-                                mValue);
+        return chip::Controller::InvokeCommand(device, this, OnScenesAddSceneResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<ScenesClusterAddSceneResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ScenesClusterAddSceneResponseCallback>(OnScenesClusterAddSceneResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    uint8_t mSceneId;
-    uint16_t mTransitionTime;
-    char * mSceneName;
-    chip::ClusterId mClusterId;
-    uint8_t mLength;
-    uint8_t mValue;
+    chip::app::Clusters::Scenes::Commands::AddScene::Type mRequest;
 };
 
 /*
@@ -15457,31 +20233,20 @@ class ScenesGetSceneMembership : public ModelCommand
 public:
     ScenesGetSceneMembership() : ModelCommand("get-scene-membership")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
         ModelCommand::AddArguments();
-    }
-    ~ScenesGetSceneMembership()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x06) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000006) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetSceneMembership(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId);
+        return chip::Controller::InvokeCommand(device, this, OnScenesGetSceneMembershipResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<ScenesClusterGetSceneMembershipResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ScenesClusterGetSceneMembershipResponseCallback>(OnScenesClusterGetSceneMembershipResponse,
-                                                                                      this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
+    chip::app::Clusters::Scenes::Commands::GetSceneMembership::Type mRequest;
 };
 
 /*
@@ -15492,34 +20257,21 @@ class ScenesRecallScene : public ModelCommand
 public:
     ScenesRecallScene() : ModelCommand("recall-scene")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("SceneId", 0, UINT8_MAX, &mSceneId);
-        AddArgument("TransitionTime", 0, UINT16_MAX, &mTransitionTime);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("SceneId", 0, UINT8_MAX, &mRequest.sceneId);
+        AddArgument("TransitionTime", 0, UINT16_MAX, &mRequest.transitionTime);
         ModelCommand::AddArguments();
-    }
-    ~ScenesRecallScene()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RecallScene(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId, mSceneId, mTransitionTime);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    uint8_t mSceneId;
-    uint16_t mTransitionTime;
+    chip::app::Clusters::Scenes::Commands::RecallScene::Type mRequest;
 };
 
 /*
@@ -15530,30 +20282,20 @@ class ScenesRemoveAllScenes : public ModelCommand
 public:
     ScenesRemoveAllScenes() : ModelCommand("remove-all-scenes")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
         ModelCommand::AddArguments();
-    }
-    ~ScenesRemoveAllScenes()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveAllScenes(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId);
+        return chip::Controller::InvokeCommand(device, this, OnScenesRemoveAllScenesResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<ScenesClusterRemoveAllScenesResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ScenesClusterRemoveAllScenesResponseCallback>(OnScenesClusterRemoveAllScenesResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
+    chip::app::Clusters::Scenes::Commands::RemoveAllScenes::Type mRequest;
 };
 
 /*
@@ -15564,32 +20306,21 @@ class ScenesRemoveScene : public ModelCommand
 public:
     ScenesRemoveScene() : ModelCommand("remove-scene")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("SceneId", 0, UINT8_MAX, &mSceneId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("SceneId", 0, UINT8_MAX, &mRequest.sceneId);
         ModelCommand::AddArguments();
-    }
-    ~ScenesRemoveScene()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.RemoveScene(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId, mSceneId);
+        return chip::Controller::InvokeCommand(device, this, OnScenesRemoveSceneResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<ScenesClusterRemoveSceneResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ScenesClusterRemoveSceneResponseCallback>(OnScenesClusterRemoveSceneResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    uint8_t mSceneId;
+    chip::app::Clusters::Scenes::Commands::RemoveScene::Type mRequest;
 };
 
 /*
@@ -15600,32 +20331,21 @@ class ScenesStoreScene : public ModelCommand
 public:
     ScenesStoreScene() : ModelCommand("store-scene")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("SceneId", 0, UINT8_MAX, &mSceneId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("SceneId", 0, UINT8_MAX, &mRequest.sceneId);
         ModelCommand::AddArguments();
-    }
-    ~ScenesStoreScene()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StoreScene(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId, mSceneId);
+        return chip::Controller::InvokeCommand(device, this, OnScenesStoreSceneResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<ScenesClusterStoreSceneResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ScenesClusterStoreSceneResponseCallback>(OnScenesClusterStoreSceneResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    uint8_t mSceneId;
+    chip::app::Clusters::Scenes::Commands::StoreScene::Type mRequest;
 };
 
 /*
@@ -15636,32 +20356,21 @@ class ScenesViewScene : public ModelCommand
 public:
     ScenesViewScene() : ModelCommand("view-scene")
     {
-        AddArgument("GroupId", 0, UINT16_MAX, &mGroupId);
-        AddArgument("SceneId", 0, UINT8_MAX, &mSceneId);
+        AddArgument("GroupId", 0, UINT16_MAX, &mRequest.groupId);
+        AddArgument("SceneId", 0, UINT8_MAX, &mRequest.sceneId);
         ModelCommand::AddArguments();
-    }
-    ~ScenesViewScene()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0005) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000005) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ScenesCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ViewScene(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mGroupId, mSceneId);
+        return chip::Controller::InvokeCommand(device, this, OnScenesViewSceneResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<ScenesClusterViewSceneResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<ScenesClusterViewSceneResponseCallback>(OnScenesClusterViewSceneResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mGroupId;
-    uint8_t mSceneId;
+    chip::app::Clusters::Scenes::Commands::ViewScene::Type mRequest;
 };
 
 /*
@@ -15875,6 +20584,9 @@ private:
 | * ResetWatermarks                                                   |   0x00 |
 |------------------------------------------------------------------------------|
 | Attributes:                                                         |        |
+| * ThreadMetrics                                                     | 0x0000 |
+| * CurrentHeapFree                                                   | 0x0001 |
+| * CurrentHeapUsed                                                   | 0x0002 |
 | * CurrentHeapHighWatermark                                          | 0x0003 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
@@ -15886,7 +20598,31 @@ class SoftwareDiagnosticsResetWatermarks : public ModelCommand
 {
 public:
     SoftwareDiagnosticsResetWatermarks() : ModelCommand("reset-watermarks") { ModelCommand::AddArguments(); }
-    ~SoftwareDiagnosticsResetWatermarks()
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x00000034) command (0x00000000) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::SoftwareDiagnostics::Commands::ResetWatermarks::Type mRequest;
+};
+
+/*
+ * Attribute ThreadMetrics
+ */
+class ReadSoftwareDiagnosticsThreadMetrics : public ModelCommand
+{
+public:
+    ReadSoftwareDiagnosticsThreadMetrics() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "thread-metrics");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadSoftwareDiagnosticsThreadMetrics()
     {
         delete onSuccessCallback;
         delete onFailureCallback;
@@ -15898,12 +20634,81 @@ public:
 
         chip::Controller::SoftwareDiagnosticsCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.ResetWatermarks(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return cluster.ReadAttributeThreadMetrics(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<SoftwareDiagnosticsThreadMetricsListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<SoftwareDiagnosticsThreadMetricsListAttributeCallback>(
+            OnSoftwareDiagnosticsThreadMetricsListAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute CurrentHeapFree
+ */
+class ReadSoftwareDiagnosticsCurrentHeapFree : public ModelCommand
+{
+public:
+    ReadSoftwareDiagnosticsCurrentHeapFree() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "current-heap-free");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadSoftwareDiagnosticsCurrentHeapFree()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0034) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::SoftwareDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCurrentHeapFree(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute CurrentHeapUsed
+ */
+class ReadSoftwareDiagnosticsCurrentHeapUsed : public ModelCommand
+{
+public:
+    ReadSoftwareDiagnosticsCurrentHeapUsed() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "current-heap-used");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadSoftwareDiagnosticsCurrentHeapUsed()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0034) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::SoftwareDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCurrentHeapUsed(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
@@ -15984,6 +20789,8 @@ private:
 | Attributes:                                                         |        |
 | * NumberOfPositions                                                 | 0x0000 |
 | * CurrentPosition                                                   | 0x0001 |
+| * MultiPressMax                                                     | 0x0002 |
+| * FeatureMap                                                        | 0xFFFC |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -16063,13 +20870,14 @@ public:
         AddArgument("attr-name", "current-position");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT8_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportSwitchCurrentPosition()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -16081,26 +20889,97 @@ public:
         chip::Controller::SwitchCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentPosition(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentPosition(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentPosition(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                         mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentPosition(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint8_t mChange;
+    bool mWait;
+};
+
+/*
+ * Attribute MultiPressMax
+ */
+class ReadSwitchMultiPressMax : public ModelCommand
+{
+public:
+    ReadSwitchMultiPressMax() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "multi-press-max");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadSwitchMultiPressMax()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x003B) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::SwitchCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMultiPressMax(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute FeatureMap
+ */
+class ReadSwitchFeatureMap : public ModelCommand
+{
+public:
+    ReadSwitchFeatureMap() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "feature-map");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadSwitchFeatureMap()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x003B) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::SwitchCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeFeatureMap(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
 
 /*
@@ -16160,31 +21039,20 @@ class TvChannelChangeChannel : public ModelCommand
 public:
     TvChannelChangeChannel() : ModelCommand("change-channel")
     {
-        AddArgument("Match", &mMatch);
+        AddArgument("Match", &mRequest.match);
         ModelCommand::AddArguments();
-    }
-    ~TvChannelChangeChannel()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0504) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000504) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TvChannelCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ChangeChannel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                     chip::ByteSpan(chip::Uint8::from_char(mMatch), strlen(mMatch)));
+        return chip::Controller::InvokeCommand(device, this, OnTvChannelChangeChannelResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<TvChannelClusterChangeChannelResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<TvChannelClusterChangeChannelResponseCallback>(OnTvChannelClusterChangeChannelResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mMatch;
+    chip::app::Clusters::TvChannel::Commands::ChangeChannel::Type mRequest;
 };
 
 /*
@@ -16195,32 +21063,20 @@ class TvChannelChangeChannelByNumber : public ModelCommand
 public:
     TvChannelChangeChannelByNumber() : ModelCommand("change-channel-by-number")
     {
-        AddArgument("MajorNumber", 0, UINT16_MAX, &mMajorNumber);
-        AddArgument("MinorNumber", 0, UINT16_MAX, &mMinorNumber);
+        AddArgument("MajorNumber", 0, UINT16_MAX, &mRequest.majorNumber);
+        AddArgument("MinorNumber", 0, UINT16_MAX, &mRequest.minorNumber);
         ModelCommand::AddArguments();
-    }
-    ~TvChannelChangeChannelByNumber()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0504) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000504) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TvChannelCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ChangeChannelByNumber(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMajorNumber, mMinorNumber);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mMajorNumber;
-    uint16_t mMinorNumber;
+    chip::app::Clusters::TvChannel::Commands::ChangeChannelByNumber::Type mRequest;
 };
 
 /*
@@ -16231,30 +21087,19 @@ class TvChannelSkipChannel : public ModelCommand
 public:
     TvChannelSkipChannel() : ModelCommand("skip-channel")
     {
-        AddArgument("Count", 0, UINT16_MAX, &mCount);
+        AddArgument("Count", 0, UINT16_MAX, &mRequest.count);
         ModelCommand::AddArguments();
-    }
-    ~TvChannelSkipChannel()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0504) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000504) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TvChannelCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SkipChannel(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mCount);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mCount;
+    chip::app::Clusters::TvChannel::Commands::SkipChannel::Type mRequest;
 };
 
 /*
@@ -16413,34 +21258,21 @@ class TargetNavigatorNavigateTarget : public ModelCommand
 public:
     TargetNavigatorNavigateTarget() : ModelCommand("navigate-target")
     {
-        AddArgument("Target", 0, UINT8_MAX, &mTarget);
-        AddArgument("Data", &mData);
+        AddArgument("Target", 0, UINT8_MAX, &mRequest.target);
+        AddArgument("Data", &mRequest.data);
         ModelCommand::AddArguments();
-    }
-    ~TargetNavigatorNavigateTarget()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0505) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000505) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TargetNavigatorCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.NavigateTarget(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mTarget,
-                                      chip::ByteSpan(chip::Uint8::from_char(mData), strlen(mData)));
+        return chip::Controller::InvokeCommand(device, this, OnTargetNavigatorNavigateTargetResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<TargetNavigatorClusterNavigateTargetResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<TargetNavigatorClusterNavigateTargetResponseCallback>(
-            OnTargetNavigatorClusterNavigateTargetResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mTarget;
-    char * mData;
+    chip::app::Clusters::TargetNavigator::Commands::NavigateTarget::Type mRequest;
 };
 
 /*
@@ -16521,6 +21353,7 @@ private:
 | * MeasuredValue                                                     | 0x0000 |
 | * MinMeasuredValue                                                  | 0x0001 |
 | * MaxMeasuredValue                                                  | 0x0002 |
+| * Tolerance                                                         | 0x0003 |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -16566,13 +21399,14 @@ public:
         AddArgument("attr-name", "measured-value");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", INT16_MIN, INT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportTemperatureMeasurementMeasuredValue()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -16584,26 +21418,29 @@ public:
         chip::Controller::TemperatureMeasurementCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeMeasuredValue(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeMeasuredValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                       mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeMeasuredValue(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16sAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    int16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -16675,6 +21512,92 @@ private:
 };
 
 /*
+ * Attribute Tolerance
+ */
+class ReadTemperatureMeasurementTolerance : public ModelCommand
+{
+public:
+    ReadTemperatureMeasurementTolerance() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "tolerance");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTemperatureMeasurementTolerance()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0402) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TemperatureMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeTolerance(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class ReportTemperatureMeasurementTolerance : public ModelCommand
+{
+public:
+    ReportTemperatureMeasurementTolerance() : ModelCommand("report")
+    {
+        AddArgument("attr-name", "tolerance");
+        AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
+        AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
+        ModelCommand::AddArguments();
+    }
+
+    ~ReportTemperatureMeasurementTolerance()
+    {
+        delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
+        delete onFailureCallback;
+        delete onReportCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0402) command (0x06) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TemperatureMeasurementCluster cluster;
+        cluster.Associate(device, endpointId);
+
+        ReturnErrorOnFailure(cluster.ReportAttributeTolerance(onReportCallback->Cancel()));
+
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeTolerance(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
+    uint16_t mMinInterval;
+    uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadTemperatureMeasurementClusterRevision : public ModelCommand
@@ -16714,8 +21637,14 @@ private:
 | Commands:                                                           |        |
 | * Test                                                              |   0x00 |
 | * TestAddArguments                                                  |   0x04 |
+| * TestEnumsRequest                                                  |   0x0E |
+| * TestListInt8UArgumentRequest                                      |   0x0A |
+| * TestListInt8UReverseRequest                                       |   0x0D |
+| * TestListStructArgumentRequest                                     |   0x09 |
 | * TestNotHandled                                                    |   0x01 |
+| * TestNullableOptionalRequest                                       |   0x0F |
 | * TestSpecific                                                      |   0x02 |
+| * TestStructArgumentRequest                                         |   0x07 |
 | * TestUnknownCommand                                                |   0x03 |
 |------------------------------------------------------------------------------|
 | Attributes:                                                         |        |
@@ -16743,7 +21672,26 @@ private:
 | * LongCharString                                                    | 0x001F |
 | * EpochUs                                                           | 0x0020 |
 | * EpochS                                                            | 0x0021 |
+| * VendorId                                                          | 0x0022 |
+| * ListNullablesAndOptionalsStruct                                   | 0x0023 |
 | * Unsupported                                                       | 0x00FF |
+| * NullableBoolean                                                   | 0x8000 |
+| * NullableBitmap8                                                   | 0x8001 |
+| * NullableBitmap16                                                  | 0x8002 |
+| * NullableBitmap32                                                  | 0x8003 |
+| * NullableBitmap64                                                  | 0x8004 |
+| * NullableInt8u                                                     | 0x8005 |
+| * NullableInt16u                                                    | 0x8006 |
+| * NullableInt32u                                                    | 0x8008 |
+| * NullableInt64u                                                    | 0x800C |
+| * NullableInt8s                                                     | 0x800D |
+| * NullableInt16s                                                    | 0x800E |
+| * NullableInt32s                                                    | 0x8010 |
+| * NullableInt64s                                                    | 0x8014 |
+| * NullableEnum8                                                     | 0x8015 |
+| * NullableEnum16                                                    | 0x8016 |
+| * NullableOctetString                                               | 0x8019 |
+| * NullableCharString                                                | 0x801E |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -16754,26 +21702,16 @@ class TestClusterTest : public ModelCommand
 {
 public:
     TestClusterTest() : ModelCommand("test") { ModelCommand::AddArguments(); }
-    ~TestClusterTest()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TestClusterCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.Test(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::TestCluster::Commands::Test::Type mRequest;
 };
 
 /*
@@ -16784,33 +21722,118 @@ class TestClusterTestAddArguments : public ModelCommand
 public:
     TestClusterTestAddArguments() : ModelCommand("test-add-arguments")
     {
-        AddArgument("Arg1", 0, UINT8_MAX, &mArg1);
-        AddArgument("Arg2", 0, UINT8_MAX, &mArg2);
+        AddArgument("Arg1", 0, UINT8_MAX, &mRequest.arg1);
+        AddArgument("Arg2", 0, UINT8_MAX, &mRequest.arg2);
         ModelCommand::AddArguments();
-    }
-    ~TestClusterTestAddArguments()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TestClusterCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.TestAddArguments(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mArg1, mArg2);
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterTestAddArgumentsResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<TestClusterClusterTestAddArgumentsResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<TestClusterClusterTestAddArgumentsResponseCallback>(
-            OnTestClusterClusterTestAddArgumentsResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mArg1;
-    uint8_t mArg2;
+    chip::app::Clusters::TestCluster::Commands::TestAddArguments::Type mRequest;
+};
+
+/*
+ * Command TestEnumsRequest
+ */
+class TestClusterTestEnumsRequest : public ModelCommand
+{
+public:
+    TestClusterTestEnumsRequest() : ModelCommand("test-enums-request")
+    {
+        AddArgument("Arg1", 0, UINT16_MAX, &mRequest.arg1);
+        AddArgument("Arg2", 0, UINT8_MAX, reinterpret_cast<std::underlying_type_t<decltype(mRequest.arg2)> *>(&mRequest.arg2));
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x0000000E) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterTestEnumsResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
+    }
+
+private:
+    chip::app::Clusters::TestCluster::Commands::TestEnumsRequest::Type mRequest;
+};
+
+/*
+ * Command TestListInt8UArgumentRequest
+ */
+class TestClusterTestListInt8UArgumentRequest : public ModelCommand
+{
+public:
+    TestClusterTestListInt8UArgumentRequest() : ModelCommand("test-list-int8uargument-request")
+    {
+        // arg1 Array parsing is not supported yet
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x0000000A) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterBooleanResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
+    }
+
+private:
+    chip::app::Clusters::TestCluster::Commands::TestListInt8UArgumentRequest::Type mRequest;
+};
+
+/*
+ * Command TestListInt8UReverseRequest
+ */
+class TestClusterTestListInt8UReverseRequest : public ModelCommand
+{
+public:
+    TestClusterTestListInt8UReverseRequest() : ModelCommand("test-list-int8ureverse-request")
+    {
+        // arg1 Array parsing is not supported yet
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x0000000D) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterTestListInt8UReverseResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::TestCluster::Commands::TestListInt8UReverseRequest::Type mRequest;
+};
+
+/*
+ * Command TestListStructArgumentRequest
+ */
+class TestClusterTestListStructArgumentRequest : public ModelCommand
+{
+public:
+    TestClusterTestListStructArgumentRequest() : ModelCommand("test-list-struct-argument-request")
+    {
+        // arg1 Array parsing is not supported yet
+        ModelCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000009) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterBooleanResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
+    }
+
+private:
+    chip::app::Clusters::TestCluster::Commands::TestListStructArgumentRequest::Type mRequest;
 };
 
 /*
@@ -16820,26 +21843,40 @@ class TestClusterTestNotHandled : public ModelCommand
 {
 public:
     TestClusterTestNotHandled() : ModelCommand("test-not-handled") { ModelCommand::AddArguments(); }
-    ~TestClusterTestNotHandled()
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        delete onSuccessCallback;
-        delete onFailureCallback;
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000001) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
+    }
+
+private:
+    chip::app::Clusters::TestCluster::Commands::TestNotHandled::Type mRequest;
+};
+
+/*
+ * Command TestNullableOptionalRequest
+ */
+class TestClusterTestNullableOptionalRequest : public ModelCommand
+{
+public:
+    TestClusterTestNullableOptionalRequest() : ModelCommand("test-nullable-optional-request")
+    {
+        AddArgument("Arg1", 0, UINT8_MAX, &mRequest.arg1);
+        ModelCommand::AddArguments();
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x0000000F) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TestClusterCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.TestNotHandled(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterTestNullableOptionalResponseSuccess, OnDefaultFailure,
+                                               endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::TestCluster::Commands::TestNullableOptionalRequest::Type mRequest;
 };
 
 /*
@@ -16849,27 +21886,41 @@ class TestClusterTestSpecific : public ModelCommand
 {
 public:
     TestClusterTestSpecific() : ModelCommand("test-specific") { ModelCommand::AddArguments(); }
-    ~TestClusterTestSpecific()
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        delete onSuccessCallback;
-        delete onFailureCallback;
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000002) on endpoint %" PRIu8, endpointId);
+
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterTestSpecificResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
+    }
+
+private:
+    chip::app::Clusters::TestCluster::Commands::TestSpecific::Type mRequest;
+};
+
+/*
+ * Command TestStructArgumentRequest
+ */
+class TestClusterTestStructArgumentRequest : public ModelCommand
+{
+public:
+    TestClusterTestStructArgumentRequest() : ModelCommand("test-struct-argument-request")
+    {
+        // arg1 Struct parsing is not supported yet
+        ModelCommand::AddArguments();
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TestClusterCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.TestSpecific(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnTestClusterBooleanResponseSuccess, OnDefaultFailure, endpointId,
+                                               mRequest);
     }
 
 private:
-    chip::Callback::Callback<TestClusterClusterTestSpecificResponseCallback> * onSuccessCallback =
-        new chip::Callback::Callback<TestClusterClusterTestSpecificResponseCallback>(OnTestClusterClusterTestSpecificResponse,
-                                                                                     this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::TestCluster::Commands::TestStructArgumentRequest::Type mRequest;
 };
 
 /*
@@ -16879,26 +21930,16 @@ class TestClusterTestUnknownCommand : public ModelCommand
 {
 public:
     TestClusterTestUnknownCommand() : ModelCommand("test-unknown-command") { ModelCommand::AddArguments(); }
-    ~TestClusterTestUnknownCommand()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x0000050F) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::TestClusterCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.TestUnknownCommand(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::TestCluster::Commands::TestUnknownCommand::Type mRequest;
 };
 
 /*
@@ -18200,8 +23241,7 @@ public:
 
         chip::Controller::TestClusterCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.WriteAttributeCharString(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                chip::ByteSpan(chip::Uint8::from_char(mValue), strlen(mValue)));
+        return cluster.WriteAttributeCharString(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
     }
 
 private:
@@ -18209,7 +23249,7 @@ private:
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mValue;
+    chip::CharSpan mValue;
 };
 
 /*
@@ -18268,8 +23308,7 @@ public:
 
         chip::Controller::TestClusterCluster cluster;
         cluster.Associate(device, endpointId);
-        return cluster.WriteAttributeLongCharString(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                    chip::ByteSpan(chip::Uint8::from_char(mValue), strlen(mValue)));
+        return cluster.WriteAttributeLongCharString(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
     }
 
 private:
@@ -18277,7 +23316,7 @@ private:
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    char * mValue;
+    chip::CharSpan mValue;
 };
 
 /*
@@ -18415,6 +23454,108 @@ private:
 };
 
 /*
+ * Attribute VendorId
+ */
+class ReadTestClusterVendorId : public ModelCommand
+{
+public:
+    ReadTestClusterVendorId() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "vendor-id");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterVendorId()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeVendorId(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterVendorId : public ModelCommand
+{
+public:
+    WriteTestClusterVendorId() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "vendor-id");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterVendorId()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeVendorId(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::VendorId mValue;
+};
+
+/*
+ * Attribute ListNullablesAndOptionalsStruct
+ */
+class ReadTestClusterListNullablesAndOptionalsStruct : public ModelCommand
+{
+public:
+    ReadTestClusterListNullablesAndOptionalsStruct() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "list-nullables-and-optionals-struct");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterListNullablesAndOptionalsStruct()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeListNullablesAndOptionalsStruct(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<TestClusterListNullablesAndOptionalsStructListAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<TestClusterListNullablesAndOptionalsStructListAttributeCallback>(
+            OnTestClusterListNullablesAndOptionalsStructListAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute Unsupported
  */
 class ReadTestClusterUnsupported : public ModelCommand
@@ -18482,6 +23623,1145 @@ private:
 };
 
 /*
+ * Attribute NullableBoolean
+ */
+class ReadTestClusterNullableBoolean : public ModelCommand
+{
+public:
+    ReadTestClusterNullableBoolean() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-boolean");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableBoolean()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableBoolean(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<BooleanAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<BooleanAttributeCallback>(OnBooleanAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableBoolean : public ModelCommand
+{
+public:
+    WriteTestClusterNullableBoolean() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-boolean");
+        AddArgument("attr-value", 0, 1, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableBoolean()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableBoolean(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    bool mValue;
+};
+
+/*
+ * Attribute NullableBitmap8
+ */
+class ReadTestClusterNullableBitmap8 : public ModelCommand
+{
+public:
+    ReadTestClusterNullableBitmap8() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-bitmap8");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableBitmap8()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableBitmap8(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableBitmap8 : public ModelCommand
+{
+public:
+    WriteTestClusterNullableBitmap8() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-bitmap8");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableBitmap8()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableBitmap8(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute NullableBitmap16
+ */
+class ReadTestClusterNullableBitmap16 : public ModelCommand
+{
+public:
+    ReadTestClusterNullableBitmap16() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-bitmap16");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableBitmap16()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableBitmap16(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableBitmap16 : public ModelCommand
+{
+public:
+    WriteTestClusterNullableBitmap16() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-bitmap16");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableBitmap16()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableBitmap16(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint16_t mValue;
+};
+
+/*
+ * Attribute NullableBitmap32
+ */
+class ReadTestClusterNullableBitmap32 : public ModelCommand
+{
+public:
+    ReadTestClusterNullableBitmap32() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-bitmap32");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableBitmap32()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableBitmap32(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableBitmap32 : public ModelCommand
+{
+public:
+    WriteTestClusterNullableBitmap32() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-bitmap32");
+        AddArgument("attr-value", 0, UINT32_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableBitmap32()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableBitmap32(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint32_t mValue;
+};
+
+/*
+ * Attribute NullableBitmap64
+ */
+class ReadTestClusterNullableBitmap64 : public ModelCommand
+{
+public:
+    ReadTestClusterNullableBitmap64() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-bitmap64");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableBitmap64()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableBitmap64(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableBitmap64 : public ModelCommand
+{
+public:
+    WriteTestClusterNullableBitmap64() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-bitmap64");
+        AddArgument("attr-value", 0, UINT64_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableBitmap64()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableBitmap64(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint64_t mValue;
+};
+
+/*
+ * Attribute NullableInt8u
+ */
+class ReadTestClusterNullableInt8u : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt8u() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int8u");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt8u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt8u(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt8u : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt8u() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int8u");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt8u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt8u(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute NullableInt16u
+ */
+class ReadTestClusterNullableInt16u : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt16u() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int16u");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt16u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt16u(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt16u : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt16u() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int16u");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt16u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt16u(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint16_t mValue;
+};
+
+/*
+ * Attribute NullableInt32u
+ */
+class ReadTestClusterNullableInt32u : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt32u() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int32u");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt32u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt32u(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt32u : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt32u() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int32u");
+        AddArgument("attr-value", 0, UINT32_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt32u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt32u(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint32_t mValue;
+};
+
+/*
+ * Attribute NullableInt64u
+ */
+class ReadTestClusterNullableInt64u : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt64u() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int64u");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt64u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt64u(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt64u : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt64u() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int64u");
+        AddArgument("attr-value", 0, UINT64_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt64u()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt64u(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint64_t mValue;
+};
+
+/*
+ * Attribute NullableInt8s
+ */
+class ReadTestClusterNullableInt8s : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt8s() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int8s");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt8s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt8s(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8sAttributeCallback>(OnInt8sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt8s : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt8s() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int8s");
+        AddArgument("attr-value", INT8_MIN, INT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt8s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt8s(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    int8_t mValue;
+};
+
+/*
+ * Attribute NullableInt16s
+ */
+class ReadTestClusterNullableInt16s : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt16s() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int16s");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt16s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt16s(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt16s : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt16s() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int16s");
+        AddArgument("attr-value", INT16_MIN, INT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt16s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt16s(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    int16_t mValue;
+};
+
+/*
+ * Attribute NullableInt32s
+ */
+class ReadTestClusterNullableInt32s : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt32s() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int32s");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt32s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt32s(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32sAttributeCallback>(OnInt32sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt32s : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt32s() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int32s");
+        AddArgument("attr-value", INT32_MIN, INT32_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt32s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt32s(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    int32_t mValue;
+};
+
+/*
+ * Attribute NullableInt64s
+ */
+class ReadTestClusterNullableInt64s : public ModelCommand
+{
+public:
+    ReadTestClusterNullableInt64s() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-int64s");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableInt64s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableInt64s(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64sAttributeCallback>(OnInt64sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableInt64s : public ModelCommand
+{
+public:
+    WriteTestClusterNullableInt64s() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-int64s");
+        AddArgument("attr-value", INT64_MIN, INT64_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableInt64s()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableInt64s(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    int64_t mValue;
+};
+
+/*
+ * Attribute NullableEnum8
+ */
+class ReadTestClusterNullableEnum8 : public ModelCommand
+{
+public:
+    ReadTestClusterNullableEnum8() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-enum8");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableEnum8()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableEnum8(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableEnum8 : public ModelCommand
+{
+public:
+    WriteTestClusterNullableEnum8() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-enum8");
+        AddArgument("attr-value", 0, UINT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableEnum8()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableEnum8(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint8_t mValue;
+};
+
+/*
+ * Attribute NullableEnum16
+ */
+class ReadTestClusterNullableEnum16 : public ModelCommand
+{
+public:
+    ReadTestClusterNullableEnum16() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-enum16");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableEnum16()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableEnum16(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int16uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableEnum16 : public ModelCommand
+{
+public:
+    WriteTestClusterNullableEnum16() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-enum16");
+        AddArgument("attr-value", 0, UINT16_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableEnum16()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableEnum16(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    uint16_t mValue;
+};
+
+/*
+ * Attribute NullableOctetString
+ */
+class ReadTestClusterNullableOctetString : public ModelCommand
+{
+public:
+    ReadTestClusterNullableOctetString() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-octet-string");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableOctetString()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableOctetString(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<OctetStringAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<OctetStringAttributeCallback>(OnOctetStringAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableOctetString : public ModelCommand
+{
+public:
+    WriteTestClusterNullableOctetString() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-octet-string");
+        AddArgument("attr-value", &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableOctetString()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableOctetString(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::ByteSpan mValue;
+};
+
+/*
+ * Attribute NullableCharString
+ */
+class ReadTestClusterNullableCharString : public ModelCommand
+{
+public:
+    ReadTestClusterNullableCharString() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "nullable-char-string");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadTestClusterNullableCharString()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeNullableCharString(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<CharStringAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<CharStringAttributeCallback>(OnCharStringAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteTestClusterNullableCharString : public ModelCommand
+{
+public:
+    WriteTestClusterNullableCharString() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "nullable-char-string");
+        AddArgument("attr-value", &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteTestClusterNullableCharString()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x050F) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::TestClusterCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeNullableCharString(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::CharSpan mValue;
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadTestClusterClusterRevision : public ModelCommand
@@ -18537,6 +24817,7 @@ private:
 | * MaxHeatSetpointLimit                                              | 0x0016 |
 | * MinCoolSetpointLimit                                              | 0x0017 |
 | * MaxCoolSetpointLimit                                              | 0x0018 |
+| * MinSetpointDeadBand                                               | 0x0019 |
 | * ControlSequenceOfOperation                                        | 0x001B |
 | * SystemMode                                                        | 0x001C |
 | * StartOfWeek                                                       | 0x0020 |
@@ -18553,26 +24834,16 @@ class ThermostatClearWeeklySchedule : public ModelCommand
 {
 public:
     ThermostatClearWeeklySchedule() : ModelCommand("clear-weekly-schedule") { ModelCommand::AddArguments(); }
-    ~ThermostatClearWeeklySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x03) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000201) command (0x00000003) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ThermostatCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ClearWeeklySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::Thermostat::Commands::ClearWeeklySchedule::Type mRequest;
 };
 
 /*
@@ -18582,26 +24853,16 @@ class ThermostatGetRelayStatusLog : public ModelCommand
 {
 public:
     ThermostatGetRelayStatusLog() : ModelCommand("get-relay-status-log") { ModelCommand::AddArguments(); }
-    ~ThermostatGetRelayStatusLog()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000201) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ThermostatCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetRelayStatusLog(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::Thermostat::Commands::GetRelayStatusLog::Type mRequest;
 };
 
 /*
@@ -18612,32 +24873,23 @@ class ThermostatGetWeeklySchedule : public ModelCommand
 public:
     ThermostatGetWeeklySchedule() : ModelCommand("get-weekly-schedule")
     {
-        AddArgument("DaysToReturn", 0, UINT8_MAX, &mDaysToReturn);
-        AddArgument("ModeToReturn", 0, UINT8_MAX, &mModeToReturn);
+        AddArgument("DaysToReturn", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<chip::app::Clusters::Thermostat::DayOfWeek> *>(&mRequest.daysToReturn));
+        AddArgument(
+            "ModeToReturn", 0, UINT8_MAX,
+            reinterpret_cast<std::underlying_type_t<chip::app::Clusters::Thermostat::ModeForSequence> *>(&mRequest.modeToReturn));
         ModelCommand::AddArguments();
-    }
-    ~ThermostatGetWeeklySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000201) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ThermostatCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GetWeeklySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mDaysToReturn, mModeToReturn);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mDaysToReturn;
-    uint8_t mModeToReturn;
+    chip::app::Clusters::Thermostat::Commands::GetWeeklySchedule::Type mRequest;
 };
 
 /*
@@ -18648,37 +24900,26 @@ class ThermostatSetWeeklySchedule : public ModelCommand
 public:
     ThermostatSetWeeklySchedule() : ModelCommand("set-weekly-schedule")
     {
-        AddArgument("NumberOfTransitionsForSequence", 0, UINT8_MAX, &mNumberOfTransitionsForSequence);
-        AddArgument("DayOfWeekForSequence", 0, UINT8_MAX, &mDayOfWeekForSequence);
-        AddArgument("ModeForSequence", 0, UINT8_MAX, &mModeForSequence);
-        AddArgument("Payload", 0, UINT8_MAX, &mPayload);
+        AddArgument("NumberOfTransitionsForSequence", 0, UINT8_MAX, &mRequest.numberOfTransitionsForSequence);
+        AddArgument(
+            "DayOfWeekForSequence", 0, UINT8_MAX,
+            reinterpret_cast<std::underlying_type_t<chip::app::Clusters::Thermostat::DayOfWeek> *>(&mRequest.dayOfWeekForSequence));
+        AddArgument("ModeForSequence", 0, UINT8_MAX,
+                    reinterpret_cast<std::underlying_type_t<chip::app::Clusters::Thermostat::ModeForSequence> *>(
+                        &mRequest.modeForSequence));
+        // payload Array parsing is not supported yet
         ModelCommand::AddArguments();
-    }
-    ~ThermostatSetWeeklySchedule()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000201) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ThermostatCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetWeeklySchedule(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mNumberOfTransitionsForSequence,
-                                         mDayOfWeekForSequence, mModeForSequence, mPayload);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mNumberOfTransitionsForSequence;
-    uint8_t mDayOfWeekForSequence;
-    uint8_t mModeForSequence;
-    uint8_t mPayload;
+    chip::app::Clusters::Thermostat::Commands::SetWeeklySchedule::Type mRequest;
 };
 
 /*
@@ -18689,32 +24930,20 @@ class ThermostatSetpointRaiseLower : public ModelCommand
 public:
     ThermostatSetpointRaiseLower() : ModelCommand("setpoint-raise-lower")
     {
-        AddArgument("Mode", 0, UINT8_MAX, &mMode);
-        AddArgument("Amount", INT8_MIN, INT8_MAX, &mAmount);
+        AddArgument("Mode", 0, UINT8_MAX, reinterpret_cast<std::underlying_type_t<decltype(mRequest.mode)> *>(&mRequest.mode));
+        AddArgument("Amount", INT8_MIN, INT8_MAX, &mRequest.amount);
         ModelCommand::AddArguments();
-    }
-    ~ThermostatSetpointRaiseLower()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000201) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ThermostatCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.SetpointRaiseLower(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMode, mAmount);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mMode;
-    int8_t mAmount;
+    chip::app::Clusters::Thermostat::Commands::SetpointRaiseLower::Type mRequest;
 };
 
 /*
@@ -18759,13 +24988,14 @@ public:
         AddArgument("attr-name", "local-temperature");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", INT16_MIN, INT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportThermostatLocalTemperature()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -18777,26 +25007,29 @@ public:
         chip::Controller::ThermostatCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeLocalTemperature(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeLocalTemperature(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeLocalTemperature(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                          mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeLocalTemperature(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16sAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeResponse, this);
+        new chip::Callback::Callback<Int16sAttributeCallback>(OnInt16sAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    int16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -19335,6 +25568,73 @@ private:
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     int16_t mValue;
+};
+
+/*
+ * Attribute MinSetpointDeadBand
+ */
+class ReadThermostatMinSetpointDeadBand : public ModelCommand
+{
+public:
+    ReadThermostatMinSetpointDeadBand() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "min-setpoint-dead-band");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadThermostatMinSetpointDeadBand()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ThermostatCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeMinSetpointDeadBand(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int8sAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int8sAttributeCallback>(OnInt8sAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+class WriteThermostatMinSetpointDeadBand : public ModelCommand
+{
+public:
+    WriteThermostatMinSetpointDeadBand() : ModelCommand("write")
+    {
+        AddArgument("attr-name", "min-setpoint-dead-band");
+        AddArgument("attr-value", INT8_MIN, INT8_MAX, &mValue);
+        ModelCommand::AddArguments();
+    }
+
+    ~WriteThermostatMinSetpointDeadBand()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0201) command (0x01) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ThermostatCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.WriteAttributeMinSetpointDeadBand(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mValue);
+    }
+
+private:
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    int8_t mValue;
 };
 
 /*
@@ -19952,6 +26252,9 @@ private:
 | * RxErrSecCount                                                     | 0x0035 |
 | * RxErrFcsCount                                                     | 0x0036 |
 | * RxErrOtherCount                                                   | 0x0037 |
+| * ActiveTimestamp                                                   | 0x0038 |
+| * PendingTimestamp                                                  | 0x0039 |
+| * Delay                                                             | 0x003A |
 | * SecurityPolicy                                                    | 0x003B |
 | * ChannelMask                                                       | 0x003C |
 | * OperationalDatasetComponents                                      | 0x003D |
@@ -19966,26 +26269,16 @@ class ThreadNetworkDiagnosticsResetCounts : public ModelCommand
 {
 public:
     ThreadNetworkDiagnosticsResetCounts() : ModelCommand("reset-counts") { ModelCommand::AddArguments(); }
-    ~ThreadNetworkDiagnosticsResetCounts()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0035) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000035) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::ThreadNetworkDiagnosticsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ResetCounts(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::ThreadNetworkDiagnostics::Commands::ResetCounts::Type mRequest;
 };
 
 /*
@@ -21895,6 +28188,108 @@ private:
 };
 
 /*
+ * Attribute ActiveTimestamp
+ */
+class ReadThreadNetworkDiagnosticsActiveTimestamp : public ModelCommand
+{
+public:
+    ReadThreadNetworkDiagnosticsActiveTimestamp() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "active-timestamp");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadThreadNetworkDiagnosticsActiveTimestamp()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0035) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ThreadNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeActiveTimestamp(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute PendingTimestamp
+ */
+class ReadThreadNetworkDiagnosticsPendingTimestamp : public ModelCommand
+{
+public:
+    ReadThreadNetworkDiagnosticsPendingTimestamp() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "pending-timestamp");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadThreadNetworkDiagnosticsPendingTimestamp()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0035) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ThreadNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributePendingTimestamp(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute Delay
+ */
+class ReadThreadNetworkDiagnosticsDelay : public ModelCommand
+{
+public:
+    ReadThreadNetworkDiagnosticsDelay() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "delay");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadThreadNetworkDiagnosticsDelay()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0035) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::ThreadNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeDelay(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute SecurityPolicy
  */
 class ReadThreadNetworkDiagnosticsSecurityPolicy : public ModelCommand
@@ -21957,8 +28352,8 @@ public:
     }
 
 private:
-    chip::Callback::Callback<Int8uAttributeCallback> * onSuccessCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+    chip::Callback::Callback<OctetStringAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<OctetStringAttributeCallback>(OnOctetStringAttributeResponse, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
@@ -22157,6 +28552,14 @@ private:
 | * WiFiVersion                                                       | 0x0002 |
 | * ChannelNumber                                                     | 0x0003 |
 | * Rssi                                                              | 0x0004 |
+| * BeaconLostCount                                                   | 0x0005 |
+| * BeaconRxCount                                                     | 0x0006 |
+| * PacketMulticastRxCount                                            | 0x0007 |
+| * PacketMulticastTxCount                                            | 0x0008 |
+| * PacketUnicastRxCount                                              | 0x0009 |
+| * PacketUnicastTxCount                                              | 0x000A |
+| * CurrentMaxRate                                                    | 0x000B |
+| * OverrunCount                                                      | 0x000C |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -22167,26 +28570,16 @@ class WiFiNetworkDiagnosticsResetCounts : public ModelCommand
 {
 public:
     WiFiNetworkDiagnosticsResetCounts() : ModelCommand("reset-counts") { ModelCommand::AddArguments(); }
-    ~WiFiNetworkDiagnosticsResetCounts()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000036) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.ResetCounts(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::WiFiNetworkDiagnostics::Commands::ResetCounts::Type mRequest;
 };
 
 /*
@@ -22360,6 +28753,278 @@ private:
 };
 
 /*
+ * Attribute BeaconLostCount
+ */
+class ReadWiFiNetworkDiagnosticsBeaconLostCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsBeaconLostCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "beacon-lost-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsBeaconLostCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBeaconLostCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute BeaconRxCount
+ */
+class ReadWiFiNetworkDiagnosticsBeaconRxCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsBeaconRxCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "beacon-rx-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsBeaconRxCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeBeaconRxCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute PacketMulticastRxCount
+ */
+class ReadWiFiNetworkDiagnosticsPacketMulticastRxCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsPacketMulticastRxCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "packet-multicast-rx-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsPacketMulticastRxCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributePacketMulticastRxCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute PacketMulticastTxCount
+ */
+class ReadWiFiNetworkDiagnosticsPacketMulticastTxCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsPacketMulticastTxCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "packet-multicast-tx-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsPacketMulticastTxCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributePacketMulticastTxCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute PacketUnicastRxCount
+ */
+class ReadWiFiNetworkDiagnosticsPacketUnicastRxCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsPacketUnicastRxCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "packet-unicast-rx-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsPacketUnicastRxCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributePacketUnicastRxCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute PacketUnicastTxCount
+ */
+class ReadWiFiNetworkDiagnosticsPacketUnicastTxCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsPacketUnicastTxCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "packet-unicast-tx-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsPacketUnicastTxCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributePacketUnicastTxCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute CurrentMaxRate
+ */
+class ReadWiFiNetworkDiagnosticsCurrentMaxRate : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsCurrentMaxRate() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "current-max-rate");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsCurrentMaxRate()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeCurrentMaxRate(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
+ * Attribute OverrunCount
+ */
+class ReadWiFiNetworkDiagnosticsOverrunCount : public ModelCommand
+{
+public:
+    ReadWiFiNetworkDiagnosticsOverrunCount() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "overrun-count");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWiFiNetworkDiagnosticsOverrunCount()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0036) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WiFiNetworkDiagnosticsCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeOverrunCount(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int64uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int64uAttributeCallback>(OnInt64uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+};
+
+/*
  * Attribute ClusterRevision
  */
 class ReadWiFiNetworkDiagnosticsClusterRevision : public ModelCommand
@@ -22424,6 +29089,7 @@ private:
 | * InstalledClosedLimitTilt                                          | 0x0013 |
 | * Mode                                                              | 0x0017 |
 | * SafetyStatus                                                      | 0x001A |
+| * FeatureMap                                                        | 0xFFFC |
 | * ClusterRevision                                                   | 0xFFFD |
 \*----------------------------------------------------------------------------*/
 
@@ -22434,26 +29100,16 @@ class WindowCoveringDownOrClose : public ModelCommand
 {
 public:
     WindowCoveringDownOrClose() : ModelCommand("down-or-close") { ModelCommand::AddArguments(); }
-    ~WindowCoveringDownOrClose()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x01) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000001) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.DownOrClose(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::WindowCovering::Commands::DownOrClose::Type mRequest;
 };
 
 /*
@@ -22464,33 +29120,20 @@ class WindowCoveringGoToLiftPercentage : public ModelCommand
 public:
     WindowCoveringGoToLiftPercentage() : ModelCommand("go-to-lift-percentage")
     {
-        AddArgument("LiftPercentageValue", 0, UINT8_MAX, &mLiftPercentageValue);
-        AddArgument("LiftPercent100thsValue", 0, UINT16_MAX, &mLiftPercent100thsValue);
+        AddArgument("LiftPercentageValue", 0, UINT8_MAX, &mRequest.liftPercentageValue);
+        AddArgument("LiftPercent100thsValue", 0, UINT16_MAX, &mRequest.liftPercent100thsValue);
         ModelCommand::AddArguments();
-    }
-    ~WindowCoveringGoToLiftPercentage()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x05) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000005) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GoToLiftPercentage(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mLiftPercentageValue,
-                                          mLiftPercent100thsValue);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mLiftPercentageValue;
-    uint16_t mLiftPercent100thsValue;
+    chip::app::Clusters::WindowCovering::Commands::GoToLiftPercentage::Type mRequest;
 };
 
 /*
@@ -22501,30 +29144,19 @@ class WindowCoveringGoToLiftValue : public ModelCommand
 public:
     WindowCoveringGoToLiftValue() : ModelCommand("go-to-lift-value")
     {
-        AddArgument("LiftValue", 0, UINT16_MAX, &mLiftValue);
+        AddArgument("LiftValue", 0, UINT16_MAX, &mRequest.liftValue);
         ModelCommand::AddArguments();
-    }
-    ~WindowCoveringGoToLiftValue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x04) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000004) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GoToLiftValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mLiftValue);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mLiftValue;
+    chip::app::Clusters::WindowCovering::Commands::GoToLiftValue::Type mRequest;
 };
 
 /*
@@ -22535,33 +29167,20 @@ class WindowCoveringGoToTiltPercentage : public ModelCommand
 public:
     WindowCoveringGoToTiltPercentage() : ModelCommand("go-to-tilt-percentage")
     {
-        AddArgument("TiltPercentageValue", 0, UINT8_MAX, &mTiltPercentageValue);
-        AddArgument("TiltPercent100thsValue", 0, UINT16_MAX, &mTiltPercent100thsValue);
+        AddArgument("TiltPercentageValue", 0, UINT8_MAX, &mRequest.tiltPercentageValue);
+        AddArgument("TiltPercent100thsValue", 0, UINT16_MAX, &mRequest.tiltPercent100thsValue);
         ModelCommand::AddArguments();
-    }
-    ~WindowCoveringGoToTiltPercentage()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x08) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000008) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GoToTiltPercentage(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mTiltPercentageValue,
-                                          mTiltPercent100thsValue);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint8_t mTiltPercentageValue;
-    uint16_t mTiltPercent100thsValue;
+    chip::app::Clusters::WindowCovering::Commands::GoToTiltPercentage::Type mRequest;
 };
 
 /*
@@ -22572,30 +29191,19 @@ class WindowCoveringGoToTiltValue : public ModelCommand
 public:
     WindowCoveringGoToTiltValue() : ModelCommand("go-to-tilt-value")
     {
-        AddArgument("TiltValue", 0, UINT16_MAX, &mTiltValue);
+        AddArgument("TiltValue", 0, UINT16_MAX, &mRequest.tiltValue);
         ModelCommand::AddArguments();
-    }
-    ~WindowCoveringGoToTiltValue()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
     }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x07) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000007) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.GoToTiltValue(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mTiltValue);
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
-    uint16_t mTiltValue;
+    chip::app::Clusters::WindowCovering::Commands::GoToTiltValue::Type mRequest;
 };
 
 /*
@@ -22605,26 +29213,16 @@ class WindowCoveringStopMotion : public ModelCommand
 {
 public:
     WindowCoveringStopMotion() : ModelCommand("stop-motion") { ModelCommand::AddArguments(); }
-    ~WindowCoveringStopMotion()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x02) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000002) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.StopMotion(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::WindowCovering::Commands::StopMotion::Type mRequest;
 };
 
 /*
@@ -22634,26 +29232,16 @@ class WindowCoveringUpOrOpen : public ModelCommand
 {
 public:
     WindowCoveringUpOrOpen() : ModelCommand("up-or-open") { ModelCommand::AddArguments(); }
-    ~WindowCoveringUpOrOpen()
-    {
-        delete onSuccessCallback;
-        delete onFailureCallback;
-    }
 
     CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
     {
-        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x00) on endpoint %" PRIu8, endpointId);
+        ChipLogProgress(chipTool, "Sending cluster (0x00000102) command (0x00000000) on endpoint %" PRIu8, endpointId);
 
-        chip::Controller::WindowCoveringCluster cluster;
-        cluster.Associate(device, endpointId);
-        return cluster.UpOrOpen(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+        return chip::Controller::InvokeCommand(device, this, OnDefaultSuccess, OnDefaultFailure, endpointId, mRequest);
     }
 
 private:
-    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
-        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
-    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
-        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
+    chip::app::Clusters::WindowCovering::Commands::UpOrOpen::Type mRequest;
 };
 
 /*
@@ -22834,13 +29422,14 @@ public:
         AddArgument("attr-name", "current-position-lift-percentage");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT8_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringCurrentPositionLiftPercentage()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -22852,26 +29441,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentPositionLiftPercentage(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentPositionLiftPercentage(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentPositionLiftPercentage(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                                       mMinInterval, mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentPositionLiftPercentage(successCallback, onFailureCallback->Cancel(), mMinInterval,
+                                                                       mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint8_t mChange;
+    bool mWait;
 };
 
 /*
@@ -22916,13 +29509,14 @@ public:
         AddArgument("attr-name", "current-position-tilt-percentage");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT8_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringCurrentPositionTiltPercentage()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -22934,26 +29528,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentPositionTiltPercentage(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentPositionTiltPercentage(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentPositionTiltPercentage(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                                       mMinInterval, mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentPositionTiltPercentage(successCallback, onFailureCallback->Cancel(), mMinInterval,
+                                                                       mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint8_t mChange;
+    bool mWait;
 };
 
 /*
@@ -22998,12 +29596,14 @@ public:
         AddArgument("attr-name", "operational-status");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringOperationalStatus()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -23015,25 +29615,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeOperationalStatus(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeOperationalStatus(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeOperationalStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeOperationalStatus(successCallback, onFailureCallback->Cancel(), mMinInterval,
                                                            mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int8uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeResponse, this);
+        new chip::Callback::Callback<Int8uAttributeCallback>(OnInt8uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
 };
 
 /*
@@ -23078,13 +29683,14 @@ public:
         AddArgument("attr-name", "target-position-lift-percent100ths");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringTargetPositionLiftPercent100ths()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -23096,26 +29702,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeTargetPositionLiftPercent100ths(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeTargetPositionLiftPercent100ths(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeTargetPositionLiftPercent100ths(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                                         mMinInterval, mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeTargetPositionLiftPercent100ths(successCallback, onFailureCallback->Cancel(), mMinInterval,
+                                                                         mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -23160,13 +29770,14 @@ public:
         AddArgument("attr-name", "target-position-tilt-percent100ths");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringTargetPositionTiltPercent100ths()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -23178,26 +29789,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeTargetPositionTiltPercent100ths(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeTargetPositionTiltPercent100ths(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeTargetPositionTiltPercent100ths(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                                         mMinInterval, mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeTargetPositionTiltPercent100ths(successCallback, onFailureCallback->Cancel(), mMinInterval,
+                                                                         mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -23276,13 +29891,14 @@ public:
         AddArgument("attr-name", "current-position-lift-percent100ths");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringCurrentPositionLiftPercent100ths()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -23294,26 +29910,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentPositionLiftPercent100ths(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentPositionLiftPercent100ths(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentPositionLiftPercent100ths(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                                          mMinInterval, mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentPositionLiftPercent100ths(successCallback, onFailureCallback->Cancel(),
+                                                                          mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -23358,13 +29978,14 @@ public:
         AddArgument("attr-name", "current-position-tilt-percent100ths");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
-        AddArgument("change", 0, UINT16_MAX, &mChange);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringCurrentPositionTiltPercent100ths()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -23376,26 +29997,30 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeCurrentPositionTiltPercent100ths(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeCurrentPositionTiltPercent100ths(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeCurrentPositionTiltPercent100ths(onSuccessCallback->Cancel(), onFailureCallback->Cancel(),
-                                                                          mMinInterval, mMaxInterval, mChange);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeCurrentPositionTiltPercent100ths(successCallback, onFailureCallback->Cancel(),
+                                                                          mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
-    uint16_t mChange;
+    bool mWait;
 };
 
 /*
@@ -23643,12 +30268,14 @@ public:
         AddArgument("attr-name", "safety-status");
         AddArgument("min-interval", 0, UINT16_MAX, &mMinInterval);
         AddArgument("max-interval", 0, UINT16_MAX, &mMaxInterval);
+        AddArgument("wait", 0, 1, &mWait);
         ModelCommand::AddArguments();
     }
 
     ~ReportWindowCoveringSafetyStatus()
     {
         delete onSuccessCallback;
+        delete onSuccessCallbackWithoutExit;
         delete onFailureCallback;
         delete onReportCallback;
     }
@@ -23660,25 +30287,63 @@ public:
         chip::Controller::WindowCoveringCluster cluster;
         cluster.Associate(device, endpointId);
 
-        CHIP_ERROR err = cluster.ReportAttributeSafetyStatus(onReportCallback->Cancel());
-        if (err != CHIP_NO_ERROR)
-        {
-            return err;
-        }
+        ReturnErrorOnFailure(cluster.ReportAttributeSafetyStatus(onReportCallback->Cancel()));
 
-        return cluster.ConfigureAttributeSafetyStatus(onSuccessCallback->Cancel(), onFailureCallback->Cancel(), mMinInterval,
-                                                      mMaxInterval);
+        chip::Callback::Cancelable * successCallback = mWait ? onSuccessCallbackWithoutExit->Cancel() : onSuccessCallback->Cancel();
+        return cluster.SubscribeAttributeSafetyStatus(successCallback, onFailureCallback->Cancel(), mMinInterval, mMaxInterval);
+    }
+
+    chip::System::Clock::Timeout GetWaitDuration() const override
+    {
+        return chip::System::Clock::Seconds16(mWait ? UINT16_MAX : 10);
     }
 
 private:
     chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallback =
         new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponse, this);
+    chip::Callback::Callback<DefaultSuccessCallback> * onSuccessCallbackWithoutExit =
+        new chip::Callback::Callback<DefaultSuccessCallback>(OnDefaultSuccessResponseWithoutExit, this);
     chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
         new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
     chip::Callback::Callback<Int16uAttributeCallback> * onReportCallback =
-        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeResponse, this);
+        new chip::Callback::Callback<Int16uAttributeCallback>(OnInt16uAttributeReport, this);
     uint16_t mMinInterval;
     uint16_t mMaxInterval;
+    bool mWait;
+};
+
+/*
+ * Attribute FeatureMap
+ */
+class ReadWindowCoveringFeatureMap : public ModelCommand
+{
+public:
+    ReadWindowCoveringFeatureMap() : ModelCommand("read")
+    {
+        AddArgument("attr-name", "feature-map");
+        ModelCommand::AddArguments();
+    }
+
+    ~ReadWindowCoveringFeatureMap()
+    {
+        delete onSuccessCallback;
+        delete onFailureCallback;
+    }
+
+    CHIP_ERROR SendCommand(ChipDevice * device, uint8_t endpointId) override
+    {
+        ChipLogProgress(chipTool, "Sending cluster (0x0102) command (0x00) on endpoint %" PRIu8, endpointId);
+
+        chip::Controller::WindowCoveringCluster cluster;
+        cluster.Associate(device, endpointId);
+        return cluster.ReadAttributeFeatureMap(onSuccessCallback->Cancel(), onFailureCallback->Cancel());
+    }
+
+private:
+    chip::Callback::Callback<Int32uAttributeCallback> * onSuccessCallback =
+        new chip::Callback::Callback<Int32uAttributeCallback>(OnInt32uAttributeResponse, this);
+    chip::Callback::Callback<DefaultFailureCallback> * onFailureCallback =
+        new chip::Callback::Callback<DefaultFailureCallback>(OnDefaultFailureResponse, this);
 };
 
 /*
@@ -23862,6 +30527,43 @@ void registerClusterBinding(Commands & commands)
         make_unique<BindingBind>(),                //
         make_unique<BindingUnbind>(),              //
         make_unique<ReadBindingClusterRevision>(), //
+    };
+
+    commands.Register(clusterName, clusterCommands);
+}
+void registerClusterBooleanState(Commands & commands)
+{
+    const char * clusterName = "BooleanState";
+
+    commands_list clusterCommands = {
+        make_unique<ReadBooleanStateStateValue>(),      //
+        make_unique<ReportBooleanStateStateValue>(),    //
+        make_unique<ReadBooleanStateClusterRevision>(), //
+    };
+
+    commands.Register(clusterName, clusterCommands);
+}
+void registerClusterBridgedActions(Commands & commands)
+{
+    const char * clusterName = "BridgedActions";
+
+    commands_list clusterCommands = {
+        make_unique<BridgedActionsDisableAction>(),               //
+        make_unique<BridgedActionsDisableActionWithDuration>(),   //
+        make_unique<BridgedActionsEnableAction>(),                //
+        make_unique<BridgedActionsEnableActionWithDuration>(),    //
+        make_unique<BridgedActionsInstantAction>(),               //
+        make_unique<BridgedActionsInstantActionWithTransition>(), //
+        make_unique<BridgedActionsPauseAction>(),                 //
+        make_unique<BridgedActionsPauseActionWithDuration>(),     //
+        make_unique<BridgedActionsResumeAction>(),                //
+        make_unique<BridgedActionsStartAction>(),                 //
+        make_unique<BridgedActionsStartActionWithDuration>(),     //
+        make_unique<BridgedActionsStopAction>(),                  //
+        make_unique<ReadBridgedActionsActionList>(),              //
+        make_unique<ReadBridgedActionsEndpointList>(),            //
+        make_unique<ReadBridgedActionsSetupUrl>(),                //
+        make_unique<ReadBridgedActionsClusterRevision>(),         //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24092,11 +30794,15 @@ void registerClusterEthernetNetworkDiagnostics(Commands & commands)
 
     commands_list clusterCommands = {
         make_unique<EthernetNetworkDiagnosticsResetCounts>(),         //
+        make_unique<ReadEthernetNetworkDiagnosticsPHYRate>(),         //
+        make_unique<ReadEthernetNetworkDiagnosticsFullDuplex>(),      //
         make_unique<ReadEthernetNetworkDiagnosticsPacketRxCount>(),   //
         make_unique<ReadEthernetNetworkDiagnosticsPacketTxCount>(),   //
         make_unique<ReadEthernetNetworkDiagnosticsTxErrCount>(),      //
         make_unique<ReadEthernetNetworkDiagnosticsCollisionCount>(),  //
         make_unique<ReadEthernetNetworkDiagnosticsOverrunCount>(),    //
+        make_unique<ReadEthernetNetworkDiagnosticsCarrierDetect>(),   //
+        make_unique<ReadEthernetNetworkDiagnosticsTimeSinceReset>(),  //
         make_unique<ReadEthernetNetworkDiagnosticsClusterRevision>(), //
     };
 
@@ -24121,6 +30827,7 @@ void registerClusterFlowMeasurement(Commands & commands)
         make_unique<ReadFlowMeasurementMeasuredValue>(),    //
         make_unique<ReadFlowMeasurementMinMeasuredValue>(), //
         make_unique<ReadFlowMeasurementMaxMeasuredValue>(), //
+        make_unique<ReadFlowMeasurementTolerance>(),        //
         make_unique<ReadFlowMeasurementClusterRevision>(),  //
     };
 
@@ -24147,9 +30854,12 @@ void registerClusterGeneralDiagnostics(Commands & commands)
     const char * clusterName = "GeneralDiagnostics";
 
     commands_list clusterCommands = {
-        make_unique<ReadGeneralDiagnosticsNetworkInterfaces>(), //
-        make_unique<ReadGeneralDiagnosticsRebootCount>(),       //
-        make_unique<ReadGeneralDiagnosticsClusterRevision>(),   //
+        make_unique<ReadGeneralDiagnosticsNetworkInterfaces>(),     //
+        make_unique<ReadGeneralDiagnosticsRebootCount>(),           //
+        make_unique<ReadGeneralDiagnosticsUpTime>(),                //
+        make_unique<ReadGeneralDiagnosticsTotalOperationalHours>(), //
+        make_unique<ReadGeneralDiagnosticsBootReasons>(),           //
+        make_unique<ReadGeneralDiagnosticsClusterRevision>(),       //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24190,9 +30900,27 @@ void registerClusterIdentify(Commands & commands)
     commands_list clusterCommands = {
         make_unique<IdentifyIdentify>(),            //
         make_unique<IdentifyIdentifyQuery>(),       //
+        make_unique<IdentifyTriggerEffect>(),       //
         make_unique<ReadIdentifyIdentifyTime>(),    //
         make_unique<WriteIdentifyIdentifyTime>(),   //
+        make_unique<ReadIdentifyIdentifyType>(),    //
         make_unique<ReadIdentifyClusterRevision>(), //
+    };
+
+    commands.Register(clusterName, clusterCommands);
+}
+void registerClusterIlluminanceMeasurement(Commands & commands)
+{
+    const char * clusterName = "IlluminanceMeasurement";
+
+    commands_list clusterCommands = {
+        make_unique<ReadIlluminanceMeasurementMeasuredValue>(),    //
+        make_unique<ReportIlluminanceMeasurementMeasuredValue>(),  //
+        make_unique<ReadIlluminanceMeasurementMinMeasuredValue>(), //
+        make_unique<ReadIlluminanceMeasurementMaxMeasuredValue>(), //
+        make_unique<ReadIlluminanceMeasurementTolerance>(),        //
+        make_unique<ReadIlluminanceMeasurementLightSensorType>(),  //
+        make_unique<ReadIlluminanceMeasurementClusterRevision>(),  //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24213,17 +30941,37 @@ void registerClusterLevelControl(Commands & commands)
     const char * clusterName = "LevelControl";
 
     commands_list clusterCommands = {
-        make_unique<LevelControlMove>(),                 //
-        make_unique<LevelControlMoveToLevel>(),          //
-        make_unique<LevelControlMoveToLevelWithOnOff>(), //
-        make_unique<LevelControlMoveWithOnOff>(),        //
-        make_unique<LevelControlStep>(),                 //
-        make_unique<LevelControlStepWithOnOff>(),        //
-        make_unique<LevelControlStop>(),                 //
-        make_unique<LevelControlStopWithOnOff>(),        //
-        make_unique<ReadLevelControlCurrentLevel>(),     //
-        make_unique<ReportLevelControlCurrentLevel>(),   //
-        make_unique<ReadLevelControlClusterRevision>(),  //
+        make_unique<LevelControlMove>(),                     //
+        make_unique<LevelControlMoveToLevel>(),              //
+        make_unique<LevelControlMoveToLevelWithOnOff>(),     //
+        make_unique<LevelControlMoveWithOnOff>(),            //
+        make_unique<LevelControlStep>(),                     //
+        make_unique<LevelControlStepWithOnOff>(),            //
+        make_unique<LevelControlStop>(),                     //
+        make_unique<LevelControlStopWithOnOff>(),            //
+        make_unique<ReadLevelControlCurrentLevel>(),         //
+        make_unique<ReportLevelControlCurrentLevel>(),       //
+        make_unique<ReadLevelControlRemainingTime>(),        //
+        make_unique<ReadLevelControlMinLevel>(),             //
+        make_unique<ReadLevelControlMaxLevel>(),             //
+        make_unique<ReadLevelControlCurrentFrequency>(),     //
+        make_unique<ReadLevelControlMinFrequency>(),         //
+        make_unique<ReadLevelControlMaxFrequency>(),         //
+        make_unique<ReadLevelControlOptions>(),              //
+        make_unique<WriteLevelControlOptions>(),             //
+        make_unique<ReadLevelControlOnOffTransitionTime>(),  //
+        make_unique<WriteLevelControlOnOffTransitionTime>(), //
+        make_unique<ReadLevelControlOnLevel>(),              //
+        make_unique<WriteLevelControlOnLevel>(),             //
+        make_unique<ReadLevelControlOnTransitionTime>(),     //
+        make_unique<WriteLevelControlOnTransitionTime>(),    //
+        make_unique<ReadLevelControlOffTransitionTime>(),    //
+        make_unique<WriteLevelControlOffTransitionTime>(),   //
+        make_unique<ReadLevelControlDefaultMoveRate>(),      //
+        make_unique<WriteLevelControlDefaultMoveRate>(),     //
+        make_unique<ReadLevelControlStartUpCurrentLevel>(),  //
+        make_unique<WriteLevelControlStartUpCurrentLevel>(), //
+        make_unique<ReadLevelControlClusterRevision>(),      //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24284,22 +31032,39 @@ void registerClusterMediaPlayback(Commands & commands)
 
     commands.Register(clusterName, clusterCommands);
 }
+void registerClusterModeSelect(Commands & commands)
+{
+    const char * clusterName = "ModeSelect";
+
+    commands_list clusterCommands = {
+        make_unique<ModeSelectChangeToMode>(),        //
+        make_unique<ReadModeSelectCurrentMode>(),     //
+        make_unique<ReportModeSelectCurrentMode>(),   //
+        make_unique<ReadModeSelectSupportedModes>(),  //
+        make_unique<ReadModeSelectOnMode>(),          //
+        make_unique<WriteModeSelectOnMode>(),         //
+        make_unique<ReadModeSelectStartUpMode>(),     //
+        make_unique<ReadModeSelectDescription>(),     //
+        make_unique<ReadModeSelectClusterRevision>(), //
+    };
+
+    commands.Register(clusterName, clusterCommands);
+}
 void registerClusterNetworkCommissioning(Commands & commands)
 {
     const char * clusterName = "NetworkCommissioning";
 
     commands_list clusterCommands = {
-        make_unique<NetworkCommissioningAddThreadNetwork>(),                  //
-        make_unique<NetworkCommissioningAddWiFiNetwork>(),                    //
-        make_unique<NetworkCommissioningDisableNetwork>(),                    //
-        make_unique<NetworkCommissioningEnableNetwork>(),                     //
-        make_unique<NetworkCommissioningGetLastNetworkCommissioningResult>(), //
-        make_unique<NetworkCommissioningRemoveNetwork>(),                     //
-        make_unique<NetworkCommissioningScanNetworks>(),                      //
-        make_unique<NetworkCommissioningUpdateThreadNetwork>(),               //
-        make_unique<NetworkCommissioningUpdateWiFiNetwork>(),                 //
-        make_unique<ReadNetworkCommissioningFeatureMap>(),                    //
-        make_unique<ReadNetworkCommissioningClusterRevision>(),               //
+        make_unique<NetworkCommissioningAddThreadNetwork>(),    //
+        make_unique<NetworkCommissioningAddWiFiNetwork>(),      //
+        make_unique<NetworkCommissioningDisableNetwork>(),      //
+        make_unique<NetworkCommissioningEnableNetwork>(),       //
+        make_unique<NetworkCommissioningRemoveNetwork>(),       //
+        make_unique<NetworkCommissioningScanNetworks>(),        //
+        make_unique<NetworkCommissioningUpdateThreadNetwork>(), //
+        make_unique<NetworkCommissioningUpdateWiFiNetwork>(),   //
+        make_unique<ReadNetworkCommissioningFeatureMap>(),      //
+        make_unique<ReadNetworkCommissioningClusterRevision>(), //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24391,6 +31156,8 @@ void registerClusterOperationalCredentials(Commands & commands)
     commands_list clusterCommands = {
         make_unique<OperationalCredentialsAddNOC>(),                       //
         make_unique<OperationalCredentialsAddTrustedRootCertificate>(),    //
+        make_unique<OperationalCredentialsAttestationRequest>(),           //
+        make_unique<OperationalCredentialsCertificateChainRequest>(),      //
         make_unique<OperationalCredentialsOpCSRRequest>(),                 //
         make_unique<OperationalCredentialsRemoveFabric>(),                 //
         make_unique<OperationalCredentialsRemoveTrustedRootCertificate>(), //
@@ -24399,7 +31166,29 @@ void registerClusterOperationalCredentials(Commands & commands)
         make_unique<ReadOperationalCredentialsFabricsList>(),              //
         make_unique<ReadOperationalCredentialsSupportedFabrics>(),         //
         make_unique<ReadOperationalCredentialsCommissionedFabrics>(),      //
+        make_unique<ReadOperationalCredentialsTrustedRootCertificates>(),  //
+        make_unique<ReadOperationalCredentialsCurrentFabricIndex>(),       //
         make_unique<ReadOperationalCredentialsClusterRevision>(),          //
+    };
+
+    commands.Register(clusterName, clusterCommands);
+}
+void registerClusterPowerSource(Commands & commands)
+{
+    const char * clusterName = "PowerSource";
+
+    commands_list clusterCommands = {
+        make_unique<ReadPowerSourceStatus>(),                  //
+        make_unique<ReadPowerSourceOrder>(),                   //
+        make_unique<ReadPowerSourceDescription>(),             //
+        make_unique<ReadPowerSourceBatteryVoltage>(),          //
+        make_unique<ReadPowerSourceBatteryPercentRemaining>(), //
+        make_unique<ReadPowerSourceBatteryTimeRemaining>(),    //
+        make_unique<ReadPowerSourceBatteryChargeLevel>(),      //
+        make_unique<ReadPowerSourceActiveBatteryFaults>(),     //
+        make_unique<ReadPowerSourceBatteryChargeState>(),      //
+        make_unique<ReadPowerSourceFeatureMap>(),              //
+        make_unique<ReadPowerSourceClusterRevision>(),         //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24426,12 +31215,30 @@ void registerClusterPumpConfigurationAndControl(Commands & commands)
         make_unique<ReadPumpConfigurationAndControlMaxPressure>(),            //
         make_unique<ReadPumpConfigurationAndControlMaxSpeed>(),               //
         make_unique<ReadPumpConfigurationAndControlMaxFlow>(),                //
+        make_unique<ReadPumpConfigurationAndControlMinConstPressure>(),       //
+        make_unique<ReadPumpConfigurationAndControlMaxConstPressure>(),       //
+        make_unique<ReadPumpConfigurationAndControlMinCompPressure>(),        //
+        make_unique<ReadPumpConfigurationAndControlMaxCompPressure>(),        //
+        make_unique<ReadPumpConfigurationAndControlMinConstSpeed>(),          //
+        make_unique<ReadPumpConfigurationAndControlMaxConstSpeed>(),          //
+        make_unique<ReadPumpConfigurationAndControlMinConstFlow>(),           //
+        make_unique<ReadPumpConfigurationAndControlMaxConstFlow>(),           //
+        make_unique<ReadPumpConfigurationAndControlMinConstTemp>(),           //
+        make_unique<ReadPumpConfigurationAndControlMaxConstTemp>(),           //
+        make_unique<ReadPumpConfigurationAndControlPumpStatus>(),             //
+        make_unique<ReportPumpConfigurationAndControlPumpStatus>(),           //
         make_unique<ReadPumpConfigurationAndControlEffectiveOperationMode>(), //
         make_unique<ReadPumpConfigurationAndControlEffectiveControlMode>(),   //
         make_unique<ReadPumpConfigurationAndControlCapacity>(),               //
         make_unique<ReportPumpConfigurationAndControlCapacity>(),             //
+        make_unique<ReadPumpConfigurationAndControlSpeed>(),                  //
+        make_unique<ReadPumpConfigurationAndControlLifetimeEnergyConsumed>(), //
         make_unique<ReadPumpConfigurationAndControlOperationMode>(),          //
         make_unique<WritePumpConfigurationAndControlOperationMode>(),         //
+        make_unique<ReadPumpConfigurationAndControlControlMode>(),            //
+        make_unique<WritePumpConfigurationAndControlControlMode>(),           //
+        make_unique<ReadPumpConfigurationAndControlAlarmMask>(),              //
+        make_unique<ReadPumpConfigurationAndControlFeatureMap>(),             //
         make_unique<ReadPumpConfigurationAndControlClusterRevision>(),        //
     };
 
@@ -24446,6 +31253,8 @@ void registerClusterRelativeHumidityMeasurement(Commands & commands)
         make_unique<ReportRelativeHumidityMeasurementMeasuredValue>(),  //
         make_unique<ReadRelativeHumidityMeasurementMinMeasuredValue>(), //
         make_unique<ReadRelativeHumidityMeasurementMaxMeasuredValue>(), //
+        make_unique<ReadRelativeHumidityMeasurementTolerance>(),        //
+        make_unique<ReportRelativeHumidityMeasurementTolerance>(),      //
         make_unique<ReadRelativeHumidityMeasurementClusterRevision>(),  //
     };
 
@@ -24479,6 +31288,9 @@ void registerClusterSoftwareDiagnostics(Commands & commands)
 
     commands_list clusterCommands = {
         make_unique<SoftwareDiagnosticsResetWatermarks>(),              //
+        make_unique<ReadSoftwareDiagnosticsThreadMetrics>(),            //
+        make_unique<ReadSoftwareDiagnosticsCurrentHeapFree>(),          //
+        make_unique<ReadSoftwareDiagnosticsCurrentHeapUsed>(),          //
         make_unique<ReadSoftwareDiagnosticsCurrentHeapHighWatermark>(), //
         make_unique<ReadSoftwareDiagnosticsClusterRevision>(),          //
     };
@@ -24493,6 +31305,8 @@ void registerClusterSwitch(Commands & commands)
         make_unique<ReadSwitchNumberOfPositions>(), //
         make_unique<ReadSwitchCurrentPosition>(),   //
         make_unique<ReportSwitchCurrentPosition>(), //
+        make_unique<ReadSwitchMultiPressMax>(),     //
+        make_unique<ReadSwitchFeatureMap>(),        //
         make_unique<ReadSwitchClusterRevision>(),   //
     };
 
@@ -24535,6 +31349,8 @@ void registerClusterTemperatureMeasurement(Commands & commands)
         make_unique<ReportTemperatureMeasurementMeasuredValue>(),  //
         make_unique<ReadTemperatureMeasurementMinMeasuredValue>(), //
         make_unique<ReadTemperatureMeasurementMaxMeasuredValue>(), //
+        make_unique<ReadTemperatureMeasurementTolerance>(),        //
+        make_unique<ReportTemperatureMeasurementTolerance>(),      //
         make_unique<ReadTemperatureMeasurementClusterRevision>(),  //
     };
 
@@ -24545,59 +31361,102 @@ void registerClusterTestCluster(Commands & commands)
     const char * clusterName = "TestCluster";
 
     commands_list clusterCommands = {
-        make_unique<TestClusterTest>(),                      //
-        make_unique<TestClusterTestAddArguments>(),          //
-        make_unique<TestClusterTestNotHandled>(),            //
-        make_unique<TestClusterTestSpecific>(),              //
-        make_unique<TestClusterTestUnknownCommand>(),        //
-        make_unique<ReadTestClusterBoolean>(),               //
-        make_unique<WriteTestClusterBoolean>(),              //
-        make_unique<ReadTestClusterBitmap8>(),               //
-        make_unique<WriteTestClusterBitmap8>(),              //
-        make_unique<ReadTestClusterBitmap16>(),              //
-        make_unique<WriteTestClusterBitmap16>(),             //
-        make_unique<ReadTestClusterBitmap32>(),              //
-        make_unique<WriteTestClusterBitmap32>(),             //
-        make_unique<ReadTestClusterBitmap64>(),              //
-        make_unique<WriteTestClusterBitmap64>(),             //
-        make_unique<ReadTestClusterInt8u>(),                 //
-        make_unique<WriteTestClusterInt8u>(),                //
-        make_unique<ReadTestClusterInt16u>(),                //
-        make_unique<WriteTestClusterInt16u>(),               //
-        make_unique<ReadTestClusterInt32u>(),                //
-        make_unique<WriteTestClusterInt32u>(),               //
-        make_unique<ReadTestClusterInt64u>(),                //
-        make_unique<WriteTestClusterInt64u>(),               //
-        make_unique<ReadTestClusterInt8s>(),                 //
-        make_unique<WriteTestClusterInt8s>(),                //
-        make_unique<ReadTestClusterInt16s>(),                //
-        make_unique<WriteTestClusterInt16s>(),               //
-        make_unique<ReadTestClusterInt32s>(),                //
-        make_unique<WriteTestClusterInt32s>(),               //
-        make_unique<ReadTestClusterInt64s>(),                //
-        make_unique<WriteTestClusterInt64s>(),               //
-        make_unique<ReadTestClusterEnum8>(),                 //
-        make_unique<WriteTestClusterEnum8>(),                //
-        make_unique<ReadTestClusterEnum16>(),                //
-        make_unique<WriteTestClusterEnum16>(),               //
-        make_unique<ReadTestClusterOctetString>(),           //
-        make_unique<WriteTestClusterOctetString>(),          //
-        make_unique<ReadTestClusterListInt8u>(),             //
-        make_unique<ReadTestClusterListOctetString>(),       //
-        make_unique<ReadTestClusterListStructOctetString>(), //
-        make_unique<ReadTestClusterLongOctetString>(),       //
-        make_unique<WriteTestClusterLongOctetString>(),      //
-        make_unique<ReadTestClusterCharString>(),            //
-        make_unique<WriteTestClusterCharString>(),           //
-        make_unique<ReadTestClusterLongCharString>(),        //
-        make_unique<WriteTestClusterLongCharString>(),       //
-        make_unique<ReadTestClusterEpochUs>(),               //
-        make_unique<WriteTestClusterEpochUs>(),              //
-        make_unique<ReadTestClusterEpochS>(),                //
-        make_unique<WriteTestClusterEpochS>(),               //
-        make_unique<ReadTestClusterUnsupported>(),           //
-        make_unique<WriteTestClusterUnsupported>(),          //
-        make_unique<ReadTestClusterClusterRevision>(),       //
+        make_unique<TestClusterTest>(),                                //
+        make_unique<TestClusterTestAddArguments>(),                    //
+        make_unique<TestClusterTestEnumsRequest>(),                    //
+        make_unique<TestClusterTestListInt8UArgumentRequest>(),        //
+        make_unique<TestClusterTestListInt8UReverseRequest>(),         //
+        make_unique<TestClusterTestListStructArgumentRequest>(),       //
+        make_unique<TestClusterTestNotHandled>(),                      //
+        make_unique<TestClusterTestNullableOptionalRequest>(),         //
+        make_unique<TestClusterTestSpecific>(),                        //
+        make_unique<TestClusterTestStructArgumentRequest>(),           //
+        make_unique<TestClusterTestUnknownCommand>(),                  //
+        make_unique<ReadTestClusterBoolean>(),                         //
+        make_unique<WriteTestClusterBoolean>(),                        //
+        make_unique<ReadTestClusterBitmap8>(),                         //
+        make_unique<WriteTestClusterBitmap8>(),                        //
+        make_unique<ReadTestClusterBitmap16>(),                        //
+        make_unique<WriteTestClusterBitmap16>(),                       //
+        make_unique<ReadTestClusterBitmap32>(),                        //
+        make_unique<WriteTestClusterBitmap32>(),                       //
+        make_unique<ReadTestClusterBitmap64>(),                        //
+        make_unique<WriteTestClusterBitmap64>(),                       //
+        make_unique<ReadTestClusterInt8u>(),                           //
+        make_unique<WriteTestClusterInt8u>(),                          //
+        make_unique<ReadTestClusterInt16u>(),                          //
+        make_unique<WriteTestClusterInt16u>(),                         //
+        make_unique<ReadTestClusterInt32u>(),                          //
+        make_unique<WriteTestClusterInt32u>(),                         //
+        make_unique<ReadTestClusterInt64u>(),                          //
+        make_unique<WriteTestClusterInt64u>(),                         //
+        make_unique<ReadTestClusterInt8s>(),                           //
+        make_unique<WriteTestClusterInt8s>(),                          //
+        make_unique<ReadTestClusterInt16s>(),                          //
+        make_unique<WriteTestClusterInt16s>(),                         //
+        make_unique<ReadTestClusterInt32s>(),                          //
+        make_unique<WriteTestClusterInt32s>(),                         //
+        make_unique<ReadTestClusterInt64s>(),                          //
+        make_unique<WriteTestClusterInt64s>(),                         //
+        make_unique<ReadTestClusterEnum8>(),                           //
+        make_unique<WriteTestClusterEnum8>(),                          //
+        make_unique<ReadTestClusterEnum16>(),                          //
+        make_unique<WriteTestClusterEnum16>(),                         //
+        make_unique<ReadTestClusterOctetString>(),                     //
+        make_unique<WriteTestClusterOctetString>(),                    //
+        make_unique<ReadTestClusterListInt8u>(),                       //
+        make_unique<ReadTestClusterListOctetString>(),                 //
+        make_unique<ReadTestClusterListStructOctetString>(),           //
+        make_unique<ReadTestClusterLongOctetString>(),                 //
+        make_unique<WriteTestClusterLongOctetString>(),                //
+        make_unique<ReadTestClusterCharString>(),                      //
+        make_unique<WriteTestClusterCharString>(),                     //
+        make_unique<ReadTestClusterLongCharString>(),                  //
+        make_unique<WriteTestClusterLongCharString>(),                 //
+        make_unique<ReadTestClusterEpochUs>(),                         //
+        make_unique<WriteTestClusterEpochUs>(),                        //
+        make_unique<ReadTestClusterEpochS>(),                          //
+        make_unique<WriteTestClusterEpochS>(),                         //
+        make_unique<ReadTestClusterVendorId>(),                        //
+        make_unique<WriteTestClusterVendorId>(),                       //
+        make_unique<ReadTestClusterListNullablesAndOptionalsStruct>(), //
+        make_unique<ReadTestClusterUnsupported>(),                     //
+        make_unique<WriteTestClusterUnsupported>(),                    //
+        make_unique<ReadTestClusterNullableBoolean>(),                 //
+        make_unique<WriteTestClusterNullableBoolean>(),                //
+        make_unique<ReadTestClusterNullableBitmap8>(),                 //
+        make_unique<WriteTestClusterNullableBitmap8>(),                //
+        make_unique<ReadTestClusterNullableBitmap16>(),                //
+        make_unique<WriteTestClusterNullableBitmap16>(),               //
+        make_unique<ReadTestClusterNullableBitmap32>(),                //
+        make_unique<WriteTestClusterNullableBitmap32>(),               //
+        make_unique<ReadTestClusterNullableBitmap64>(),                //
+        make_unique<WriteTestClusterNullableBitmap64>(),               //
+        make_unique<ReadTestClusterNullableInt8u>(),                   //
+        make_unique<WriteTestClusterNullableInt8u>(),                  //
+        make_unique<ReadTestClusterNullableInt16u>(),                  //
+        make_unique<WriteTestClusterNullableInt16u>(),                 //
+        make_unique<ReadTestClusterNullableInt32u>(),                  //
+        make_unique<WriteTestClusterNullableInt32u>(),                 //
+        make_unique<ReadTestClusterNullableInt64u>(),                  //
+        make_unique<WriteTestClusterNullableInt64u>(),                 //
+        make_unique<ReadTestClusterNullableInt8s>(),                   //
+        make_unique<WriteTestClusterNullableInt8s>(),                  //
+        make_unique<ReadTestClusterNullableInt16s>(),                  //
+        make_unique<WriteTestClusterNullableInt16s>(),                 //
+        make_unique<ReadTestClusterNullableInt32s>(),                  //
+        make_unique<WriteTestClusterNullableInt32s>(),                 //
+        make_unique<ReadTestClusterNullableInt64s>(),                  //
+        make_unique<WriteTestClusterNullableInt64s>(),                 //
+        make_unique<ReadTestClusterNullableEnum8>(),                   //
+        make_unique<WriteTestClusterNullableEnum8>(),                  //
+        make_unique<ReadTestClusterNullableEnum16>(),                  //
+        make_unique<WriteTestClusterNullableEnum16>(),                 //
+        make_unique<ReadTestClusterNullableOctetString>(),             //
+        make_unique<WriteTestClusterNullableOctetString>(),            //
+        make_unique<ReadTestClusterNullableCharString>(),              //
+        make_unique<WriteTestClusterNullableCharString>(),             //
+        make_unique<ReadTestClusterClusterRevision>(),                 //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24630,6 +31489,8 @@ void registerClusterThermostat(Commands & commands)
         make_unique<WriteThermostatMinCoolSetpointLimit>(),       //
         make_unique<ReadThermostatMaxCoolSetpointLimit>(),        //
         make_unique<WriteThermostatMaxCoolSetpointLimit>(),       //
+        make_unique<ReadThermostatMinSetpointDeadBand>(),         //
+        make_unique<WriteThermostatMinSetpointDeadBand>(),        //
         make_unique<ReadThermostatControlSequenceOfOperation>(),  //
         make_unique<WriteThermostatControlSequenceOfOperation>(), //
         make_unique<ReadThermostatSystemMode>(),                  //
@@ -24721,6 +31582,9 @@ void registerClusterThreadNetworkDiagnostics(Commands & commands)
         make_unique<ReadThreadNetworkDiagnosticsRxErrSecCount>(),                     //
         make_unique<ReadThreadNetworkDiagnosticsRxErrFcsCount>(),                     //
         make_unique<ReadThreadNetworkDiagnosticsRxErrOtherCount>(),                   //
+        make_unique<ReadThreadNetworkDiagnosticsActiveTimestamp>(),                   //
+        make_unique<ReadThreadNetworkDiagnosticsPendingTimestamp>(),                  //
+        make_unique<ReadThreadNetworkDiagnosticsDelay>(),                             //
         make_unique<ReadThreadNetworkDiagnosticsSecurityPolicy>(),                    //
         make_unique<ReadThreadNetworkDiagnosticsChannelMask>(),                       //
         make_unique<ReadThreadNetworkDiagnosticsOperationalDatasetComponents>(),      //
@@ -24746,13 +31610,21 @@ void registerClusterWiFiNetworkDiagnostics(Commands & commands)
     const char * clusterName = "WiFiNetworkDiagnostics";
 
     commands_list clusterCommands = {
-        make_unique<WiFiNetworkDiagnosticsResetCounts>(),         //
-        make_unique<ReadWiFiNetworkDiagnosticsBssid>(),           //
-        make_unique<ReadWiFiNetworkDiagnosticsSecurityType>(),    //
-        make_unique<ReadWiFiNetworkDiagnosticsWiFiVersion>(),     //
-        make_unique<ReadWiFiNetworkDiagnosticsChannelNumber>(),   //
-        make_unique<ReadWiFiNetworkDiagnosticsRssi>(),            //
-        make_unique<ReadWiFiNetworkDiagnosticsClusterRevision>(), //
+        make_unique<WiFiNetworkDiagnosticsResetCounts>(),                //
+        make_unique<ReadWiFiNetworkDiagnosticsBssid>(),                  //
+        make_unique<ReadWiFiNetworkDiagnosticsSecurityType>(),           //
+        make_unique<ReadWiFiNetworkDiagnosticsWiFiVersion>(),            //
+        make_unique<ReadWiFiNetworkDiagnosticsChannelNumber>(),          //
+        make_unique<ReadWiFiNetworkDiagnosticsRssi>(),                   //
+        make_unique<ReadWiFiNetworkDiagnosticsBeaconLostCount>(),        //
+        make_unique<ReadWiFiNetworkDiagnosticsBeaconRxCount>(),          //
+        make_unique<ReadWiFiNetworkDiagnosticsPacketMulticastRxCount>(), //
+        make_unique<ReadWiFiNetworkDiagnosticsPacketMulticastTxCount>(), //
+        make_unique<ReadWiFiNetworkDiagnosticsPacketUnicastRxCount>(),   //
+        make_unique<ReadWiFiNetworkDiagnosticsPacketUnicastTxCount>(),   //
+        make_unique<ReadWiFiNetworkDiagnosticsCurrentMaxRate>(),         //
+        make_unique<ReadWiFiNetworkDiagnosticsOverrunCount>(),           //
+        make_unique<ReadWiFiNetworkDiagnosticsClusterRevision>(),        //
     };
 
     commands.Register(clusterName, clusterCommands);
@@ -24796,6 +31668,7 @@ void registerClusterWindowCovering(Commands & commands)
         make_unique<WriteWindowCoveringMode>(),                              //
         make_unique<ReadWindowCoveringSafetyStatus>(),                       //
         make_unique<ReportWindowCoveringSafetyStatus>(),                     //
+        make_unique<ReadWindowCoveringFeatureMap>(),                         //
         make_unique<ReadWindowCoveringClusterRevision>(),                    //
     };
 
@@ -24813,6 +31686,8 @@ void registerClusters(Commands & commands)
     registerClusterBasic(commands);
     registerClusterBinaryInputBasic(commands);
     registerClusterBinding(commands);
+    registerClusterBooleanState(commands);
+    registerClusterBridgedActions(commands);
     registerClusterBridgedDeviceBasic(commands);
     registerClusterColorControl(commands);
     registerClusterContentLauncher(commands);
@@ -24828,11 +31703,13 @@ void registerClusters(Commands & commands)
     registerClusterGroupKeyManagement(commands);
     registerClusterGroups(commands);
     registerClusterIdentify(commands);
+    registerClusterIlluminanceMeasurement(commands);
     registerClusterKeypadInput(commands);
     registerClusterLevelControl(commands);
     registerClusterLowPower(commands);
     registerClusterMediaInput(commands);
     registerClusterMediaPlayback(commands);
+    registerClusterModeSelect(commands);
     registerClusterNetworkCommissioning(commands);
     registerClusterOtaSoftwareUpdateProvider(commands);
     registerClusterOtaSoftwareUpdateRequestor(commands);
@@ -24840,6 +31717,7 @@ void registerClusters(Commands & commands)
     registerClusterOnOff(commands);
     registerClusterOnOffSwitchConfiguration(commands);
     registerClusterOperationalCredentials(commands);
+    registerClusterPowerSource(commands);
     registerClusterPressureMeasurement(commands);
     registerClusterPumpConfigurationAndControl(commands);
     registerClusterRelativeHumidityMeasurement(commands);

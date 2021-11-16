@@ -66,7 +66,8 @@ exclude:
     - "third_party/cirque/repo/**/*"
     - "third_party/nanopb/repo/**/*"
     - "src/android/CHIPTool/gradlew" # gradle wrapper generated file
-    - "src/controller/python/chip/clusters/CHIPClusters.py" # generated file
+    - "third_party/android_deps/gradlew" # gradle wrapper generated file
+    - "scripts/tests/test_suites.sh" # overly agressive shell harden
 
 
 changed_paths:

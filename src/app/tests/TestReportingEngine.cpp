@@ -22,8 +22,10 @@
  *
  */
 
+#include <app/ConcreteAttributePath.h>
 #include <app/InteractionModelEngine.h>
 #include <app/reporting/Engine.h>
+#include <app/tests/AppTestContext.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/core/CHIPTLV.h>
 #include <lib/core/CHIPTLVDebug.hpp>
@@ -31,55 +33,20 @@
 #include <lib/support/ErrorStr.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <messaging/ExchangeContext.h>
-#include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
-#include <platform/CHIPDeviceLayer.h>
-#include <protocols/secure_channel/MessageCounterManager.h>
-#include <protocols/secure_channel/PASESession.h>
-#include <system/SystemLayerImpl.h>
-#include <system/SystemPacketBuffer.h>
-#include <system/TLVPacketBufferBackingStore.h>
-#include <transport/SessionManager.h>
-#include <transport/raw/UDP.h>
 
 #include <nlunit-test.h>
 
+using TestContext = chip::Test::AppContext;
+
 namespace chip {
-static System::LayerImpl gSystemLayer;
-static SessionManager gSessionManager;
-static Messaging::ExchangeManager gExchangeManager;
-static TransportMgr<Transport::UDP> gTransportManager;
-static secure_channel::MessageCounterManager gMessageCounterManager;
+
 constexpr ClusterId kTestClusterId        = 6;
 constexpr EndpointId kTestEndpointId      = 1;
 constexpr chip::AttributeId kTestFieldId1 = 1;
 constexpr chip::AttributeId kTestFieldId2 = 2;
-constexpr uint8_t kTestFieldValue1        = 1;
-constexpr uint8_t kTestFieldValue2        = 2;
 
 namespace app {
-CHIP_ERROR ReadSingleClusterData(AttributePathParams & aAttributePathParams, TLV::TLVWriter * apWriter, bool * apDataExists)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    VerifyOrExit(aAttributePathParams.mClusterId == kTestClusterId && aAttributePathParams.mEndpointId == kTestEndpointId,
-                 err = CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrExit(apWriter != nullptr, /* no op */);
-
-    if (aAttributePathParams.mFieldId == kTestFieldId1)
-    {
-        err = apWriter->Put(TLV::ContextTag(kTestFieldId1), kTestFieldValue1);
-        SuccessOrExit(err);
-    }
-    if (aAttributePathParams.mFieldId == kTestFieldId2)
-    {
-        err = apWriter->Put(TLV::ContextTag(kTestFieldId2), kTestFieldValue2);
-        SuccessOrExit(err);
-    }
-
-exit:
-    return err;
-}
-
 namespace reporting {
 class TestReportingEngine
 {
@@ -100,17 +67,18 @@ class TestExchangeDelegate : public Messaging::ExchangeDelegate
 
 void TestReportingEngine::TestBuildAndSendSingleReportData(nlTestSuite * apSuite, void * apContext)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    TestContext & ctx = *static_cast<TestContext *>(apContext);
+    CHIP_ERROR err    = CHIP_NO_ERROR;
     app::ReadHandler readHandler;
     System::PacketBufferTLVWriter writer;
     System::PacketBufferHandle readRequestbuf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
-    ReadRequest::Builder readRequestBuilder;
-    AttributePathList::Builder attributePathListBuilder;
-    AttributePath::Builder attributePathBuilder;
+    ReadRequestMessage::Builder readRequestBuilder;
+    AttributePathIBs::Builder attributePathListBuilder;
+    AttributePathIB::Builder attributePathBuilder;
 
-    err = InteractionModelEngine::GetInstance()->Init(&gExchangeManager, nullptr);
+    err = InteractionModelEngine::GetInstance()->Init(&ctx.GetExchangeManager(), nullptr);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    Messaging::ExchangeContext * exchangeCtx = gExchangeManager.NewContext(SessionHandle(0, 0, 0, 0), nullptr);
+    Messaging::ExchangeContext * exchangeCtx = ctx.GetExchangeManager().NewContext(SessionHandle(0, 0, 0, 0), nullptr);
     TestExchangeDelegate delegate;
     exchangeCtx->SetDelegate(&delegate);
 
@@ -119,31 +87,31 @@ void TestReportingEngine::TestBuildAndSendSingleReportData(nlTestSuite * apSuite
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
     attributePathListBuilder = readRequestBuilder.CreateAttributePathListBuilder();
     NL_TEST_ASSERT(apSuite, readRequestBuilder.GetError() == CHIP_NO_ERROR);
-    attributePathBuilder = attributePathListBuilder.CreateAttributePathBuilder();
+    attributePathBuilder = attributePathListBuilder.CreateAttributePath();
     NL_TEST_ASSERT(apSuite, attributePathListBuilder.GetError() == CHIP_NO_ERROR);
-    attributePathBuilder = attributePathBuilder.NodeId(1)
-                               .EndpointId(kTestEndpointId)
-                               .ClusterId(kTestClusterId)
-                               .FieldId(kTestFieldId1)
-                               .EndOfAttributePath();
+    attributePathBuilder = attributePathBuilder.Node(1)
+                               .Endpoint(kTestEndpointId)
+                               .Cluster(kTestClusterId)
+                               .Attribute(kTestFieldId1)
+                               .EndOfAttributePathIB();
     NL_TEST_ASSERT(apSuite, attributePathBuilder.GetError() == CHIP_NO_ERROR);
 
-    attributePathBuilder = attributePathListBuilder.CreateAttributePathBuilder();
+    attributePathBuilder = attributePathListBuilder.CreateAttributePath();
     NL_TEST_ASSERT(apSuite, attributePathListBuilder.GetError() == CHIP_NO_ERROR);
-    attributePathBuilder = attributePathBuilder.NodeId(1)
-                               .EndpointId(kTestEndpointId)
-                               .ClusterId(kTestClusterId)
-                               .FieldId(kTestFieldId2)
-                               .EndOfAttributePath();
+    attributePathBuilder = attributePathBuilder.Node(1)
+                               .Endpoint(kTestEndpointId)
+                               .Cluster(kTestClusterId)
+                               .Attribute(kTestFieldId2)
+                               .EndOfAttributePathIB();
     NL_TEST_ASSERT(apSuite, attributePathBuilder.GetError() == CHIP_NO_ERROR);
-    attributePathListBuilder.EndOfAttributePathList();
+    attributePathListBuilder.EndOfAttributePathIBs();
 
     NL_TEST_ASSERT(apSuite, readRequestBuilder.GetError() == CHIP_NO_ERROR);
-    readRequestBuilder.EndOfReadRequest();
+    readRequestBuilder.EndOfReadRequestMessage();
     NL_TEST_ASSERT(apSuite, readRequestBuilder.GetError() == CHIP_NO_ERROR);
     err = writer.Finalize(&readRequestbuf);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    readHandler.Init(&gExchangeManager, nullptr, exchangeCtx, chip::app::ReadHandler::InteractionType::Read);
+    readHandler.Init(&ctx.GetExchangeManager(), nullptr, exchangeCtx, chip::app::ReadHandler::InteractionType::Read);
     readHandler.OnReadInitialRequest(std::move(readRequestbuf));
     err = InteractionModelEngine::GetInstance()->GetReportingEngine().BuildAndSendSingleReportData(&readHandler);
     NL_TEST_ASSERT(apSuite, err == CHIP_ERROR_NOT_CONNECTED);
@@ -154,55 +122,31 @@ void TestReportingEngine::TestBuildAndSendSingleReportData(nlTestSuite * apSuite
 } // namespace chip
 
 namespace {
-void InitializeChip(nlTestSuite * apSuite)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::Optional<chip::Transport::PeerAddress> peer(chip::Transport::Type::kUndefined);
-    chip::Transport::FabricTable fabrics;
-
-    err = chip::Platform::MemoryInit();
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-
-    chip::gSystemLayer.Init();
-
-    err = chip::gSessionManager.Init(&chip::gSystemLayer, &chip::gTransportManager, &fabrics, &chip::gMessageCounterManager);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-
-    err = chip::gExchangeManager.Init(&chip::gSessionManager);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-
-    err = chip::gMessageCounterManager.Init(&chip::gExchangeManager);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-}
-
 // clang-format off
 const nlTest sTests[] =
-        {
-                NL_TEST_DEF("CheckBuildAndSendSingleReportData", chip::app::reporting::TestReportingEngine::TestBuildAndSendSingleReportData),
-                NL_TEST_SENTINEL()
-        };
+{
+    NL_TEST_DEF("CheckBuildAndSendSingleReportData", chip::app::reporting::TestReportingEngine::TestBuildAndSendSingleReportData),
+    NL_TEST_SENTINEL()
+};
 // clang-format on
+
+// clang-format off
+nlTestSuite sSuite =
+{
+    "TestReportingEngine",
+    &sTests[0],
+    TestContext::Initialize,
+    TestContext::Finalize
+};
+// clang-format on
+
 } // namespace
 
 int TestReportingEngine()
 {
-    // clang-format off
-    nlTestSuite theSuite =
-	{
-        "TestReportingEngine",
-        &sTests[0],
-        nullptr,
-        nullptr
-    };
-    // clang-format on
-
-    InitializeChip(&theSuite);
-
-    nlTestRunner(&theSuite, nullptr);
-
-    chip::gSystemLayer.Shutdown();
-
-    return (nlTestRunnerStats(&theSuite));
+    TestContext gContext;
+    nlTestRunner(&sSuite, &gContext);
+    return (nlTestRunnerStats(&sSuite));
 }
 
 CHIP_REGISTER_TEST_SUITE(TestReportingEngine)

@@ -42,9 +42,9 @@ CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
 CONFIG_DEVICE_VENDOR_ID=0x235A
 CONFIG_DEVICE_PRODUCT_ID=0x4541
 
-# Main task needs a bit more stack than the default
-# default is 3584, bump this up to 5k.
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=5120
-
 #enable debug shell
 CONFIG_ENABLE_CHIP_SHELL=y
+
+#enable lwIP route hooks
+CONFIG_LWIP_HOOK_IP6_ROUTE_DEFAULT=y
+CONFIG_LWIP_HOOK_ND6_GET_GW_DEFAULT=y

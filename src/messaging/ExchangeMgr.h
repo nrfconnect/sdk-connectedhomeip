@@ -184,6 +184,8 @@ public:
      */
     void CloseAllContextsForDelegate(const ExchangeDelegate * delegate);
 
+    // TODO Store more than one delegate and add API to query delegates to check if incoming messages are for them.
+    // Do the same for the UMHs as well
     void SetDelegate(ExchangeMgrDelegate * delegate) { mDelegate = delegate; }
 
     SessionManager * GetSessionManager() const { return mSessionManager; }
@@ -193,6 +195,8 @@ public:
     FabricIndex GetFabricIndex() { return mFabricIndex; }
 
     uint16_t GetNextKeyId() { return ++mNextKeyId; }
+
+    size_t GetNumActiveExchanges() { return mContextPool.Allocated(); }
 
 private:
     enum class State

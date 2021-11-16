@@ -16,12 +16,10 @@
  */
 #pragma once
 
-#include <credentials/CHIPOperationalCredentials.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <protocols/secure_channel/PASESession.h>
-#include <transport/FabricTable.h>
 #include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/tests/NetworkTestHelpers.h>
@@ -44,7 +42,7 @@ public:
     ~MessagingContext() { VerifyOrDie(mInitialized == false); }
 
     /// Initialize the underlying layers and test suite pointer
-    CHIP_ERROR Init(nlTestSuite * suite, TransportMgrBase * transport, IOContext * io);
+    CHIP_ERROR Init(TransportMgrBase * transport, IOContext * io);
 
     // Shutdown all layers, finalize operations
     CHIP_ERROR Shutdown();
@@ -52,7 +50,7 @@ public:
     static Inet::IPAddress GetAddress()
     {
         Inet::IPAddress addr;
-        Inet::IPAddress::FromString("127.0.0.1", addr);
+        Inet::IPAddress::FromString("::1", addr);
         return addr;
     }
     NodeId GetBobNodeId() const { return mBobNodeId; }
@@ -63,6 +61,7 @@ public:
 
     uint16_t GetBobKeyId() const { return mBobKeyId; }
     uint16_t GetAliceKeyId() const { return mAliceKeyId; }
+    GroupId GetFriendsGroupId() const { return mFriendsGroupId; }
 
     void SetBobKeyId(uint16_t id) { mBobKeyId = id; }
     void SetAliceKeyId(uint16_t id) { mAliceKeyId = id; }
@@ -80,14 +79,13 @@ public:
 
     SessionHandle GetSessionBobToAlice();
     SessionHandle GetSessionAliceToBob();
+    SessionHandle GetSessionBobToFriends();
 
     Messaging::ExchangeContext * NewUnauthenticatedExchangeToAlice(Messaging::ExchangeDelegate * delegate);
     Messaging::ExchangeContext * NewUnauthenticatedExchangeToBob(Messaging::ExchangeDelegate * delegate);
 
     Messaging::ExchangeContext * NewExchangeToAlice(Messaging::ExchangeDelegate * delegate);
     Messaging::ExchangeContext * NewExchangeToBob(Messaging::ExchangeDelegate * delegate);
-
-    Credentials::OperationalCredentialSet & GetOperationalCredentialSet() { return mOperationalCredentialSet; }
 
     System::Layer & GetSystemLayer() { return mIOContext->GetSystemLayer(); }
 
@@ -98,18 +96,17 @@ private:
     secure_channel::MessageCounterManager mMessageCounterManager;
     IOContext * mIOContext;
 
-    NodeId mBobNodeId    = 123654;
-    NodeId mAliceNodeId  = 111222333;
-    uint16_t mBobKeyId   = 1;
-    uint16_t mAliceKeyId = 2;
+    NodeId mBobNodeId       = 123654;
+    NodeId mAliceNodeId     = 111222333;
+    uint16_t mBobKeyId      = 1;
+    uint16_t mAliceKeyId    = 2;
+    GroupId mFriendsGroupId = 517;
     Transport::PeerAddress mAliceAddress;
     Transport::PeerAddress mBobAddress;
     SecurePairingUsingTestSecret mPairingAliceToBob;
     SecurePairingUsingTestSecret mPairingBobToAlice;
-    Transport::FabricTable mFabrics;
     FabricIndex mSrcFabricIndex  = 0;
     FabricIndex mDestFabricIndex = 0;
-    Credentials::OperationalCredentialSet mOperationalCredentialSet;
 };
 
 } // namespace Test

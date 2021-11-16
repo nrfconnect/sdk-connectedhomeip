@@ -26,9 +26,6 @@
 // Include module header
 #include <system/SystemTimer.h>
 
-// Include common private header
-#include "SystemLayerPrivate.h"
-
 // Include local headers
 #include <string.h>
 
@@ -77,26 +74,43 @@ namespace System {
  *******************************************************************************
  */
 
-ObjectPool<Timer, CHIP_SYSTEM_CONFIG_NUM_TIMERS> Timer::sPool;
+BitMapObjectPool<Timer, CHIP_SYSTEM_CONFIG_NUM_TIMERS> Timer::sPool;
+Stats::count_t Timer::mNumInUse      = 0;
+Stats::count_t Timer::mHighWatermark = 0;
 
-Timer * Timer::New(System::Layer & systemLayer, uint32_t delayMilliseconds, TimerCompleteCallback onComplete, void * appState)
+Timer * Timer::New(System::Layer & systemLayer, System::Clock::Timeout delay, TimerCompleteCallback onComplete, void * appState)
 {
-    Timer * timer = Timer::sPool.TryCreate();
+    Timer * timer = Timer::sPool.CreateObject();
     if (timer == nullptr)
     {
         ChipLogError(chipSystemLayer, "Timer pool EMPTY");
     }
     else
     {
-        timer->AppState     = appState;
+        timer->mAppState    = appState;
         timer->mSystemLayer = &systemLayer;
-        timer->mAwakenTime  = Clock::GetMonotonicMilliseconds() + static_cast<Clock::MonotonicMilliseconds>(delayMilliseconds);
+        timer->mAwakenTime  = SystemClock().GetMonotonicTimestamp() + delay;
         if (!__sync_bool_compare_and_swap(&timer->mOnComplete, nullptr, onComplete))
         {
             chipDie();
         }
+#if CHIP_SYSTEM_CONFIG_PROVIDE_STATISTICS
+        static_assert(CHIP_SYSTEM_CONFIG_NUM_TIMERS < CHIP_SYS_STATS_COUNT_MAX, "Stats count is too small");
+        if (++mNumInUse > mHighWatermark)
+        {
+            mHighWatermark = mNumInUse;
+        }
+#endif // CHIP_SYSTEM_CONFIG_PROVIDE_STATISTICS
     }
     return timer;
+}
+
+void Timer::Release()
+{
+    Timer::sPool.ReleaseObject(this);
+#if CHIP_SYSTEM_CONFIG_PROVIDE_STATISTICS
+    --mNumInUse;
+#endif // CHIP_SYSTEM_CONFIG_PROVIDE_STATISTICS
 }
 
 void Timer::Clear()
@@ -110,7 +124,7 @@ void Timer::Clear()
     VerifyOrReturn(__sync_bool_compare_and_swap(&mOnComplete, lOnComplete, nullptr));
 
     // Since this thread changed the state of mOnComplete, release the timer.
-    AppState     = nullptr;
+    mAppState    = nullptr;
     mSystemLayer = nullptr;
 }
 
@@ -119,7 +133,7 @@ void Timer::HandleComplete()
     // Save information needed to perform the callback.
     Layer * lLayer                          = this->mSystemLayer;
     const TimerCompleteCallback lOnComplete = this->mOnComplete;
-    void * lAppState                        = this->AppState;
+    void * lAppState                        = this->mAppState;
 
     // Check if timer is armed
     VerifyOrReturn(lOnComplete != nullptr, );
@@ -127,7 +141,7 @@ void Timer::HandleComplete()
     VerifyOrReturn(__sync_bool_compare_and_swap(&this->mOnComplete, lOnComplete, nullptr), );
 
     // Since this thread changed the state of mOnComplete, release the timer.
-    AppState     = nullptr;
+    mAppState    = nullptr;
     mSystemLayer = nullptr;
     this->Release();
 
@@ -139,7 +153,7 @@ void Timer::HandleComplete()
 Timer * Timer::List::Add(Timer * add)
 {
     VerifyOrDie(add != mHead);
-    if (mHead == NULL || Clock::IsEarlier(add->mAwakenTime, mHead->mAwakenTime))
+    if (mHead == NULL || (add->mAwakenTime < mHead->mAwakenTime))
     {
         add->mNextTimer = mHead;
         mHead           = add;
@@ -150,7 +164,7 @@ Timer * Timer::List::Add(Timer * add)
         while (lTimer->mNextTimer)
         {
             VerifyOrDie(lTimer->mNextTimer != add);
-            if (Clock::IsEarlier(add->mAwakenTime, lTimer->mNextTimer->mAwakenTime))
+            if (add->mAwakenTime < lTimer->mNextTimer->mAwakenTime)
             {
                 // found the insert location.
                 break;
@@ -196,7 +210,7 @@ Timer * Timer::List::Remove(TimerCompleteCallback aOnComplete, void * aAppState)
     Timer * previous = nullptr;
     for (Timer * timer = mHead; timer != nullptr; timer = timer->mNextTimer)
     {
-        if (timer->mOnComplete == aOnComplete && timer->AppState == aAppState)
+        if (timer->mOnComplete == aOnComplete && timer->mAppState == aAppState)
         {
             if (previous == nullptr)
             {
@@ -226,9 +240,9 @@ Timer * Timer::List::PopEarliest()
     return earliest;
 }
 
-Timer * Timer::List::PopIfEarlier(Clock::MonotonicMilliseconds t)
+Timer * Timer::List::PopIfEarlier(Clock::Timestamp t)
 {
-    if ((mHead == nullptr) || !Clock::IsEarlier(mHead->mAwakenTime, t))
+    if ((mHead == nullptr) || !(mHead->mAwakenTime < t))
     {
         return nullptr;
     }
@@ -238,15 +252,15 @@ Timer * Timer::List::PopIfEarlier(Clock::MonotonicMilliseconds t)
     return earliest;
 }
 
-Timer * Timer::List::ExtractEarlier(Clock::MonotonicMilliseconds t)
+Timer * Timer::List::ExtractEarlier(Clock::Timestamp t)
 {
-    if ((mHead == nullptr) || !Clock::IsEarlier(mHead->mAwakenTime, t))
+    if ((mHead == nullptr) || !(mHead->mAwakenTime < t))
     {
         return nullptr;
     }
     Timer * begin = mHead;
     Timer * end   = mHead;
-    while ((end->mNextTimer != nullptr) && Clock::IsEarlier(end->mNextTimer->mAwakenTime, t))
+    while ((end->mNextTimer != nullptr) && (end->mNextTimer->mAwakenTime < t))
     {
         end = end->mNextTimer;
     }

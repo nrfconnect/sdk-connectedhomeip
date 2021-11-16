@@ -18,9 +18,10 @@
 
 #include <app/AppBuildConfig.h>
 #include <app/InteractionModelEngine.h>
-#include <app/MessageDef/EventPath.h>
+#include <app/MessageDef/EventPathIB.h>
 #include <app/WriteHandler.h>
 #include <app/reporting/Engine.h>
+#include <app/util/MatterCallbacks.h>
 #include <lib/support/TypeTraits.h>
 
 namespace chip {
@@ -36,8 +37,8 @@ CHIP_ERROR WriteHandler::Init(InteractionModelDelegate * apDelegate)
     mMessageWriter.Init(std::move(packet));
     ReturnLogErrorOnFailure(mWriteResponseBuilder.Init(&mMessageWriter));
 
-    AttributeStatusList::Builder attributeStatusListBuilder = mWriteResponseBuilder.CreateAttributeStatusListBuilder();
-    ReturnLogErrorOnFailure(attributeStatusListBuilder.GetError());
+    AttributeStatuses::Builder attributeStatusesBuilder = mWriteResponseBuilder.CreateWriteResponses();
+    ReturnLogErrorOnFailure(attributeStatusesBuilder.GetError());
 
     MoveToState(State::Initialized);
 
@@ -69,13 +70,13 @@ exit:
 CHIP_ERROR WriteHandler::FinalizeMessage(System::PacketBufferHandle & packet)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    AttributeStatusList::Builder attributeStatusList;
-    VerifyOrExit(mState == State::AddAttributeStatusCode, err = CHIP_ERROR_INCORRECT_STATE);
-    attributeStatusList = mWriteResponseBuilder.GetAttributeStatusListBuilder().EndOfAttributeStatusList();
-    err                 = attributeStatusList.GetError();
+    AttributeStatuses::Builder attributeStatuses;
+    VerifyOrExit(mState == State::AddStatus, err = CHIP_ERROR_INCORRECT_STATE);
+    attributeStatuses = mWriteResponseBuilder.GetWriteResponses().EndOfAttributeStatuses();
+    err               = attributeStatuses.GetError();
     SuccessOrExit(err);
 
-    mWriteResponseBuilder.EndOfWriteResponse();
+    mWriteResponseBuilder.EndOfWriteResponseMessage();
     err = mWriteResponseBuilder.GetError();
     SuccessOrExit(err);
 
@@ -91,7 +92,7 @@ CHIP_ERROR WriteHandler::SendWriteResponse()
     CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferHandle packet;
 
-    VerifyOrExit(mState == State::AddAttributeStatusCode, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mState == State::AddStatus, err = CHIP_ERROR_INCORRECT_STATE);
 
     err = FinalizeMessage(packet);
     SuccessOrExit(err);
@@ -106,52 +107,60 @@ exit:
     return err;
 }
 
-CHIP_ERROR WriteHandler::ProcessAttributeDataList(TLV::TLVReader & aAttributeDataListReader)
+CHIP_ERROR WriteHandler::ProcessAttributeDataIBs(TLV::TLVReader & aAttributeDataIBsReader)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    while (CHIP_NO_ERROR == (err = aAttributeDataListReader.Next()))
+    while (CHIP_NO_ERROR == (err = aAttributeDataIBsReader.Next()))
     {
         chip::TLV::TLVReader dataReader;
-        AttributeDataElement::Parser element;
-        AttributePath::Parser attributePath;
+        AttributeDataIB::Parser element;
+        AttributePathIB::Parser attributePath;
         ClusterInfo clusterInfo;
-        TLV::TLVReader reader = aAttributeDataListReader;
+        TLV::TLVReader reader = aAttributeDataIBsReader;
         err                   = element.Init(reader);
         SuccessOrExit(err);
 
-        err = element.GetAttributePath(&attributePath);
+        err = element.GetPath(&attributePath);
         SuccessOrExit(err);
 
-        err = attributePath.GetNodeId(&(clusterInfo.mNodeId));
-        SuccessOrExit(err);
+        // We are using the feature that the parser won't touch the value if the field does not exist, since all fields in the
+        // cluster info will be invalid / wildcard, it is safe ignore CHIP_END_OF_TLV directly.
 
-        err = attributePath.GetEndpointId(&(clusterInfo.mEndpointId));
-        SuccessOrExit(err);
-
-        err = attributePath.GetClusterId(&(clusterInfo.mClusterId));
-        SuccessOrExit(err);
-
-        err = attributePath.GetFieldId(&(clusterInfo.mFieldId));
-        if (CHIP_NO_ERROR == err)
-        {
-            clusterInfo.mFlags.Set(ClusterInfo::Flags::kFieldIdValid);
-        }
-        else if (CHIP_END_OF_TLV == err)
+        err = attributePath.GetNode(&(clusterInfo.mNodeId));
+        if (CHIP_END_OF_TLV == err)
         {
             err = CHIP_NO_ERROR;
         }
+
+        err = attributePath.GetEndpoint(&(clusterInfo.mEndpointId));
+        SuccessOrExit(err);
+
+        err = attributePath.GetCluster(&(clusterInfo.mClusterId));
+        SuccessOrExit(err);
+
+        err = attributePath.GetAttribute(&(clusterInfo.mAttributeId));
         SuccessOrExit(err);
 
         err = attributePath.GetListIndex(&(clusterInfo.mListIndex));
-        if (CHIP_NO_ERROR == err)
+        if (CHIP_END_OF_TLV == err)
         {
-            VerifyOrExit(clusterInfo.mFlags.Has(ClusterInfo::Flags::kFieldIdValid), err = CHIP_ERROR_IM_MALFORMED_ATTRIBUTE_PATH);
-            clusterInfo.mFlags.Set(ClusterInfo::Flags::kListIndexValid);
+            err = CHIP_NO_ERROR;
         }
+
+        // We do not support Wildcard writes for now, reject all wildcard write requests.
+        VerifyOrExit(clusterInfo.IsValidAttributePath() && !clusterInfo.HasWildcard(),
+                     err = CHIP_ERROR_IM_MALFORMED_ATTRIBUTE_PATH);
 
         err = element.GetData(&dataReader);
         SuccessOrExit(err);
-        err = WriteSingleClusterData(clusterInfo, dataReader, this);
+
+        {
+            const ConcreteAttributePath concretePath =
+                ConcreteAttributePath(clusterInfo.mEndpointId, clusterInfo.mClusterId, clusterInfo.mAttributeId);
+            MatterPreAttributeWriteCallback(concretePath);
+            err = WriteSingleClusterData(clusterInfo, dataReader, this);
+            MatterPostAttributeWriteCallback(concretePath);
+        }
         SuccessOrExit(err);
     }
 
@@ -169,9 +178,9 @@ CHIP_ERROR WriteHandler::ProcessWriteRequest(System::PacketBufferHandle && aPayl
     CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferTLVReader reader;
 
-    WriteRequest::Parser writeRequestParser;
-    AttributeDataList::Parser attributeDataListParser;
-    TLV::TLVReader attributeDataListReader;
+    WriteRequestMessage::Parser writeRequestParser;
+    AttributeDataIBs::Parser AttributeDataIBsParser;
+    TLV::TLVReader AttributeDataIBsReader;
     bool needSuppressResponse = false;
 
     reader.Init(std::move(aPayload));
@@ -193,63 +202,45 @@ CHIP_ERROR WriteHandler::ProcessWriteRequest(System::PacketBufferHandle && aPayl
     }
     SuccessOrExit(err);
 
-    err = writeRequestParser.GetAttributeDataList(&attributeDataListParser);
+    err = writeRequestParser.GetAttributeReportIBs(&AttributeDataIBsParser);
     SuccessOrExit(err);
-    attributeDataListParser.GetReader(&attributeDataListReader);
-    err = ProcessAttributeDataList(attributeDataListReader);
+    AttributeDataIBsParser.GetReader(&AttributeDataIBsReader);
+    err = ProcessAttributeDataIBs(AttributeDataIBsReader);
 
 exit:
     return err;
 }
 
 CHIP_ERROR WriteHandler::ConstructAttributePath(const AttributePathParams & aAttributePathParams,
-                                                AttributeStatusElement::Builder aAttributeStatusElement)
+                                                AttributeStatusIB::Builder aAttributeStatusIB)
 {
-    AttributePath::Builder attributePath = aAttributeStatusElement.CreateAttributePathBuilder();
-    if (aAttributePathParams.mFlags.Has(AttributePathParams::Flags::kFieldIdValid))
-    {
-        attributePath.FieldId(aAttributePathParams.mFieldId);
-    }
-
-    if (aAttributePathParams.mFlags.Has(AttributePathParams::Flags::kListIndexValid))
-    {
-        attributePath.ListIndex(aAttributePathParams.mListIndex);
-    }
-
-    attributePath.NodeId(aAttributePathParams.mNodeId)
-        .ClusterId(aAttributePathParams.mClusterId)
-        .EndpointId(aAttributePathParams.mEndpointId)
-        .EndOfAttributePath();
-
-    return attributePath.GetError();
+    AttributePathIB::Builder attributePath = aAttributeStatusIB.CreatePath();
+    return aAttributePathParams.BuildAttributePath(attributePath);
 }
 
-CHIP_ERROR WriteHandler::AddAttributeStatusCode(const AttributePathParams & aAttributePathParams,
-                                                const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
-                                                const Protocols::Id aProtocolId,
-                                                const Protocols::InteractionModel::ProtocolCode aProtocolCode)
+CHIP_ERROR WriteHandler::AddStatus(const AttributePathParams & aAttributePathParams,
+                                   const Protocols::InteractionModel::Status aStatus)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    StatusElement::Builder statusElementBuilder;
-    AttributeStatusElement::Builder attributeStatusElement =
-        mWriteResponseBuilder.GetAttributeStatusListBuilder().CreateAttributeStatusBuilder();
-    err = attributeStatusElement.GetError();
+    StatusIB::Builder statusIBBuilder;
+    StatusIB statusIB;
+    AttributeStatusIB::Builder attributeStatusIB = mWriteResponseBuilder.GetWriteResponses().CreateAttributeStatus();
+    err                                          = attributeStatusIB.GetError();
     SuccessOrExit(err);
 
-    err = ConstructAttributePath(aAttributePathParams, attributeStatusElement);
+    err = ConstructAttributePath(aAttributePathParams, attributeStatusIB);
     SuccessOrExit(err);
 
-    statusElementBuilder = attributeStatusElement.CreateStatusElementBuilder();
-    statusElementBuilder
-        .EncodeStatusElement(aGeneralCode, aProtocolId.ToFullyQualifiedSpecForm(), chip::to_underlying(aProtocolCode))
-        .EndOfStatusElement();
-    err = statusElementBuilder.GetError();
+    statusIB.mStatus = aStatus;
+    statusIBBuilder  = attributeStatusIB.CreateErrorStatus();
+    statusIBBuilder.EncodeStatusIB(statusIB);
+    err = statusIBBuilder.GetError();
     SuccessOrExit(err);
 
-    attributeStatusElement.EndOfAttributeStatusElement();
-    err = attributeStatusElement.GetError();
+    attributeStatusIB.EndOfAttributeStatusIB();
+    err = attributeStatusIB.GetError();
     SuccessOrExit(err);
-    MoveToState(State::AddAttributeStatusCode);
+    MoveToState(State::AddStatus);
 
 exit:
     return err;
@@ -266,8 +257,8 @@ const char * WriteHandler::GetStateStr() const
     case State::Initialized:
         return "Initialized";
 
-    case State::AddAttributeStatusCode:
-        return "AddAttributeStatusCode";
+    case State::AddStatus:
+        return "AddStatus";
     case State::Sending:
         return "Sending";
     }
@@ -288,3 +279,6 @@ void WriteHandler::ClearState()
 
 } // namespace app
 } // namespace chip
+
+void __attribute__((weak)) MatterPreAttributeWriteCallback(const chip::app::ConcreteAttributePath & attributePath) {}
+void __attribute__((weak)) MatterPostAttributeWriteCallback(const chip::app::ConcreteAttributePath & attributePath) {}

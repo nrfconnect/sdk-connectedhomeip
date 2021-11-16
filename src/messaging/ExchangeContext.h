@@ -28,7 +28,6 @@
 #include <lib/support/DLLUtil.h>
 #include <lib/support/ReferenceCountedHandle.h>
 #include <lib/support/TypeTraits.h>
-#include <messaging/ExchangeACL.h>
 #include <messaging/ExchangeDelegate.h>
 #include <messaging/Flags.h>
 #include <messaging/ReliableMessageContext.h>
@@ -62,7 +61,7 @@ class DLL_EXPORT ExchangeContext : public ReliableMessageContext, public Referen
     friend class ExchangeContextDeletor;
 
 public:
-    typedef uint32_t Timeout; // Type used to express the timeout in this ExchangeContext, in milliseconds
+    typedef System::Clock::Timeout Timeout; // Type used to express the timeout in this ExchangeContext
 
     ExchangeContext(ExchangeManager * em, uint16_t ExchangeId, SessionHandle session, bool Initiator, ExchangeDelegate * delegate);
 
@@ -76,6 +75,8 @@ public:
     bool IsInitiator() const;
 
     bool IsEncryptionRequired() const { return mDispatch->IsEncryptionRequired(); }
+
+    bool IsGroupExchangeContext() const { return (mSession.HasValue() && mSession.Value().IsGroupSession()); }
 
     /**
      *  Send a CHIP message on this exchange.
@@ -150,22 +151,8 @@ public:
 
     ExchangeMessageDispatch * GetMessageDispatch() { return mDispatch; }
 
-    ExchangeACL * GetExchangeACL(Transport::FabricTable & table)
-    {
-        if (mExchangeACL == nullptr)
-        {
-            Transport::FabricInfo * fabric = table.FindFabricWithIndex(mSecureSession.Value().GetFabricIndex());
-            if (fabric != nullptr)
-            {
-                mExchangeACL = chip::Platform::New<CASEExchangeACL>(fabric);
-            }
-        }
-
-        return mExchangeACL;
-    }
-
-    SessionHandle GetSecureSession() { return mSecureSession.Value(); }
-    bool HasSecureSession() const { return mSecureSession.HasValue(); }
+    SessionHandle GetSessionHandle() { return mSession.Value(); }
+    bool HasSessionHandle() const { return mSession.HasValue(); }
 
     uint16_t GetExchangeId() const { return mExchangeId; }
 
@@ -180,15 +167,14 @@ public:
     void SetResponseTimeout(Timeout timeout);
 
 private:
-    Timeout mResponseTimeout       = 0; // Maximum time to wait for response (in milliseconds); 0 disables response timeout.
+    Timeout mResponseTimeout{ 0 }; // Maximum time to wait for response (in milliseconds); 0 disables response timeout.
     ExchangeDelegate * mDelegate   = nullptr;
     ExchangeManager * mExchangeMgr = nullptr;
-    ExchangeACL * mExchangeACL     = nullptr;
 
     ExchangeMessageDispatch * mDispatch = nullptr;
 
-    Optional<SessionHandle> mSecureSession; // The connection state
-    uint16_t mExchangeId;                   // Assigned exchange ID.
+    Optional<SessionHandle> mSession; // The connection state
+    uint16_t mExchangeId;             // Assigned exchange ID.
 
     /**
      *  Determine whether a response is currently expected for a message that was sent over
@@ -253,6 +239,18 @@ private:
      * re-evaluate out state to see whether we should still be open.
      */
     void MessageHandled();
+
+    /**
+     * Updates Sleepy End Device polling interval in the following way:
+     * - does nothing for exchanges over Bluetooth LE
+     * - set IDLE polling mode if all conditions are met:
+     *   - device doesn't expect getting response nor sending message
+     *   - there is no other active exchange than the current one
+     * - set ACTIVE polling mode if any of the conditions is met:
+     *   - device expects getting response or sending message
+     *   - there is another active exchange
+     */
+    void UpdateSEDPollingMode();
 };
 
 } // namespace Messaging

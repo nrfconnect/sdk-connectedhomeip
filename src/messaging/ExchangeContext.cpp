@@ -43,6 +43,10 @@
 #include <protocols/Protocols.h>
 #include <protocols/secure_channel/Constants.h>
 
+#if CONFIG_DEVICE_LAYER
+#include <platform/CHIPDeviceLayer.h>
+#endif
+
 using namespace chip::Encoding;
 using namespace chip::Inet;
 using namespace chip::System;
@@ -79,6 +83,23 @@ void ExchangeContext::SetResponseTimeout(Timeout timeout)
     mResponseTimeout = timeout;
 }
 
+#if CONFIG_DEVICE_LAYER && CHIP_DEVICE_CONFIG_ENABLE_SED
+void ExchangeContext::UpdateSEDPollingMode()
+{
+    if (GetSessionHandle().GetPeerAddress(mExchangeMgr->GetSessionManager())->GetTransportType() != Transport::Type::kBle)
+    {
+        if (!IsResponseExpected() && !IsSendExpected() && (mExchangeMgr->GetNumActiveExchanges() == 1))
+        {
+            chip::DeviceLayer::ConnectivityMgr().RequestSEDFastPollingMode(false);
+        }
+        else
+        {
+            chip::DeviceLayer::ConnectivityMgr().RequestSEDFastPollingMode(true);
+        }
+    }
+}
+#endif
+
 CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgType, PacketBufferHandle && msgBuf,
                                         const SendFlags & sendFlags)
 {
@@ -93,7 +114,7 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
     }
 
     VerifyOrReturnError(mExchangeMgr != nullptr, CHIP_ERROR_INTERNAL);
-    VerifyOrReturnError(mSecureSession.HasValue(), CHIP_ERROR_CONNECTION_ABORTED);
+    VerifyOrReturnError(mSession.HasValue(), CHIP_ERROR_CONNECTION_ABORTED);
 
     // Don't let method get called on a freed object.
     VerifyOrDie(mExchangeMgr != nullptr && GetReferenceCount() > 0);
@@ -105,14 +126,16 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
 
     // If sending via UDP and NoAutoRequestAck send flag is not specificed,
     // request reliable transmission.
-    const Transport::PeerAddress * peerAddress = GetSecureSession().GetPeerAddress(mExchangeMgr->GetSessionManager());
+    const Transport::PeerAddress * peerAddress = GetSessionHandle().GetPeerAddress(mExchangeMgr->GetSessionManager());
     // Treat unknown peer address as "not UDP", because we have no idea whether
     // it's safe to do MRP there.
-    bool isUDPTransport                = peerAddress && peerAddress->GetTransportType() == Transport::Type::kUdp;
+    bool isUDPTransport = peerAddress && peerAddress->GetTransportType() == Transport::Type::kUdp;
+
+    // this check is ignored by the ExchangeMsgDispatch if !AutoRequestAck()
     bool reliableTransmissionRequested = isUDPTransport && !sendFlags.Has(SendMessageFlags::kNoAutoRequestAck);
 
     // If a response message is expected...
-    if (sendFlags.Has(SendMessageFlags::kExpectResponse))
+    if (sendFlags.Has(SendMessageFlags::kExpectResponse) && !IsGroupExchangeContext())
     {
         // Only one 'response expected' message can be outstanding at a time.
         if (IsResponseExpected())
@@ -124,7 +147,7 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
         SetResponseExpected(true);
 
         // Arm the response timer if a timeout has been specified.
-        if (mResponseTimeout > 0)
+        if (mResponseTimeout > System::Clock::kZero)
         {
             CHIP_ERROR err = StartResponseTimer();
             if (err != CHIP_NO_ERROR)
@@ -137,7 +160,7 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
 
     {
         // Create a new scope for `err`, to avoid shadowing warning previous `err`.
-        CHIP_ERROR err = mDispatch->SendMessage(mSecureSession.Value(), mExchangeId, IsInitiator(), GetReliableMessageContext(),
+        CHIP_ERROR err = mDispatch->SendMessage(mSession.Value(), mExchangeId, IsInitiator(), GetReliableMessageContext(),
                                                 reliableTransmissionRequested, protocolId, msgType, std::move(msgBuf));
         if (err != CHIP_NO_ERROR && IsResponseExpected())
         {
@@ -231,7 +254,7 @@ ExchangeContext::ExchangeContext(ExchangeManager * em, uint16_t ExchangeId, Sess
 
     mExchangeMgr = em;
     mExchangeId  = ExchangeId;
-    mSecureSession.SetValue(session);
+    mSession.SetValue(session);
     mFlags.Set(Flags::kFlagInitiator, Initiator);
     mDelegate = delegate;
 
@@ -254,7 +277,9 @@ ExchangeContext::ExchangeContext(ExchangeManager * em, uint16_t ExchangeId, Sess
     SetDropAckDebug(false);
     SetAckPending(false);
     SetMsgRcvdFromPeer(false);
-    SetAutoRequestAck(true);
+
+    // Do not request Ack for multicast
+    SetAutoRequestAck(!session.IsGroupSession());
 
 #if defined(CHIP_EXCHANGE_CONTEXT_DETAIL_LOGGING)
     ChipLogDetail(ExchangeManager, "ec++ id: " ChipLogFormatExchange, ChipLogValueExchange(this));
@@ -273,12 +298,6 @@ ExchangeContext::~ExchangeContext()
 
     DoClose(false);
     mExchangeMgr = nullptr;
-
-    if (mExchangeACL != nullptr)
-    {
-        chip::Platform::Delete(mExchangeACL);
-        mExchangeACL = nullptr;
-    }
 
     if (mDispatch != nullptr)
     {
@@ -301,11 +320,11 @@ bool ExchangeContext::MatchExchange(SessionHandle session, const PacketHeader & 
         (mExchangeId == payloadHeader.GetExchangeID())
 
         // AND The Session ID associated with the incoming message matches the Session ID associated with the exchange.
-        && (mSecureSession.HasValue() && mSecureSession.Value().MatchIncomingSession(session))
+        && (mSession.HasValue() && mSession.Value().MatchIncomingSession(session))
 
         // TODO: This check should be already implied by the equality of session check,
         // It should be removed after we have implemented the temporary node id for PASE and CASE sessions
-        && (IsEncryptionRequired() == packetHeader.GetFlags().Has(Header::FlagValues::kEncryptedMessage))
+        && (IsEncryptionRequired() == packetHeader.IsEncrypted())
 
         // AND The message was sent by an initiator and the exchange context is a responder (IsInitiator==false)
         //    OR The message was sent by a responder and the exchange context is an initiator (IsInitiator==true) (for the broadcast
@@ -316,11 +335,11 @@ bool ExchangeContext::MatchExchange(SessionHandle session, const PacketHeader & 
 
 void ExchangeContext::OnConnectionExpired()
 {
-    // Reset our mSecureSession to a default-initialized (hence not matching any
+    // Reset our mSession to a default-initialized (hence not matching any
     // connection state) value, because it's still referencing the now-expired
     // connection.  This will mean that no more messages can be sent via this
     // exchange, which seems fine given the semantics of connection expiration.
-    mSecureSession.ClearValue();
+    mSession.ClearValue();
 
     if (!IsResponseExpected())
     {
@@ -470,6 +489,10 @@ CHIP_ERROR ExchangeContext::HandleMessage(uint32_t messageCounter, const Payload
 
 void ExchangeContext::MessageHandled()
 {
+#if CONFIG_DEVICE_LAYER && CHIP_DEVICE_CONFIG_ENABLE_SED
+    UpdateSEDPollingMode();
+#endif
+
     if (mFlags.Has(Flags::kFlagClosed) || IsResponseExpected() || IsSendExpected())
     {
         return;

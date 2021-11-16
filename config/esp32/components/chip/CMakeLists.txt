@@ -30,12 +30,23 @@ if(NOT CHIP_ROOT)
 endif()
 
 set(CHIP_REQURIE_COMPONENTS freertos lwip bt mdns mbedtls fatfs)
-if(${IDF_TARGET} STREQUAL "esp32h2")
-    list(APPEND CHIP_REQURIE_COMPONENTS openthread)
-endif()
 
 if (CONFIG_ENABLE_CHIP_SHELL)
     list(APPEND CHIP_REQURIE_COMPONENTS console)
+endif()
+
+if (CONFIG_OPENTHREAD_ENABLED)
+    list(APPEND CHIP_REQURIE_COMPONENTS openthread)
+endif()
+
+if (NOT CMAKE_BUILD_EARLY_EXPANSION)
+    if (CONFIG_COMPILER_OPTIMIZATION_DEFAULT OR CONFIG_COMPILER_OPTIMIZATION_NONE)
+        set(is_debug TRUE)
+    else()
+        if (NOT CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE)
+            message(FATAL_ERROR "CONFIG_COMPILER_OPTIMIZATION_ASSERTIONS_DISABLE shall be set")
+        endif()
+    endif()
 endif()
 
 idf_component_register(SRCS chip.c chip.cpp
@@ -61,12 +72,16 @@ chip_gn_arg_append("esp32_ar"              "\"${CMAKE_AR}\"")
 chip_gn_arg_append("esp32_cc"              "\"${CMAKE_C_COMPILER}\"")
 chip_gn_arg_append("esp32_cxx"             "\"${CMAKE_CXX_COMPILER}\"")
 chip_gn_arg_append("esp32_cpu"             "\"esp32\"")
-chip_gn_arg_bool("is_debug"                is_debug)
+chip_gn_arg_bool("is_debug"                ${is_debug})
 
 if(CONFIG_BT_ENABLED)
 chip_gn_arg_append("chip_config_network_layer_ble"           "true")
 else()
 chip_gn_arg_append("chip_config_network_layer_ble"           "false")
+endif()
+
+if(CONFIG_DISABLE_IPV4)
+    chip_gn_arg_append("chip_inet_config_enable_ipv4"        "false")
 endif()
 
 if(CONFIG_ENABLE_PW_RPC)
@@ -171,6 +186,8 @@ target_include_directories(${COMPONENT_LIB} INTERFACE
     "${CHIP_ROOT}/src/include"
     "${CHIP_ROOT}/src/lib"
     "${CHIP_ROOT}/src"
+    "${CHIP_ROOT}/zzz_generated/app-common"
+    "${CHIP_ROOT}/examples/platform/esp32"
     "${CHIP_ROOT}/third_party/nlassert/repo/include"
     "${CHIP_ROOT}/third_party/nlio/repo/include"
     "${CMAKE_CURRENT_BINARY_DIR}/src/include"
@@ -210,9 +227,9 @@ endif()
 idf_component_get_property(main_lib main COMPONENT_LIB)
 list(APPEND chip_libraries $<TARGET_FILE:${main_lib}>)
 
-target_link_libraries(${COMPONENT_LIB} INTERFACE -Wl,--start-group 
+target_link_libraries(${COMPONENT_LIB} INTERFACE -Wl,--start-group
                                                 ${chip_libraries}
-                                                $<TARGET_FILE:mbedcrypto> $<TARGET_FILE:${esp32_mbedtls_lib}> 
+                                                $<TARGET_FILE:mbedcrypto> $<TARGET_FILE:${esp32_mbedtls_lib}>
                                                 -Wl,--end-group)
 
 # Make the component dependent on our CHIP build

@@ -22,11 +22,9 @@
 #include "DiscoverCommissionablesCommand.h"
 #include "DiscoverCommissionersCommand.h"
 #include <controller/DeviceAddressUpdateDelegate.h>
-#include <lib/mdns/Resolver.h>
+#include <lib/dnssd/Resolver.h>
 
-constexpr uint16_t kMdnsPort = 5353;
-
-class Resolve : public DiscoverCommand, public chip::Mdns::ResolverDelegate
+class Resolve : public DiscoverCommand, public chip::Dnssd::ResolverDelegate
 {
 public:
     Resolve() : DiscoverCommand("resolve") {}
@@ -34,21 +32,24 @@ public:
     /////////// DiscoverCommand Interface /////////
     CHIP_ERROR RunCommand(NodeId remoteId, uint64_t fabricId) override
     {
-        ReturnErrorOnFailure(chip::Mdns::Resolver::Instance().StartResolver(&chip::DeviceLayer::InetLayer, kMdnsPort));
-        ReturnErrorOnFailure(chip::Mdns::Resolver::Instance().SetResolverDelegate(nullptr));
-        ReturnErrorOnFailure(chip::Mdns::Resolver::Instance().SetResolverDelegate(this));
-        ChipLogProgress(chipTool, "Mdns: Searching for NodeId: %" PRIx64 " FabricId: %" PRIx64 " ...", remoteId, fabricId);
-        return chip::Mdns::Resolver::Instance().ResolveNodeId(chip::PeerId().SetNodeId(remoteId).SetCompressedFabricId(fabricId),
-                                                              chip::Inet::kIPAddressType_Any);
+        ReturnErrorOnFailure(chip::Dnssd::Resolver::Instance().Init(&chip::DeviceLayer::InetLayer()));
+        chip::Dnssd::Resolver::Instance().SetResolverDelegate(this);
+        ChipLogProgress(chipTool, "Dnssd: Searching for NodeId: %" PRIx64 " FabricId: %" PRIx64 " ...", remoteId, fabricId);
+        return chip::Dnssd::Resolver::Instance().ResolveNodeId(chip::PeerId().SetNodeId(remoteId).SetCompressedFabricId(fabricId),
+                                                               chip::Inet::IPAddressType::kAny);
     }
 
-    void OnNodeIdResolved(const chip::Mdns::ResolvedNodeData & nodeData) override
+    void OnNodeIdResolved(const chip::Dnssd::ResolvedNodeData & nodeData) override
     {
         char addrBuffer[chip::Transport::PeerAddress::kMaxToStringSize];
-        nodeData.mAddress.ToString(addrBuffer);
-        ChipLogProgress(chipTool, "NodeId Resolution: %" PRIu64 " Address: %s, Port: %" PRIu16, nodeData.mPeerId.GetNodeId(),
-                        addrBuffer, nodeData.mPort);
+
+        ChipLogProgress(chipTool, "NodeId Resolution: %" PRIu64 " Port: %" PRIu16, nodeData.mPeerId.GetNodeId(), nodeData.mPort);
         ChipLogProgress(chipTool, "    Hostname: %s", nodeData.mHostName);
+        for (size_t i = 0; i < nodeData.mNumIPs; ++i)
+        {
+            nodeData.mAddress[i].ToString(addrBuffer);
+            ChipLogProgress(chipTool, "    addr %zu: %s", i, addrBuffer);
+        }
 
         auto retryInterval = nodeData.GetMrpRetryIntervalIdle();
 
@@ -69,7 +70,7 @@ public:
         ChipLogProgress(chipTool, "NodeId Resolution: failed!");
         SetCommandExitStatus(CHIP_ERROR_INTERNAL);
     }
-    void OnNodeDiscoveryComplete(const chip::Mdns::DiscoveredNodeData & nodeData) override {}
+    void OnNodeDiscoveryComplete(const chip::Dnssd::DiscoveredNodeData & nodeData) override {}
 };
 
 class Update : public DiscoverCommand
@@ -81,8 +82,8 @@ public:
     CHIP_ERROR RunCommand(NodeId remoteId, uint64_t fabricId) override
     {
         ChipLogProgress(chipTool, "Mdns: Updating NodeId: %" PRIx64 " Compressed FabricId: %" PRIx64 " ...", remoteId,
-                        GetExecContext()->commissioner->GetCompressedFabricId());
-        return GetExecContext()->commissioner->UpdateDevice(remoteId);
+                        mController.GetCompressedFabricId());
+        return mController.UpdateDevice(remoteId);
     }
 
     /////////// DeviceAddressUpdateDelegate Interface /////////

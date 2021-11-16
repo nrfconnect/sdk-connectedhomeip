@@ -127,11 +127,14 @@ public:
     bool IsReadType() { return mInteractionType == InteractionType::Read; }
     bool IsSubscriptionType() { return mInteractionType == InteractionType::Subscribe; }
     bool IsInitialReport() { return mInitialReport; }
+    bool IsActiveSubscription() const { return mActiveSubscription; }
     CHIP_ERROR OnSubscribeRequest(Messaging::ExchangeContext * apExchangeContext, System::PacketBufferHandle && aPayload);
     void GetSubscriptionId(uint64_t & aSubscriptionId) { aSubscriptionId = mSubscriptionId; }
     void SetDirty() { mDirty = true; }
     void ClearDirty() { mDirty = false; }
     bool IsDirty() { return mDirty; }
+    NodeId GetInitiatorNodeId() const { return mInitiatorNodeId; }
+    FabricIndex GetFabricIndex() const { return mFabricIndex; }
 
 private:
     friend class TestReadInteraction;
@@ -149,8 +152,8 @@ private:
     CHIP_ERROR SendSubscribeResponse();
     CHIP_ERROR ProcessSubscribeRequest(System::PacketBufferHandle && aPayload);
     CHIP_ERROR ProcessReadRequest(System::PacketBufferHandle && aPayload);
-    CHIP_ERROR ProcessAttributePathList(AttributePathList::Parser & aAttributePathListParser);
-    CHIP_ERROR ProcessEventPathList(EventPathList::Parser & aEventPathListParser);
+    CHIP_ERROR ProcessAttributePathList(AttributePathIBs::Parser & aAttributePathListParser);
+    CHIP_ERROR ProcessEventPaths(EventPaths::Parser & aEventPathsParser);
     CHIP_ERROR OnStatusResponse(Messaging::ExchangeContext * apExchangeContext, System::PacketBufferHandle && aPayload);
     CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
                                  System::PacketBufferHandle && aPayload) override;
@@ -186,8 +189,11 @@ private:
     uint16_t mMinIntervalFloorSeconds          = 0;
     uint16_t mMaxIntervalCeilingSeconds        = 0;
     Optional<SessionHandle> mSessionHandle;
-    bool mHoldReport = false;
-    bool mDirty      = false;
+    bool mHoldReport         = false;
+    bool mDirty              = false;
+    bool mActiveSubscription = false;
+    NodeId mInitiatorNodeId  = kUndefinedNodeId;
+    FabricIndex mFabricIndex = 0;
 };
 } // namespace app
 } // namespace chip

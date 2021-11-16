@@ -16,36 +16,16 @@
  *    limitations under the License.
  */
 
-#include <platform/CHIPDeviceLayer.h>
-#include <platform/PlatformManager.h>
-
-#include <app-common/zap-generated/attribute-id.h>
-#include <app-common/zap-generated/callback.h>
-#include <app-common/zap-generated/cluster-id.h>
-#include <app/Command.h>
-#include <app/chip-zcl-zpro-codec.h>
-#include <app/server/Mdns.h>
-#include <app/util/af-types.h>
-#include <app/util/af.h>
-#include <app/util/attribute-storage.h>
-#include <app/util/util.h>
-#include <lib/core/CHIPError.h>
-#include <lib/support/CHIPMem.h>
-#include <lib/support/RandUtils.h>
-
 #include "AppMain.h"
-
-#include <cassert>
-#include <iostream>
+#include <app-common/zap-generated/callback.h>
+#include <app-common/zap-generated/ids/Clusters.h>
+#include <app/Command.h>
+#include <app/clusters/identify-server/identify-server.h>
+#include <app/util/af.h>
 
 using namespace chip;
-using namespace chip::Inet;
-using namespace chip::Transport;
-using namespace chip::DeviceLayer;
-
-void emberAfPostAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                        uint16_t manufacturerCode, uint8_t type, uint16_t size, uint8_t * value)
-{}
+using namespace chip::app;
+// using namespace chip::app::Clusters;
 
 bool emberAfBasicClusterMfgSpecificPingCallback(chip::app::Command * commandObj)
 {
@@ -53,19 +33,59 @@ bool emberAfBasicClusterMfgSpecificPingCallback(chip::app::Command * commandObj)
     return true;
 }
 
-// emberAfPreAttributeChangeCallback() is called for every cluster.
+// MatterPreAttributeChangeCallback() is called for every cluster.
 // As of 8/17/21 cluster specific PreAttributeChangeCalbacks are not yet implemented.
 
-EmberAfStatus emberAfPreAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                                uint16_t manufacturerCode, uint8_t type, uint16_t size, uint8_t * value)
+Protocols::InteractionModel::Status MatterPreAttributeChangeCallback(const ConcreteAttributePath & attributePath, uint8_t mask,
+                                                                     uint8_t type, uint16_t size, uint8_t * value)
 {
-    EmberAfStatus status = EMBER_ZCL_STATUS_SUCCESS;
-    if (clusterId == ZCL_THERMOSTAT_CLUSTER_ID)
+    Protocols::InteractionModel::Status status = Protocols::InteractionModel::Status::Success;
+    if (attributePath.mClusterId == chip::app::Clusters::Thermostat::Id)
     {
-        status = emberAfThermostatClusterServerPreAttributeChangedCallback(endpoint, attributeId, type, size, value);
+        status = MatterThermostatClusterServerPreAttributeChangedCallback(attributePath, type, size, value);
     }
     return status;
 }
+
+void OnIdentifyStart(Identify *)
+{
+    ChipLogProgress(Zcl, "OnIdentifyStart");
+}
+
+void OnIdentifyStop(Identify *)
+{
+    ChipLogProgress(Zcl, "OnIdentifyStop");
+}
+
+void OnTriggerEffect(Identify * identify)
+{
+    switch (identify->mCurrentEffectIdentifier)
+    {
+    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BLINK:
+        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BLINK");
+        break;
+    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BREATHE:
+        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BREATHE");
+        break;
+    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_OKAY:
+        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_OKAY");
+        break;
+    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_CHANNEL_CHANGE:
+        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_CHANNEL_CHANGE");
+        break;
+    default:
+        ChipLogProgress(Zcl, "No identifier effect");
+        return;
+    }
+}
+
+static Identify gIdentify0 = {
+    chip::EndpointId{ 0 }, OnIdentifyStart, OnIdentifyStop, EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED, OnTriggerEffect,
+};
+
+static Identify gIdentify1 = {
+    chip::EndpointId{ 1 }, OnIdentifyStart, OnIdentifyStop, EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED, OnTriggerEffect,
+};
 
 int main(int argc, char * argv[])
 {

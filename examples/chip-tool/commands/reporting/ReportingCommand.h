@@ -19,36 +19,34 @@
 #pragma once
 
 #include "../../config/PersistentStorage.h"
-#include "../common/Command.h"
+#include "../common/CHIPCommand.h"
 
 #include <controller/ExampleOperationalCredentialsIssuer.h>
 
-// Limits on endpoint values.
-#define CHIP_ZCL_ENDPOINT_MIN 0x00
-#define CHIP_ZCL_ENDPOINT_MAX 0xF0
-
-class ReportingCommand : public Command
+class ReportingCommand : public CHIPCommand
 {
 public:
     ReportingCommand(const char * commandName) :
-        Command(commandName), mOnDeviceConnectedCallback(OnDeviceConnectedFn, this),
+        CHIPCommand(commandName), mOnDeviceConnectedCallback(OnDeviceConnectedFn, this),
         mOnDeviceConnectionFailureCallback(OnDeviceConnectionFailureFn, this)
     {
+        AddArgument("node-id", 0, UINT64_MAX, &mNodeId);
         AddArgument("endpoint-id", CHIP_ZCL_ENDPOINT_MIN, CHIP_ZCL_ENDPOINT_MAX, &mEndPointId);
     }
 
-    /////////// Command Interface /////////
-    CHIP_ERROR Run() override;
-    uint16_t GetWaitDurationInSeconds() const override { return UINT16_MAX; }
+    /////////// CHIPCommand Interface /////////
+    CHIP_ERROR RunCommand() override;
+    chip::System::Clock::Timeout GetWaitDuration() const override { return chip::System::Clock::Seconds16(UINT16_MAX); }
 
-    virtual void AddReportCallbacks(uint8_t endPointId) = 0;
+    virtual void AddReportCallbacks(NodeId remoteId, uint8_t endPointId) = 0;
 
 private:
+    NodeId mNodeId;
     uint8_t mEndPointId;
 
-    static void OnDeviceConnectedFn(void * context, chip::Controller::Device * device);
+    static void OnDeviceConnectedFn(void * context, chip::DeviceProxy * device);
     static void OnDeviceConnectionFailureFn(void * context, NodeId deviceId, CHIP_ERROR error);
 
-    chip::Callback::Callback<chip::Controller::OnDeviceConnected> mOnDeviceConnectedCallback;
-    chip::Callback::Callback<chip::Controller::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
+    chip::Callback::Callback<chip::OnDeviceConnected> mOnDeviceConnectedCallback;
+    chip::Callback::Callback<chip::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
 };

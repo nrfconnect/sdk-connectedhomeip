@@ -1112,18 +1112,13 @@ CHIP_ERROR BLEEndPoint::HandleCapabilitiesRequestReceived(PacketBufferHandle && 
                      CHIP_BLE_TRANSPORT_PROTOCOL_MIN_SUPPORTED_VERSION, CHIP_BLE_TRANSPORT_PROTOCOL_MAX_SUPPORTED_VERSION);
         mState = kState_Aborting;
     }
-    else if ((resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V1) ||
-             (resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V2))
+    else
     {
         // Set Rx and Tx fragment sizes to the same value
         mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
         mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
     }
-    else // resp.SelectedProtocolVersion >= kBleTransportProtocolVersion_V3
-    {
-        // This is the peripheral, so set Rx fragment size, and leave Tx at default
-        mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
-    }
+
     ChipLogProgress(Ble, "using BTP fragment sizes rx %d / tx %d.", mBtpEngine.GetRxFragmentSize(), mBtpEngine.GetTxFragmentSize());
 
     ReturnErrorOnFailure(resp.Encode(responseBuf));
@@ -1158,17 +1153,9 @@ CHIP_ERROR BLEEndPoint::HandleCapabilitiesResponseReceived(PacketBufferHandle &&
     // Set fragment size as minimum of (reported ATT MTU, BTP characteristic size)
     resp.mFragmentSize = chip::min(resp.mFragmentSize, BtpEngine::sMaxFragmentSize);
 
-    if ((resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V1) ||
-        (resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V2))
-    {
-        mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
-        mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
-    }
-    else // resp.SelectedProtocolVersion >= kBleTransportProtocolVersion_V3
-    {
-        // This is the central, so set Tx fragement size, and leave Rx at default.
-        mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
-    }
+    mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
+    mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
+
     ChipLogProgress(Ble, "using BTP fragment sizes rx %d / tx %d.", mBtpEngine.GetRxFragmentSize(), mBtpEngine.GetTxFragmentSize());
 
     // Select local and remote max receive window size based on local resources available for both incoming indications
@@ -1427,7 +1414,8 @@ bool BLEEndPoint::SendIndication(PacketBufferHandle && buf)
 
 CHIP_ERROR BLEEndPoint::StartConnectTimer()
 {
-    const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(BLE_CONNECT_TIMEOUT_MS, HandleConnectTimeout, this);
+    const CHIP_ERROR timerErr =
+        mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BLE_CONNECT_TIMEOUT_MS), HandleConnectTimeout, this);
     ReturnErrorOnFailure(timerErr);
     mTimerStateFlags.Set(TimerStateFlag::kConnectTimerRunning);
 
@@ -1436,7 +1424,8 @@ CHIP_ERROR BLEEndPoint::StartConnectTimer()
 
 CHIP_ERROR BLEEndPoint::StartReceiveConnectionTimer()
 {
-    const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(BLE_CONNECT_TIMEOUT_MS, HandleReceiveConnectionTimeout, this);
+    const CHIP_ERROR timerErr =
+        mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BLE_CONNECT_TIMEOUT_MS), HandleReceiveConnectionTimeout, this);
     ReturnErrorOnFailure(timerErr);
     mTimerStateFlags.Set(TimerStateFlag::kReceiveConnectionTimerRunning);
 
@@ -1447,7 +1436,8 @@ CHIP_ERROR BLEEndPoint::StartAckReceivedTimer()
 {
     if (!mTimerStateFlags.Has(TimerStateFlag::kAckReceivedTimerRunning))
     {
-        const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(BTP_ACK_RECEIVED_TIMEOUT_MS, HandleAckReceivedTimeout, this);
+        const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BTP_ACK_RECEIVED_TIMEOUT_MS),
+                                                                   HandleAckReceivedTimeout, this);
         ReturnErrorOnFailure(timerErr);
 
         mTimerStateFlags.Set(TimerStateFlag::kAckReceivedTimerRunning);
@@ -1472,7 +1462,8 @@ CHIP_ERROR BLEEndPoint::StartSendAckTimer()
     if (!mTimerStateFlags.Has(TimerStateFlag::kSendAckTimerRunning))
     {
         ChipLogDebugBleEndPoint(Ble, "starting new SendAckTimer");
-        const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(BTP_ACK_SEND_TIMEOUT_MS, HandleSendAckTimeout, this);
+        const CHIP_ERROR timerErr =
+            mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BTP_ACK_SEND_TIMEOUT_MS), HandleSendAckTimeout, this);
         ReturnErrorOnFailure(timerErr);
 
         mTimerStateFlags.Set(TimerStateFlag::kSendAckTimerRunning);
@@ -1483,7 +1474,8 @@ CHIP_ERROR BLEEndPoint::StartSendAckTimer()
 
 CHIP_ERROR BLEEndPoint::StartUnsubscribeTimer()
 {
-    const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(BLE_UNSUBSCRIBE_TIMEOUT_MS, HandleUnsubscribeTimeout, this);
+    const CHIP_ERROR timerErr =
+        mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BLE_UNSUBSCRIBE_TIMEOUT_MS), HandleUnsubscribeTimeout, this);
     ReturnErrorOnFailure(timerErr);
     mTimerStateFlags.Set(TimerStateFlag::kUnsubscribeTimerRunning);
 

@@ -16,23 +16,21 @@
  *    limitations under the License.
  */
 
-/**
- *    @file
- *          Provides implementations for the chip entropy sourcing functions
- *          on the Linux platforms.
- */
-
 #include <crypto/CHIPCryptoPAL.h>
+#include <crypto/RandUtils.h>
+#include <lib/support/CodeUtils.h>
 
 namespace chip {
+
 namespace DeviceLayer {
 namespace Internal {
 
 CHIP_ERROR InitEntropy()
 {
     unsigned int seed;
-    ReturnErrorOnFailure(chip::Crypto::DRBG_get_bytes((uint8_t *) &seed, sizeof(seed)));
+    ReturnErrorOnFailure(Crypto::DRBG_get_bytes((uint8_t *) &seed, sizeof(seed)));
     srand(seed);
+
     return CHIP_NO_ERROR;
 }
 

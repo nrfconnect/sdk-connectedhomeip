@@ -30,7 +30,7 @@ from __future__ import print_function
 
 import struct
 from collections import Mapping, Sequence, OrderedDict
-
+from enum import Enum
 
 TLV_TYPE_SIGNED_INTEGER = 0x00
 TLV_TYPE_UNSIGNED_INTEGER = 0x04
@@ -112,6 +112,17 @@ TagControls = {
 }
 
 
+class uint(int):
+    '''
+    NewType will not return a class until Python 3.10, as Python 3.10 is not widely used, we still need to construct a class so it can work as a type.
+    '''
+
+    def __init__(self, val: int):
+        if (val < 0):
+            raise TypeError(
+                'expecting positive value, got negative value of %d instead' % val)
+
+
 class TLVWriter(object):
     def __init__(self, encoding=None, implicitProfile=None):
         self._encoding = encoding if encoding is not None else bytearray()
@@ -175,13 +186,14 @@ class TLVWriter(object):
         """
         if val is None:
             self.putNull(tag)
+        elif isinstance(val, Enum):
+            self.putUnsignedInt(tag, val)
         elif isinstance(val, bool):
             self.putBool(tag, val)
+        elif isinstance(val, uint):
+            self.putUnsignedInt(tag, val)
         elif isinstance(val, int):
-            if val < 0:
-                self.putSignedInt(tag, val)
-            else:
-                self.putUnsignedInt(tag, val)
+            self.putSignedInt(tag, val)
         elif isinstance(val, float):
             self.putFloat(tag, val)
         elif isinstance(val, str):
@@ -553,6 +565,7 @@ class TLVReader(object):
             (decoding["value"],) = struct.unpack(
                 "<B", tlv[self._bytesRead: self._bytesRead + 1]
             )
+            decoding["value"] = uint(decoding["value"])
             self._bytesRead += 1
         elif decoding["type"] == "Signed Integer 1-byte value":
             (decoding["value"],) = struct.unpack(
@@ -563,6 +576,7 @@ class TLVReader(object):
             (decoding["value"],) = struct.unpack(
                 "<H", tlv[self._bytesRead: self._bytesRead + 2]
             )
+            decoding["value"] = uint(decoding["value"])
             self._bytesRead += 2
         elif decoding["type"] == "Signed Integer 2-byte value":
             (decoding["value"],) = struct.unpack(
@@ -573,6 +587,7 @@ class TLVReader(object):
             (decoding["value"],) = struct.unpack(
                 "<L", tlv[self._bytesRead: self._bytesRead + 4]
             )
+            decoding["value"] = uint(decoding["value"])
             self._bytesRead += 4
         elif decoding["type"] == "Signed Integer 4-byte value":
             (decoding["value"],) = struct.unpack(
@@ -583,6 +598,7 @@ class TLVReader(object):
             (decoding["value"],) = struct.unpack(
                 "<Q", tlv[self._bytesRead: self._bytesRead + 8]
             )
+            decoding["value"] = uint(decoding["value"])
             self._bytesRead += 8
         elif decoding["type"] == "Signed Integer 8-byte value":
             (decoding["value"],) = struct.unpack(

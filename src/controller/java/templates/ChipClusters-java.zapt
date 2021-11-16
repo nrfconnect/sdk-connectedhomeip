@@ -3,7 +3,10 @@
 
 package chip.devicecontroller;
 
+import androidx.annotation.Nullable;
 import java.util.List;
+import java.util.Arrays;
+import java.util.Optional;
 
 public class ChipClusters {
 
@@ -67,30 +70,21 @@ public class ChipClusters {
       super(devicePtr, endpointId);
     }
 
+    public static long clusterId() {
+      return Long.parseUnsignedLong("{{code}}");
+    }
+
     @Override
     public native long initWithDevice(long devicePtr, int endpointId);
   {{#chip_cluster_commands}}
 
-  {{#if (zcl_command_arguments_count this.id)}}
-    public void {{asLowerCamelCase name}}({{#if hasSpecificResponse}}{{asUpperCamelCase responseName}}Callback{{else}}DefaultClusterCallback{{/if}} callback, {{#chip_cluster_command_arguments}}{{asJavaBasicType type}} {{asLowerCamelCase label}}{{#not_last}}, {{/not_last}}{{/chip_cluster_command_arguments}}) {
-  {{else}}
-    public void {{asLowerCamelCase name}}({{#if hasSpecificResponse}}{{asUpperCamelCase responseName}}Callback{{else}}DefaultClusterCallback{{/if}} callback) {
-  {{/if}}
-  {{#if (zcl_command_arguments_count this.id)}}
-      {{asLowerCamelCase name}}(chipClusterPtr, callback, {{#chip_cluster_command_arguments}}{{asLowerCamelCase label}}{{#not_last}}, {{/not_last}}{{/chip_cluster_command_arguments}});
-  {{else}}
-      {{asLowerCamelCase name}}(chipClusterPtr, callback);
-  {{/if}}    
+    public void {{asLowerCamelCase name}}({{#if hasSpecificResponse}}{{asUpperCamelCase responseName}}Callback{{else}}DefaultClusterCallback{{/if}} callback{{#chip_cluster_command_arguments_with_structs_expanded}}, {{asJavaBasicType type}} {{asLowerCamelCase label}}{{/chip_cluster_command_arguments_with_structs_expanded}}) {
+      {{asLowerCamelCase name}}(chipClusterPtr, callback{{#chip_cluster_command_arguments_with_structs_expanded}}, {{asLowerCamelCase label}}{{/chip_cluster_command_arguments_with_structs_expanded}});
     }
 
   {{/chip_cluster_commands}}
   {{#chip_cluster_commands}}
-  {{#if (zcl_command_arguments_count this.id)}}
-    private native void {{asLowerCamelCase name}}(long chipClusterPtr, {{#if hasSpecificResponse}}{{asUpperCamelCase responseName}}Callback{{else}}DefaultClusterCallback{{/if}} callback, {{#chip_cluster_command_arguments}}{{asJavaBasicType type}} {{asLowerCamelCase label}}{{#not_last}}, {{/not_last}}{{/chip_cluster_command_arguments}});
-  {{else}}
-    private native void {{asLowerCamelCase name}}(long chipClusterPtr, {{#if hasSpecificResponse}}{{asUpperCamelCase responseName}}Callback{{else}}DefaultClusterCallback{{/if}} callback);
-  {{/if}}
-
+    private native void {{asLowerCamelCase name}}(long chipClusterPtr, {{#if hasSpecificResponse}}{{asUpperCamelCase responseName}}Callback{{else}}DefaultClusterCallback{{/if}} callback{{#chip_cluster_command_arguments_with_structs_expanded}}, {{asJavaBasicType type}} {{asLowerCamelCase label}}{{/chip_cluster_command_arguments_with_structs_expanded}});
   {{/chip_cluster_commands}}
   {{#chip_cluster_responses}}
     public interface {{asUpperCamelCase name}}Callback {
@@ -119,29 +113,88 @@ public class ChipClusters {
   {{#if isStruct}}
     public static class {{asUpperCamelCase name}}Attribute {
     {{#chip_attribute_list_entryTypes}}
-      {{#if (isOctetString type)}}
-      public byte[] {{asLowerCamelCase name}};
+      {{#if isNullable}}
+      {{! 'unless' blocks are temporary until optional array / struct implemented }}
+      {{#unless isArray}}
+      {{#unless isStruct}}
+      @Nullable
+      {{/unless}}
+      {{/unless}}
+      {{/if}}
+      {{#if isArray}}
+      {{! TODO: Add support for lists here }}
+      {{else if isStruct}}
+      {{! TODO: Add support for structs here }}
+      {{else if (isOctetString type)}}
+      public {{#if isOptional}}Optional<{{/if}}byte[]{{#if isOptional}}>{{/if}} {{asLowerCamelCase name}};
       {{else if (isCharString type)}}
-      // Add String member here after ByteSpan is properly emitted in C++ layer
+      public {{#if isOptional}}Optional<{{/if}}String{{#if isOptional}}>{{/if}} {{asLowerCamelCase name}};
       {{else}}
-      public {{asJavaBasicType label type}} {{asLowerCamelCase name}};
+      public {{#if isOptional}}Optional<{{/if}}{{asJavaBoxedType label type}}{{#if isOptional}}>{{/if}} {{asLowerCamelCase name}};
       {{/if}}
     {{/chip_attribute_list_entryTypes}}
 
       public {{asUpperCamelCase name}}Attribute(
         {{#chip_attribute_list_entryTypes}}
-        {{#if (isOctetString type)}}
-        byte[] {{asLowerCamelCase name}}{{#not_last}},{{/not_last}}
+        {{#if isNullable}}
+        {{#unless isArray}}
+        {{#unless isStruct}}
+        @Nullable
+        {{/unless}}
+        {{/unless}}
+        {{/if}}
+        {{#if isArray}}
+        {{! TODO: Add support for lists here }}
+        {{else if isStruct}}
+        {{! TODO: Add support for structs here }}
+        {{else if (isOctetString type)}}
+        {{#if isOptional}}Optional<{{/if}}byte[]{{#if isOptional}}>{{/if}} {{asLowerCamelCase name}} {{#notLastSupportedEntryTypes ..}},{{/notLastSupportedEntryTypes}}
         {{else if (isCharString type)}}
-        // Add String field here after ByteSpan is properly emitted in C++ layer
+        {{#if isOptional}}Optional<{{/if}}String{{#if isOptional}}>{{/if}} {{asLowerCamelCase name}} {{#notLastSupportedEntryTypes ..}},{{/notLastSupportedEntryTypes}}
         {{else}}
-        {{asJavaBasicType label type}} {{asLowerCamelCase name}}{{#not_last}},{{/not_last}}
+        {{#if isOptional}}Optional<{{/if}}{{asJavaBoxedType label type}}{{#if isOptional}}>{{/if}} {{asLowerCamelCase name}} {{#notLastSupportedEntryTypes ..}},{{/notLastSupportedEntryTypes}}
         {{/if}}
         {{/chip_attribute_list_entryTypes}}
       ) {
         {{#chip_attribute_list_entryTypes}}
+        {{#if isArray}}
+        {{! TODO: Add support for lists here }}
+        {{else if isStruct}}
+        {{! TODO: Add support for structs here }}
+        {{else}}
         this.{{asLowerCamelCase name}} = {{asLowerCamelCase name}};
+        {{/if}}
         {{/chip_attribute_list_entryTypes}}
+      }
+
+      @Override
+      public String toString() {
+        StringBuilder output = new StringBuilder("");
+          {{#chip_attribute_list_entryTypes}}
+            {{#if isOptional}}
+            {{! TODO: Add support for optional types here }}
+            {{else if isNullable}}
+            {{! TODO: Add support for nullable types here }}
+            {{else if isArray}}
+            {{! TODO: Add support for lists here }}
+            {{else if isStruct}}
+            {{! TODO: Add support for structs here }}
+            {{else if (isOctetString type)}}
+            output.append("byte[] ");
+            output.append(Arrays.toString({{asLowerCamelCase name}}));
+            output.append("\n");
+            {{else if (isCharString type)}}
+            output.append("String {{asLowerCamelCase name}}: ");
+            output.append(this.{{asLowerCamelCase name}});
+            output.append("\n");
+            {{else}}
+            output.append("{{asJavaBasicType label type}} {{asLowerCamelCase name}}: ");
+            output.append(this.{{asLowerCamelCase name}});
+            output.append("\n");
+            {{/if}}
+
+          {{/chip_attribute_list_entryTypes}}
+        return output.toString();
       }
     }
 {{/if}}
@@ -151,12 +204,37 @@ public class ChipClusters {
       {{#if isStruct}}
       {{asUpperCamelCase name}}Attribute
       {{else}}
+        {{#if isNullable}}
+        {{#unless isArray}}
+        {{#unless isStruct}}
+        @Nullable
+        {{/unless}}
+        {{/unless}}
+        {{/if}}
+        {{#if isOptional}}
+        {{#unless isArray}}
+        {{#unless isStruct}}
+        Optional<
+        {{/unless}}
+        {{/unless}}
+        {{/if}}
         {{#if (isOctetString type)}}
         byte[]
         {{else if (isCharString type)}}
         // Add String field here after ByteSpan is properly emitted in C++ layer
         {{else}}
-        {{asJavaBasicTypeForZclType type true}}
+        {{! NOTE: asJavaBasicTypeForZclType ends up sniffing for isArray on the
+            context.  Since we want the type of our _entry_, force isArray to
+            false. }}
+        {{~#*inline "asJavaBasicTypeForEntry"}}{{asJavaBasicTypeForZclType type true}}{{/inline~}}
+        {{> asJavaBasicTypeForEntry isArray=false}}
+        {{/if}}
+        {{#if isOptional}}
+        {{#unless isArray}}
+        {{#unless isStruct}}
+        >
+        {{/unless}}
+        {{/unless}}
         {{/if}}
       {{/if}}
       > valueList);
@@ -181,6 +259,16 @@ public class ChipClusters {
       write{{asUpperCamelCase name}}Attribute(chipClusterPtr, callback, value);
     }
   {{/if}}
+  {{#if isReportableAttribute}}
+
+    public void subscribe{{asCamelCased name false}}Attribute(DefaultClusterCallback callback, int minInterval, int maxInterval) {
+      subscribe{{asCamelCased name false}}Attribute(chipClusterPtr, callback, minInterval, maxInterval);
+    }
+
+    public void report{{asCamelCased name false}}Attribute({{convertAttributeCallbackTypeToJavaName chipCallback.type}}AttributeCallback callback) {
+      report{{asCamelCased name false}}Attribute(chipClusterPtr, callback);
+    }
+  {{/if}}
   {{/chip_server_cluster_attributes}}
   {{#chip_server_cluster_attributes}}
   
@@ -194,6 +282,12 @@ public class ChipClusters {
   {{#if isWritableAttribute}}
 
     private native void write{{asUpperCamelCase name}}Attribute(long chipClusterPtr, DefaultClusterCallback callback, {{asJavaBasicType type}} value);
+  {{/if}}
+  {{#if isReportableAttribute}}
+
+    private native void subscribe{{asCamelCased name false}}Attribute(long chipClusterPtr, DefaultClusterCallback callback, int minInterval, int maxInterval);
+
+    private native void report{{asCamelCased name false}}Attribute(long chipClusterPtr, {{convertAttributeCallbackTypeToJavaName chipCallback.type}}AttributeCallback callback);
   {{/if}}
   {{/chip_server_cluster_attributes}}
   }

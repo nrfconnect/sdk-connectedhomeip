@@ -19,8 +19,10 @@
 #pragma once
 
 #include "controller/ExampleOperationalCredentialsIssuer.h"
+#include <app/data-model/Nullable.h>
 #include <controller/CHIPDeviceController.h>
 #include <inet/InetInterface.h>
+#include <lib/core/Optional.h>
 #include <lib/support/Span.h>
 #include <lib/support/logging/CHIPLogging.h>
 
@@ -31,7 +33,10 @@
 #include <vector>
 
 class Command;
-class PersistentStorage;
+
+// Limits on endpoint values.
+#define CHIP_ZCL_ENDPOINT_MIN 0x00
+#define CHIP_ZCL_ENDPOINT_MAX 0xF0
 
 template <typename T, typename... Args>
 std::unique_ptr<Command> make_unique(Args &&... args)
@@ -58,8 +63,9 @@ enum ArgumentType
     Number_int16,
     Number_int32,
     Number_int64,
-    CharString,
     Boolean,
+    String,
+    CharString,
     OctetString,
     Attribute,
     Address
@@ -72,52 +78,29 @@ struct Argument
     int64_t min;
     uint64_t max;
     void * value;
+    bool optional;
 };
 
 class Command
 {
 public:
-    using ChipDeviceCommissioner = ::chip::Controller::DeviceCommissioner;
-    using ChipDeviceController   = ::chip::Controller::DeviceController;
-    using ChipSerializedDevice   = ::chip::Controller::SerializedDevice;
-    using ChipDevice             = ::chip::Controller::Device;
-    using PeerAddress            = ::chip::Transport::PeerAddress;
-    using IPAddress              = ::chip::Inet::IPAddress;
-    using PacketBufferHandle     = ::chip::System::PacketBufferHandle;
-    using NodeId                 = ::chip::NodeId;
-
     struct AddressWithInterface
     {
         ::chip::Inet::IPAddress address;
         ::chip::Inet::InterfaceId interfaceId;
     };
 
-    /**
-     * @brief
-     *   Encapsulates key objects in the CHIP stack that need continued
-     *   access, so wrapping it in here makes it nice and compactly encapsulated.
-     */
-    struct ExecutionContext
-    {
-        ChipDeviceCommissioner * commissioner;
-        chip::Controller::ExampleOperationalCredentialsIssuer * opCredsIssuer;
-        PersistentStorage * storage;
-        chip::NodeId localId;
-        chip::NodeId remoteId;
-    };
-
     Command(const char * commandName) : mName(commandName) {}
     virtual ~Command() {}
-
-    void SetExecutionContext(ExecutionContext & execContext) { mExecContext = execContext; }
 
     const char * GetName(void) const { return mName; }
     const char * GetAttribute(void) const;
     const char * GetArgumentName(size_t index) const;
+    bool GetArgumentIsOptional(size_t index) const { return mArgs[index].optional; }
     size_t GetArgumentsCount(void) const { return mArgs.size(); }
 
     bool InitArguments(int argc, char ** argv);
-    size_t AddArgument(const char * name, const char * value);
+    size_t AddArgument(const char * name, const char * value, bool optional = false);
     /**
      * @brief
      *   Add a char string command argument
@@ -126,102 +109,90 @@ public:
      * @param value A pointer to a `char *` where the argv value will be stored
      * @returns The number of arguments currently added to the command
      */
-    size_t AddArgument(const char * name, char ** value);
+    size_t AddArgument(const char * name, char ** value, bool optional = false);
     /**
      * Add an octet string command argument
      */
-    size_t AddArgument(const char * name, chip::ByteSpan * value);
-    size_t AddArgument(const char * name, AddressWithInterface * out);
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, bool * out)
+    size_t AddArgument(const char * name, chip::ByteSpan * value, bool optional = false);
+    size_t AddArgument(const char * name, chip::Span<const char> * value, bool optional = false);
+    size_t AddArgument(const char * name, AddressWithInterface * out, bool optional = false);
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, bool * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Boolean);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Boolean, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, int8_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, int8_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int8);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int8, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, int16_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, int16_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int16);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int16, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, int32_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, int32_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int32);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int32, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, int64_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, int64_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int64);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_int64, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint8_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint8_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint8);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint8, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint16_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint16_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint16);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint16, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint32_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint32_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint32);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint32, optional);
     }
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint64_t * out)
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, uint64_t * out, bool optional = false)
     {
-        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint64);
+        return AddArgument(name, min, max, reinterpret_cast<void *>(out), Number_uint64, optional);
     }
 
-    // Will be called in a setting in which it's safe to touch the CHIP
-    // stack. The rules for Run() are as follows:
-    //
-    // 1) If error is returned, Run() must not call SetCommandExitStatus.
-    // 2) If success is returned Run() must either have called
-    //    SetCommandExitStatus() or scheduled async work that will do that.
+    template <typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, T * out, bool optional = false)
+    {
+        return AddArgument(name, min, max, reinterpret_cast<std::underlying_type_t<T> *>(out), optional);
+    }
+
+    template <typename T>
+    size_t AddArgument(const char * name, chip::Optional<T> * value)
+    {
+        return AddArgument(name, reinterpret_cast<T *>(value), true);
+    }
+
+    template <typename T>
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, chip::Optional<T> * value)
+    {
+        return AddArgument(name, min, max, reinterpret_cast<T *>(value), true);
+    }
+
+    template <typename T>
+    size_t AddArgument(const char * name, chip::app::DataModel::Nullable<T> * value, bool optional = false)
+    {
+        // We always require our args to be provided for the moment.
+        return AddArgument(name, &value->SetNonNull(), optional);
+    }
+
+    template <typename T>
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, chip::app::DataModel::Nullable<T> * value,
+                       bool optional = false)
+    {
+        // We always require our args to be provided for the moment.
+        return AddArgument(name, min, max, &value->SetNonNull(), optional);
+    }
+
     virtual CHIP_ERROR Run() = 0;
-
-    // Get the wait duration, in seconds, before the command times out.
-    virtual uint16_t GetWaitDurationInSeconds() const = 0;
-
-    // Shut down the command, in case any work needs to be done after the event
-    // loop has been stopped.
-    virtual void Shutdown() {}
-
-    CHIP_ERROR GetCommandExitStatus() const { return mCommandExitStatus; }
-    void SetCommandExitStatus(CHIP_ERROR status)
-    {
-        mCommandExitStatus = status;
-        UpdateWaitForResponse(false);
-    }
-
-    void UpdateWaitForResponse(bool value);
-
-    // There is a certain symmetry between the single-event-loop and
-    // separate-event-loop approaches.  With a separate event loop, we schedule
-    // our work on that event loop and synchronously wait (block) waiting for a
-    // response. When using a single event loop, we ask for an async response
-    // notification and then block processing work on the event loop
-    // synchronously until that notification happens.
-#if CONFIG_USE_SEPARATE_EVENTLOOP
-    void WaitForResponse(uint16_t seconds);
-#else  // CONFIG_USE_SEPARATE_EVENTLOOP
-    CHIP_ERROR ScheduleWaitForResponse(uint16_t seconds);
-#endif // CONFIG_USE_SEPARATE_EVENTLOOP
-
-protected:
-    ExecutionContext * GetExecContext() { return &mExecContext; }
 
 private:
     bool InitArgument(size_t argIndex, char * argValue);
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, void * out, ArgumentType type);
-    size_t AddArgument(const char * name, int64_t min, uint64_t max, void * out);
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, void * out, ArgumentType type, bool optional);
+    size_t AddArgument(const char * name, int64_t min, uint64_t max, void * out, bool optional);
 
-    CHIP_ERROR mCommandExitStatus = CHIP_ERROR_INTERNAL;
-    const char * mName            = nullptr;
+    const char * mName = nullptr;
     std::vector<Argument> mArgs;
-
-    ExecutionContext mExecContext;
-
-#if CONFIG_USE_SEPARATE_EVENTLOOP
-    std::condition_variable cvWaitingForResponse;
-    std::mutex cvWaitingForResponseMutex;
-    bool mWaitingForResponse{ false };
-#endif // CONFIG_USE_SEPARATE_EVENTLOOP
 };

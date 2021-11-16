@@ -50,13 +50,16 @@ enum
 
 // TODO: Define a Singleton instance of CHIP Group Key Store here (#1266)
 
-/** Singleton instance of the ConfigurationManager implementation object for the ESP32.
- */
-ConfigurationManagerImpl ConfigurationManagerImpl::sInstance;
+ConfigurationManagerImpl & ConfigurationManagerImpl::GetDefaultInstance()
+{
+    static ConfigurationManagerImpl sInstance;
+    return sInstance;
+}
 
-CHIP_ERROR ConfigurationManagerImpl::_Init()
+CHIP_ERROR ConfigurationManagerImpl::Init()
 {
     CHIP_ERROR err;
+    uint32_t rebootCount;
     bool failSafeArmed;
 
     // Force initialization of NVS namespaces if they doesn't already exist.
@@ -67,8 +70,29 @@ CHIP_ERROR ConfigurationManagerImpl::_Init()
     err = EnsureNamespace(kConfigNamespace_ChipCounters);
     SuccessOrExit(err);
 
+    if (ConfigValueExists(kCounterKey_RebootCount))
+    {
+        err = GetRebootCount(rebootCount);
+        SuccessOrExit(err);
+
+        err = StoreRebootCount(rebootCount + 1);
+        SuccessOrExit(err);
+    }
+    else
+    {
+        // The first boot after factory reset of the Node.
+        err = StoreRebootCount(1);
+        SuccessOrExit(err);
+    }
+
+    if (!ConfigValueExists(kCounterKey_TotalOperationalHours))
+    {
+        err = StoreTotalOperationalHours(0);
+        SuccessOrExit(err);
+    }
+
     // Initialize the generic implementation base class.
-    err = Internal::GenericConfigurationManagerImpl<ConfigurationManagerImpl>::_Init();
+    err = Internal::GenericConfigurationManagerImpl<ConfigurationManagerImpl>::Init();
     SuccessOrExit(err);
 
     // TODO: Initialize the global GroupKeyStore object here (#1266)
@@ -89,10 +113,10 @@ CHIP_ERROR ConfigurationManagerImpl::_Init()
 #endif // CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
 
     // If the fail-safe was armed when the device last shutdown, initiate a factory reset.
-    if (_GetFailSafeArmed(failSafeArmed) == CHIP_NO_ERROR && failSafeArmed)
+    if (GetFailSafeArmed(failSafeArmed) == CHIP_NO_ERROR && failSafeArmed)
     {
         ChipLogProgress(DeviceLayer, "Detected fail-safe armed on reboot; initiating factory reset");
-        _InitiateFactoryReset();
+        InitiateFactoryReset();
     }
     err = CHIP_NO_ERROR;
 
@@ -100,7 +124,27 @@ exit:
     return err;
 }
 
-CHIP_ERROR ConfigurationManagerImpl::_GetPrimaryWiFiMACAddress(uint8_t * buf)
+CHIP_ERROR ConfigurationManagerImpl::GetRebootCount(uint32_t & rebootCount)
+{
+    return ReadConfigValue(kCounterKey_RebootCount, rebootCount);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::StoreRebootCount(uint32_t rebootCount)
+{
+    return WriteConfigValue(kCounterKey_RebootCount, rebootCount);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::GetTotalOperationalHours(uint32_t & totalOperationalHours)
+{
+    return ReadConfigValue(kCounterKey_TotalOperationalHours, totalOperationalHours);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::StoreTotalOperationalHours(uint32_t totalOperationalHours)
+{
+    return WriteConfigValue(kCounterKey_TotalOperationalHours, totalOperationalHours);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::GetPrimaryWiFiMACAddress(uint8_t * buf)
 {
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
     wifi_mode_t mode;
@@ -130,18 +174,18 @@ CHIP_ERROR ConfigurationManagerImpl::MapConfigError(esp_err_t error)
     }
 }
 
-bool ConfigurationManagerImpl::_CanFactoryReset()
+bool ConfigurationManagerImpl::CanFactoryReset()
 {
     // TODO: query the application to determine if factory reset is allowed.
     return true;
 }
 
-void ConfigurationManagerImpl::_InitiateFactoryReset()
+void ConfigurationManagerImpl::InitiateFactoryReset()
 {
     PlatformMgr().ScheduleWork(DoFactoryReset);
 }
 
-CHIP_ERROR ConfigurationManagerImpl::_ReadPersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t & value)
+CHIP_ERROR ConfigurationManagerImpl::ReadPersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t & value)
 {
     ESP32Config::Key configKey{ kConfigNamespace_ChipCounters, key };
 
@@ -153,7 +197,7 @@ CHIP_ERROR ConfigurationManagerImpl::_ReadPersistedStorageValue(::chip::Platform
     return err;
 }
 
-CHIP_ERROR ConfigurationManagerImpl::_WritePersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t value)
+CHIP_ERROR ConfigurationManagerImpl::WritePersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t value)
 {
     ESP32Config::Key configKey{ kConfigNamespace_ChipCounters, key };
     return WriteConfigValue(configKey, value);

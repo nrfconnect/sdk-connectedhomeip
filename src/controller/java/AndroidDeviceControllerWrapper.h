@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2020 Project CHIP Authors
+ *   Copyright (c) 2020-2021 Project CHIP Authors
  *   All rights reserved.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
  */
 #pragma once
 
-#include "JniReferences.h"
+#include <lib/support/JniReferences.h>
 
 #include <memory>
 
@@ -35,9 +35,9 @@
  * Generally it contains the DeviceController class itself, plus any related delegates/callbacks.
  */
 class AndroidDeviceControllerWrapper : public chip::Controller::DevicePairingDelegate,
-                                       public chip::Controller::DeviceStatusDelegate,
                                        public chip::Controller::OperationalCredentialsDelegate,
-                                       public chip::PersistentStorageDelegate
+                                       public chip::PersistentStorageDelegate,
+                                       public chip::FabricStorage
 {
 public:
     ~AndroidDeviceControllerWrapper();
@@ -69,23 +69,24 @@ public:
 
     void SetFabricIdForNextNOCRequest(chip::FabricId fabricId) override { mNextFabricId = fabricId; }
 
-    // DeviceStatusDelegate implementation
-    void OnMessage(chip::System::PacketBufferHandle && msg) override;
-    void OnStatusChange(void) override;
-
     // PersistentStorageDelegate implementation
     CHIP_ERROR SyncSetKeyValue(const char * key, const void * value, uint16_t size) override;
     CHIP_ERROR SyncGetKeyValue(const char * key, void * buffer, uint16_t & size) override;
     CHIP_ERROR SyncDeleteKeyValue(const char * key) override;
+
+    // FabricStorage implementation
+    CHIP_ERROR SyncStore(chip::FabricIndex fabricIndex, const char * key, const void * buffer, uint16_t size) override;
+    CHIP_ERROR SyncLoad(chip::FabricIndex fabricIndex, const char * key, void * buffer, uint16_t & size) override;
+    CHIP_ERROR SyncDelete(chip::FabricIndex fabricIndex, const char * key) override;
 
     static AndroidDeviceControllerWrapper * FromJNIHandle(jlong handle)
     {
         return reinterpret_cast<AndroidDeviceControllerWrapper *>(handle);
     }
 
-    static AndroidDeviceControllerWrapper * AllocateNew(JavaVM * vm, jobject deviceControllerObj, pthread_mutex_t * stackLock,
-                                                        chip::NodeId nodeId, chip::System::Layer * systemLayer,
-                                                        chip::Inet::InetLayer * inetLayer, CHIP_ERROR * errInfoOnFailure);
+    static AndroidDeviceControllerWrapper * AllocateNew(JavaVM * vm, jobject deviceControllerObj, chip::NodeId nodeId,
+                                                        chip::System::Layer * systemLayer, chip::Inet::InetLayer * inetLayer,
+                                                        CHIP_ERROR * errInfoOnFailure);
 
     CHIP_ERROR GenerateNOCChainAfterValidation(chip::NodeId nodeId, chip::FabricId fabricId,
                                                const chip::Crypto::P256PublicKey & ephemeralKey, chip::MutableByteSpan & rcac,
@@ -102,8 +103,6 @@ private:
     ChipDeviceControllerPtr mController;
     chip::Controller::ExampleOperationalCredentialsIssuer mOpCredsIssuer;
 
-    pthread_mutex_t * mStackLock;
-
     JavaVM * mJavaVM       = nullptr;
     jobject mJavaObjectRef = nullptr;
 
@@ -113,8 +112,7 @@ private:
     chip::FabricId mNextFabricId      = 0;
     bool mNodeIdRequested             = false;
 
-    AndroidDeviceControllerWrapper(ChipDeviceControllerPtr controller, pthread_mutex_t * stackLock) :
-        mController(std::move(controller)), mStackLock(stackLock)
+    AndroidDeviceControllerWrapper(ChipDeviceControllerPtr controller) : mController(std::move(controller))
     {
         chip::CalendarToChipEpochTime(2021, 06, 10, 0, 0, 0, mNow);
     }

@@ -25,6 +25,12 @@
 
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 
+#include <bluetooth.h>
+#include <glib.h>
+#include <sys/param.h>
+
+#include "ChipDeviceScanner.h"
+
 namespace chip {
 namespace DeviceLayer {
 namespace Internal {
@@ -32,12 +38,43 @@ namespace Internal {
 using namespace chip::Ble;
 
 /**
+ * enum Class for BLE Scanning state. CHIP supports Scanning by Discriminator or Address
+ */
+enum class BleScanState : uint8_t
+{
+    kNotScanning,
+    kScanForDiscriminator,
+    kScanForAddress,
+    kConnecting,
+};
+
+/**
+ * Structure for BLE Scanning Configuration
+ */
+struct BLEScanConfig
+{
+    // If an active scan for connection is being performed
+    BleScanState mBleScanState = BleScanState::kNotScanning;
+
+    // If scanning by discriminator, what are we scanning for
+    uint16_t mDiscriminator = 0;
+
+    // If scanning by address, what address are we searching for
+    std::string mAddress;
+
+    // Optional argument to be passed to callback functions provided by the BLE scan/connect requestor
+    void * mAppState = nullptr;
+};
+
+/**
  * Concrete implementation of the BLEManagerImpl singleton object for the Tizen platforms.
  */
 class BLEManagerImpl final : public BLEManager,
                              private Ble::BleLayer,
                              private Ble::BlePlatformDelegate,
-                             private Ble::BleApplicationDelegate
+                             private Ble::BleApplicationDelegate,
+                             private Ble::BleConnectionDelegate,
+                             private ChipDeviceScannerDelegate
 {
     // Allow the BLEManager interface class to delegate method calls to
     // the implementation methods provided by this class.
@@ -50,6 +87,7 @@ private:
     // ===== Members that implement the BLEManager internal interface.
 
     CHIP_ERROR _Init(void);
+    CHIP_ERROR _Shutdown() { return CHIP_NO_ERROR; }
     CHIPoBLEServiceMode _GetCHIPoBLEServiceMode(void);
     CHIP_ERROR _SetCHIPoBLEServiceMode(CHIPoBLEServiceMode val);
     bool _IsAdvertisingEnabled(void);
@@ -60,6 +98,7 @@ private:
     CHIP_ERROR _SetDeviceName(const char * deviceName);
     uint16_t _NumConnections(void);
     void _OnPlatformEvent(const ChipDeviceEvent * event);
+    void HandlePlatformSpecificBLEEvent(const ChipDeviceEvent * event);
     BleLayer * _GetBleLayer(void);
 
     // ===== Members that implement virtual methods on BlePlatformDelegate.
@@ -83,12 +122,108 @@ private:
 
     void NotifyChipConnectionClosed(BLE_CONNECTION_OBJECT conId) override;
 
+    // ===== Members that implement virtual methods on BleConnectionDelegate.
+
+    void NewConnection(BleLayer * bleLayer, void * appState, uint16_t connDiscriminator) override;
+    CHIP_ERROR CancelConnection() override;
+
+    //  ===== Members that implement virtual methods on ChipDeviceScannerDelegate
+    void OnChipDeviceScanned(void * device, const chip::Ble::ChipBLEDeviceIdentificationInfo & info) override;
+    void OnChipScanComplete() override;
+
     // ===== Members for internal use by the following friends.
 
     friend BLEManager & BLEMgr(void);
     friend BLEManagerImpl & BLEMgrImpl(void);
 
     static BLEManagerImpl sInstance;
+
+    // ===== Private members reserved for use by this class only.
+    enum class Flags : uint16_t
+    {
+        kAsyncInitCompleted       = 0x0001, /**< One-time asynchronous initialization actions have been performed. */
+        kTizenBLELayerInitialized = 0x0002, /**< The Tizen Platform BLE layer has been initialized. */
+        kAppRegistered            = 0x0004, /**< The CHIPoBLE application has been registered with the Bluez layer. */
+        kAdvertisingConfigured    = 0x0008, /**< CHIPoBLE advertising has been configured in the Bluez layer. */
+        kAdvertising              = 0x0010, /**< The system is currently CHIPoBLE advertising. */
+        kControlOpInProgress      = 0x0020, /**< An async control operation has been issued to the ESP BLE layer. */
+        kAdvertisingEnabled       = 0x0040, /**< The application has enabled CHIPoBLE advertising. */
+        kFastAdvertisingEnabled   = 0x0080, /**< The application has enabled fast advertising. */
+        kUseCustomDeviceName      = 0x0100, /**< The application has configured a custom BLE device name. */
+        kAdvertisingRefreshNeeded = 0x0200, /**< The advertising configuration/state in BLE layer needs to be updated. */
+    };
+
+    static gboolean _BleInitialize(void * userData);
+    void DriveBLEState();
+    static void DriveBLEState(intptr_t arg);
+
+    void InitiateScan(BleScanState scanType);
+    static void InitiateScan(intptr_t arg);
+
+    static void AdvertisingStateChangedCb(int result, bt_advertiser_h advertiser, bt_adapter_le_advertising_state_e advState,
+                                          void * userData);
+    static void NotificationStateChangedCb(bool notify, bt_gatt_server_h server, bt_gatt_h gattHandle, void * userData);
+    static void WriteValueRequestedCb(const char * remoteAddress, int requestId, bt_gatt_server_h server, bt_gatt_h gattHandle,
+                                      bool responseNeeded, int offset, const char * value, int len, void * userData);
+    static void IndicationConfirmationCb(int result, const char * remoteAddress, bt_gatt_server_h server, bt_gatt_h characteristic,
+                                         bool completed, void * userData);
+    static void IndicationConfirmationCb(bt_gatt_h characteristic, bt_gatt_server_notification_sent_cb callback,
+                                         const char * device_address, void * userData);
+    static void GattConnectionStateChangedCb(int result, bool connected, const char * remoteAddress, void * userData);
+    static void WriteCompletedCb(int result, bt_gatt_h gattHandle, void * userData);
+    static void CharacteristicNotificationCb(bt_gatt_h characteristic, char * value, int len, void * userData);
+
+    // ==== Connection.
+    void InitConnectionData(void);
+    void AddConnectionData(const char * remoteAddr);
+    void RemoveConnectionData(const char * remoteAddr);
+
+    void HandleC1CharWriteEvent(BLE_CONNECTION_OBJECT conId, const uint8_t * value, size_t len);
+    void HandleRXCharChanged(BLE_CONNECTION_OBJECT conId, const uint8_t * value, size_t len);
+    void HandleConnectionEvent(bool connected, const char * remoteAddress);
+    static void HandleConnectionTimeout(chip::System::Layer * layer, void * data);
+    static bool IsDeviceChipPeripheral(void * device);
+
+    // ==== BLE Adv & GATT Server.
+    void NotifyBLEPeripheralGATTServerRegisterComplete(bool aIsSuccess, void * apAppstate);
+    void NotifyBLEPeripheralAdvConfiguredComplete(bool aIsSuccess, void * apAppstate);
+    void NotifyBLEPeripheralAdvStartComplete(bool aIsSuccess, void * apAppstate);
+    void NotifyBLEPeripheralAdvStopComplete(bool aIsSuccess, void * apAppstate);
+    void NotifyBLESubscribed(bool indicationsEnabled, BLE_CONNECTION_OBJECT conId);
+    void NotifyBLEIndicationConfirmation(BLE_CONNECTION_OBJECT conId);
+    void NotifyBLEWriteReceived(System::PacketBufferHandle & buf, BLE_CONNECTION_OBJECT conId);
+
+    // ==== Connection.
+    void ConnectHandler(const char * address);
+    static gboolean ConnectChipThing(gpointer userData);
+    void NotifyBLEConnectionEstablished(BLE_CONNECTION_OBJECT conId, CHIP_ERROR error);
+    void NotifyBLEDisconnection(BLE_CONNECTION_OBJECT conId, CHIP_ERROR error);
+    void NotifyHandleNewConnection(BLE_CONNECTION_OBJECT conId);
+    void NotifyHandleConnectFailed(CHIP_ERROR error);
+    void NotifyHandleWriteComplete(BLE_CONNECTION_OBJECT conId);
+    void NotifySubscribeOpComplete(BLE_CONNECTION_OBJECT conId, bool isSubscribed);
+    void NotifyBLENotificationReceived(System::PacketBufferHandle & buf, BLE_CONNECTION_OBJECT conId);
+
+    int RegisterGATTServer(void);
+    int StartAdvertising(void);
+    int StopAdvertising(void);
+    void CleanScanConfig(void);
+
+    CHIPoBLEServiceMode mServiceMode;
+    BitFlags<Flags> mFlags;
+    bool mIsCentral          = false;
+    void * mGattCharC1Handle = nullptr;
+    void * mGattCharC2Handle = nullptr;
+    uint32_t mAdapterId;
+    bt_advertiser_h mAdvertiser = nullptr;
+    bool mAdvReqInProgress      = false;
+    /* Connection Hash Table Map */
+    GHashTable * mConnectionMap = nullptr;
+
+    BLEScanConfig mBLEScanConfig;
+    std::unique_ptr<ChipDeviceScanner> mDeviceScanner;
+    GMainContext * mMainContext  = nullptr;
+    bt_gatt_client_h mGattClient = nullptr;
 };
 
 /**
@@ -120,17 +255,17 @@ inline Ble::BleLayer * BLEManagerImpl::_GetBleLayer()
 
 inline BLEManager::CHIPoBLEServiceMode BLEManagerImpl::_GetCHIPoBLEServiceMode()
 {
-    return ConnectivityManager::kCHIPoBLEServiceMode_NotSupported;
+    return mServiceMode;
 }
 
 inline bool BLEManagerImpl::_IsAdvertisingEnabled()
 {
-    return false;
+    return mFlags.Has(Flags::kAdvertisingEnabled);
 }
 
 inline bool BLEManagerImpl::_IsAdvertising()
 {
-    return false;
+    return mFlags.Has(Flags::kAdvertising);
 }
 
 } // namespace Internal

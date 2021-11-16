@@ -22,19 +22,20 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ErrorStr.h>
+#include <platform/CHIPDeviceLayer.h>
 
 namespace chip {
 namespace Test {
 
-CHIP_ERROR IOContext::Init(nlTestSuite * suite)
+CHIP_ERROR IOContext::Init()
 {
     CHIP_ERROR err = Platform::MemoryInit();
+    chip::DeviceLayer::SetConfigurationMgr(&chip::DeviceLayer::ConfigurationManagerImpl::GetDefaultInstance());
 
     gSystemLayer.Init();
 
     InitNetwork();
 
-    mSuite       = suite;
     mSystemLayer = &gSystemLayer;
     mInetLayer   = &gInet;
 
@@ -60,15 +61,15 @@ void IOContext::DriveIO()
     ServiceEvents(kSleepTimeMilliseconds);
 }
 
-void IOContext::DriveIOUntil(unsigned maxWaitMs, std::function<bool(void)> completionFunction)
+void IOContext::DriveIOUntil(System::Clock::Timeout maxWait, std::function<bool(void)> completionFunction)
 {
-    uint64_t mStartTime = System::Clock::GetMonotonicMilliseconds();
+    System::Clock::Timestamp startTime = System::SystemClock().GetMonotonicTimestamp();
 
     while (true)
     {
         DriveIO(); // at least one IO loop is guaranteed
 
-        if (completionFunction() || ((System::Clock::GetMonotonicMilliseconds() - mStartTime) >= maxWaitMs))
+        if (completionFunction() || ((System::SystemClock().GetMonotonicTimestamp() - startTime) >= maxWait))
         {
             break;
         }

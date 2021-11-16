@@ -41,7 +41,6 @@ import kotlinx.android.synthetic.main.enter_wifi_network_fragment.view.saveNetwo
  * Fragment to collect Wi-Fi network information from user and send it to device being provisioned.
  */
 class EnterNetworkFragment : Fragment() {
-
   private val networkType: ProvisionNetworkType
     get() = requireNotNull(
       ProvisionNetworkType.fromName(arguments?.getString(ARG_PROVISION_NETWORK_TYPE))
@@ -95,10 +94,7 @@ class EnterNetworkFragment : Fragment() {
     val ssidBytes = ssid.toByteArray()
     val pwdBytes = password.toByteArray()
 
-    val devicePtr = ChipClient.getDeviceController(requireContext())
-      .getDevicePointer(DeviceIdUtil.getLastDeviceId(requireContext()))
-    val cluster = NetworkCommissioningCluster(devicePtr, /* endpointId = */ 0)
-
+    val cluster = createNetworkCommissioningCluster()
     val enableNetworkCallback = object :
       NetworkCommissioningCluster.EnableNetworkResponseCallback {
       override fun onSuccess(errorCode: Int, debugText: String) {
@@ -186,9 +182,7 @@ class EnterNetworkFragment : Fragment() {
       return
     }
 
-    val devicePtr = ChipClient.getDeviceController(requireContext())
-      .getDevicePointer(DeviceIdUtil.getLastDeviceId(requireContext()))
-    val cluster = NetworkCommissioningCluster(devicePtr, /* endpointId = */ 0)
+    val cluster = createNetworkCommissioningCluster()
 
     val operationalDataset = makeThreadOperationalDataset(
       channelStr.toString().toInt(),
@@ -283,6 +277,12 @@ class EnterNetworkFragment : Fragment() {
     return dataset
   }
 
+  private fun createNetworkCommissioningCluster(): NetworkCommissioningCluster {
+    val devicePtr = ChipClient.getDeviceController(requireContext())
+      .getDeviceBeingCommissionedPointer(DeviceIdUtil.getLastDeviceId(requireContext()))
+    return NetworkCommissioningCluster(devicePtr, NETWORK_COMMISSIONING_CLUSTER_ENDPOINT)
+  }
+
   private fun String.hexToByteArray(): ByteArray {
     return chunked(2).map { byteStr -> byteStr.toUByte(16).toByte() }.toByteArray()
   }
@@ -290,6 +290,7 @@ class EnterNetworkFragment : Fragment() {
   companion object {
     private const val TAG = "EnterNetworkFragment"
     private const val ARG_PROVISION_NETWORK_TYPE = "provision_network_type"
+    private const val NETWORK_COMMISSIONING_CLUSTER_ENDPOINT = 0
 
     // TODO(#5035): remove hardcoded option when delayed commands work.
     private const val USE_HARDCODED_WIFI = false

@@ -40,7 +40,7 @@ void BdxDownloader::HandleTransferSessionOutput(TransferSession::OutputEvent & e
 
     if (event.EventType != TransferSession::OutputEventType::kNone)
     {
-        ChipLogDetail(BDX, "OutputEvent type: %d", static_cast<uint16_t>(event.EventType));
+        ChipLogDetail(BDX, "OutputEvent type: %s", event.ToString(event.EventType));
     }
 
     switch (event.EventType)
@@ -55,7 +55,7 @@ void BdxDownloader::HandleTransferSessionOutput(TransferSession::OutputEvent & e
         break;
     case TransferSession::OutputEventType::kMsgToSend: {
         chip::Messaging::SendFlags sendFlags;
-        VerifyOrReturn(mExchangeCtx != nullptr, ChipLogError(BDX, "%s: mExchangeContext is null", __FUNCTION__));
+        VerifyOrReturn(mExchangeCtx != nullptr, ChipLogError(BDX, "mExchangeContext is null, cannot proceed"));
         if (event.msgTypeData.MessageType == static_cast<uint8_t>(MessageType::ReceiveInit))
         {
             sendFlags.Set(chip::Messaging::SendMessageFlags::kFromInitiator);
@@ -66,12 +66,11 @@ void BdxDownloader::HandleTransferSessionOutput(TransferSession::OutputEvent & e
         }
         err = mExchangeCtx->SendMessage(event.msgTypeData.ProtocolId, event.msgTypeData.MessageType, std::move(event.MsgData),
                                         sendFlags);
-        VerifyOrReturn(err == CHIP_NO_ERROR, ChipLogError(BDX, "%s: SendMessage failed: %s", __FUNCTION__, chip::ErrorStr(err)));
+        VerifyOrReturn(err == CHIP_NO_ERROR, ChipLogError(BDX, "SendMessage failed: %" CHIP_ERROR_FORMAT, err.Format()));
         break;
     }
     case TransferSession::OutputEventType::kAcceptReceived:
-        VerifyOrReturn(CHIP_NO_ERROR == mTransfer.PrepareBlockQuery(),
-                       ChipLogError(BDX, "%s: PrepareBlockQuery failed", __FUNCTION__));
+        VerifyOrReturn(CHIP_NO_ERROR == mTransfer.PrepareBlockQuery(), ChipLogError(BDX, "PrepareBlockQuery failed"));
         break;
     case TransferSession::OutputEventType::kBlockReceived: {
         ChipLogDetail(BDX, "Got block length %zu", event.blockdata.Length);
@@ -79,40 +78,41 @@ void BdxDownloader::HandleTransferSessionOutput(TransferSession::OutputEvent & e
         // TODO: something more elegant than appending to a local file
         // TODO: while convenient, we should not do a synchronous block write in our example application - this is bad practice
         std::ofstream otaFile(outFilePath, std::ifstream::out | std::ifstream::ate | std::ifstream::app);
-        otaFile.write(reinterpret_cast<const char *>(event.blockdata.Data), event.blockdata.Length);
+        otaFile.write(reinterpret_cast<const char *>(event.blockdata.Data), static_cast<std::streamsize>(event.blockdata.Length));
 
         if (event.blockdata.IsEof)
         {
             err = mTransfer.PrepareBlockAck();
-            VerifyOrReturn(err == CHIP_NO_ERROR,
-                           ChipLogError(BDX, "%s: PrepareBlockAck failed: %s", __FUNCTION__, chip::ErrorStr(err)));
+            VerifyOrReturn(err == CHIP_NO_ERROR, ChipLogError(BDX, "PrepareBlockAck failed: %" CHIP_ERROR_FORMAT, err.Format()));
             mIsTransferComplete = true;
         }
         else
         {
             err = mTransfer.PrepareBlockQuery();
-            VerifyOrReturn(err == CHIP_NO_ERROR,
-                           ChipLogError(BDX, "%s: PrepareBlockQuery failed: %s", __FUNCTION__, chip::ErrorStr(err)));
+            VerifyOrReturn(err == CHIP_NO_ERROR, ChipLogError(BDX, "PrepareBlockQuery failed: %" CHIP_ERROR_FORMAT, err.Format()));
         }
         break;
     }
     case TransferSession::OutputEventType::kStatusReceived:
         ChipLogError(BDX, "Got StatusReport %x", static_cast<uint16_t>(event.statusData.statusCode));
         mTransfer.Reset();
+        mExchangeCtx->Close();
         break;
     case TransferSession::OutputEventType::kInternalError:
         ChipLogError(BDX, "InternalError");
         mTransfer.Reset();
+        mExchangeCtx->Close();
         break;
     case TransferSession::OutputEventType::kTransferTimeout:
         ChipLogError(BDX, "Transfer timed out");
         mTransfer.Reset();
+        mExchangeCtx->Close();
         break;
     case TransferSession::OutputEventType::kInitReceived:
     case TransferSession::OutputEventType::kAckReceived:
     case TransferSession::OutputEventType::kQueryReceived:
     case TransferSession::OutputEventType::kAckEOFReceived:
     default:
-        ChipLogError(BDX, "%s: unexpected event type", __FUNCTION__);
+        ChipLogError(BDX, "Unexpected BDX event type: %" PRIu16, static_cast<uint16_t>(event.EventType));
     }
 }

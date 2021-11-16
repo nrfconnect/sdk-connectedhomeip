@@ -56,14 +56,17 @@
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/callback.h>
 #include <app-common/zap-generated/cluster-id.h>
+#include <app-common/zap-generated/cluster-objects.h>
 #include <app-common/zap-generated/command-id.h>
 #include <app/CommandHandler.h>
+#include <app/ConcreteCommandPath.h>
 #include <app/util/af-event.h>
 #include <app/util/af.h>
 #include <app/util/binding-table.h>
 #include <system/SystemLayer.h>
 
 using namespace chip;
+using namespace chip::app::Clusters::IasZone;
 
 #define UNDEFINED_ZONE_ID 0xFF
 #define DELAY_TIMER_MS (1 * MILLISECOND_TICKS_PER_SECOND)
@@ -91,7 +94,7 @@ typedef struct
 {
     EndpointId endpoint;
     uint16_t status;
-    uint32_t eventTimeMs;
+    System::Clock::Timestamp eventTime;
 } IasZoneStatusQueueEntry;
 
 typedef struct
@@ -209,22 +212,23 @@ static void enrollWithClient(EndpointId endpoint)
     }
 }
 
-EmberAfStatus emberAfIasZoneClusterServerPreAttributeChangedCallback(EndpointId endpoint, AttributeId attributeId,
-                                                                     EmberAfAttributeType attributeType, uint16_t size,
-                                                                     uint8_t * value)
+Protocols::InteractionModel::Status
+MatterIasZoneClusterServerPreAttributeChangedCallback(const app::ConcreteAttributePath & attributePath,
+                                                      EmberAfAttributeType attributeType, uint16_t size, uint8_t * value)
 {
     uint8_t i;
     bool zeroAddress;
     EmberBindingTableEntry bindingEntry;
     EmberBindingTableEntry currentBind;
     NodeId destNodeId;
+    EndpointId endpoint   = attributePath.mEndpointId;
     uint8_t ieeeAddress[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
     // If this is not a CIE Address write, the CIE address has already been
     // written, or the IAS Zone server is already enrolled, do nothing.
-    if (attributeId != ZCL_IAS_CIE_ADDRESS_ATTRIBUTE_ID || emberAfCurrentCommand() == NULL)
+    if (attributePath.mAttributeId != ZCL_IAS_CIE_ADDRESS_ATTRIBUTE_ID || emberAfCurrentCommand() == NULL)
     {
-        return EMBER_ZCL_STATUS_SUCCESS;
+        return Protocols::InteractionModel::Status::Success;
     }
 
     memcpy(&destNodeId, value, sizeof(NodeId));
@@ -292,7 +296,7 @@ EmberAfStatus emberAfIasZoneClusterServerPreAttributeChangedCallback(EndpointId 
                                           EMBER_AF_STAY_AWAKE);
     }
 
-    return EMBER_ZCL_STATUS_SUCCESS;
+    return Protocols::InteractionModel::Status::Success;
 }
 
 EmberAfStatus emberAfPluginIasZoneClusterSetEnrollmentMethod(EndpointId endpoint, EmberAfIasZoneEnrollmentMode method)
@@ -348,9 +352,12 @@ static void updateEnrollState(EndpointId endpoint, bool enrolled)
     emberAfIasZoneClusterPrintln("IAS Zone Server State: %pEnrolled", (enrolled ? "" : "NOT "));
 }
 
-bool emberAfIasZoneClusterZoneEnrollResponseCallback(EndpointId aEndpoint, app::CommandHandler * commandObj,
-                                                     uint8_t enrollResponseCode, uint8_t zoneId)
+bool emberAfIasZoneClusterZoneEnrollResponseCallback(app::CommandHandler * commandObj, const app::ConcreteCommandPath & commandPath,
+                                                     const Commands::ZoneEnrollResponse::DecodableType & commandData)
 {
+    auto & enrollResponseCode = commandData.enrollResponseCode;
+    auto & zoneId             = commandData.zoneId;
+
     EndpointId endpoint;
     uint8_t epZoneId;
     EmberAfStatus status;
@@ -406,9 +413,9 @@ EmberStatus emberAfPluginIasZoneServerUpdateZoneStatus(EndpointId endpoint, uint
 {
 #if defined(EMBER_AF_PLUGIN_IAS_ZONE_SERVER_ENABLE_QUEUE)
     IasZoneStatusQueueEntry newBufferEntry;
-    newBufferEntry.endpoint    = endpoint;
-    newBufferEntry.status      = newStatus;
-    newBufferEntry.eventTimeMs = System::Clock::GetMonotonicMilliseconds();
+    newBufferEntry.endpoint  = endpoint;
+    newBufferEntry.status    = newStatus;
+    newBufferEntry.eventTime = System::SystemClock().GetMonotonicTimestamp();
 #endif
     EmberStatus sendStatus = EMBER_SUCCESS;
 
@@ -520,7 +527,7 @@ void emberAfPluginIasZoneServerManageQueueEventHandler(void)
         status = bufferStart->status;
         emberAfIasZoneClusterPrintln("Attempting to resend a queued zone status update (status: 0x%02X, "
                                      "event time (s): %d) with time of %d. Retry count: %d",
-                                     bufferStart->status, bufferStart->eventTimeMs / MILLISECOND_TICKS_PER_SECOND, elapsedTimeQs,
+                                     bufferStart->status, bufferStart->eventTime / MILLISECOND_TICKS_PER_SECOND, elapsedTimeQs,
                                      queueRetryParams.currentRetryCount);
         sendZoneUpdate(status, elapsedTimeQs, bufferStart->endpoint);
         emberEventControlSetInactive(&emberAfPluginIasZoneServerManageQueueEventControl);
@@ -742,7 +749,7 @@ void emberAfPluginIasZoneServerPrintQueue(void)
     for (int i = 0; i < messageQueue.entriesInQueue; i++)
     {
         emberAfIasZoneClusterPrintln("Entry %d: Endpoint: %d Status: %d EventTimeMs: %d", i, messageQueue.buffer[i].endpoint,
-                                     messageQueue.buffer[i].status, messageQueue.buffer[i].eventTimeMs);
+                                     messageQueue.buffer[i].status, messageQueue.buffer[i].eventTime);
     }
 }
 
@@ -870,9 +877,9 @@ static int16_t copyToBuffer(IasZoneStatusQueue * ring, const IasZoneStatusQueueE
         ring->lastIdx = 0;
     }
 
-    ring->buffer[ring->lastIdx].endpoint    = entry->endpoint;
-    ring->buffer[ring->lastIdx].status      = entry->status;
-    ring->buffer[ring->lastIdx].eventTimeMs = entry->eventTimeMs;
+    ring->buffer[ring->lastIdx].endpoint  = entry->endpoint;
+    ring->buffer[ring->lastIdx].status    = entry->status;
+    ring->buffer[ring->lastIdx].eventTime = entry->eventTime;
 
     ring->entriesInQueue++;
     return ring->lastIdx;
@@ -906,8 +913,8 @@ static int16_t popFromBuffer(IasZoneStatusQueue * ring, IasZoneStatusQueueEntry 
 
 uint16_t computeElapsedTimeQs(IasZoneStatusQueueEntry * entry)
 {
-    uint32_t currentTimeMs = System::Clock::GetMonotonicMilliseconds();
-    int64_t deltaTimeMs    = currentTimeMs - entry->eventTimeMs;
+    System::Clock::Milliseconds64 currentTimeMs = System::SystemClock().GetMonotonicMilliseconds64();
+    int64_t deltaTimeMs                         = currentTimeMs.count() - entry->eventTime.count();
 
     if (deltaTimeMs < 0)
     {
@@ -917,3 +924,5 @@ uint16_t computeElapsedTimeQs(IasZoneStatusQueueEntry * entry)
     return deltaTimeMs / MILLISECOND_TICKS_PER_QUARTERSECOND;
 }
 #endif
+
+void MatterIasZonePluginServerInitCallback() {}

@@ -33,11 +33,11 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#include <crypto/RandUtils.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/core/CHIPEncoding.h>
 #include <lib/support/CHIPFaultInjection.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/RandUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
@@ -72,7 +72,7 @@ CHIP_ERROR ExchangeManager::Init(SessionManager * sessionManager)
 
     mSessionManager = sessionManager;
 
-    mNextExchangeId = GetRandU16();
+    mNextExchangeId = chip::Crypto::GetRandU16();
     mNextKeyId      = 0;
 
     for (auto & handler : UMHandlerPool)
@@ -116,7 +116,19 @@ CHIP_ERROR ExchangeManager::Shutdown()
 
 ExchangeContext * ExchangeManager::NewContext(SessionHandle session, ExchangeDelegate * delegate)
 {
-    return mContextPool.CreateObject(this, mNextExchangeId++, session, true, delegate);
+    ExchangeContext * context = mContextPool.CreateObject(this, mNextExchangeId++, session, true, delegate);
+
+    uint32_t mrpIdleInterval   = CHIP_CONFIG_MRP_DEFAULT_IDLE_RETRY_INTERVAL;
+    uint32_t mrpActiveInterval = CHIP_CONFIG_MRP_DEFAULT_ACTIVE_RETRY_INTERVAL;
+
+    session.GetMRPIntervals(GetSessionManager(), mrpIdleInterval, mrpActiveInterval);
+
+    ReliableMessageProtocolConfig mrpConfig;
+    mrpConfig.mIdleRetransTimeoutTick   = mrpIdleInterval >> CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT;
+    mrpConfig.mActiveRetransTimeoutTick = mrpActiveInterval >> CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT;
+    context->GetReliableMessageContext()->SetConfig(mrpConfig);
+
+    return context;
 }
 
 CHIP_ERROR ExchangeManager::RegisterUnsolicitedMessageHandlerForProtocol(Protocols::Id protocolId, ExchangeDelegate * delegate)
@@ -213,29 +225,34 @@ void ExchangeManager::OnMessageReceived(const PacketHeader & packetHeader, const
         msgFlags.Set(MessageFlagValues::kDuplicateMessage);
     }
 
-    // Search for an existing exchange that the message applies to. If a match is found...
-    bool found = false;
-    mContextPool.ForEachActiveObject([&](auto * ec) {
-        if (ec->MatchExchange(session, packetHeader, payloadHeader))
-        {
-            // Found a matching exchange. Set flag for correct subsequent MRP
-            // retransmission timeout selection.
-            if (!ec->HasRcvdMsgFromPeer())
-            {
-                ec->SetMsgRcvdFromPeer(true);
-            }
-
-            // Matched ExchangeContext; send to message handler.
-            ec->HandleMessage(packetHeader.GetMessageCounter(), payloadHeader, source, msgFlags, std::move(msgBuf));
-            found = true;
-            return false;
-        }
-        return true;
-    });
-
-    if (found)
+    // Skip retrieval of exchange for group message since no exchange is stored
+    // for group msg (optimization)
+    if (!packetHeader.IsGroupSession())
     {
-        return;
+        // Search for an existing exchange that the message applies to. If a match is found...
+        bool found = false;
+        mContextPool.ForEachActiveObject([&](auto * ec) {
+            if (ec->MatchExchange(session, packetHeader, payloadHeader))
+            {
+                // Found a matching exchange. Set flag for correct subsequent MRP
+                // retransmission timeout selection.
+                if (!ec->HasRcvdMsgFromPeer())
+                {
+                    ec->SetMsgRcvdFromPeer(true);
+                }
+
+                // Matched ExchangeContext; send to message handler.
+                ec->HandleMessage(packetHeader.GetMessageCounter(), payloadHeader, source, msgFlags, std::move(msgBuf));
+                found = true;
+                return false;
+            }
+            return true;
+        });
+
+        if (found)
+        {
+            return;
+        }
     }
 
     // If it's not a duplicate message, search for an unsolicited message handler if it is marked as being sent by an initiator.
@@ -293,7 +310,7 @@ void ExchangeManager::OnMessageReceived(const PacketHeader & packetHeader, const
         ChipLogDetail(ExchangeManager, "Handling via exchange: " ChipLogFormatExchange ", Delegate: 0x%p", ChipLogValueExchange(ec),
                       ec->GetDelegate());
 
-        if (ec->IsEncryptionRequired() != packetHeader.GetFlags().Has(Header::FlagValues::kEncryptedMessage))
+        if (ec->IsEncryptionRequired() != packetHeader.IsEncrypted())
         {
             ChipLogError(ExchangeManager, "OnMessageReceived failed, err = %s", ErrorStr(CHIP_ERROR_INVALID_MESSAGE_TYPE));
             ec->Close();
@@ -325,7 +342,7 @@ void ExchangeManager::OnConnectionExpired(SessionHandle session)
     }
 
     mContextPool.ForEachActiveObject([&](auto * ec) {
-        if (ec->mSecureSession.HasValue() && ec->mSecureSession.Value() == session)
+        if (ec->mSession.HasValue() && ec->mSession.Value() == session)
         {
             ec->OnConnectionExpired();
             // Continue to iterate because there can be multiple exchanges

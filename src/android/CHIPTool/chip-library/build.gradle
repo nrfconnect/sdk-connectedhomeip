@@ -2,6 +2,8 @@ plugins {
     id 'com.android.library'
 }
 
+apply from: "../../../../third_party/android_deps/android_deps.gradle"
+
 android {
     compileSdkVersion 30
 
@@ -25,15 +27,23 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    if (!matterBuildSrcDir.isEmpty()) {
-        sourceSets {
-            main {
-                java.srcDirs = [
-                        '../../../setup_payload/java/src',
-                        '../../../controller/java/zap-generated',
-                        '../../../controller/java/src',
-                ]
-            }
+    sourceSets {
+        main {
+            java.srcDirs = [
+                    '../../../setup_payload/java/src',
+                    '../../../controller/java/zap-generated',
+                    '../../../controller/java/src',
+                    '../../../platform/android/java'
+            ]
         }
+    }
+}
+
+dependencies {
+    // Dependencies for CHIP Java code are defined centrally in
+    // android_deps.gradle. Copy deps from that file into our implementation
+    // config, instead of maintaining two separate lists of dependencies.
+    configurations.chipDeps.dependencies.each {
+        project.dependencies.add("implementation", "${it.group}:${it.name}:${it.version}")
     }
 }

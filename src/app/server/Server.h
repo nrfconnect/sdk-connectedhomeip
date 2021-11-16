@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <app/OperationalDeviceProxy.h>
 #include <app/server/AppDelegate.h>
 #include <app/server/CommissioningWindowManager.h>
 #include <inet/InetConfig.h>
@@ -49,7 +50,7 @@ using ServerTransportMgr = chip::TransportMgr<chip::Transport::UDP
 #endif
                                               >;
 
-class Server : public Messaging::ExchangeDelegate
+class Server
 {
 public:
     CHIP_ERROR Init(AppDelegate * delegate = nullptr, uint16_t secureServicePort = CHIP_PORT,
@@ -61,15 +62,26 @@ public:
 
     CHIP_ERROR AddTestCommissioning();
 
-    Transport::FabricTable & GetFabricTable() { return mFabrics; }
+    FabricTable & GetFabricTable() { return mFabrics; }
 
-    Messaging::ExchangeManager & GetExchangManager() { return mExchangeMgr; }
+    Messaging::ExchangeManager & GetExchangeManager() { return mExchangeMgr; }
 
     SessionIDAllocator & GetSessionIDAllocator() { return mSessionIDAllocator; }
 
     SessionManager & GetSecureSessionManager() { return mSessions; }
 
     TransportMgrBase & GetTransportManager() { return mTransports; }
+
+    chip::OperationalDeviceProxy * GetOperationalDeviceProxy() { return mOperationalDeviceProxy; }
+
+    void SetOperationalDeviceProxy(chip::OperationalDeviceProxy * operationalDeviceProxy)
+    {
+        mOperationalDeviceProxy = operationalDeviceProxy;
+    }
+
+#if CONFIG_NETWORK_LAYER_BLE
+    Ble::BleLayer * getBleLayerObject() { return mBleLayer; }
+#endif
 
     CommissioningWindowManager & GetCommissioningWindowManager() { return mCommissioningWindowManager; }
 
@@ -82,7 +94,7 @@ private:
 
     static Server sServer;
 
-    class ServerStorageDelegate : public PersistentStorageDelegate
+    class ServerStorageDelegate : public PersistentStorageDelegate, public FabricStorage
     {
         CHIP_ERROR SyncGetKeyValue(const char * key, void * buffer, uint16_t & size) override
         {
@@ -104,20 +116,29 @@ private:
             ChipLogProgress(AppServer, "Deleted from server storage: %s", key);
             return CHIP_NO_ERROR;
         }
+
+        CHIP_ERROR SyncStore(FabricIndex fabricIndex, const char * key, const void * buffer, uint16_t size) override
+        {
+            return SyncSetKeyValue(key, buffer, size);
+        };
+
+        CHIP_ERROR SyncLoad(FabricIndex fabricIndex, const char * key, void * buffer, uint16_t & size) override
+        {
+            return SyncGetKeyValue(key, buffer, size);
+        };
+
+        CHIP_ERROR SyncDelete(FabricIndex fabricIndex, const char * key) override { return SyncDeleteKeyValue(key); };
     };
 
-    // Messaging::ExchangeDelegate
-    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * exchangeContext, const PayloadHeader & payloadHeader,
-                                 System::PacketBufferHandle && buffer) override;
-    void OnResponseTimeout(Messaging::ExchangeContext * ec) override;
-
-    AppDelegate * mAppDelegate = nullptr;
+#if CONFIG_NETWORK_LAYER_BLE
+    Ble::BleLayer * mBleLayer = nullptr;
+#endif
 
     ServerTransportMgr mTransports;
     SessionManager mSessions;
     CASEServer mCASEServer;
     Messaging::ExchangeManager mExchangeMgr;
-    Transport::FabricTable mFabrics;
+    FabricTable mFabrics;
     SessionIDAllocator mSessionIDAllocator;
     secure_channel::MessageCounterManager mMessageCounterManager;
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
@@ -127,6 +148,8 @@ private:
 
     ServerStorageDelegate mServerStorage;
     CommissioningWindowManager mCommissioningWindowManager;
+
+    chip::OperationalDeviceProxy * mOperationalDeviceProxy = nullptr;
 
     // TODO @ceille: Maybe use OperationalServicePort and CommissionableServicePort
     uint16_t mSecuredServicePort;

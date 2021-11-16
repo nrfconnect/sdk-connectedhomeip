@@ -28,31 +28,13 @@
 #ifndef CHIP_PROJECT_CONFIG_H
 #define CHIP_PROJECT_CONFIG_H
 
-#if BUILD_RELEASE // release build
-
-// Security and Authentication enabled for release build.
+// Security and Authentication always enabled
 #define CHIP_CONFIG_SECURITY_TEST_MODE 0
 #define CHIP_CONFIG_REQUIRE_AUTH 1
 
+#if BUILD_RELEASE // release build
+
 #else // development build
-
-// Security and Authentication disabled for development build.
-// For convenience, enable CHIP Security Test Mode and disable the requirement for
-// authentication in various protocols.
-// WARNING: These options make it possible to circumvent basic CHIP security functionality,
-// including message encryption. Because of this they MUST NEVER BE ENABLED IN PRODUCTION BUILDS.
-#define CHIP_CONFIG_SECURITY_TEST_MODE 1
-#define CHIP_CONFIG_REQUIRE_AUTH 0
-
-/**
- * CHIP_DEVICE_CONFIG_ENABLE_TEST_DEVICE_IDENTITY
- *
- * Enables the use of a hard-coded default CHIP device id and credentials if no device id
- * is found in CHIP NV storage.
- *
- * This option is for testing only and should be disabled in production releases.
- */
-#define CHIP_DEVICE_CONFIG_ENABLE_TEST_DEVICE_IDENTITY 34
 
 // Use a default pairing code if one hasn't been provisioned in flash.
 #define CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE 20202021
@@ -147,6 +129,10 @@
  * Enable the OpenThread SRP client to allow for CHIP device discovery.
  */
 #define CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT 1
+
+#define CHIP_DEVICE_CONFIG_ENABLE_SED 1
+#define CHIP_DEVICE_CONFIG_SED_SLOW_POLLING_INTERVAL 5000
+#define CHIP_DEVICE_CONFIG_SED_FAST_POLLING_INTERVAL 5000
 
 /**
  * CHIP_CONFIG_EVENT_LOGGING_DEFAULT_IMPORTANCE

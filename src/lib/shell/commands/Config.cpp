@@ -30,6 +30,14 @@ using chip::DeviceLayer::ConfigurationMgr;
 namespace chip {
 namespace Shell {
 
+static chip::Shell::Engine sShellConfigSubcommands;
+
+CHIP_ERROR ConfigHelpHandler(int argc, char ** argv)
+{
+    sShellConfigSubcommands.ForEachCommand(PrintCommandHelp, nullptr);
+    return CHIP_NO_ERROR;
+}
+
 static CHIP_ERROR ConfigGetVendorId(bool printHeader)
 {
     streamer_t * sout = streamer_get();
@@ -42,6 +50,11 @@ static CHIP_ERROR ConfigGetVendorId(bool printHeader)
     }
     streamer_printf(sout, "%" PRIu16 " (0x%" PRIX16 ")\r\n", value16, value16);
     return CHIP_NO_ERROR;
+}
+
+static CHIP_ERROR ConfigVendorId(int argc, char ** argv)
+{
+    return ConfigGetVendorId(false);
 }
 
 static CHIP_ERROR ConfigGetProductId(bool printHeader)
@@ -58,6 +71,11 @@ static CHIP_ERROR ConfigGetProductId(bool printHeader)
     return CHIP_NO_ERROR;
 }
 
+static CHIP_ERROR ConfigProductId(int argc, char ** argv)
+{
+    return ConfigGetProductId(false);
+}
+
 static CHIP_ERROR ConfigGetProductRevision(bool printHeader)
 {
     streamer_t * sout = streamer_get();
@@ -72,18 +90,9 @@ static CHIP_ERROR ConfigGetProductRevision(bool printHeader)
     return CHIP_NO_ERROR;
 }
 
-static CHIP_ERROR ConfigGetDeviceId(bool printHeader)
+static CHIP_ERROR ConfigProductRevision(int argc, char ** argv)
 {
-    streamer_t * sout = streamer_get();
-    uint64_t value64;
-
-    ReturnErrorOnFailure(ConfigurationMgr().GetDeviceId(value64));
-    if (printHeader)
-    {
-        streamer_printf(sout, "DeviceId:        ");
-    }
-    streamer_printf(sout, "%" PRIu64 " (0x" ChipLogFormatX64 ")\r\n", value64, ChipLogValueX64(value64));
-    return CHIP_NO_ERROR;
+    return ConfigGetProductRevision(false);
 }
 
 static CHIP_ERROR ConfigGetSetupPinCode(bool printHeader)
@@ -98,6 +107,11 @@ static CHIP_ERROR ConfigGetSetupPinCode(bool printHeader)
     }
     streamer_printf(sout, "%08u\r\n", setupPinCode);
     return CHIP_NO_ERROR;
+}
+
+static CHIP_ERROR ConfigPinCode(int argc, char ** argv)
+{
+    return ConfigGetSetupPinCode(false);
 }
 
 static CHIP_ERROR ConfigGetSetupDiscriminator(bool printHeader)
@@ -136,18 +150,16 @@ static CHIP_ERROR ConfigSetSetupDiscriminator(char * argv)
     return error;
 }
 
-static CHIP_ERROR ConfigGetFabricId(bool printHeader)
+static CHIP_ERROR ConfigDiscriminator(int argc, char ** argv)
 {
-    streamer_t * sout = streamer_get();
-    uint64_t value64;
-
-    ReturnErrorOnFailure(ConfigurationMgr().GetFabricId(value64));
-    if (printHeader)
+    if (argc == 0)
     {
-        streamer_printf(sout, "FabricId:        ");
+        return ConfigGetSetupDiscriminator(false);
     }
-    streamer_printf(sout, "%" PRIu64 " (0x" ChipLogFormatX64 ")\r\n", value64, ChipLogValueX64(value64));
-    return CHIP_NO_ERROR;
+    else
+    {
+        return ConfigSetSetupDiscriminator(argv[0]);
+    }
 }
 
 static CHIP_ERROR PrintAllConfigs()
@@ -156,11 +168,8 @@ static CHIP_ERROR PrintAllConfigs()
     ReturnErrorOnFailure(ConfigGetProductId(true));
     ReturnErrorOnFailure(ConfigGetProductRevision(true));
 
-    ReturnErrorOnFailure(ConfigGetFabricId(true));
     ReturnErrorOnFailure(ConfigGetSetupPinCode(true));
     ReturnErrorOnFailure(ConfigGetSetupDiscriminator(true));
-
-    ReturnErrorOnFailure(ConfigGetDeviceId(true));
 
     return CHIP_NO_ERROR;
 }
@@ -172,61 +181,35 @@ static CHIP_ERROR ConfigHandler(int argc, char ** argv)
     case 0:
         return PrintAllConfigs();
     case 1:
-        if (strcmp(argv[0], "vendorid") == 0)
+        if ((strcmp(argv[0], "help") == 0) || (strcmp(argv[0], "-h") == 0))
         {
-            return ConfigGetVendorId(false);
+            return ConfigHelpHandler(argc, argv);
         }
-        else if (strcmp(argv[0], "productid") == 0)
-        {
-            return ConfigGetProductId(false);
-        }
-        else if (strcmp(argv[0], "productrev") == 0)
-        {
-            return ConfigGetProductRevision(false);
-        }
-        else if (strcmp(argv[0], "deviceid") == 0)
-        {
-            return ConfigGetDeviceId(false);
-        }
-        else if (strcmp(argv[0], "pincode") == 0)
-        {
-            return ConfigGetSetupPinCode(false);
-        }
-        else if (strcmp(argv[0], "discriminator") == 0)
-        {
-            return ConfigGetSetupDiscriminator(false);
-        }
-        else if (strcmp(argv[0], "fabricid") == 0)
-        {
-            return ConfigGetFabricId(false);
-        }
-        else
-        {
-            return CHIP_ERROR_INVALID_ARGUMENT;
-        }
-    case 2:
-        if (strcmp(argv[0], "discriminator") == 0)
-        {
-            return ConfigSetSetupDiscriminator(argv[1]);
-        }
-        else
-        {
-            return CHIP_ERROR_INVALID_ARGUMENT;
-        }
-    default:
-        return CHIP_ERROR_INVALID_ARGUMENT;
     }
+    return sShellConfigSubcommands.ExecCommand(argc, argv);
 }
 
 void RegisterConfigCommands()
 {
 
-    static const shell_command_t sDeviceComand = { &ConfigHandler, "config",
+    static const shell_command_t sConfigComand = { &ConfigHandler, "config",
                                                    "Manage device configuration. Usage to dump value: config [param_name] and "
                                                    "to set some values (discriminator): config [param_name] [param_value]." };
 
-    // Register the root `device` command with the top-level shell.
-    Engine::Root().RegisterCommands(&sDeviceComand, 1);
+    static const shell_command_t sConfigSubCommands[] = {
+        { &ConfigHelpHandler, "help", "Usage: config <subcommand>" },
+        { &ConfigVendorId, "vendorid", "Get VendorId. Usage: config vendorid" },
+        { &ConfigProductId, "productid", "Get ProductId. Usage: config productid" },
+        { &ConfigProductRevision, "productrev", "Get ProductRevision. Usage: config preductrev" },
+        { &ConfigPinCode, "pincode", "Get commissioning pincode. Usage: config pincode" },
+        { &ConfigDiscriminator, "discriminator", "Get/Set commissioning discriminator. Usage: config discriminator [value]" },
+    };
+
+    // Register `config` subcommands with the local shell dispatcher.
+    sShellConfigSubcommands.RegisterCommands(sConfigSubCommands, ArraySize(sConfigSubCommands));
+
+    // Register the root `config` command with the top-level shell.
+    Engine::Root().RegisterCommands(&sConfigComand, 1);
     return;
 }
 

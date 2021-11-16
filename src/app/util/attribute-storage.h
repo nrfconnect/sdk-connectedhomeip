@@ -43,6 +43,7 @@
 
 //#include PLATFORM_HEADER
 #include <app/AttributeAccessInterface.h>
+#include <app/ConcreteAttributePath.h>
 #include <app/util/af.h>
 
 #if !defined(EMBER_SCRIPTED_TEST)
@@ -89,8 +90,10 @@
 
 #define DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(attrListName) EmberAfAttributeMetadata attrListName[] = {
 
-#define DECLARE_DYNAMIC_ATTRIBUTE_LIST_END(clusterRevision)                                                                        \
-    , { 0xFFFD, ZAP_TYPE(INT16U), 2, 0, ZAP_SIMPLE_DEFAULT(clusterRevision) } /* cluster revision */                               \
+#define DECLARE_DYNAMIC_ATTRIBUTE_LIST_END()                                                                                       \
+    {                                                                                                                              \
+        0xFFFD, ZAP_TYPE(INT16U), 2, ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE), ZAP_EMPTY_DEFAULT()                                     \
+    } /* cluster revision */                                                                                                       \
     }
 
 #define DECLARE_DYNAMIC_ATTRIBUTE(attId, attType, attSizeBytes, attrMask)                                                          \
@@ -120,8 +123,6 @@ void emAfCallInits(void);
 
 // Initial configuration
 void emberAfEndpointConfigure(void);
-bool emberAfExtractCommandIds(bool outgoing, EmberAfClusterCommand * cmd, chip::ClusterId clusterId, uint8_t * buffer,
-                              uint16_t bufferLength, uint16_t * bufferIndex, uint8_t startId, uint8_t maxIdCount);
 
 EmberAfStatus emAfReadOrWriteAttribute(EmberAfAttributeSearchRecord * attRecord, EmberAfAttributeMetadata ** metadata,
                                        uint8_t * buffer, uint16_t readLength, bool write, int32_t index = -1);
@@ -150,9 +151,14 @@ uint8_t emberAfClusterIndex(chip::EndpointId endpoint, chip::ClusterId clusterId
 // otherwise number of client clusters on this endpoint
 uint8_t emberAfClusterCount(chip::EndpointId endpoint, bool server);
 
-// Returns the clusterId of Nth server or client cluster,
+// Returns the cluster of Nth server or client cluster,
 // depending on server toggle.
 EmberAfCluster * emberAfGetNthCluster(chip::EndpointId endpoint, uint8_t n, bool server);
+
+// Returns the clusterId of Nth server or client cluster,
+// depending on server toggle.
+// Returns Optional<ClusterId>::Missing if cluster does not exist.
+chip::Optional<chip::ClusterId> emberAfGetNthClusterId(chip::EndpointId endpoint, uint8_t n, bool server);
 
 // Returns number of clusters put into the passed cluster list
 // for the given endpoint and client/server polarity
@@ -200,13 +206,11 @@ void emAfSaveAttributeToToken(uint8_t * data, chip::EndpointId endpoint, chip::C
                               EmberAfAttributeMetadata * metadata);
 
 // Calls the attribute changed callback
-void emAfClusterAttributeChangedCallback(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId,
-                                         uint8_t clientServerMask, uint16_t manufacturerCode);
+void emAfClusterAttributeChangedCallback(const chip::app::ConcreteAttributePath & attributePath, uint8_t clientServerMask);
 
 // Calls the attribute changed callback for a specific cluster.
-EmberAfStatus emAfClusterPreAttributeChangedCallback(chip::EndpointId endpoint, chip::ClusterId clusterId,
-                                                     chip::AttributeId attributeId, uint8_t clientServerMask,
-                                                     uint16_t manufacturerCode, EmberAfAttributeType attributeType, uint16_t size,
+EmberAfStatus emAfClusterPreAttributeChangedCallback(const chip::app::ConcreteAttributePath & attributePath,
+                                                     uint8_t clientServerMask, EmberAfAttributeType attributeType, uint16_t size,
                                                      uint8_t * value);
 
 // Calls the default response callback for a specific cluster, and wraps emberAfClusterDefaultResponseWithMfgCodeCallback
@@ -243,7 +247,7 @@ bool emberAfEndpointIsEnabled(chip::EndpointId endpoint);
 // and those indexes may be DIFFERENT than the indexes returned from
 // emberAfGetNthCluster().  In other words:
 //
-//  - Use emberAfGetClustersFromEndpoint()  with emberAfGetNthCluster()
+//  - Use emberAfGetClustersFromEndpoint()  with emberAfGetNthCluster() emberAfGetNthClusterId()
 //  - Use emberAfGetClusterCountForEndpoint() with emberAfGetClusterByIndex()
 //
 // Don't mix them.
@@ -255,6 +259,21 @@ EmberAfStatus emberAfSetDynamicEndpoint(uint16_t index, chip::EndpointId id, Emb
                                         uint8_t deviceVersion);
 chip::EndpointId emberAfClearDynamicEndpoint(uint16_t index);
 uint16_t emberAfGetDynamicIndexFromEndpoint(chip::EndpointId id);
+
+// Get the number of attributes of the specific cluster under the endpoint.
+// Returns 0 if the cluster does not exist.
+uint16_t emberAfGetServerAttributeCount(chip::EndpointId endpoint, chip::ClusterId cluster);
+
+// Get the index of the given attribute of the specific cluster under the endpoint.
+// Returns UINT16_MAX if the attribute does not exist.
+uint16_t emberAfGetServerAttributeIndexByAttributeId(chip::EndpointId endpoint, chip::ClusterId cluster,
+                                                     chip::AttributeId attributeId);
+
+// Get the attribute id at the attributeIndex of the cluster under the endpoint. This function is useful for iterating over the
+// attributes.
+// Returns Optional<chip::AttributeId>::Missing() if the attribute does not exist.
+chip::Optional<chip::AttributeId> emberAfGetServerAttributeIdByIndex(chip::EndpointId endpoint, chip::ClusterId cluster,
+                                                                     uint16_t attributeIndex);
 
 /**
  * Register an attribute access override.  It will remain registered until

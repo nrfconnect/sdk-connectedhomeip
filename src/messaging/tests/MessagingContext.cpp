@@ -23,16 +23,14 @@
 namespace chip {
 namespace Test {
 
-CHIP_ERROR MessagingContext::Init(nlTestSuite * suite, TransportMgrBase * transport, IOContext * ioContext)
+CHIP_ERROR MessagingContext::Init(TransportMgrBase * transport, IOContext * ioContext)
 {
     VerifyOrReturnError(mInitialized == false, CHIP_ERROR_INTERNAL);
     mInitialized = true;
 
     mIOContext = ioContext;
 
-    mFabrics.Reset();
-
-    ReturnErrorOnFailure(mSessionManager.Init(&GetSystemLayer(), transport, &mFabrics, &mMessageCounterManager));
+    ReturnErrorOnFailure(mSessionManager.Init(&GetSystemLayer(), transport, &mMessageCounterManager));
 
     ReturnErrorOnFailure(mExchangeManager.Init(&mSessionManager));
     ReturnErrorOnFailure(mMessageCounterManager.Init(&mExchangeManager));
@@ -65,6 +63,11 @@ SessionHandle MessagingContext::GetSessionAliceToBob()
 {
     // TODO: temporarily create a SessionHandle from node id, will be fixed in PR 3602
     return SessionHandle(GetBobNodeId(), GetAliceKeyId(), GetBobKeyId(), mDestFabricIndex);
+}
+
+SessionHandle MessagingContext::GetSessionBobToFriends()
+{
+    return SessionHandle(GetBobKeyId(), GetFriendsGroupId(), GetFabricIndex());
 }
 
 Messaging::ExchangeContext * MessagingContext::NewUnauthenticatedExchangeToAlice(Messaging::ExchangeDelegate * delegate)

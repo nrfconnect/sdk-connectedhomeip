@@ -28,15 +28,12 @@
 #include <utility>
 
 #include <inet/IPAddress.h>
-#include <inet/IPEndPointBasis.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/DLLUtil.h>
 #include <protocols/secure_channel/Constants.h>
 #include <transport/CryptoContext.h>
-#include <transport/FabricTable.h>
 #include <transport/MessageCounterManagerInterface.h>
-#include <transport/PairingSession.h>
 #include <transport/SecureSessionTable.h>
 #include <transport/SessionHandle.h>
 #include <transport/TransportMgr.h>
@@ -46,6 +43,8 @@
 #include <transport/raw/Tuple.h>
 
 namespace chip {
+
+class PairingSession;
 
 /**
  * @brief
@@ -240,10 +239,9 @@ public:
      *
      * @param systemLayer           System, layer to use
      * @param transportMgr          Transport to use
-     * @param fabrics                A table of device administrators
      * @param messageCounterManager The message counter manager
      */
-    CHIP_ERROR Init(System::Layer * systemLayer, TransportMgrBase * transportMgr, Transport::FabricTable * fabrics,
+    CHIP_ERROR Init(System::Layer * systemLayer, TransportMgrBase * transportMgr,
                     Transport::MessageCounterManagerInterface * messageCounterManager);
 
     /**
@@ -266,12 +264,12 @@ public:
 
     Optional<SessionHandle> CreateUnauthenticatedSession(const Transport::PeerAddress & peerAddress)
     {
-        Transport::UnauthenticatedSession * session = mUnauthenticatedSessions.FindOrAllocateEntry(peerAddress);
-        if (session == nullptr)
-            return Optional<SessionHandle>::Missing();
-
-        return Optional<SessionHandle>::Value(SessionHandle(Transport::UnauthenticatedSessionHandle(*session)));
+        Optional<Transport::UnauthenticatedSessionHandle> session = mUnauthenticatedSessions.FindOrAllocateEntry(peerAddress);
+        return session.HasValue() ? MakeOptional<SessionHandle>(session.Value()) : NullOptional;
     }
+
+    // TODO: this is a temporary solution for legacy tests which use nodeId to send packets
+    SessionHandle FindSecureSessionForNode(NodeId peerNodeId);
 
 private:
     /**
@@ -291,12 +289,11 @@ private:
 
     System::Layer * mSystemLayer = nullptr;
     Transport::UnauthenticatedSessionTable<CHIP_CONFIG_UNAUTHENTICATED_CONNECTION_POOL_SIZE> mUnauthenticatedSessions;
-    Transport::SecureSessionTable<CHIP_CONFIG_PEER_CONNECTION_POOL_SIZE> mPeerConnections; // < Active connections to other peers
-    State mState;                                                                          // < Initialization state of the object
+    Transport::SecureSessionTable<CHIP_CONFIG_PEER_CONNECTION_POOL_SIZE> mSecureSessions; // < Active connections to other peers
+    State mState;                                                                         // < Initialization state of the object
 
     SessionManagerDelegate * mCB                                       = nullptr;
     TransportMgrBase * mTransportMgr                                   = nullptr;
-    Transport::FabricTable * mFabrics                                  = nullptr;
     Transport::MessageCounterManagerInterface * mMessageCounterManager = nullptr;
 
     GlobalUnencryptedMessageCounter mGlobalUnencryptedMessageCounter;
@@ -318,8 +315,12 @@ private:
      */
     static void ExpiryTimerCallback(System::Layer * layer, void * param);
 
-    void SecureMessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
-                               System::PacketBufferHandle && msg);
+    void SecureUnicastMessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
+                                      System::PacketBufferHandle && msg);
+
+    void SecureGroupMessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
+                                    System::PacketBufferHandle && msg);
+
     void MessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                          System::PacketBufferHandle && msg);
 

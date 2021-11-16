@@ -116,6 +116,35 @@
 #define CHIP_DEVICE_CONFIG_LOG_PROVISIONING_HASH 1
 #endif
 
+/**
+ * CHIP_DEVICE_CONFIG_ENABLE_SED
+ *
+ * Enable support for sleepy end device behavior.
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_SED
+#define CHIP_DEVICE_CONFIG_ENABLE_SED 0
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_SED_SLOW_POLLING_INTERVAL
+ *
+ * The default amount of time in milliseconds that the sleepy end device will use as a slow-polling interval.
+ * This interval is used by the device to periodically wake up and poll the data in the idle mode.
+ */
+#ifndef CHIP_DEVICE_CONFIG_SED_SLOW_POLLING_INTERVAL
+#define CHIP_DEVICE_CONFIG_SED_SLOW_POLLING_INTERVAL 5000
+#endif
+
+/**
+ * CHIP_DEVICE_CONFIG_SED_FAST_POLLING_INTERVAL
+ *
+ * The default amount of time in milliseconds that the sleepy end device will use as a fast-polling interval.
+ * This interval is used by the device to periodically wake up and poll the data in the active mode.
+ */
+#ifndef CHIP_DEVICE_CONFIG_SED_FAST_POLLING_INTERVAL
+#define CHIP_DEVICE_CONFIG_SED_FAST_POLLING_INTERVAL 200
+#endif
+
 // -------------------- Device Identification Configuration --------------------
 
 /**
@@ -297,7 +326,7 @@
  * Enable support for a WiFi AP interface.
  */
 #ifndef CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP
-#define CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP 1
+#define CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP 0
 #endif
 
 /**
@@ -588,26 +617,6 @@
 #define CHIP_DEVICE_CONFIG_SERVICE_PROVISIONING_REQUEST_TIMEOUT 10000
 #endif
 
-// -------------------- Just-In-Time Provisioning Configuration --------------------
-
-/**
- * CHIP_DEVICE_CONFIG_ENABLE_JUST_IN_TIME_PROVISIONING
- *
- * Enable just-in-time provisioning functionality in the chip Device Layer.
- *
- * When enabled, device creates and uses its ephemeral operational credentials:
- *   - operational device id
- *   - operational device self-signed certificate
- *   - operational device private key
- * When enabled, device also implements certificate provisioning protocol and uses it to obtain
- * service assigned certificate from the Certification Authority Service.
- *
- * Then, device uses these credentials to authenticate and communicate to other chip nodes.
- */
-#ifndef CHIP_DEVICE_CONFIG_ENABLE_JUST_IN_TIME_PROVISIONING
-#define CHIP_DEVICE_CONFIG_ENABLE_JUST_IN_TIME_PROVISIONING 0
-#endif
-
 // -------------------- Thread Configuration --------------------
 
 /**
@@ -716,7 +725,7 @@
  * Amount of services available for advertising using SRP.
  */
 #ifndef CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES
-#define CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES 3
+#define CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES (CHIP_CONFIG_MAX_DEVICE_ADMINS + 1)
 #endif
 
 /**
@@ -748,21 +757,6 @@
  */
 #ifndef CHIP_DEVICE_CONFIG_ENABLE_TRAIT_MANAGER
 #define CHIP_DEVICE_CONFIG_ENABLE_TRAIT_MANAGER 0
-#endif
-
-// -------------------- Test Configuration --------------------
-
-/**
- * CHIP_DEVICE_CONFIG_ENABLE_TEST_DEVICE_IDENTITY
- *
- * Enables the use of a hard-coded default chip device id and credentials if no device id
- * is found in chip NV storage.  The value specifies which of 10 identities, numbered 1 through 10,
- * is to be used.  A value of 0 disables use of a default identity.
- *
- * This option is for testing only and should be disabled in production releases.
- */
-#ifndef CHIP_DEVICE_CONFIG_ENABLE_TEST_DEVICE_IDENTITY
-#define CHIP_DEVICE_CONFIG_ENABLE_TEST_DEVICE_IDENTITY 0
 #endif
 
 // -------------------- Network Telemetry Configuration --------------------
@@ -1073,12 +1067,12 @@
 // -------------------- Device DNS-SD Configuration --------------------
 
 /**
- * CHIP_DEVICE_CONFIG_ENABLE_MDNS
+ * CHIP_DEVICE_CONFIG_ENABLE_DNSSD
  *
- * Enable support to use MDNS for service advertising and discovery in CHIP.
+ * Enable support to use DNS-SD for service advertising and discovery in CHIP.
  */
-#ifndef CHIP_DEVICE_CONFIG_ENABLE_MDNS
-#define CHIP_DEVICE_CONFIG_ENABLE_MDNS 0
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_DNSSD
+#define CHIP_DEVICE_CONFIG_ENABLE_DNSSD 0
 #endif
 
 /**

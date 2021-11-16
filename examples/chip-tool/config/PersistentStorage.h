@@ -36,19 +36,32 @@ public:
     uint16_t GetListenPort();
     chip::Logging::LogCategory GetLoggingLevel();
 
-    // Return the stored node ids, or the default ones if nothing is stored.
+    // Return the stored local node id, or the default one if nothing is stored.
     chip::NodeId GetLocalNodeId();
-    chip::NodeId GetRemoteNodeId();
 
-    // Store node ids.
+    // Store local node id.
     CHIP_ERROR SetLocalNodeId(chip::NodeId nodeId);
-    CHIP_ERROR SetRemoteNodeId(chip::NodeId nodeId);
+
+    /**
+     * @brief
+     *  Configure the fabric used for pairing and sending commands.
+     *
+     * @param[in] fabricName  The name of the fabric. It must be one of the following strings:
+     *                         - alpha
+     *                         - beta
+     *                         - gamma
+     *
+     * @return CHIP_ERROR CHIP_NO_ERROR on success, or corresponding error code.
+     */
+    CHIP_ERROR SetFabric(const char * fabricName);
+
+    /**
+     * @brief
+     *  Return the stored fabric id, or the one for the "alpha" fabric if nothing is stored.
+     */
+    chip::FabricId GetFabricId();
 
 private:
-    // Helpers for node ids.
-    chip::NodeId GetNodeId(const char * key, chip::NodeId defaultVal);
-    CHIP_ERROR SetNodeId(const char * key, chip::NodeId value);
-
     CHIP_ERROR CommitConfig();
     inipp::Ini<char> mConfig;
 };

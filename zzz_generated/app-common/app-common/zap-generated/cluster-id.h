@@ -67,6 +67,9 @@ static constexpr chip::ClusterId ZCL_DESCRIPTOR_CLUSTER_ID = 0x001D;
 // Definitions for cluster: Poll Control
 static constexpr chip::ClusterId ZCL_POLL_CONTROL_CLUSTER_ID = 0x0020;
 
+// Definitions for cluster: Bridged Actions
+static constexpr chip::ClusterId ZCL_BRIDGED_ACTIONS_CLUSTER_ID = 0x0025;
+
 // Definitions for cluster: Basic
 static constexpr chip::ClusterId ZCL_BASIC_CLUSTER_ID = 0x0028;
 
@@ -75,6 +78,9 @@ static constexpr chip::ClusterId ZCL_OTA_PROVIDER_CLUSTER_ID = 0x0029;
 
 // Definitions for cluster: OTA Software Update Requestor
 static constexpr chip::ClusterId ZCL_OTA_REQUESTOR_CLUSTER_ID = 0x002A;
+
+// Definitions for cluster: Power Source
+static constexpr chip::ClusterId ZCL_POWER_SOURCE_CLUSTER_ID = 0x002F;
 
 // Definitions for cluster: General Commissioning
 static constexpr chip::ClusterId ZCL_GENERAL_COMMISSIONING_CLUSTER_ID = 0x0030;
@@ -115,6 +121,12 @@ static constexpr chip::ClusterId ZCL_OPERATIONAL_CREDENTIALS_CLUSTER_ID = 0x003E
 // Definitions for cluster: Fixed Label
 static constexpr chip::ClusterId ZCL_FIXED_LABEL_CLUSTER_ID = 0x0040;
 
+// Definitions for cluster: Boolean State
+static constexpr chip::ClusterId ZCL_BOOLEAN_STATE_CLUSTER_ID = 0x0045;
+
+// Definitions for cluster: Mode Select
+static constexpr chip::ClusterId ZCL_MODE_SELECT_CLUSTER_ID = 0x0050;
+
 // Definitions for cluster: Shade Configuration
 static constexpr chip::ClusterId ZCL_SHADE_CONFIG_CLUSTER_ID = 0x0100;
 
@@ -149,10 +161,7 @@ static constexpr chip::ClusterId ZCL_COLOR_CONTROL_CLUSTER_ID = 0x0300;
 static constexpr chip::ClusterId ZCL_BALLAST_CONFIGURATION_CLUSTER_ID = 0x0301;
 
 // Definitions for cluster: Illuminance Measurement
-static constexpr chip::ClusterId ZCL_ILLUM_MEASUREMENT_CLUSTER_ID = 0x0400;
-
-// Definitions for cluster: Illuminance Level Sensing
-static constexpr chip::ClusterId ZCL_ILLUM_LEVEL_SENSING_CLUSTER_ID = 0x0401;
+static constexpr chip::ClusterId ZCL_ILLUMINANCE_MEASUREMENT_CLUSTER_ID = 0x0400;
 
 // Definitions for cluster: Temperature Measurement
 static constexpr chip::ClusterId ZCL_TEMP_MEASUREMENT_CLUSTER_ID = 0x0402;

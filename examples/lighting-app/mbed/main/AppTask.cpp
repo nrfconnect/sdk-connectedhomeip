@@ -29,7 +29,7 @@
 // from unistd.h to avoid a conflicting declaration with the `sleep()` provided
 // by Mbed-OS in mbed_power_mgmt.h.
 #define sleep unistd_sleep
-#include <app/server/Mdns.h>
+#include <app/server/Dnssd.h>
 #include <app/server/Server.h>
 #include <platform/CHIPDeviceLayer.h>
 #undef sleep
@@ -75,7 +75,6 @@ static bool sHaveBLEConnections       = false;
 
 static mbed::Timeout sFunctionTimer;
 
-// TODO: change EventQueue default event size
 static events::EventQueue sAppEventQueue;
 
 using namespace ::chip::Credentials;
@@ -94,7 +93,7 @@ int AppTask::Init()
                 if (event->InternetConnectivityChange.IPv4 == kConnectivity_Established ||
                     event->InternetConnectivityChange.IPv6 == kConnectivity_Established)
                 {
-                    chip::app::MdnsServer::Instance().StartServer();
+                    chip::app::DnssdServer::Instance().StartServer();
                 }
             }
         },
@@ -123,9 +122,6 @@ int AppTask::Init()
         ChipLogProgress(NotSpecified, "Enabling BLE advertising.");
         ConnectivityMgr().SetBLEAdvertisingEnabled(true);
     }
-#ifdef MBED_CONF_APP_DEVICE_NAME
-    ConnectivityMgr().SetBLEDeviceName(MBED_CONF_APP_DEVICE_NAME);
-#endif
 
     chip::DeviceLayer::ConnectivityMgrImpl().StartWiFiManagement();
 
@@ -150,6 +146,8 @@ int AppTask::StartApp()
         ChipLogError(NotSpecified, "AppTask.Init() failed");
         return ret;
     }
+
+    ChipLogProgress(NotSpecified, "Mbed lighting-app example application run");
 
     while (true)
     {

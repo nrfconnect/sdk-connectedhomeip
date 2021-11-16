@@ -24,13 +24,13 @@ The VSCode devcontainer has these components pre-installed, so you can skip this
 step. To install these components manually, follow these steps:
 
 -   Clone the Espressif ESP-IDF and checkout
-    [v4.3 tag](https://github.com/espressif/esp-idf/releases/v4.3)
+    [v4.4 tag](https://github.com/espressif/esp-idf/releases/v4.4)
 
           $ mkdir ${HOME}/tools
           $ cd ${HOME}/tools
           $ git clone https://github.com/espressif/esp-idf.git
           $ cd esp-idf
-          $ git checkout v4.3
+          $ git checkout release/v4.4
           $ git submodule update --init
           $ ./install.sh
 
@@ -177,12 +177,8 @@ commissioning and cluster control.
          - chip-device-ctrl > close-ble
 
 -   Resolve DNS-SD name and update address of the node in the device controller.
-    Get fabric ID using `get-fabricid` and use the decimal value of compressed
-    fabric id.
 
-         - chip-device-ctrl > get-fabricid
-
-         - chip-device-ctrl > resolve <Compressed Fabric ID> 135246
+         - chip-device-ctrl > resolve 135246
 
 ### Cluster control
 

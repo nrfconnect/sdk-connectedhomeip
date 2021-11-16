@@ -18,34 +18,39 @@
 
 #pragma once
 
+#include <app-common/zap-generated/cluster-objects.h>
 #include <app-common/zap-generated/enums.h>
 #include <app/CommandHandler.h>
+#include <app/ConcreteCommandPath.h>
+#include <app/data-model/DecodableList.h>
 #include <app/util/af.h>
+#include <lib/core/Optional.h>
 
 namespace chip {
 namespace app {
-namespace clusters {
+namespace Clusters {
 
+// TODO: Should this be OTAProvider::Delegate?
 /** @brief
  *    Defines methods for implementing application-specific logic for the OTA Provider Cluster.
  */
 class OTAProviderDelegate
 {
 public:
-    // TODO(#8605): protocolsSupported should be list of OTADownloadProtocol enums, not uint8_t
-    virtual EmberAfStatus HandleQueryImage(CommandHandler * commandObj, uint16_t vendorId, uint16_t productId, uint16_t imageType,
-                                           uint16_t hardwareVersion, uint32_t currentVersion, uint8_t protocolsSupported,
-                                           const chip::Span<const char> & location, bool clientCanConsent,
-                                           const chip::ByteSpan & metadataForProvider) = 0;
+    virtual EmberAfStatus HandleQueryImage(CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+                                           const OtaSoftwareUpdateProvider::Commands::QueryImage::DecodableType & commandData) = 0;
 
-    virtual EmberAfStatus HandleApplyUpdateRequest(CommandHandler * commandObj, const chip::ByteSpan & updateToken,
-                                                   uint32_t newVersion) = 0;
+    virtual EmberAfStatus
+    HandleApplyUpdateRequest(CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+                             const OtaSoftwareUpdateProvider::Commands::ApplyUpdateRequest::DecodableType & commandData) = 0;
 
-    virtual EmberAfStatus HandleNotifyUpdateApplied(const chip::ByteSpan & updateToken, uint32_t currentVersion) = 0;
+    virtual EmberAfStatus
+    HandleNotifyUpdateApplied(CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+                              const OtaSoftwareUpdateProvider::Commands::NotifyUpdateApplied::DecodableType & commandData) = 0;
 
     virtual ~OTAProviderDelegate() = default;
 };
 
-} // namespace clusters
+} // namespace Clusters
 } // namespace app
 } // namespace chip

@@ -19,7 +19,7 @@
 #pragma once
 
 #include "../../config/PersistentStorage.h"
-#include "../common/Command.h"
+#include "../common/CHIPCommand.h"
 #include <zap-generated/CHIPClientCallbacks.h>
 #include <zap-generated/CHIPClusters.h>
 
@@ -31,7 +31,6 @@
 enum class PairingMode
 {
     None,
-    Bypass,
     QRCode,
     ManualCode,
     Ble,
@@ -49,15 +48,23 @@ enum class PairingNetworkType
     Ethernet,
 };
 
-class PairingCommand : public Command,
+class PairingCommand : public CHIPCommand,
                        public chip::Controller::DevicePairingDelegate,
-                       public chip::Controller::DeviceAddressUpdateDelegate
+                       public chip::Controller::DeviceAddressUpdateDelegate,
+                       public chip::Controller::DeviceDiscoveryDelegate
 {
 public:
-    PairingCommand(const char * commandName, PairingMode mode, PairingNetworkType networkType) :
-        Command(commandName), mPairingMode(mode), mNetworkType(networkType), mRemoteAddr{ IPAddress::Any, INET_NULL_INTERFACEID },
-        mOnDeviceConnectedCallback(OnDeviceConnectedFn, this), mOnDeviceConnectionFailureCallback(OnDeviceConnectionFailureFn, this)
+    PairingCommand(const char * commandName, PairingMode mode, PairingNetworkType networkType,
+                   chip::Dnssd::DiscoveryFilterType filterType = chip::Dnssd::DiscoveryFilterType::kNone) :
+        CHIPCommand(commandName),
+        mPairingMode(mode), mNetworkType(networkType),
+        mFilterType(filterType), mRemoteAddr{ IPAddress::Any, chip::Inet::InterfaceId::Null() },
+        mOnDeviceConnectedCallback(OnDeviceConnectedFn, this),
+        mOnDeviceConnectionFailureCallback(OnDeviceConnectionFailureFn, this),
+        mOnOpenCommissioningWindowCallback(OnOpenCommissioningWindowResponse, this)
     {
+        AddArgument("node-id", 0, UINT64_MAX, &mNodeId);
+
         switch (networkType)
         {
         case PairingNetworkType::None:
@@ -76,13 +83,8 @@ public:
         {
         case PairingMode::None:
             break;
-        case PairingMode::Bypass:
-            AddArgument("device-remote-ip", &mRemoteAddr);
-            AddArgument("device-remote-port", 0, UINT16_MAX, &mRemotePort);
-            break;
         case PairingMode::QRCode:
         case PairingMode::ManualCode:
-            AddArgument("fabric-id", 0, UINT64_MAX, &mFabricId);
             AddArgument("payload", &mOnboardingPayload);
             break;
         case PairingMode::Ble:
@@ -91,6 +93,8 @@ public:
             AddArgument("discriminator", 0, 4096, &mDiscriminator);
             break;
         case PairingMode::OnNetwork:
+            AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode);
+            break;
         case PairingMode::SoftAP:
             AddArgument("fabric-id", 0, UINT64_MAX, &mFabricId);
             AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode);
@@ -111,11 +115,38 @@ public:
             AddArgument("discriminator", 0, 4096, &mDiscriminator);
             break;
         }
+
+        switch (filterType)
+        {
+        case chip::Dnssd::DiscoveryFilterType::kNone:
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kShort:
+            AddArgument("discriminator", 0, 15, &mDiscoveryFilterCode);
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kLong:
+            AddArgument("discriminator", 0, 4096, &mDiscoveryFilterCode);
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kVendor:
+            AddArgument("vendor-id", 0, UINT16_MAX, &mDiscoveryFilterCode);
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kCompressedFabricId:
+            AddArgument("fabric-id", 0, UINT64_MAX, &mDiscoveryFilterCode);
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kCommissioningMode:
+        case chip::Dnssd::DiscoveryFilterType::kCommissioner:
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kDeviceType:
+            AddArgument("device-type", 0, UINT16_MAX, &mDiscoveryFilterCode);
+            break;
+        case chip::Dnssd::DiscoveryFilterType::kInstanceName:
+            AddArgument("name", &mDiscoveryFilterInstanceName);
+            break;
+        }
     }
 
-    /////////// Command Interface /////////
-    CHIP_ERROR Run() override;
-    uint16_t GetWaitDurationInSeconds() const override { return 120; }
+    /////////// CHIPCommand Interface /////////
+    CHIP_ERROR RunCommand() override;
+    chip::System::Clock::Timeout GetWaitDuration() const override { return chip::System::Clock::Seconds16(120); }
     void Shutdown() override;
 
     /////////// DevicePairingDelegate Interface /////////
@@ -124,21 +155,24 @@ public:
     void OnPairingDeleted(CHIP_ERROR error) override;
     void OnCommissioningComplete(NodeId deviceId, CHIP_ERROR error) override;
 
+    /////////// DeviceDiscoveryDelegate Interface /////////
+    void OnDiscoveredDevice(const chip::Dnssd::DiscoveredNodeData & nodeData) override;
+
     /////////// DeviceAddressUpdateDelegate Interface /////////
     void OnAddressUpdateComplete(NodeId nodeId, CHIP_ERROR error) override;
 
     /////////// Network Commissioning Callbacks /////////
     static void OnDefaultFailureResponse(void * context, uint8_t status);
-    static void OnAddNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText);
-    static void OnEnableNetworkResponse(void * context, uint8_t errorCode, uint8_t * debugText);
+    static void OnAddNetworkResponse(void * context, uint8_t errorCode, chip::CharSpan debugText);
+    static void OnEnableNetworkResponse(void * context, uint8_t errorCode, chip::CharSpan debugText);
 
 private:
     CHIP_ERROR RunInternal(NodeId remoteId);
     CHIP_ERROR Pair(NodeId remoteId, PeerAddress address);
+    CHIP_ERROR PairWithMdns(NodeId remoteId);
     CHIP_ERROR PairWithQRCode(NodeId remoteId);
     CHIP_ERROR PairWithManualCode(NodeId remoteId);
     CHIP_ERROR PairWithCode(NodeId remoteId, chip::SetupPayload payload);
-    CHIP_ERROR PairWithoutSecurity(NodeId remoteId, PeerAddress address);
     CHIP_ERROR Unpair(NodeId remoteId);
     CHIP_ERROR OpenCommissioningWindow();
 
@@ -154,8 +188,9 @@ private:
 
     const PairingMode mPairingMode;
     const PairingNetworkType mNetworkType;
+    const chip::Dnssd::DiscoveryFilterType mFilterType;
     Command::AddressWithInterface mRemoteAddr;
-    NodeId mRemoteId;
+    NodeId mNodeId;
     uint16_t mRemotePort;
     uint64_t mFabricId;
     uint16_t mTimeout;
@@ -168,19 +203,22 @@ private:
     chip::ByteSpan mSSID;
     chip::ByteSpan mPassword;
     char * mOnboardingPayload;
+    uint64_t mDiscoveryFilterCode;
+    char * mDiscoveryFilterInstanceName;
 
     chip::Callback::Callback<NetworkCommissioningClusterAddThreadNetworkResponseCallback> * mOnAddThreadNetworkCallback = nullptr;
     chip::Callback::Callback<NetworkCommissioningClusterAddWiFiNetworkResponseCallback> * mOnAddWiFiNetworkCallback     = nullptr;
     chip::Callback::Callback<NetworkCommissioningClusterEnableNetworkResponseCallback> * mOnEnableNetworkCallback       = nullptr;
     chip::Callback::Callback<DefaultFailureCallback> * mOnFailureCallback                                               = nullptr;
-    ChipDevice * mDevice;
+    chip::CommissioneeDeviceProxy * mDevice;
     chip::Controller::NetworkCommissioningCluster mCluster;
     chip::EndpointId mEndpointId = 0;
-    chip::Controller::ExampleOperationalCredentialsIssuer mOpCredsIssuer;
 
-    static void OnDeviceConnectedFn(void * context, chip::Controller::Device * device);
+    static void OnDeviceConnectedFn(void * context, chip::DeviceProxy * device);
     static void OnDeviceConnectionFailureFn(void * context, NodeId deviceId, CHIP_ERROR error);
+    static void OnOpenCommissioningWindowResponse(void * context, NodeId deviceId, CHIP_ERROR status, chip::SetupPayload payload);
 
-    chip::Callback::Callback<chip::Controller::OnDeviceConnected> mOnDeviceConnectedCallback;
-    chip::Callback::Callback<chip::Controller::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
+    chip::Callback::Callback<chip::OnDeviceConnected> mOnDeviceConnectedCallback;
+    chip::Callback::Callback<chip::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
+    chip::Callback::Callback<chip::Controller::OnOpenCommissioningWindow> mOnOpenCommissioningWindowCallback;
 };

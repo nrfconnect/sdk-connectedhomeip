@@ -22,26 +22,24 @@
 #pragma once
 
 #include <app/util/basic-types.h>
-#include <credentials/CHIPOperationalCredentials.h>
+#include <credentials/CHIPCert.h>
 #include <crypto/CHIPCryptoPAL.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
 #if CHIP_CRYPTO_HSM
 #include <crypto/hsm/CHIPCryptoPALHsm.h>
 #endif
 #include <lib/core/CHIPSafeCasts.h>
+#include <lib/core/Optional.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/DLLUtil.h>
 #include <lib/support/Span.h>
-#include <transport/raw/MessageHeader.h>
 
 #ifdef ENABLE_HSM_CASE_OPS_KEY
 #define CASE_OPS_KEY 0xCA5EECC0
 #endif
 
 namespace chip {
-namespace Transport {
 
-static constexpr FabricIndex kUndefinedFabricIndex    = 0;
 static constexpr FabricIndex kMinValidFabricIndex     = 1;
 static constexpr FabricIndex kMaxValidFabricIndex     = std::min(UINT8_MAX, CHIP_CONFIG_MAX_DEVICE_ADMINS);
 static constexpr uint8_t kFabricLabelMaxLengthInBytes = 32;
@@ -51,14 +49,63 @@ static constexpr uint8_t kFabricLabelMaxLengthInBytes = 32;
 constexpr char kFabricTableKeyPrefix[] = "Fabric";
 constexpr char kFabricTableCountKey[]  = "NumFabrics";
 
-struct AccessControlList
+class DLL_EXPORT FabricStorage
 {
-    uint32_t placeholder;
+public:
+    virtual ~FabricStorage() {}
+
+    /**
+     * Gets called when fabric data needs to be stored.
+     **/
+    virtual CHIP_ERROR SyncStore(FabricIndex fabricIndex, const char * key, const void * buffer, uint16_t size) = 0;
+
+    /**
+     * Gets called when fabric data needs to be loaded.
+     **/
+    virtual CHIP_ERROR SyncLoad(FabricIndex fabricIndex, const char * key, void * buffer, uint16_t & size) = 0;
+
+    /**
+     * Gets called when fabric data needs to be removed.
+     **/
+    virtual CHIP_ERROR SyncDelete(FabricIndex fabricIndex, const char * key) = 0;
+};
+
+/**
+ * @brief A default implementation of Fabric storage that preserves legacy behavior of using
+ *        the Persistent storage delegate directly.
+ *
+ *        This class automatically prefixes the Fabric Storage Keys with the FabricIndex.
+ *        The keys are formatted like so: "F%02X/" + key.
+ *
+ */
+class DLL_EXPORT SimpleFabricStorage : public FabricStorage
+{
+public:
+    SimpleFabricStorage(){};
+    SimpleFabricStorage(PersistentStorageDelegate * storage) : mStorage(storage){};
+    ~SimpleFabricStorage() override { mStorage = nullptr; };
+
+    CHIP_ERROR Initialize(PersistentStorageDelegate * storage)
+    {
+        VerifyOrReturnError(mStorage == nullptr || storage == mStorage, CHIP_ERROR_INCORRECT_STATE);
+        mStorage = storage;
+        return CHIP_NO_ERROR;
+    }
+
+    CHIP_ERROR SyncStore(FabricIndex fabricIndex, const char * key, const void * buffer, uint16_t size) override;
+
+    CHIP_ERROR SyncLoad(FabricIndex fabricIndex, const char * key, void * buffer, uint16_t & size) override;
+
+    CHIP_ERROR SyncDelete(FabricIndex fabricIndex, const char * key) override;
+
+private:
+    const static int MAX_KEY_SIZE = 32;
+
+    PersistentStorageDelegate * mStorage = nullptr;
 };
 
 /**
  * Defines state of a pairing established by a fabric.
- * ACL data can be mutated throughout the lifetime of the fabric pairing.
  * Node ID is only settable using the device operational credentials.
  *
  * Information contained within the state:
@@ -67,7 +114,6 @@ struct AccessControlList
  *   - Vendor Id
  *   - Fabric Id
  *   - Device operational credentials
- *   - Access control list
  */
 class DLL_EXPORT FabricInfo
 {
@@ -78,11 +124,10 @@ public:
         mFabric = kUndefinedFabricIndex;
     }
 
-    // Returns a pointer to a null terminated char array
-    const uint8_t * GetFabricLabel() const { return Uint8::from_const_char(mFabricLabel); };
+    // Returns a span into our internal storage.
+    CharSpan GetFabricLabel() const { return CharSpan(mFabricLabel, strnlen(mFabricLabel, kFabricLabelMaxLengthInBytes)); }
 
-    // Expects a pointer to a null terminated char array
-    CHIP_ERROR SetFabricLabel(const uint8_t * fabricLabel);
+    CHIP_ERROR SetFabricLabel(const CharSpan & fabricLabel);
 
     ~FabricInfo()
     {
@@ -94,6 +139,13 @@ public:
     }
 
     PeerId GetPeerId() const { return mOperationalId; }
+    PeerId GetPeerIdForNode(const NodeId node) const
+    {
+        PeerId peer = mOperationalId;
+        peer.SetNodeId(node);
+        return peer;
+    }
+
     FabricId GetFabricId() const { return mFabricId; }
     FabricIndex GetFabricIndex() const { return mFabric; }
     uint16_t GetVendorId() const { return mVendorId; }
@@ -121,11 +173,8 @@ public:
     // TODO - Optimize persistent storage of NOC and Root Cert in FabricInfo.
     CHIP_ERROR SetRootCert(const chip::ByteSpan & cert) { return SetCert(mRootCert, cert); }
     CHIP_ERROR SetICACert(const chip::ByteSpan & cert) { return SetCert(mICACert, cert); }
+    CHIP_ERROR SetICACert(const Optional<ByteSpan> & cert) { return SetICACert(cert.ValueOr(ByteSpan())); }
     CHIP_ERROR SetNOCCert(const chip::ByteSpan & cert) { return SetCert(mNOCCert, cert); }
-
-    const AccessControlList & GetACL() const { return mACL; }
-    AccessControlList & GetACL() { return mACL; }
-    void SetACL(const AccessControlList & acl) { mACL = acl; }
 
     bool IsInitialized() const { return IsOperationalNodeId(mOperationalId.GetNodeId()); }
 
@@ -138,7 +187,7 @@ public:
     // TODO - Refactor storing and loading of fabric info from persistent storage.
     //        The op cert array doesn't need to be in RAM except when it's being
     //        transmitted to peer node during CASE session setup.
-    CHIP_ERROR GetRootCert(ByteSpan & cert)
+    CHIP_ERROR GetRootCert(ByteSpan & cert) const
     {
         ReturnErrorCodeIf(mRootCert.empty(), CHIP_ERROR_INCORRECT_STATE);
         cert = mRootCert;
@@ -208,8 +257,6 @@ private:
     uint16_t mVendorId                                  = kUndefinedVendorId;
     char mFabricLabel[kFabricLabelMaxLengthInBytes + 1] = { '\0' };
 
-    AccessControlList mACL;
-
 #ifdef ENABLE_HSM_CASE_OPS_KEY
     Crypto::P256KeypairHSM * mOperationalKey = nullptr;
 #else
@@ -226,9 +273,9 @@ private:
 
     static CHIP_ERROR GenerateKey(FabricIndex id, char * key, size_t len);
 
-    CHIP_ERROR StoreIntoKVS(PersistentStorageDelegate * kvs);
-    CHIP_ERROR FetchFromKVS(PersistentStorageDelegate * kvs);
-    static CHIP_ERROR DeleteFromKVS(PersistentStorageDelegate * kvs, FabricIndex id);
+    CHIP_ERROR CommitToStorage(FabricStorage * storage);
+    CHIP_ERROR LoadFromStorage(FabricStorage * storage);
+    static CHIP_ERROR DeleteFromStorage(FabricStorage * storage, FabricIndex fabricIndex);
 
     void ReleaseCert(MutableByteSpan & cert);
     void ReleaseOperationalCerts()
@@ -373,14 +420,17 @@ public:
     void ReleaseFabricIndex(FabricIndex fabricIndex);
 
     FabricInfo * FindFabricWithIndex(FabricIndex fabricIndex);
+    FabricInfo * FindFabricWithCompressedId(CompressedFabricId fabricId);
 
     FabricIndex FindDestinationIDCandidate(const ByteSpan & destinationId, const ByteSpan & initiatorRandom,
                                            const ByteSpan * ipkList, size_t ipkListEntries);
 
     void Reset();
 
-    CHIP_ERROR Init(PersistentStorageDelegate * storage);
+    CHIP_ERROR Init(FabricStorage * storage);
     CHIP_ERROR SetFabricDelegate(FabricTableDelegate * delegate);
+
+    uint8_t FabricCount() const { return mFabricCount; }
 
     ConstFabricIterator cbegin() const { return ConstFabricIterator(mStates, 0, CHIP_CONFIG_MAX_DEVICE_ADMINS); }
     ConstFabricIterator cend() const
@@ -392,13 +442,13 @@ public:
 
 private:
     FabricInfo mStates[CHIP_CONFIG_MAX_DEVICE_ADMINS];
-    PersistentStorageDelegate * mStorage = nullptr;
+    FabricStorage * mStorage = nullptr;
 
     // TODO: Fabric table should be backed by a single backing store (attribute store), remove delegate callbacks #6419
     FabricTableDelegate * mDelegate = nullptr;
 
     FabricIndex mNextAvailableFabricIndex = kMinValidFabricIndex;
+    uint8_t mFabricCount                  = 0;
 };
 
-} // namespace Transport
 } // namespace chip

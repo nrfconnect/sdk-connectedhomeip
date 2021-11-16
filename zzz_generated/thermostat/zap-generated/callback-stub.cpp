@@ -20,6 +20,7 @@
 #include <app-common/zap-generated/callback.h>
 #include <app-common/zap-generated/cluster-id.h>
 #include <lib/support/Span.h>
+#include <protocols/interaction_model/Constants.h>
 
 using namespace chip;
 
@@ -28,41 +29,14 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
 {
     switch (clusterId)
     {
-    case ZCL_ACCOUNT_LOGIN_CLUSTER_ID:
-        emberAfAccountLoginClusterInitCallback(endpoint);
-        break;
     case ZCL_ADMINISTRATOR_COMMISSIONING_CLUSTER_ID:
         emberAfAdministratorCommissioningClusterInitCallback(endpoint);
-        break;
-    case ZCL_APPLICATION_BASIC_CLUSTER_ID:
-        emberAfApplicationBasicClusterInitCallback(endpoint);
-        break;
-    case ZCL_APPLICATION_LAUNCHER_CLUSTER_ID:
-        emberAfApplicationLauncherClusterInitCallback(endpoint);
-        break;
-    case ZCL_AUDIO_OUTPUT_CLUSTER_ID:
-        emberAfAudioOutputClusterInitCallback(endpoint);
-        break;
-    case ZCL_BARRIER_CONTROL_CLUSTER_ID:
-        emberAfBarrierControlClusterInitCallback(endpoint);
         break;
     case ZCL_BASIC_CLUSTER_ID:
         emberAfBasicClusterInitCallback(endpoint);
         break;
-    case ZCL_BINARY_INPUT_BASIC_CLUSTER_ID:
-        emberAfBinaryInputBasicClusterInitCallback(endpoint);
-        break;
     case ZCL_BINDING_CLUSTER_ID:
         emberAfBindingClusterInitCallback(endpoint);
-        break;
-    case ZCL_BRIDGED_DEVICE_BASIC_CLUSTER_ID:
-        emberAfBridgedDeviceBasicClusterInitCallback(endpoint);
-        break;
-    case ZCL_COLOR_CONTROL_CLUSTER_ID:
-        emberAfColorControlClusterInitCallback(endpoint);
-        break;
-    case ZCL_CONTENT_LAUNCH_CLUSTER_ID:
-        emberAfContentLauncherClusterInitCallback(endpoint);
         break;
     case ZCL_DESCRIPTOR_CLUSTER_ID:
         emberAfDescriptorClusterInitCallback(endpoint);
@@ -70,17 +44,8 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     case ZCL_DIAGNOSTIC_LOGS_CLUSTER_ID:
         emberAfDiagnosticLogsClusterInitCallback(endpoint);
         break;
-    case ZCL_DOOR_LOCK_CLUSTER_ID:
-        emberAfDoorLockClusterInitCallback(endpoint);
-        break;
     case ZCL_ETHERNET_NETWORK_DIAGNOSTICS_CLUSTER_ID:
         emberAfEthernetNetworkDiagnosticsClusterInitCallback(endpoint);
-        break;
-    case ZCL_FIXED_LABEL_CLUSTER_ID:
-        emberAfFixedLabelClusterInitCallback(endpoint);
-        break;
-    case ZCL_FLOW_MEASUREMENT_CLUSTER_ID:
-        emberAfFlowMeasurementClusterInitCallback(endpoint);
         break;
     case ZCL_GENERAL_COMMISSIONING_CLUSTER_ID:
         emberAfGeneralCommissioningClusterInitCallback(endpoint);
@@ -94,26 +59,8 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     case ZCL_GROUPS_CLUSTER_ID:
         emberAfGroupsClusterInitCallback(endpoint);
         break;
-    case ZCL_IAS_ZONE_CLUSTER_ID:
-        emberAfIasZoneClusterInitCallback(endpoint);
-        break;
     case ZCL_IDENTIFY_CLUSTER_ID:
         emberAfIdentifyClusterInitCallback(endpoint);
-        break;
-    case ZCL_KEYPAD_INPUT_CLUSTER_ID:
-        emberAfKeypadInputClusterInitCallback(endpoint);
-        break;
-    case ZCL_LEVEL_CONTROL_CLUSTER_ID:
-        emberAfLevelControlClusterInitCallback(endpoint);
-        break;
-    case ZCL_LOW_POWER_CLUSTER_ID:
-        emberAfLowPowerClusterInitCallback(endpoint);
-        break;
-    case ZCL_MEDIA_INPUT_CLUSTER_ID:
-        emberAfMediaInputClusterInitCallback(endpoint);
-        break;
-    case ZCL_MEDIA_PLAYBACK_CLUSTER_ID:
-        emberAfMediaPlaybackClusterInitCallback(endpoint);
         break;
     case ZCL_NETWORK_COMMISSIONING_CLUSTER_ID:
         emberAfNetworkCommissioningClusterInitCallback(endpoint);
@@ -121,20 +68,8 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     case ZCL_OTA_PROVIDER_CLUSTER_ID:
         emberAfOtaSoftwareUpdateProviderClusterInitCallback(endpoint);
         break;
-    case ZCL_OCCUPANCY_SENSING_CLUSTER_ID:
-        emberAfOccupancySensingClusterInitCallback(endpoint);
-        break;
-    case ZCL_ON_OFF_CLUSTER_ID:
-        emberAfOnOffClusterInitCallback(endpoint);
-        break;
     case ZCL_OPERATIONAL_CREDENTIALS_CLUSTER_ID:
         emberAfOperationalCredentialsClusterInitCallback(endpoint);
-        break;
-    case ZCL_PRESSURE_MEASUREMENT_CLUSTER_ID:
-        emberAfPressureMeasurementClusterInitCallback(endpoint);
-        break;
-    case ZCL_RELATIVE_HUMIDITY_MEASUREMENT_CLUSTER_ID:
-        emberAfRelativeHumidityMeasurementClusterInitCallback(endpoint);
         break;
     case ZCL_SCENES_CLUSTER_ID:
         emberAfScenesClusterInitCallback(endpoint);
@@ -142,35 +77,14 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     case ZCL_SOFTWARE_DIAGNOSTICS_CLUSTER_ID:
         emberAfSoftwareDiagnosticsClusterInitCallback(endpoint);
         break;
-    case ZCL_SWITCH_CLUSTER_ID:
-        emberAfSwitchClusterInitCallback(endpoint);
-        break;
-    case ZCL_TV_CHANNEL_CLUSTER_ID:
-        emberAfTvChannelClusterInitCallback(endpoint);
-        break;
-    case ZCL_TARGET_NAVIGATOR_CLUSTER_ID:
-        emberAfTargetNavigatorClusterInitCallback(endpoint);
-        break;
-    case ZCL_TEMP_MEASUREMENT_CLUSTER_ID:
-        emberAfTemperatureMeasurementClusterInitCallback(endpoint);
-        break;
-    case ZCL_TEST_CLUSTER_ID:
-        emberAfTestClusterClusterInitCallback(endpoint);
-        break;
     case ZCL_THERMOSTAT_CLUSTER_ID:
         emberAfThermostatClusterInitCallback(endpoint);
         break;
     case ZCL_THREAD_NETWORK_DIAGNOSTICS_CLUSTER_ID:
         emberAfThreadNetworkDiagnosticsClusterInitCallback(endpoint);
         break;
-    case ZCL_WAKE_ON_LAN_CLUSTER_ID:
-        emberAfWakeOnLanClusterInitCallback(endpoint);
-        break;
     case ZCL_WIFI_NETWORK_DIAGNOSTICS_CLUSTER_ID:
         emberAfWiFiNetworkDiagnosticsClusterInitCallback(endpoint);
-        break;
-    case ZCL_WINDOW_COVERING_CLUSTER_ID:
-        emberAfWindowCoveringClusterInitCallback(endpoint);
         break;
     default:
         // Unrecognized cluster ID
@@ -178,32 +92,7 @@ void emberAfClusterInitCallback(EndpointId endpoint, ClusterId clusterId)
     }
 }
 
-void __attribute__((weak)) emberAfAccountLoginClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfAdministratorCommissioningClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfApplicationBasicClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfApplicationLauncherClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfAudioOutputClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfBarrierControlClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;
@@ -213,27 +102,7 @@ void __attribute__((weak)) emberAfBasicClusterInitCallback(EndpointId endpoint)
     // To prevent warning
     (void) endpoint;
 }
-void __attribute__((weak)) emberAfBinaryInputBasicClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfBindingClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfBridgedDeviceBasicClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfColorControlClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfContentLauncherClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;
@@ -248,22 +117,7 @@ void __attribute__((weak)) emberAfDiagnosticLogsClusterInitCallback(EndpointId e
     // To prevent warning
     (void) endpoint;
 }
-void __attribute__((weak)) emberAfDoorLockClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfEthernetNetworkDiagnosticsClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfFixedLabelClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfFlowMeasurementClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;
@@ -288,37 +142,7 @@ void __attribute__((weak)) emberAfGroupsClusterInitCallback(EndpointId endpoint)
     // To prevent warning
     (void) endpoint;
 }
-void __attribute__((weak)) emberAfIasZoneClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfIdentifyClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfKeypadInputClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfLevelControlClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfLowPowerClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfMediaInputClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfMediaPlaybackClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;
@@ -333,27 +157,7 @@ void __attribute__((weak)) emberAfOtaSoftwareUpdateProviderClusterInitCallback(E
     // To prevent warning
     (void) endpoint;
 }
-void __attribute__((weak)) emberAfOccupancySensingClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfOnOffClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfOperationalCredentialsClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfPressureMeasurementClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfRelativeHumidityMeasurementClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;
@@ -368,31 +172,6 @@ void __attribute__((weak)) emberAfSoftwareDiagnosticsClusterInitCallback(Endpoin
     // To prevent warning
     (void) endpoint;
 }
-void __attribute__((weak)) emberAfSwitchClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfTvChannelClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfTargetNavigatorClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfTemperatureMeasurementClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfTestClusterClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfThermostatClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
@@ -403,17 +182,7 @@ void __attribute__((weak)) emberAfThreadNetworkDiagnosticsClusterInitCallback(En
     // To prevent warning
     (void) endpoint;
 }
-void __attribute__((weak)) emberAfWakeOnLanClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
 void __attribute__((weak)) emberAfWiFiNetworkDiagnosticsClusterInitCallback(EndpointId endpoint)
-{
-    // To prevent warning
-    (void) endpoint;
-}
-void __attribute__((weak)) emberAfWindowCoveringClusterInitCallback(EndpointId endpoint)
 {
     // To prevent warning
     (void) endpoint;
@@ -539,126 +308,6 @@ bool __attribute__((weak)) emberAfDefaultResponseCallback(ClusterId clusterId, C
     return false;
 }
 
-/** @brief Configure Reporting Response
- *
- * This function is called by the application framework when a Configure
- * Reporting Response command is received from an external device.  The
- * application should return true if the message was processed or false if it
- * was not.
- *
- * @param clusterId The cluster identifier of this response.  Ver.: always
- * @param buffer Buffer containing the list of attribute status records.  Ver.:
- * always
- * @param bufLen The length in bytes of the list.  Ver.: always
- */
-bool __attribute__((weak)) emberAfConfigureReportingResponseCallback(ClusterId clusterId, uint8_t * buffer, uint16_t bufLen)
-{
-    return false;
-}
-
-/** @brief Read Reporting Configuration Response
- *
- * This function is called by the application framework when a Read Reporting
- * Configuration Response command is received from an external device.  The
- * application should return true if the message was processed or false if it
- * was not.
- *
- * @param clusterId The cluster identifier of this response.  Ver.: always
- * @param buffer Buffer containing the list of attribute reporting configuration
- * records.  Ver.: always
- * @param bufLen The length in bytes of the list.  Ver.: always
- */
-bool __attribute__((weak)) emberAfReadReportingConfigurationResponseCallback(ClusterId clusterId, uint8_t * buffer, uint16_t bufLen)
-{
-    return false;
-}
-
-/** @brief Discover Attributes Response
- *
- * This function is called by the application framework when a Discover
- * Attributes Response or Discover Attributes Extended Response command is
- * received from an external device.  The Discover Attributes Response command
- * contains a bool indicating if discovery is complete and a list of zero or
- * more attribute identifier/type records. The final argument indicates whether
- * the response is in the extended format or not.  The application should return
- * true if the message was processed or false if it was not.
- *
- * @param clusterId The cluster identifier of this response.  Ver.: always
- * @param discoveryComplete Indicates whether there are more attributes to be
- * discovered.  true if there are no more attributes to be discovered.  Ver.:
- * always
- * @param buffer Buffer containing the list of attribute identifier/type
- * records.  Ver.: always
- * @param bufLen The length in bytes of the list.  Ver.: always
- * @param extended Indicates whether the response is in the extended format or
- * not.  Ver.: always
- */
-bool __attribute__((weak)) emberAfDiscoverAttributesResponseCallback(ClusterId clusterId, bool discoveryComplete, uint8_t * buffer,
-                                                                     uint16_t bufLen, bool extended)
-{
-    return false;
-}
-
-/** @brief Discover Commands Generated Response
- *
- * This function is called by the framework when Discover Commands Generated
- * Response is received.
- *
- * @param clusterId The cluster identifier of this response.  Ver.: always
- * @param manufacturerCode Manufacturer code  Ver.: always
- * @param discoveryComplete Indicates whether there are more commands to be
- * discovered.  Ver.: always
- * @param commandIds Buffer containing the list of command identifiers.  Ver.:
- * always
- * @param commandIdCount The length of bytes of the list, whish is the same as
- * the number of identifiers.  Ver.: always
- */
-bool __attribute__((weak))
-emberAfDiscoverCommandsGeneratedResponseCallback(ClusterId clusterId, uint16_t manufacturerCode, bool discoveryComplete,
-                                                 CommandId * commandIds, uint16_t commandIdCount)
-{
-    return false;
-}
-
-/** @brief Discover Commands Received Response
- *
- * This function is called by the framework when Discover Commands Received
- * Response is received.
- *
- * @param clusterId The cluster identifier of this response.  Ver.: always
- * @param manufacturerCode Manufacturer code  Ver.: always
- * @param discoveryComplete Indicates whether there are more commands to be
- * discovered.  Ver.: always
- * @param commandIds Buffer containing the list of command identifiers.  Ver.:
- * always
- * @param commandIdCount The length of bytes of the list, whish is the same as
- * the number of identifiers.  Ver.: always
- */
-bool __attribute__((weak))
-emberAfDiscoverCommandsReceivedResponseCallback(ClusterId clusterId, uint16_t manufacturerCode, bool discoveryComplete,
-                                                CommandId * commandIds, uint16_t commandIdCount)
-{
-    return false;
-}
-
-/** @brief Pre Command Received
- *
- * This callback is the second in the Application Framework's message processing
- * chain. At this point in the processing of incoming over-the-air messages, the
- * application has determined that the incoming message is a ZCL command. It
- * parses enough of the message to populate an EmberAfClusterCommand struct. The
- * Application Framework defines this struct value in a local scope to the
- * command processing but also makes it available through a global pointer
- * called emberAfCurrentCommand, in app/framework/util/util.c. When command
- * processing is complete, this pointer is cleared.
- *
- * @param cmd   Ver.: always
- */
-bool __attribute__((weak)) emberAfPreCommandReceivedCallback(EmberAfClusterCommand * cmd)
-{
-    return false;
-}
-
 /** @brief Pre Message Send
  *
  * This function is called by the framework when it is about to pass a message
@@ -706,50 +355,6 @@ bool __attribute__((weak)) emberAfMessageSentCallback(const MessageSendDestinati
 {
     return false;
 }
-
-/** @brief Pre Attribute Change
- *
- * This function is called by the application framework before it changes an
- * attribute value.  The value passed into this callback is the value to which
- * the attribute is to be set by the framework.  The application should return
- * ::EMBER_ZCL_STATUS_SUCCESS to permit the change or any other ::EmberAfStatus
- * to reject it.
- *
- * @param endpoint   Ver.: always
- * @param clusterId   Ver.: always
- * @param attributeId   Ver.: always
- * @param mask   Ver.: always
- * @param manufacturerCode   Ver.: always
- * @param type   Ver.: always
- * @param size   Ver.: always
- * @param value   Ver.: always
- */
-EmberAfStatus __attribute__((weak))
-emberAfPreAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                  uint16_t manufacturerCode, uint8_t type, uint16_t size, uint8_t * value)
-{
-    return EMBER_ZCL_STATUS_SUCCESS;
-}
-
-/** @brief Post Attribute Change
- *
- * This function is called by the application framework after it changes an
- * attribute value. The value passed into this callback is the value to which
- * the attribute was set by the framework.
- *
- * @param endpoint   Ver.: always
- * @param clusterId   Ver.: always
- * @param attributeId   Ver.: always
- * @param mask   Ver.: always
- * @param manufacturerCode   Ver.: always
- * @param type   Ver.: always
- * @param size   Ver.: always
- * @param value   Ver.: always
- */
-void __attribute__((weak))
-emberAfPostAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                   uint16_t manufacturerCode, uint8_t type, uint16_t size, uint8_t * value)
-{}
 
 /** @brief External Attribute Read
  *
@@ -849,22 +454,6 @@ emberAfExternalAttributeWriteCallback(EndpointId endpoint, ClusterId clusterId, 
     return EMBER_ZCL_STATUS_FAILURE;
 }
 
-/** @brief Report Attributes
- *
- * This function is called by the application framework when a Report Attributes
- * command is received from an external device.  The application should return
- * true if the message was processed or false if it was not.
- *
- * @param clusterId The cluster identifier of this command.  Ver.: always
- * @param buffer Buffer containing the list of attribute report records.  Ver.:
- * always
- * @param bufLen The length in bytes of the list.  Ver.: always
- */
-bool __attribute__((weak)) emberAfReportAttributesCallback(ClusterId clusterId, uint8_t * buffer, uint16_t bufLen)
-{
-    return false;
-}
-
 /** @brief Get Current Time
  *
  * This callback is called when device attempts to get current time from the
@@ -936,3 +525,40 @@ bool __attribute__((weak)) emberAfStartMoveCallback()
 {
     return false;
 }
+
+/** @brief Pre Attribute Change
+ *
+ * This function is called by the application framework before it changes an
+ * attribute value.  The value passed into this callback is the value to which
+ * the attribute is to be set by the framework.  The application should return
+ * chip::Protocols::InteractionModel::Status::Success to permit the change or
+ * any other code to reject it.
+ *
+ * @param attributePath
+ * @param mask
+ * @param type
+ * @param size
+ * @param value
+ */
+chip::Protocols::InteractionModel::Status __attribute__((weak))
+MatterPreAttributeChangeCallback(const chip::app::ConcreteAttributePath & attributePath, uint8_t mask, uint8_t type, uint16_t size,
+                                 uint8_t * value)
+{
+    return chip::Protocols::InteractionModel::Status::Success;
+}
+
+/** @brief Post Attribute Change
+ *
+ * This function is called by the application framework after it changes an
+ * attribute value. The value passed into this callback is the value to which
+ * the attribute was set by the framework.
+ *
+ * @param attributePath
+ * @param mask
+ * @param type
+ * @param size
+ * @param value
+ */
+void __attribute__((weak)) MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & attributePath, uint8_t mask,
+                                                             uint8_t type, uint16_t size, uint8_t * value)
+{}

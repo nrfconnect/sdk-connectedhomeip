@@ -106,6 +106,16 @@ void EventControlHandler(chip::System::Layer * systemLayer, void * appState)
         if (control->callback != NULL)
         {
             (control->callback)(control->endpoint);
+            return;
+        }
+
+        for (const EmberEventData & event : emAfEvents)
+        {
+            if (event.control != control)
+                continue;
+            control->status = EMBER_EVENT_INACTIVE;
+            event.handler();
+            break;
         }
     }
 }
@@ -145,7 +155,7 @@ EmberStatus emberEventControlSetDelayMS(EmberEventControl * control, uint32_t de
     {
         control->status = EMBER_EVENT_MS_TIME;
 #if !CHIP_DEVICE_LAYER_NONE
-        chip::DeviceLayer::SystemLayer().StartTimer(delayMs, EventControlHandler, control);
+        chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(delayMs), EventControlHandler, control);
 #endif
     }
     else

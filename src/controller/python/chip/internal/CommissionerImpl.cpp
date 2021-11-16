@@ -17,7 +17,10 @@
 #include <memory>
 
 #include <controller/CHIPDeviceController.h>
+#include <controller/CHIPDeviceControllerFactory.h>
 #include <controller/ExampleOperationalCredentialsIssuer.h>
+#include <credentials/DeviceAttestationVerifier.h>
+#include <credentials/examples/DeviceAttestationVerifierExample.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ScopedBuffer.h>
 #include <lib/support/ThreadOperationalDataset.h>
@@ -26,6 +29,8 @@
 #include <platform/KeyValueStoreManager.h>
 
 #include "ChipThreadWork.h"
+
+using DeviceControllerFactory = chip::Controller::DeviceControllerFactory;
 
 namespace {
 
@@ -74,6 +79,7 @@ private:
 };
 
 ServerStorageDelegate gServerStorage;
+chip::SimpleFabricStorage gFabricStorage;
 ScriptDevicePairingDelegate gPairingDelegate;
 chip::Controller::ExampleOperationalCredentialsIssuer gOperationalCredentialsIssuer;
 
@@ -95,18 +101,24 @@ extern "C" chip::Controller::DeviceCommissioner * pychip_internal_Commissioner_N
 
         // System and Inet layers explicitly passed to indicate that the CHIP stack is
         // already assumed initialized
-        chip::Controller::CommissionerInitParams params;
-
-        params.storageDelegate = &gServerStorage;
-        params.systemLayer     = &chip::DeviceLayer::SystemLayer();
-        params.inetLayer       = &chip::DeviceLayer::InetLayer;
-        params.pairingDelegate = &gPairingDelegate;
-
+        chip::Controller::SetupParams commissionerParams;
+        chip::Controller::FactoryInitParams factoryParams;
         chip::Platform::ScopedMemoryBuffer<uint8_t> noc;
         chip::Platform::ScopedMemoryBuffer<uint8_t> icac;
         chip::Platform::ScopedMemoryBuffer<uint8_t> rcac;
-
         chip::Crypto::P256Keypair ephemeralKey;
+
+        err = gFabricStorage.Initialize(&gServerStorage);
+        SuccessOrExit(err);
+
+        factoryParams.fabricStorage = &gFabricStorage;
+
+        commissionerParams.pairingDelegate = &gPairingDelegate;
+        commissionerParams.storageDelegate = &gServerStorage;
+
+        // Initialize device attestation verifier
+        chip::Credentials::SetDeviceAttestationVerifier(chip::Credentials::Examples::GetExampleDACVerifier());
+
         err = ephemeralKey.Initialize();
         SuccessOrExit(err);
 
@@ -129,13 +141,14 @@ extern "C" chip::Controller::DeviceCommissioner * pychip_internal_Commissioner_N
                                                                                 icacSpan, nocSpan);
             SuccessOrExit(err);
 
-            params.operationalCredentialsDelegate = &gOperationalCredentialsIssuer;
-            params.ephemeralKeypair               = &ephemeralKey;
-            params.controllerRCAC                 = rcacSpan;
-            params.controllerICAC                 = icacSpan;
-            params.controllerNOC                  = nocSpan;
+            commissionerParams.operationalCredentialsDelegate = &gOperationalCredentialsIssuer;
+            commissionerParams.ephemeralKeypair               = &ephemeralKey;
+            commissionerParams.controllerRCAC                 = rcacSpan;
+            commissionerParams.controllerICAC                 = icacSpan;
+            commissionerParams.controllerNOC                  = nocSpan;
 
-            err = result->Init(params);
+            SuccessOrExit(DeviceControllerFactory::GetInstance().Init(factoryParams));
+            err = DeviceControllerFactory::GetInstance().SetupCommissioner(commissionerParams, *result);
         }
     exit:
         ChipLogProgress(Controller, "Commissioner initialization status: %s", chip::ErrorStr(err));

@@ -91,13 +91,14 @@ CHIP_ERROR TCPBase::Init(TcpListenParameters & params)
 #endif
     SuccessOrExit(err);
 
-    err = mListenSocket->Bind(params.GetAddressType(), Inet::IPAddress::Any, params.GetListenPort(), params.GetInterfaceId());
+    err = mListenSocket->Bind(params.GetAddressType(), Inet::IPAddress::Any, params.GetListenPort(),
+                              params.GetInterfaceId().IsPresent());
     SuccessOrExit(err);
 
     err = mListenSocket->Listen(kListenBacklogSize);
     SuccessOrExit(err);
 
-    mListenSocket->AppState             = reinterpret_cast<void *>(this);
+    mListenSocket->mAppState            = reinterpret_cast<void *>(this);
     mListenSocket->OnDataReceived       = OnTcpReceive;
     mListenSocket->OnConnectComplete    = OnConnectionComplete;
     mListenSocket->OnConnectionClosed   = OnConnectionClosed;
@@ -253,7 +254,7 @@ CHIP_ERROR TCPBase::SendAfterConnect(const PeerAddress & addr, System::PacketBuf
 #endif
     SuccessOrExit(err);
 
-    endPoint->AppState             = reinterpret_cast<void *>(this);
+    endPoint->mAppState            = reinterpret_cast<void *>(this);
     endPoint->OnDataReceived       = OnTcpReceive;
     endPoint->OnConnectComplete    = OnConnectionComplete;
     endPoint->OnConnectionClosed   = OnConnectionClosed;
@@ -357,13 +358,13 @@ CHIP_ERROR TCPBase::OnTcpReceive(Inet::TCPEndPoint * endPoint, System::PacketBuf
 {
     Inet::IPAddress ipAddress;
     uint16_t port;
-    Inet::InterfaceId interfaceId = INET_NULL_INTERFACEID;
+    Inet::InterfaceId interfaceId;
 
     endPoint->GetPeerInfo(&ipAddress, &port);
     endPoint->GetInterfaceId(&interfaceId);
     PeerAddress peerAddress = PeerAddress::TCP(ipAddress, port, interfaceId);
 
-    TCPBase * tcp  = reinterpret_cast<TCPBase *>(endPoint->AppState);
+    TCPBase * tcp  = reinterpret_cast<TCPBase *>(endPoint->mAppState);
     CHIP_ERROR err = tcp->ProcessReceivedBuffer(endPoint, peerAddress, std::move(buffer));
 
     if (err != CHIP_NO_ERROR)
@@ -379,10 +380,10 @@ void TCPBase::OnConnectionComplete(Inet::TCPEndPoint * endPoint, CHIP_ERROR inet
 {
     CHIP_ERROR err          = CHIP_NO_ERROR;
     bool foundPendingPacket = false;
-    TCPBase * tcp           = reinterpret_cast<TCPBase *>(endPoint->AppState);
+    TCPBase * tcp           = reinterpret_cast<TCPBase *>(endPoint->mAppState);
     Inet::IPAddress ipAddress;
     uint16_t port;
-    Inet::InterfaceId interfaceId = INET_NULL_INTERFACEID;
+    Inet::InterfaceId interfaceId;
 
     endPoint->GetPeerInfo(&ipAddress, &port);
     endPoint->GetInterfaceId(&interfaceId);
@@ -451,7 +452,7 @@ void TCPBase::OnConnectionComplete(Inet::TCPEndPoint * endPoint, CHIP_ERROR inet
 
 void TCPBase::OnConnectionClosed(Inet::TCPEndPoint * endPoint, CHIP_ERROR err)
 {
-    TCPBase * tcp = reinterpret_cast<TCPBase *>(endPoint->AppState);
+    TCPBase * tcp = reinterpret_cast<TCPBase *>(endPoint->mAppState);
 
     ChipLogProgress(Inet, "Connection closed.");
 
@@ -469,7 +470,7 @@ void TCPBase::OnConnectionClosed(Inet::TCPEndPoint * endPoint, CHIP_ERROR err)
 void TCPBase::OnConnectionReceived(Inet::TCPEndPoint * listenEndPoint, Inet::TCPEndPoint * endPoint,
                                    const Inet::IPAddress & peerAddress, uint16_t peerPort)
 {
-    TCPBase * tcp = reinterpret_cast<TCPBase *>(listenEndPoint->AppState);
+    TCPBase * tcp = reinterpret_cast<TCPBase *>(listenEndPoint->mAppState);
 
     if (tcp->mUsedEndPointCount < tcp->mActiveConnectionsSize)
     {
@@ -483,7 +484,7 @@ void TCPBase::OnConnectionReceived(Inet::TCPEndPoint * listenEndPoint, Inet::TCP
             }
         }
 
-        endPoint->AppState             = listenEndPoint->AppState;
+        endPoint->mAppState            = listenEndPoint->mAppState;
         endPoint->OnDataReceived       = OnTcpReceive;
         endPoint->OnConnectComplete    = OnConnectionComplete;
         endPoint->OnConnectionClosed   = OnConnectionClosed;
@@ -512,7 +513,7 @@ void TCPBase::Disconnect(const PeerAddress & address)
         {
             Inet::IPAddress ipAddress;
             uint16_t port;
-            Inet::InterfaceId interfaceId = INET_NULL_INTERFACEID;
+            Inet::InterfaceId interfaceId;
 
             mActiveConnections[i].mEndPoint->GetPeerInfo(&ipAddress, &port);
             mActiveConnections[i].mEndPoint->GetInterfaceId(&interfaceId);
@@ -530,7 +531,7 @@ void TCPBase::Disconnect(const PeerAddress & address)
 
 void TCPBase::OnPeerClosed(Inet::TCPEndPoint * endPoint)
 {
-    TCPBase * tcp = reinterpret_cast<TCPBase *>(endPoint->AppState);
+    TCPBase * tcp = reinterpret_cast<TCPBase *>(endPoint->mAppState);
 
     for (size_t i = 0; i < tcp->mActiveConnectionsSize; i++)
     {

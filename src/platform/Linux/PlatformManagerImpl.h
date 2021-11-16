@@ -60,9 +60,17 @@ private:
     // ===== Methods that implement the PlatformManager abstract interface.
 
     CHIP_ERROR _InitChipStack();
+    CHIP_ERROR _Shutdown();
     CHIP_ERROR _GetCurrentHeapFree(uint64_t & currentHeapFree);
     CHIP_ERROR _GetCurrentHeapUsed(uint64_t & currentHeapUsed);
     CHIP_ERROR _GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark);
+    CHIP_ERROR _GetThreadMetrics(ThreadMetrics ** threadMetricsOut);
+    void _ReleaseThreadMetrics(ThreadMetrics * threadMetrics);
+
+    CHIP_ERROR _GetRebootCount(uint16_t & rebootCount);
+    CHIP_ERROR _GetUpTime(uint64_t & upTime);
+    CHIP_ERROR _GetTotalOperationalHours(uint32_t & totalOperationalHours);
+    CHIP_ERROR _GetBootReasons(uint8_t & bootReasons);
 
     // ===== Members for internal use by the following friends.
 
@@ -70,11 +78,14 @@ private:
     friend PlatformManagerImpl & PlatformMgrImpl();
     friend class Internal::BLEManagerImpl;
 
+    System::Clock::Timestamp mStartTime = System::Clock::kZero;
+
     static PlatformManagerImpl sInstance;
 
     // The temporary hack for getting IP address change on linux for network provisioning in the rendezvous session.
     // This should be removed or find a better place once we depercate the rendezvous session.
     static void WiFIIPChangeListener();
+    static void HandleDeviceRebooted(intptr_t arg);
 
 #if CHIP_WITH_GIO
     struct GDBusConnectionDeleter

@@ -6,7 +6,8 @@
 
 #import <Foundation/Foundation.h>
 
-#include "CHIPCluster.h"
+#include <CHIP/CHIPCluster.h>
+#include <CHIP/CHIPCommandPayloadsObjc.h>
 
 typedef void (^ResponseHandler)(NSError * _Nullable error, NSDictionary * _Nullable values);
 
@@ -22,11 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CHIP{{asUpperCamelCase name}} : CHIPCluster
 
 {{#chip_cluster_commands}}
-{{#if (zcl_command_arguments_count this.id)}}
-- (void){{asLowerCamelCase name}}:{{#chip_cluster_command_arguments}}{{#not_first}}{{asLowerCamelCase label}}:{{/not_first}}({{asObjectiveCBasicType type}}){{asLowerCamelCase label}} {{/chip_cluster_command_arguments}}responseHandler:(ResponseHandler)responseHandler;
-{{else}}
-- (void){{asLowerCamelCase name}}:(ResponseHandler)responseHandler;
-{{/if}}
+- (void){{asLowerCamelCase name}}:(CHIP{{asUpperCamelCase parent.name}}Cluster{{asUpperCamelCase name}}Payload * _Nonnull)payload responseHandler:(ResponseHandler)responseHandler;
 {{/chip_cluster_commands}}
 
 {{#chip_server_cluster_attributes}}
@@ -36,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)write{{>attribute}}WithValue:({{asObjectiveCBasicType type}})value responseHandler:(ResponseHandler)responseHandler;
 {{/if}}
 {{#if isReportableAttribute}}
-- (void) configure{{>attribute}}WithMinInterval:(uint16_t)minInterval  maxInterval:(uint16_t)maxInterval{{#if isAnalog}} change:({{chipType}})change{{/if}} responseHandler:(ResponseHandler)responseHandler;
+- (void) subscribe{{>attribute}}WithMinInterval:(uint16_t)minInterval  maxInterval:(uint16_t)maxInterval responseHandler:(ResponseHandler)responseHandler;
 - (void) report{{>attribute}}WithResponseHandler:(ResponseHandler)responseHandler;
 {{/if}}
 {{/chip_server_cluster_attributes}}

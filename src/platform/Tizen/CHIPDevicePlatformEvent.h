@@ -43,7 +43,16 @@ enum PublicPlatformSpecificEventTypes
  */
 enum InternalPlatformSpecificEventTypes
 {
-    /* None currently defined */
+    kPlatformTizenEvent = kRange_InternalPlatformSpecific,
+    kPlatformTizenBLEPeripheralGATTServerRegisterComplete,
+    kPlatformTizenBLEPeripheralAdvConfiguredComplete,
+    kPlatformTizenBLEPeripheralAdvStartComplete,
+    kPlatformTizenBLEPeripheralAdvStopComplete,
+    kPlatformTizenBLECentralConnected,
+    kPlatformTizenBLECentralConnectFailed,
+    kPlatformTizenBLEWriteComplete,
+    kPlatformTizenBLESubscribeOpComplete,
+    kPlatformTizenBLEIndicationReceived
 };
 
 } // namespace DeviceEventType
@@ -55,7 +64,48 @@ struct ChipDevicePlatformEvent
 {
     union
     {
-        /* None currently defined */
+        struct
+        {
+            bool mIsSuccess;
+            void * mpAppstate;
+        } BLEPeripheralGATTServerRegisterComplete;
+        struct
+        {
+            bool mIsSuccess;
+            void * mpAppstate;
+        } BLEPeripheralAdvConfiguredComplete;
+        struct
+        {
+            bool mIsSuccess;
+            void * mpAppstate;
+        } BLEPeripheralAdvStartComplete;
+        struct
+        {
+            bool mIsSuccess;
+            void * mpAppstate;
+        } BLEPeripheralAdvStopComplete;
+        struct
+        {
+            BLE_CONNECTION_OBJECT mConnection;
+        } BLECentralConnected;
+        struct
+        {
+            CHIP_ERROR mError;
+        } BLECentralConnectFailed;
+        struct
+        {
+            BLE_CONNECTION_OBJECT mConnection;
+        } BLEWriteComplete;
+        struct
+        {
+            BLE_CONNECTION_OBJECT mConnection;
+            bool mIsSubscribed;
+        } BLESubscribeOpComplete;
+        struct
+        {
+            BLE_CONNECTION_OBJECT mConnection;
+            chip::System::PacketBuffer * mData;
+        } BLEIndicationReceived;
     };
 };
 

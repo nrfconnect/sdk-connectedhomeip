@@ -19,6 +19,7 @@
 
 #include <memory>
 
+#include <app/AttributeAccessInterface.h>
 #include <lib/support/ThreadOperationalDataset.h>
 #include <platform/Linux/GlibTypeDeleter.h>
 #include <platform/Linux/dbus/openthread/introspect.h>
@@ -63,13 +64,13 @@ public:
 
     CHIP_ERROR _SetThreadDeviceType(ConnectivityManager::ThreadDeviceType deviceType);
 
-    void _GetThreadPollingConfig(ConnectivityManager::ThreadPollingConfig & pollingConfig);
-
-    CHIP_ERROR _SetThreadPollingConfig(const ConnectivityManager::ThreadPollingConfig & pollingConfig);
+#if CHIP_DEVICE_CONFIG_ENABLE_SED
+    CHIP_ERROR _GetSEDPollingConfig(ConnectivityManager::SEDPollingConfig & pollingConfig);
+    CHIP_ERROR _SetSEDPollingConfig(const ConnectivityManager::SEDPollingConfig & pollingConfig);
+    CHIP_ERROR _RequestSEDFastPollingMode(bool onOff);
+#endif
 
     bool _HaveMeshConnectivity();
-
-    void _OnMessageLayerActivityChanged(bool messageLayerIsActive);
 
     CHIP_ERROR _GetAndLogThreadStatsCounters();
 
@@ -84,6 +85,10 @@ public:
     CHIP_ERROR _GetPollPeriod(uint32_t & buf);
 
     CHIP_ERROR _JoinerStart();
+
+    void _ResetThreadNetworkDiagnosticsCounts();
+
+    CHIP_ERROR _WriteThreadNetworkDiagnosticAttributeToTlv(AttributeId attributeId, app::AttributeValueEncoder & encoder);
 
     ~ThreadStackManagerImpl() = default;
 

@@ -19,156 +19,37 @@
 /**
  *    @file
  *      This file contains the basis class for all the various transport
- *      endpoint classes in the Inet layer, i.e. TCP, UDP, Raw and Tun.
+ *      endpoint classes in the Inet layer, i.e. TCP and UDP.
  */
 
 #pragma once
 
 #include <inet/InetConfig.h>
-
-#include "inet/IANAConstants.h"
-#include "inet/InetLayerBasis.h"
-#include <inet/InetError.h>
-#include <inet/InetInterface.h>
-#include <inet/InetLayerEvents.h>
-
 #include <lib/support/DLLUtil.h>
-
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-#include <system/SocketEvents.h>
-#endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
-
-#if CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-#include <Network/Network.h>
-#endif // CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-
-//--- Declaration of LWIP protocol control buffer structure names
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-#if INET_CONFIG_ENABLE_UDP_ENDPOINT
-struct udp_pcb;
-#endif // INET_CONFIG_ENABLE_UDP_ENDPOINT
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-struct tcp_pcb;
-#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
-#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 namespace chip {
 namespace Inet {
 
+class InetLayer;
+
 /**
- * @class EndPointBasis
- *
- * @brief Basis of internet transport endpoint classes
+ * Basis of internet transport endpoint classes.
  */
-class DLL_EXPORT EndPointBasis : public InetLayerBasis
+class DLL_EXPORT EndPointBase
 {
 public:
-    /** Common state codes */
-    enum
-    {
-        kBasisState_Closed = 0 /**< Encapsulated descriptor is not valid. */
-    };
+    EndPointBase(InetLayer & aInetLayer, void * aAppState = nullptr) : mAppState(aAppState), mInetLayer(aInetLayer) {}
 
-#if CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-    /** Test whether endpoint is a Network.framework endpoint */
-    bool IsNetworkFrameworkEndPoint(void) const;
-#endif
+    /**
+     *  Returns a reference to the Inet layer object that owns this basis object.
+     */
+    InetLayer & Layer() const { return mInetLayer; }
 
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-    /** Test whether endpoint is a POSIX socket */
-    bool IsSocketsEndPoint() const;
-#endif
+    void * mAppState;
 
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-    /** Test whether endpoint is a LwIP protocol control buffer */
-    bool IsLWIPEndPoint(void) const;
-#endif
-
-    /** Test whether endpoint has a valid descriptor. */
-    bool IsOpenEndPoint() const;
-
-protected:
-#if CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-    nw_parameters_t mParameters;
-    IPAddressType mAddrType; /**< Protocol family, i.e. IPv4 or IPv6. */
-#endif
-
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-    int mSocket;                     /**< Encapsulated socket descriptor. */
-    IPAddressType mAddrType;         /**< Protocol family, i.e. IPv4 or IPv6. */
-    System::SocketWatchToken mWatch; /**< Socket event watcher */
-#endif                               // CHIP_SYSTEM_CONFIG_USE_SOCKETS
-
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-    /** Encapsulated LwIP protocol control block */
-    union
-    {
-        const void * mVoid; /**< An untyped protocol control buffer reference */
-#if INET_CONFIG_ENABLE_UDP_ENDPOINT
-        udp_pcb * mUDP; /**< User datagram protocol (UDP) control */
-#endif                  // INET_CONFIG_ENABLE_UDP_ENDPOINT
-#if INET_CONFIG_ENABLE_TCP_ENDPOINT
-        tcp_pcb * mTCP; /**< Transmission control protocol (TCP) control */
-#endif                  // INET_CONFIG_ENABLE_TCP_ENDPOINT
-    };
-
-    enum
-    {
-        kLwIPEndPointType_Unknown = 0,
-
-        kLwIPEndPointType_Raw = 1,
-        kLwIPEndPointType_UDP = 2,
-        kLwIPEndPointType_UCP = 3,
-        kLwIPEndPointType_TCP = 4
-    };
-
-    uint8_t mLwIPEndPointType;
-
-    void DeferredFree(chip::System::Object::ReleaseDeferralErrorTactic aTactic);
-#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
-
-    void InitEndPointBasis(InetLayer & aInetLayer, void * aAppState = nullptr);
+private:
+    InetLayer & mInetLayer; /**< InetLayer object that owns this object. */
 };
-
-#if CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-inline bool EndPointBasis::IsNetworkFrameworkEndPoint(void) const
-{
-    return mParameters != NULL;
-}
-#endif // CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-inline bool EndPointBasis::IsSocketsEndPoint() const
-{
-    return mSocket != INET_INVALID_SOCKET_FD;
-}
-#endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
-
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-inline bool EndPointBasis::IsLWIPEndPoint(void) const
-{
-    return mVoid != NULL;
-}
-#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
-
-inline bool EndPointBasis::IsOpenEndPoint() const
-{
-    bool lResult = false;
-
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-    lResult = (lResult || IsLWIPEndPoint());
-#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
-
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
-    lResult = (lResult || IsSocketsEndPoint());
-#endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
-
-#if CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-    lResult = (lResult || IsNetworkFrameworkEndPoint());
-#endif // CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK
-
-    return lResult;
-}
 
 } // namespace Inet
 } // namespace chip

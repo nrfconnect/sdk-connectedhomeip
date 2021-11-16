@@ -54,6 +54,9 @@ static constexpr uint32_t kMaxDERCertLength  = 600;
 // The decode buffer is used to reconstruct TBS section of X.509 certificate, which doesn't include signature.
 static constexpr uint32_t kMaxCHIPCertDecodeBufLength = kMaxDERCertLength - Crypto::kMax_ECDSA_Signature_Length_Der;
 
+// Muximum number of CASE Authenticated Tags (CAT) in the CHIP certificate subject.
+static constexpr size_t kMaxSubjectCATAttributeCount = CHIP_CONFIG_CERT_MAX_RDN_ATTRIBUTES - 2;
+
 /** Data Element Tags for the CHIP Certificate
  */
 enum
@@ -196,7 +199,7 @@ enum
  */
 struct ChipRDN
 {
-    ByteSpan mString;         /**< Attribute value when encoded as a string. */
+    CharSpan mString;         /**< Attribute value when encoded as a string. */
     uint64_t mChipVal;        /**< CHIP specific DN attribute value. */
     chip::ASN1::OID mAttrOID; /**< DN attribute CHIP OID. */
 
@@ -231,12 +234,12 @@ public:
      * @brief Add string attribute to the DN.
      *
      * @param oid     String OID for DN attribute.
-     * @param val     A ByteSpan object containing a pointer and length of the DN string attribute
+     * @param val     A CharSpan object containing a pointer and length of the DN string attribute
      *                buffer. The value in the buffer should remain valid while the object is in use.
      *
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR AddAttribute(chip::ASN1::OID oid, ByteSpan val);
+    CHIP_ERROR AddAttribute(chip::ASN1::OID oid, CharSpan val);
 
     /**
      * @brief Determine type of a CHIP certificate.
@@ -715,7 +718,7 @@ inline bool IsChip64bitDNAttr(chip::ASN1::OID oid)
  **/
 inline bool IsChip32bitDNAttr(chip::ASN1::OID oid)
 {
-    return (oid == chip::ASN1::kOID_AttributeType_ChipAuthTag1 || oid == chip::ASN1::kOID_AttributeType_ChipAuthTag2);
+    return (oid == chip::ASN1::kOID_AttributeType_ChipCASEAuthenticatedTag);
 }
 
 /**
@@ -795,6 +798,17 @@ CHIP_ERROR ExtractFabricIdFromCert(const ChipCertificateData & cert, FabricId * 
  * performed.
  */
 CHIP_ERROR ExtractNodeIdFabricIdFromOpCert(const ChipCertificateData & opcert, NodeId * nodeId, FabricId * fabricId);
+
+/**
+ * Extract CASE Authenticated Tags from an operational certificate that has already been
+ * parsed.
+ *
+ * All values in the 'cats' array will be set either to a valid CAT value or zero (undefined) value.
+ *
+ * @return CHIP_ERROR_INVALID_ARGUMENT if the passed-in cert is not NOC.
+ * @return CHIP_ERROR_BUFFER_TOO_SMALL if the passed-in CATs array is too small.
+ */
+CHIP_ERROR ExtractCATsFromOpCert(const ChipCertificateData & opcert, uint32_t * cats, uint8_t catsSize);
 
 /**
  * Extract Node ID and Fabric ID from an operational certificate in ByteSpan TLV-encoded

@@ -37,7 +37,13 @@ endif()
 
 option(BUILD_WITH_DFU "Build target with Device Firmware Upgrade support" OFF)
 if(BUILD_WITH_DFU)
-    list(INSERT OVERLAY_CONFIG 0 ${CHIP_ROOT}/config/nrfconnect/app/overlay-dfu_support.conf)
+    if(${BOARD} STREQUAL "nrf5340dk_nrf5340_cpuapp")
+        list(INSERT OVERLAY_CONFIG 0 ${CHIP_ROOT}/config/nrfconnect/app/overlay-multi_image_dfu_support.conf)
+        set(mcuboot_OVERLAY_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/configuration/mcuboot_multi_image_dfu.conf CACHE INTERNAL "")
+    else()
+        list(INSERT OVERLAY_CONFIG 0 ${CHIP_ROOT}/config/nrfconnect/app/overlay-single_image_dfu_support.conf)
+        set(mcuboot_OVERLAY_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/configuration/mcuboot_single_image_dfu.conf CACHE INTERNAL "")
+    endif()
     set(PM_STATIC_YML_FILE ${CMAKE_CURRENT_SOURCE_DIR}/configuration/${BOARD}/pm_static.yml)
 endif()
 
@@ -76,7 +82,7 @@ chip_configure_data_model(app
     INCLUDE_SERVER
     ZAP_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../lighting-common/lighting-app.zap
 )
-               
+
 if(BUILD_WITH_DFU)
     target_sources(app PRIVATE ${NRFCONNECT_COMMON}/util/DFUOverSMP.cpp)
 endif()
@@ -99,6 +105,19 @@ set(dir_pw_third_party_nanopb "${CHIP_ROOT}/third_party/nanopb/repo" CACHE STRIN
 add_subdirectory(third_party/connectedhomeip/examples/platform/nrfconnect/pw_sys_io)
 add_subdirectory(third_party/connectedhomeip/third_party/nanopb/repo)
 add_subdirectory(third_party/connectedhomeip/third_party/pigweed/repo)
+
+pw_proto_library(attributes_service
+  SOURCES
+    ${CHIP_ROOT}/examples/common/pigweed/protos/attributes_service.proto
+  INPUTS
+    ${CHIP_ROOT}/examples/common/pigweed/protos/attributes_service.options
+  PREFIX
+    attributes_service
+  STRIP_PREFIX
+    ${CHIP_ROOT}/examples/common/pigweed/protos
+  DEPS
+    pw_protobuf.common_protos
+)
 
 pw_proto_library(button_service
   SOURCES
@@ -151,6 +170,7 @@ target_include_directories(app PRIVATE
   ../../common/pigweed/nrfconnect)
 
 target_link_libraries(app PRIVATE
+  attributes_service.nanopb_rpc
   button_service.nanopb_rpc
   device_service.nanopb_rpc
   lighting_service.nanopb_rpc

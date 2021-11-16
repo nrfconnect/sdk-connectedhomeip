@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2021 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -162,31 +162,40 @@ static void TestAES_CCM_256EncryptTestVectors(nlTestSuite * inSuite, void * inCo
     for (int vectorIndex = 0; vectorIndex < numOfTestVectors; vectorIndex++)
     {
         const ccm_test_vector * vector = ccm_test_vectors[vectorIndex];
-        if (vector->key_len == 32 && vector->pt_len > 0)
+        if (vector->key_len == 32)
         {
             numOfTestsRan++;
             chip::Platform::ScopedMemoryBuffer<uint8_t> out_ct;
-            out_ct.Alloc(vector->ct_len);
-            NL_TEST_ASSERT(inSuite, out_ct);
+            uint8_t * out_ct_ptr = nullptr;
+            if (vector->ct_len > 0)
+            {
+                out_ct.Alloc(vector->ct_len);
+                NL_TEST_ASSERT(inSuite, out_ct);
+                out_ct_ptr = out_ct.Get();
+            }
             chip::Platform::ScopedMemoryBuffer<uint8_t> out_tag;
             out_tag.Alloc(vector->tag_len);
             NL_TEST_ASSERT(inSuite, out_tag);
 
             CHIP_ERROR err = AES_CCM_encrypt(vector->pt, vector->pt_len, vector->aad, vector->aad_len, vector->key, vector->key_len,
-                                             vector->iv, vector->iv_len, out_ct.Get(), out_tag.Get(), vector->tag_len);
-            bool areCTsEqual  = memcmp(out_ct.Get(), vector->ct, vector->ct_len) == 0;
-            bool areTagsEqual = memcmp(out_tag.Get(), vector->tag, vector->tag_len) == 0;
-            NL_TEST_ASSERT(inSuite, areCTsEqual);
-            NL_TEST_ASSERT(inSuite, areTagsEqual);
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+                                             vector->iv, vector->iv_len, out_ct_ptr, out_tag.Get(), vector->tag_len);
+            NL_TEST_ASSERT(inSuite, err == vector->result);
 
-            if (!areCTsEqual)
+            if (vector->result == CHIP_NO_ERROR)
             {
-                printf("\n Test %d failed due to mismatching ciphertext", vector->tcId);
-            }
-            if (!areTagsEqual)
-            {
-                printf("\n Test %d failed due to mismatching tags", vector->tcId);
+                bool areCTsEqual  = memcmp(out_ct.Get(), vector->ct, vector->ct_len) == 0;
+                bool areTagsEqual = memcmp(out_tag.Get(), vector->tag, vector->tag_len) == 0;
+                NL_TEST_ASSERT(inSuite, areCTsEqual);
+                NL_TEST_ASSERT(inSuite, areTagsEqual);
+
+                if (!areCTsEqual)
+                {
+                    printf("\n Test %d failed due to mismatching ciphertext", vector->tcId);
+                }
+                if (!areTagsEqual)
+                {
+                    printf("\n Test %d failed due to mismatching tags", vector->tcId);
+                }
             }
         }
     }
@@ -201,49 +210,31 @@ static void TestAES_CCM_256DecryptTestVectors(nlTestSuite * inSuite, void * inCo
     for (int vectorIndex = 0; vectorIndex < numOfTestVectors; vectorIndex++)
     {
         const ccm_test_vector * vector = ccm_test_vectors[vectorIndex];
-        if (vector->key_len == 32 && vector->pt_len > 0)
+        if (vector->key_len == 32)
         {
             numOfTestsRan++;
             chip::Platform::ScopedMemoryBuffer<uint8_t> out_pt;
-            out_pt.Alloc(vector->pt_len);
-            NL_TEST_ASSERT(inSuite, out_pt);
-            CHIP_ERROR err = AES_CCM_decrypt(vector->ct, vector->ct_len, vector->aad, vector->aad_len, vector->tag, vector->tag_len,
-                                             vector->key, vector->key_len, vector->iv, vector->iv_len, out_pt.Get());
-
-            bool arePTsEqual = memcmp(vector->pt, out_pt.Get(), vector->pt_len) == 0;
-            NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-            NL_TEST_ASSERT(inSuite, arePTsEqual);
-            if (!arePTsEqual)
+            uint8_t * out_pt_ptr = nullptr;
+            if (vector->pt_len > 0)
             {
-                printf("\n Test %d failed due to mismatching plaintext", vector->tcId);
+                out_pt.Alloc(vector->pt_len);
+                NL_TEST_ASSERT(inSuite, out_pt);
+                out_pt_ptr = out_pt.Get();
             }
-        }
-    }
-    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
-}
+            CHIP_ERROR err = AES_CCM_decrypt(vector->ct, vector->ct_len, vector->aad, vector->aad_len, vector->tag, vector->tag_len,
+                                             vector->key, vector->key_len, vector->iv, vector->iv_len, out_pt_ptr);
 
-static void TestAES_CCM_256EncryptInvalidPlainText(nlTestSuite * inSuite, void * inContext)
-{
-    HeapChecker heapChecker(inSuite);
-    int numOfTestVectors = ArraySize(ccm_test_vectors);
-    int numOfTestsRan    = 0;
-    for (int vectorIndex = 0; vectorIndex < numOfTestVectors; vectorIndex++)
-    {
-        const ccm_test_vector * vector = ccm_test_vectors[vectorIndex];
-        if (vector->key_len == 32 && vector->pt_len > 0)
-        {
-            numOfTestsRan++;
-            chip::Platform::ScopedMemoryBuffer<uint8_t> out_ct;
-            out_ct.Alloc(vector->ct_len);
-            NL_TEST_ASSERT(inSuite, out_ct);
-            chip::Platform::ScopedMemoryBuffer<uint8_t> out_tag;
-            out_tag.Alloc(vector->tag_len);
-            NL_TEST_ASSERT(inSuite, out_tag);
+            NL_TEST_ASSERT(inSuite, err == vector->result);
 
-            CHIP_ERROR err = AES_CCM_encrypt(vector->pt, 0, vector->aad, vector->aad_len, vector->key, vector->key_len, vector->iv,
-                                             vector->iv_len, out_ct.Get(), out_tag.Get(), vector->tag_len);
-            NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
-            break;
+            if (vector->result == CHIP_NO_ERROR)
+            {
+                bool arePTsEqual = memcmp(vector->pt, out_pt.Get(), vector->pt_len) == 0;
+                NL_TEST_ASSERT(inSuite, arePTsEqual);
+                if (!arePTsEqual)
+                {
+                    printf("\n Test %d failed due to mismatching plaintext", vector->tcId);
+                }
+            }
         }
     }
     NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
@@ -323,29 +314,6 @@ static void TestAES_CCM_256EncryptInvalidTagLen(nlTestSuite * inSuite, void * in
 
             CHIP_ERROR err = AES_CCM_encrypt(vector->pt, vector->pt_len, vector->aad, vector->aad_len, vector->key, vector->key_len,
                                              vector->iv, vector->iv_len, out_ct.Get(), out_tag.Get(), 13);
-            NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
-            break;
-        }
-    }
-    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
-}
-
-static void TestAES_CCM_256DecryptInvalidCipherText(nlTestSuite * inSuite, void * inContext)
-{
-    HeapChecker heapChecker(inSuite);
-    int numOfTestVectors = ArraySize(ccm_test_vectors);
-    int numOfTestsRan    = 0;
-    for (int vectorIndex = 0; vectorIndex < numOfTestVectors; vectorIndex++)
-    {
-        const ccm_test_vector * vector = ccm_test_vectors[vectorIndex];
-        if (vector->key_len == 32 && vector->pt_len > 0)
-        {
-            numOfTestsRan++;
-            chip::Platform::ScopedMemoryBuffer<uint8_t> out_pt;
-            out_pt.Alloc(vector->pt_len);
-            NL_TEST_ASSERT(inSuite, out_pt);
-            CHIP_ERROR err = AES_CCM_decrypt(vector->ct, 0, vector->aad, vector->aad_len, vector->tag, vector->tag_len, vector->key,
-                                             vector->key_len, vector->iv, vector->iv_len, out_pt.Get());
             NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
             break;
         }
@@ -498,33 +466,6 @@ static void TestAES_CCM_128DecryptTestVectors(nlTestSuite * inSuite, void * inCo
     NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
 }
 
-static void TestAES_CCM_128EncryptInvalidPlainText(nlTestSuite * inSuite, void * inContext)
-{
-    HeapChecker heapChecker(inSuite);
-    int numOfTestVectors = ArraySize(ccm_128_test_vectors);
-    int numOfTestsRan    = 0;
-    for (int vectorIndex = 0; vectorIndex < numOfTestVectors; vectorIndex++)
-    {
-        const ccm_128_test_vector * vector = ccm_128_test_vectors[vectorIndex];
-        if (vector->pt_len > 0)
-        {
-            numOfTestsRan++;
-            chip::Platform::ScopedMemoryBuffer<uint8_t> out_ct;
-            out_ct.Alloc(vector->ct_len);
-            NL_TEST_ASSERT(inSuite, out_ct);
-            chip::Platform::ScopedMemoryBuffer<uint8_t> out_tag;
-            out_tag.Alloc(vector->tag_len);
-            NL_TEST_ASSERT(inSuite, out_tag);
-
-            CHIP_ERROR err = AES_CCM_encrypt(vector->pt, 0, vector->aad, vector->aad_len, vector->key, vector->key_len, vector->iv,
-                                             vector->iv_len, out_ct.Get(), out_tag.Get(), vector->tag_len);
-            NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
-            break;
-        }
-    }
-    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
-}
-
 static void TestAES_CCM_128EncryptNilKey(nlTestSuite * inSuite, void * inContext)
 {
     HeapChecker heapChecker(inSuite);
@@ -599,29 +540,6 @@ static void TestAES_CCM_128EncryptInvalidTagLen(nlTestSuite * inSuite, void * in
 
             CHIP_ERROR err = AES_CCM_encrypt(vector->pt, vector->pt_len, vector->aad, vector->aad_len, vector->key, vector->key_len,
                                              vector->iv, vector->iv_len, out_ct.Get(), out_tag.Get(), 13);
-            NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
-            break;
-        }
-    }
-    NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
-}
-
-static void TestAES_CCM_128DecryptInvalidCipherText(nlTestSuite * inSuite, void * inContext)
-{
-    HeapChecker heapChecker(inSuite);
-    int numOfTestVectors = ArraySize(ccm_128_test_vectors);
-    int numOfTestsRan    = 0;
-    for (int vectorIndex = 0; vectorIndex < numOfTestVectors; vectorIndex++)
-    {
-        const ccm_128_test_vector * vector = ccm_128_test_vectors[vectorIndex];
-        if (vector->pt_len > 0)
-        {
-            numOfTestsRan++;
-            Platform::ScopedMemoryBuffer<uint8_t> out_pt;
-            out_pt.Alloc(vector->pt_len);
-            NL_TEST_ASSERT(inSuite, out_pt);
-            CHIP_ERROR err = AES_CCM_decrypt(vector->ct, 0, vector->aad, vector->aad_len, vector->tag, vector->tag_len, vector->key,
-                                             vector->key_len, vector->iv, vector->iv_len, out_pt.Get());
             NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
             break;
         }
@@ -1898,8 +1816,7 @@ static void TestPubkey_x509Extraction(nlTestSuite * inSuite, void * inContext)
     P256PublicKey publicKey;
 
     ByteSpan cert;
-    const uint8_t * certPubkey;
-    uint32_t certPubkeyLen;
+    ByteSpan pubkeySpan;
 
     for (size_t i = 0; i < gNumTestCerts; i++)
     {
@@ -1907,12 +1824,13 @@ static void TestPubkey_x509Extraction(nlTestSuite * inSuite, void * inContext)
 
         err = GetTestCert(certType, TestCertLoadFlags::kDERForm, cert);
         NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        err = GetTestCertPubkey(certType, &certPubkey, certPubkeyLen);
+        err = GetTestCertPubkey(certType, pubkeySpan);
         NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = ExtractPubkeyFromX509Cert(cert, publicKey);
         NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, memcmp(publicKey.ConstBytes(), certPubkey, certPubkeyLen) == 0);
+        NL_TEST_ASSERT(inSuite, publicKey.Length() == pubkeySpan.size());
+        NL_TEST_ASSERT(inSuite, memcmp(publicKey.ConstBytes(), pubkeySpan.data(), pubkeySpan.size()) == 0);
     }
 }
 
@@ -1948,6 +1866,33 @@ static void TestX509_CertChainValidation(nlTestSuite * inSuite, void * inContext
 
     err = ValidateCertificateChain(root_cert.data(), root_cert.size(), nullptr, 0, leaf_cert.data(), leaf_cert.size());
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+}
+
+static void TestSKID_x509Extraction(nlTestSuite * inSuite, void * inContext)
+{
+    using namespace TestCerts;
+
+    HeapChecker heapChecker(inSuite);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    uint8_t skidBuf[Credentials::kKeyIdentifierLength];
+    MutableByteSpan skidOut(skidBuf);
+
+    ByteSpan cert;
+    ByteSpan skidSpan;
+
+    for (size_t i = 0; i < gNumTestCerts; i++)
+    {
+        uint8_t certType = gTestCerts[i];
+
+        err = GetTestCert(certType, TestCertLoadFlags::kDERForm, cert);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        err = GetTestCertSKID(certType, skidSpan);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+        err = ExtractSKIDFromX509Cert(cert, skidOut);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, skidSpan.data_equal(skidOut));
+    }
 }
 
 static void TestAKID_x509Extraction(nlTestSuite * inSuite, void * inContext)
@@ -2049,20 +1994,16 @@ static const nlTest sTests[] = {
 
     NL_TEST_DEF("Test encrypting AES-CCM-128 test vectors", TestAES_CCM_128EncryptTestVectors),
     NL_TEST_DEF("Test decrypting AES-CCM-128 test vectors", TestAES_CCM_128DecryptTestVectors),
-    NL_TEST_DEF("Test encrypting AES-CCM-128 invalid plain text", TestAES_CCM_128EncryptInvalidPlainText),
     NL_TEST_DEF("Test encrypting AES-CCM-128 using nil key", TestAES_CCM_128EncryptNilKey),
     NL_TEST_DEF("Test encrypting AES-CCM-128 using invalid IV", TestAES_CCM_128EncryptInvalidIVLen),
     NL_TEST_DEF("Test encrypting AES-CCM-128 using invalid tag", TestAES_CCM_128EncryptInvalidTagLen),
-    NL_TEST_DEF("Test decrypting AES-CCM-128 invalid ct", TestAES_CCM_128DecryptInvalidCipherText),
     NL_TEST_DEF("Test decrypting AES-CCM-128 invalid key", TestAES_CCM_128DecryptInvalidKey),
     NL_TEST_DEF("Test decrypting AES-CCM-128 invalid IV", TestAES_CCM_128DecryptInvalidIVLen),
     NL_TEST_DEF("Test encrypting AES-CCM-256 test vectors", TestAES_CCM_256EncryptTestVectors),
     NL_TEST_DEF("Test decrypting AES-CCM-256 test vectors", TestAES_CCM_256DecryptTestVectors),
-    NL_TEST_DEF("Test encrypting AES-CCM-256 invalid plain text", TestAES_CCM_256EncryptInvalidPlainText),
     NL_TEST_DEF("Test encrypting AES-CCM-256 using nil key", TestAES_CCM_256EncryptNilKey),
     NL_TEST_DEF("Test encrypting AES-CCM-256 using invalid IV", TestAES_CCM_256EncryptInvalidIVLen),
     NL_TEST_DEF("Test encrypting AES-CCM-256 using invalid tag", TestAES_CCM_256EncryptInvalidTagLen),
-    NL_TEST_DEF("Test decrypting AES-CCM-256 invalid ct", TestAES_CCM_256DecryptInvalidCipherText),
     NL_TEST_DEF("Test decrypting AES-CCM-256 invalid key", TestAES_CCM_256DecryptInvalidKey),
     NL_TEST_DEF("Test decrypting AES-CCM-256 invalid IV", TestAES_CCM_256DecryptInvalidIVLen),
     NL_TEST_DEF("Test decrypting AES-CCM-256 invalid vectors", TestAES_CCM_256DecryptInvalidTestVectors),
@@ -2106,6 +2047,7 @@ static const nlTest sTests[] = {
     NL_TEST_DEF("Test x509 Certificate Extraction from PKCS7", TestX509_PKCS7Extraction),
 #endif // CHIP_CRYPTO_OPENSSL
     NL_TEST_DEF("Test x509 Certificate Chain Validation", TestX509_CertChainValidation),
+    NL_TEST_DEF("Test Subject Key Id Extraction from x509 Certificate", TestSKID_x509Extraction),
     NL_TEST_DEF("Test Authority Key Id Extraction from x509 Certificate", TestAKID_x509Extraction),
     NL_TEST_DEF("Test Vendor ID Extraction from x509 Attestation Certificate", TestVID_x509Extraction),
     NL_TEST_SENTINEL()

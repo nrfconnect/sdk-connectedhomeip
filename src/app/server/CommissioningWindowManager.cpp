@@ -16,9 +16,9 @@
  */
 
 #include <app/server/CommissioningWindowManager.h>
-#include <app/server/Mdns.h>
+#include <app/server/Dnssd.h>
 #include <app/server/Server.h>
-#include <lib/mdns/Advertiser.h>
+#include <lib/dnssd/Advertiser.h>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 
@@ -31,6 +31,12 @@ void HandleCommissioningWindowTimeout(chip::System::Layer * aSystemLayer, void *
 {
     chip::CommissioningWindowManager * commissionMgr = static_cast<chip::CommissioningWindowManager *>(aAppState);
     commissionMgr->CloseCommissioningWindow();
+}
+
+void HandleSessionEstablishmentTimeout(chip::System::Layer * aSystemLayer, void * aAppState)
+{
+    chip::CommissioningWindowManager * commissionMgr = static_cast<chip::CommissioningWindowManager *>(aAppState);
+    commissionMgr->OnSessionEstablishmentError(CHIP_ERROR_TIMEOUT);
 }
 
 void OnPlatformEventWrapper(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t arg)
@@ -60,7 +66,7 @@ void CommissioningWindowManager::OnPlatformEvent(const DeviceLayer::ChipDeviceEv
     }
     else if (event->Type == DeviceLayer::DeviceEventType::kOperationalNetworkEnabled)
     {
-        app::MdnsServer::Instance().AdvertiseOperational();
+        app::DnssdServer::Instance().AdvertiseOperational();
         ChipLogError(AppServer, "Operational advertising enabled");
     }
 }
@@ -80,14 +86,18 @@ void CommissioningWindowManager::Cleanup()
     memset(mECMSalt, 0, sizeof(mECMSalt));
 
     // reset all advertising
-    app::MdnsServer::Instance().StartServer(Mdns::CommissioningMode::kDisabled);
+    app::DnssdServer::Instance().StartServer(Dnssd::CommissioningMode::kDisabled);
 }
 
 void CommissioningWindowManager::OnSessionEstablishmentError(CHIP_ERROR err)
 {
+    DeviceLayer::SystemLayer().CancelTimer(HandleSessionEstablishmentTimeout, this);
     mFailedCommissioningAttempts++;
     ChipLogError(AppServer, "Commissioning failed (attempt %d): %s", mFailedCommissioningAttempts, ErrorStr(err));
 
+#if CONFIG_NETWORK_LAYER_BLE
+    mServer->getBleLayerObject()->mBleEndPoint->ReleaseBleConnection();
+#endif
     if (mFailedCommissioningAttempts < kMaxFailedCommissioningAttempts)
     {
         // If the number of commissioning attempts have not exceeded maximum retries, let's reopen
@@ -107,8 +117,16 @@ void CommissioningWindowManager::OnSessionEstablishmentError(CHIP_ERROR err)
     }
 }
 
+void CommissioningWindowManager::OnSessionEstablishmentStarted()
+{
+    // As per specifications, section 5.5: Commissioning Flows
+    constexpr System::Clock::Timeout kPASESessionEstablishmentTimeout = System::Clock::Seconds16(60);
+    DeviceLayer::SystemLayer().StartTimer(kPASESessionEstablishmentTimeout, HandleSessionEstablishmentTimeout, this);
+}
+
 void CommissioningWindowManager::OnSessionEstablished()
 {
+    DeviceLayer::SystemLayer().CancelTimer(HandleSessionEstablishmentTimeout, this);
     CHIP_ERROR err = mServer->GetSecureSessionManager().NewPairing(
         Optional<Transport::PeerAddress>::Value(mPairingSession.GetPeerAddress()), mPairingSession.GetPeerNodeId(),
         &mPairingSession, CryptoContext::SessionRole::kResponder, 0);
@@ -141,11 +159,11 @@ CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow()
 
     if (mCommissioningTimeoutSeconds != kNoCommissioningTimeout)
     {
-        ReturnErrorOnFailure(
-            DeviceLayer::SystemLayer().StartTimer(mCommissioningTimeoutSeconds * 1000, HandleCommissioningWindowTimeout, this));
+        ReturnErrorOnFailure(DeviceLayer::SystemLayer().StartTimer(System::Clock::Seconds16(mCommissioningTimeoutSeconds),
+                                                                   HandleCommissioningWindowTimeout, this));
     }
 
-    ReturnErrorOnFailure(mServer->GetExchangManager().RegisterUnsolicitedMessageHandlerForType(
+    ReturnErrorOnFailure(mServer->GetExchangeManager().RegisterUnsolicitedMessageHandlerForType(
         Protocols::SecureChannel::MsgType::PBKDFParamRequest, &mPairingSession));
 
     ReturnErrorOnFailure(StartAdvertisement());
@@ -157,7 +175,7 @@ CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow()
                                                             mECMPasscodeID, keyID, this));
 
         // reset all advertising, indicating we are in commissioningMode
-        app::MdnsServer::Instance().StartServer(Mdns::CommissioningMode::kEnabledEnhanced);
+        app::DnssdServer::Instance().StartServer(Dnssd::CommissioningMode::kEnabledEnhanced);
     }
     else
     {
@@ -169,7 +187,7 @@ CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow()
             ByteSpan(reinterpret_cast<const uint8_t *>(kSpake2pKeyExchangeSalt), strlen(kSpake2pKeyExchangeSalt)), keyID, this));
 
         // reset all advertising, indicating we are in commissioningMode
-        app::MdnsServer::Instance().StartServer(Mdns::CommissioningMode::kEnabledBasic);
+        app::DnssdServer::Instance().StartServer(Dnssd::CommissioningMode::kEnabledBasic);
     }
 
     return CHIP_NO_ERROR;
@@ -257,6 +275,11 @@ CHIP_ERROR CommissioningWindowManager::StartAdvertisement()
         mAppDelegate->OnPairingWindowOpened();
     }
     mCommissioningWindowOpen = true;
+
+#if CHIP_DEVICE_CONFIG_ENABLE_SED
+    DeviceLayer::ConnectivityMgr().RequestSEDFastPollingMode(true);
+#endif
+
     return CHIP_NO_ERROR;
 }
 
@@ -264,10 +287,14 @@ CHIP_ERROR CommissioningWindowManager::StopAdvertisement()
 {
     RestoreDiscriminator();
 
-    mServer->GetExchangManager().UnregisterUnsolicitedMessageHandlerForType(Protocols::SecureChannel::MsgType::PBKDFParamRequest);
+    mServer->GetExchangeManager().UnregisterUnsolicitedMessageHandlerForType(Protocols::SecureChannel::MsgType::PBKDFParamRequest);
     mPairingSession.Clear();
 
     mCommissioningWindowOpen = false;
+
+#if CHIP_DEVICE_CONFIG_ENABLE_SED
+    DeviceLayer::ConnectivityMgr().RequestSEDFastPollingMode(false);
+#endif
 
     if (mIsBLE)
     {

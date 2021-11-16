@@ -1,0 +1,834 @@
+# Commands will be run in CHIP project root.
+cd "{root}"
+
+# Generating ameba-amebad-all-clusters
+bash -c '$AMEBA_PATH/project/realtek_amebaD_va0_example/GCC-RELEASE/build.sh {root} ninja {out}/ameba-amebad-all-clusters'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-androidstudio-arm-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-androidstudio-arm-chip-tool '--args=target_os="android" target_cpu="arm" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" ' --ide=json --json-ide-script=//scripts/examples/gn_to_cmakelists.py
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-androidstudio-arm64-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-androidstudio-arm64-chip-tool '--args=target_os="android" target_cpu="arm64" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" ' --ide=json --json-ide-script=//scripts/examples/gn_to_cmakelists.py
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-androidstudio-x64-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-androidstudio-x64-chip-tool '--args=target_os="android" target_cpu="x64" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" ' --ide=json --json-ide-script=//scripts/examples/gn_to_cmakelists.py
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-androidstudio-x86-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-androidstudio-x86-chip-tool '--args=target_os="android" target_cpu="x86" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" ' --ide=json --json-ide-script=//scripts/examples/gn_to_cmakelists.py
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-arm-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-arm-chip-tool '--args=target_os="android" target_cpu="arm" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" '
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-arm64-chip-test
+gn gen --check --fail-on-unused-args {out}/android-arm64-chip-test '--args=target_os="android" target_cpu="arm64" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" '
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-arm64-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-arm64-chip-tool '--args=target_os="android" target_cpu="arm64" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" '
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-arm64-chip-tvserver
+gn gen --check --fail-on-unused-args {out}/android-arm64-chip-tvserver '--args=target_os="android" target_cpu="arm64" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" chip_config_network_layer_ble=false '
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-x64-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-x64-chip-tool '--args=target_os="android" target_cpu="x64" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" '
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating JARs for Java build rules test
+python3 build/chip/java/tests/generate_jars_for_test.py
+
+# Setting up Android deps through Gradle
+python3 third_party/android_deps/set_up_android_deps.py
+
+# Generating android-x86-chip-tool
+gn gen --check --fail-on-unused-args {out}/android-x86-chip-tool '--args=target_os="android" target_cpu="x86" android_ndk_root="TEST_ANDROID_NDK_HOME" android_sdk_root="TEST_ANDROID_HOME" '
+
+# Accepting NDK licenses @ tools
+bash -c 'yes | TEST_ANDROID_HOME/tools/bin/sdkmanager --licenses >/dev/null'
+
+# Generating efr32-brd4161a-light
+gn gen --check --fail-on-unused-args --root={root}/examples/lighting-app/efr32 '--args=efr32_board="BRD4161A"' {out}/efr32-brd4161a-light
+
+# Generating efr32-brd4161a-light-rpc
+gn gen --check --fail-on-unused-args --root={root}/examples/lighting-app/efr32 '--args=efr32_board="BRD4161A" import("//with_pw_rpc.gni")' {out}/efr32-brd4161a-light-rpc
+
+# Generating efr32-brd4161a-lock
+gn gen --check --fail-on-unused-args --root={root}/examples/lock-app/efr32 '--args=efr32_board="BRD4161A"' {out}/efr32-brd4161a-lock
+
+# Generating efr32-brd4161a-unit-test
+gn gen --check --fail-on-unused-args --root={root}/src/test_driver/efr32 '--args=efr32_board="BRD4161A"' {out}/efr32-brd4161a-unit-test
+
+# Generating efr32-brd4161a-window-covering
+gn gen --check --fail-on-unused-args --root={root}/examples/window-app/efr32 '--args=efr32_board="BRD4161A"' {out}/efr32-brd4161a-window-covering
+
+# Generating esp32-c3devkit-all-clusters
+mkdir -p {out}/esp32-c3devkit-all-clusters
+
+cp examples/all-clusters-app/esp32/sdkconfig_c3devkit.defaults {out}/esp32-c3devkit-all-clusters/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-c3devkit-all-clusters/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-c3devkit-all-clusters reconfigure'
+
+# Generating esp32-devkitc-all-clusters
+mkdir -p {out}/esp32-devkitc-all-clusters
+
+cp examples/all-clusters-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-all-clusters/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-devkitc-all-clusters reconfigure'
+
+# Generating esp32-devkitc-all-clusters-ipv6only
+mkdir -p {out}/esp32-devkitc-all-clusters-ipv6only
+
+cp examples/all-clusters-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-all-clusters-ipv6only/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-devkitc-all-clusters-ipv6only/sdkconfig.defaults'
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-devkitc-all-clusters-ipv6only reconfigure'
+
+# Generating esp32-devkitc-bridge
+mkdir -p {out}/esp32-devkitc-bridge
+
+cp examples/bridge-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-bridge/sdkconfig.defaults
+
+rm -f examples/bridge-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-bridge/sdkconfig.defaults
+idf.py -C examples/bridge-app/esp32 -B {out}/esp32-devkitc-bridge reconfigure'
+
+# Generating esp32-devkitc-lock
+mkdir -p {out}/esp32-devkitc-lock
+
+cp examples/lock-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-lock/sdkconfig.defaults
+
+rm -f examples/lock-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-lock/sdkconfig.defaults
+idf.py -C examples/lock-app/esp32 -B {out}/esp32-devkitc-lock reconfigure'
+
+# Generating esp32-devkitc-shell
+mkdir -p {out}/esp32-devkitc-shell
+
+cp examples/shell/esp32/sdkconfig.defaults {out}/esp32-devkitc-shell/sdkconfig.defaults
+
+rm -f examples/shell/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-shell/sdkconfig.defaults
+idf.py -C examples/shell/esp32 -B {out}/esp32-devkitc-shell reconfigure'
+
+# Generating esp32-devkitc-temperature-measurement
+mkdir -p {out}/esp32-devkitc-temperature-measurement
+
+cp examples/temperature-measurement-app/esp32/sdkconfig.defaults {out}/esp32-devkitc-temperature-measurement/sdkconfig.defaults
+
+rm -f examples/temperature-measurement-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-temperature-measurement/sdkconfig.defaults
+idf.py -C examples/temperature-measurement-app/esp32 -B {out}/esp32-devkitc-temperature-measurement reconfigure'
+
+# Generating esp32-m5stack-all-clusters
+mkdir -p {out}/esp32-m5stack-all-clusters
+
+cp examples/all-clusters-app/esp32/sdkconfig_m5stack.defaults {out}/esp32-m5stack-all-clusters/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters reconfigure'
+
+# Generating esp32-m5stack-all-clusters-ipv6only
+mkdir -p {out}/esp32-m5stack-all-clusters-ipv6only
+
+cp examples/all-clusters-app/esp32/sdkconfig_m5stack.defaults {out}/esp32-m5stack-all-clusters-ipv6only/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-m5stack-all-clusters-ipv6only/sdkconfig.defaults'
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-ipv6only reconfigure'
+
+# Generating esp32-m5stack-all-clusters-rpc
+mkdir -p {out}/esp32-m5stack-all-clusters-rpc
+
+cp examples/all-clusters-app/esp32/sdkconfig_m5stack_rpc.defaults {out}/esp32-m5stack-all-clusters-rpc/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-rpc/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-rpc reconfigure'
+
+# Generating esp32-m5stack-all-clusters-rpc-ipv6only
+mkdir -p {out}/esp32-m5stack-all-clusters-rpc-ipv6only
+
+cp examples/all-clusters-app/esp32/sdkconfig_m5stack_rpc.defaults {out}/esp32-m5stack-all-clusters-rpc-ipv6only/sdkconfig.defaults
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+bash -c 'echo -e "\nCONFIG_DISABLE_IPV4=y\n" >>{out}/esp32-m5stack-all-clusters-rpc-ipv6only/sdkconfig.defaults'
+
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-rpc-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-rpc-ipv6only reconfigure'
+
+# Generating infineon-p6-all-clusters
+gn gen --check --fail-on-unused-args --root={root}/examples/all-clusters-app/p6 '--args=p6_board="CY8CKIT-062S2-43012"' {out}/infineon-p6-all-clusters
+
+# Generating infineon-p6-lock
+gn gen --check --fail-on-unused-args --root={root}/examples/lock-app/p6 '--args=p6_board="CY8CKIT-062S2-43012"' {out}/infineon-p6-lock
+
+# Generating config mbed-CY8CPROTO_062_4343W-all-clusters-debug
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-debug --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-all-clusters-debug
+cmake -S {root}/examples/all-clusters-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-debug -GNinja -DCMAKE_BUILD_TYPE=debug -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-all-clusters-develop
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-all-clusters-develop
+cmake -S {root}/examples/all-clusters-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-all-clusters-release
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/all-clusters-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-all-clusters-release --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-all-clusters-release
+cmake -S {root}/examples/all-clusters-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-all-clusters-release -GNinja -DCMAKE_BUILD_TYPE=release -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-light-debug
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/lighting-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-light-debug --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-light-debug
+cmake -S {root}/examples/lighting-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-light-debug -GNinja -DCMAKE_BUILD_TYPE=debug -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-light-develop
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/lighting-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-light-develop --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-light-develop
+cmake -S {root}/examples/lighting-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-light-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-light-release
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/lighting-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-light-release --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-light-release
+cmake -S {root}/examples/lighting-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-light-release -GNinja -DCMAKE_BUILD_TYPE=release -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-lock-debug
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/lock-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-lock-debug --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-lock-debug
+cmake -S {root}/examples/lock-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-lock-debug -GNinja -DCMAKE_BUILD_TYPE=debug -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-lock-develop
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/lock-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-lock-develop --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-lock-develop
+cmake -S {root}/examples/lock-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-lock-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-lock-release
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/lock-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-lock-release --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-lock-release
+cmake -S {root}/examples/lock-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-lock-release -GNinja -DCMAKE_BUILD_TYPE=release -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-pigweed-debug
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/pigweed-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-pigweed-debug --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-pigweed-debug
+cmake -S {root}/examples/pigweed-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-pigweed-debug -GNinja -DCMAKE_BUILD_TYPE=debug -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-pigweed-develop
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/pigweed-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-pigweed-develop --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-pigweed-develop
+cmake -S {root}/examples/pigweed-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-pigweed-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-pigweed-release
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/pigweed-app/mbed -o {out}/mbed-CY8CPROTO_062_4343W-pigweed-release --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-pigweed-release
+cmake -S {root}/examples/pigweed-app/mbed -B {out}/mbed-CY8CPROTO_062_4343W-pigweed-release -GNinja -DCMAKE_BUILD_TYPE=release -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-shell-debug
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/shell/mbed -o {out}/mbed-CY8CPROTO_062_4343W-shell-debug --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-shell-debug
+cmake -S {root}/examples/shell/mbed -B {out}/mbed-CY8CPROTO_062_4343W-shell-debug -GNinja -DCMAKE_BUILD_TYPE=debug -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-shell-develop
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/shell/mbed -o {out}/mbed-CY8CPROTO_062_4343W-shell-develop --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-shell-develop
+cmake -S {root}/examples/shell/mbed -B {out}/mbed-CY8CPROTO_062_4343W-shell-develop -GNinja -DCMAKE_BUILD_TYPE=develop -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating config mbed-CY8CPROTO_062_4343W-shell-release
+mbed-tools configure -t GCC_ARM -m CY8CPROTO_062_4343W -p {root}/examples/shell/mbed -o {out}/mbed-CY8CPROTO_062_4343W-shell-release --mbed-os-path {root}/third_party/mbed-os/repo
+
+# Generating mbed-CY8CPROTO_062_4343W-shell-release
+cmake -S {root}/examples/shell/mbed -B {out}/mbed-CY8CPROTO_062_4343W-shell-release -GNinja -DCMAKE_BUILD_TYPE=release -DMBED_OS_PATH={root}/third_party/mbed-os/repo -DMBED_OS_POSIX_SOCKET_PATH={root}/third_party/mbed-os-posix-socket/repo
+
+# Generating nrf-nrf52840-light
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840-light -b nrf52840dk_nrf52840 {root}/examples/lighting-app/nrfconnect'
+
+# Generating nrf-nrf52840-light-rpc
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840-light-rpc -b nrf52840dk_nrf52840 {root}/examples/lighting-app/nrfconnect -- -DOVERLAY_CONFIG=rpc.overlay'
+
+# Generating nrf-nrf52840-lock
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840-lock -b nrf52840dk_nrf52840 {root}/examples/lock-app/nrfconnect'
+
+# Generating nrf-nrf52840-pump
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840-pump -b nrf52840dk_nrf52840 {root}/examples/pump-app/nrfconnect'
+
+# Generating nrf-nrf52840-pump-controller
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840-pump-controller -b nrf52840dk_nrf52840 {root}/examples/pump-controller-app/nrfconnect'
+
+# Generating nrf-nrf52840-shell
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf52840-shell -b nrf52840dk_nrf52840 {root}/examples/shell/nrfconnect'
+
+# Generating nrf-nrf5340-light
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340-light -b nrf5340dk_nrf5340_cpuapp {root}/examples/lighting-app/nrfconnect'
+
+# Generating nrf-nrf5340-light-rpc
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340-light-rpc -b nrf5340dk_nrf5340_cpuapp {root}/examples/lighting-app/nrfconnect -- -DOVERLAY_CONFIG=rpc.overlay'
+
+# Generating nrf-nrf5340-lock
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340-lock -b nrf5340dk_nrf5340_cpuapp {root}/examples/lock-app/nrfconnect'
+
+# Generating nrf-nrf5340-pump
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340-pump -b nrf5340dk_nrf5340_cpuapp {root}/examples/pump-app/nrfconnect'
+
+# Generating nrf-nrf5340-pump-controller
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340-pump-controller -b nrf5340dk_nrf5340_cpuapp {root}/examples/pump-controller-app/nrfconnect'
+
+# Generating nrf-nrf5340-shell
+bash -c 'source "$ZEPHYR_BASE/zephyr-env.sh";
+export GNUARMEMB_TOOLCHAIN_PATH="$PW_PIGWEED_CIPD_INSTALL_DIR";
+west build --cmake-only -d {out}/nrf-nrf5340-shell -b nrf5340dk_nrf5340_cpuapp {root}/examples/shell/nrfconnect'
+
+# Generating qpg-qpg6100-lock
+gn gen --check --fail-on-unused-args --root={root}/examples/lock-app/qpg {out}/qpg-qpg6100-lock
+
+# Generating telink-tlsr9518adk80d-light
+bash -c 'export ZEPHYR_BASE="$TELINK_ZEPHYR_BASE"
+export ZEPHYR_SDK_INSTALL_DIR="$TELINK_ZEPHYR_SDK_DIR"
+export ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+source "$ZEPHYR_BASE/zephyr-env.sh";
+west build --cmake-only -d {out}/telink-tlsr9518adk80d-light -b tlsr9518adk80d {root}/examples/lighting-app/telink'
+
+# Generating tizen-arm-light
+gn gen --check --fail-on-unused-args --root={root}/examples/lighting-app/linux '--args=target_os="tizen" target_cpu="arm" sysroot="TEST_TIZEN_HOME"' {out}/tizen-arm-light
+
+# Building ameba-amebad-all-clusters
+ninja -C {out}/ameba-amebad-all-clusters
+
+# Building APP android-androidstudio-arm-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-androidstudio-arm-chip-tool -PmatterSdkSourceBuild=true -PmatterSourceBuildAbiFilters=armeabi-v7a assembleDebug
+
+# Building APP android-androidstudio-arm64-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-androidstudio-arm64-chip-tool -PmatterSdkSourceBuild=true -PmatterSourceBuildAbiFilters=arm64-v8a assembleDebug
+
+# Building APP android-androidstudio-x64-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-androidstudio-x64-chip-tool -PmatterSdkSourceBuild=true -PmatterSourceBuildAbiFilters=x86_64 assembleDebug
+
+# Building APP android-androidstudio-x86-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-androidstudio-x86-chip-tool -PmatterSdkSourceBuild=true -PmatterSourceBuildAbiFilters=x86 assembleDebug
+
+# Building JNI android-arm-chip-tool
+ninja -C {out}/android-arm-chip-tool
+
+# Prepare Native libs android-arm-chip-tool
+mkdir -p {root}/src/android/CHIPTool/app/libs/jniLibs/armeabi-v7a
+
+cp {out}/android-arm-chip-tool/lib/jni/armeabi-v7a/libSetupPayloadParser.so {root}/src/android/CHIPTool/app/libs/jniLibs/armeabi-v7a/libSetupPayloadParser.so
+
+cp {out}/android-arm-chip-tool/lib/jni/armeabi-v7a/libCHIPController.so {root}/src/android/CHIPTool/app/libs/jniLibs/armeabi-v7a/libCHIPController.so
+
+cp {out}/android-arm-chip-tool/lib/jni/armeabi-v7a/libc++_shared.so {root}/src/android/CHIPTool/app/libs/jniLibs/armeabi-v7a/libc++_shared.so
+
+cp {out}/android-arm-chip-tool/lib/jni/armeabi-v7a/libCHIPAppServer.so {root}/src/android/CHIPTool/app/libs/jniLibs/armeabi-v7a/libCHIPAppServer.so
+
+cp {out}/android-arm-chip-tool/lib/src/controller/java/CHIPController.jar {root}/src/android/CHIPTool/app/libs/CHIPController.jar
+
+cp {out}/android-arm-chip-tool/lib/src/setup_payload/java/SetupPayloadParser.jar {root}/src/android/CHIPTool/app/libs/SetupPayloadParser.jar
+
+cp {out}/android-arm-chip-tool/lib/src/platform/android/AndroidPlatform.jar {root}/src/android/CHIPTool/app/libs/AndroidPlatform.jar
+
+cp {out}/android-arm-chip-tool/lib/src/app/server/java/CHIPAppServer.jar {root}/src/android/CHIPTool/app/libs/CHIPAppServer.jar
+
+# Building APP android-arm-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-arm-chip-tool -PmatterSdkSourceBuild=false -PbuildDir={out}/android-arm-chip-tool assembleDebug
+
+# Building JNI android-arm64-chip-test
+ninja -C {out}/android-arm64-chip-test
+
+# Prepare Native libs android-arm64-chip-test
+mkdir -p {root}/src/android/CHIPTest/app/libs/jniLibs/arm64-v8a
+
+cp {out}/android-arm64-chip-test/lib/jni/arm64-v8a/libSetupPayloadParser.so {root}/src/android/CHIPTest/app/libs/jniLibs/arm64-v8a/libSetupPayloadParser.so
+
+cp {out}/android-arm64-chip-test/lib/jni/arm64-v8a/libCHIPController.so {root}/src/android/CHIPTest/app/libs/jniLibs/arm64-v8a/libCHIPController.so
+
+cp {out}/android-arm64-chip-test/lib/jni/arm64-v8a/libc++_shared.so {root}/src/android/CHIPTest/app/libs/jniLibs/arm64-v8a/libc++_shared.so
+
+cp {out}/android-arm64-chip-test/lib/jni/arm64-v8a/libCHIPAppServer.so {root}/src/android/CHIPTest/app/libs/jniLibs/arm64-v8a/libCHIPAppServer.so
+
+cp {out}/android-arm64-chip-test/lib/src/controller/java/CHIPController.jar {root}/src/android/CHIPTest/app/libs/CHIPController.jar
+
+cp {out}/android-arm64-chip-test/lib/src/setup_payload/java/SetupPayloadParser.jar {root}/src/android/CHIPTest/app/libs/SetupPayloadParser.jar
+
+cp {out}/android-arm64-chip-test/lib/src/platform/android/AndroidPlatform.jar {root}/src/android/CHIPTest/app/libs/AndroidPlatform.jar
+
+cp {out}/android-arm64-chip-test/lib/src/app/server/java/CHIPAppServer.jar {root}/src/android/CHIPTest/app/libs/CHIPAppServer.jar
+
+# Building APP android-arm64-chip-test
+{root}/src/android/CHIPTest/gradlew -p {root}/src/android/CHIPTest -PmatterBuildSrcDir={out}/android-arm64-chip-test -PmatterSdkSourceBuild=false -PbuildDir={out}/android-arm64-chip-test assembleDebug
+
+# Building JNI android-arm64-chip-tool
+ninja -C {out}/android-arm64-chip-tool
+
+# Prepare Native libs android-arm64-chip-tool
+mkdir -p {root}/src/android/CHIPTool/app/libs/jniLibs/arm64-v8a
+
+cp {out}/android-arm64-chip-tool/lib/jni/arm64-v8a/libSetupPayloadParser.so {root}/src/android/CHIPTool/app/libs/jniLibs/arm64-v8a/libSetupPayloadParser.so
+
+cp {out}/android-arm64-chip-tool/lib/jni/arm64-v8a/libCHIPController.so {root}/src/android/CHIPTool/app/libs/jniLibs/arm64-v8a/libCHIPController.so
+
+cp {out}/android-arm64-chip-tool/lib/jni/arm64-v8a/libc++_shared.so {root}/src/android/CHIPTool/app/libs/jniLibs/arm64-v8a/libc++_shared.so
+
+cp {out}/android-arm64-chip-tool/lib/jni/arm64-v8a/libCHIPAppServer.so {root}/src/android/CHIPTool/app/libs/jniLibs/arm64-v8a/libCHIPAppServer.so
+
+cp {out}/android-arm64-chip-tool/lib/src/controller/java/CHIPController.jar {root}/src/android/CHIPTool/app/libs/CHIPController.jar
+
+cp {out}/android-arm64-chip-tool/lib/src/setup_payload/java/SetupPayloadParser.jar {root}/src/android/CHIPTool/app/libs/SetupPayloadParser.jar
+
+cp {out}/android-arm64-chip-tool/lib/src/platform/android/AndroidPlatform.jar {root}/src/android/CHIPTool/app/libs/AndroidPlatform.jar
+
+cp {out}/android-arm64-chip-tool/lib/src/app/server/java/CHIPAppServer.jar {root}/src/android/CHIPTool/app/libs/CHIPAppServer.jar
+
+# Building APP android-arm64-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-arm64-chip-tool -PmatterSdkSourceBuild=false -PbuildDir={out}/android-arm64-chip-tool assembleDebug
+
+# Building JNI android-arm64-chip-tvserver
+ninja -C {out}/android-arm64-chip-tvserver
+
+# Prepare Native libs android-arm64-chip-tvserver
+mkdir -p {root}/src/android/CHIPTVServer/app/libs/jniLibs/arm64-v8a
+
+cp {out}/android-arm64-chip-tvserver/lib/jni/arm64-v8a/libSetupPayloadParser.so {root}/src/android/CHIPTVServer/app/libs/jniLibs/arm64-v8a/libSetupPayloadParser.so
+
+cp {out}/android-arm64-chip-tvserver/lib/jni/arm64-v8a/libCHIPController.so {root}/src/android/CHIPTVServer/app/libs/jniLibs/arm64-v8a/libCHIPController.so
+
+cp {out}/android-arm64-chip-tvserver/lib/jni/arm64-v8a/libc++_shared.so {root}/src/android/CHIPTVServer/app/libs/jniLibs/arm64-v8a/libc++_shared.so
+
+cp {out}/android-arm64-chip-tvserver/lib/jni/arm64-v8a/libCHIPAppServer.so {root}/src/android/CHIPTVServer/app/libs/jniLibs/arm64-v8a/libCHIPAppServer.so
+
+cp {out}/android-arm64-chip-tvserver/lib/src/controller/java/CHIPController.jar {root}/src/android/CHIPTVServer/app/libs/CHIPController.jar
+
+cp {out}/android-arm64-chip-tvserver/lib/src/setup_payload/java/SetupPayloadParser.jar {root}/src/android/CHIPTVServer/app/libs/SetupPayloadParser.jar
+
+cp {out}/android-arm64-chip-tvserver/lib/src/platform/android/AndroidPlatform.jar {root}/src/android/CHIPTVServer/app/libs/AndroidPlatform.jar
+
+cp {out}/android-arm64-chip-tvserver/lib/src/app/server/java/CHIPAppServer.jar {root}/src/android/CHIPTVServer/app/libs/CHIPAppServer.jar
+
+# Building APP android-arm64-chip-tvserver
+{root}/src/android/CHIPTVServer/gradlew -p {root}/src/android/CHIPTVServer -PmatterBuildSrcDir={out}/android-arm64-chip-tvserver -PmatterSdkSourceBuild=false -PbuildDir={out}/android-arm64-chip-tvserver assembleDebug
+
+# Building JNI android-x64-chip-tool
+ninja -C {out}/android-x64-chip-tool
+
+# Prepare Native libs android-x64-chip-tool
+mkdir -p {root}/src/android/CHIPTool/app/libs/jniLibs/x86_64
+
+cp {out}/android-x64-chip-tool/lib/jni/x86_64/libSetupPayloadParser.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86_64/libSetupPayloadParser.so
+
+cp {out}/android-x64-chip-tool/lib/jni/x86_64/libCHIPController.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86_64/libCHIPController.so
+
+cp {out}/android-x64-chip-tool/lib/jni/x86_64/libc++_shared.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86_64/libc++_shared.so
+
+cp {out}/android-x64-chip-tool/lib/jni/x86_64/libCHIPAppServer.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86_64/libCHIPAppServer.so
+
+cp {out}/android-x64-chip-tool/lib/src/controller/java/CHIPController.jar {root}/src/android/CHIPTool/app/libs/CHIPController.jar
+
+cp {out}/android-x64-chip-tool/lib/src/setup_payload/java/SetupPayloadParser.jar {root}/src/android/CHIPTool/app/libs/SetupPayloadParser.jar
+
+cp {out}/android-x64-chip-tool/lib/src/platform/android/AndroidPlatform.jar {root}/src/android/CHIPTool/app/libs/AndroidPlatform.jar
+
+cp {out}/android-x64-chip-tool/lib/src/app/server/java/CHIPAppServer.jar {root}/src/android/CHIPTool/app/libs/CHIPAppServer.jar
+
+# Building APP android-x64-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-x64-chip-tool -PmatterSdkSourceBuild=false -PbuildDir={out}/android-x64-chip-tool assembleDebug
+
+# Building JNI android-x86-chip-tool
+ninja -C {out}/android-x86-chip-tool
+
+# Prepare Native libs android-x86-chip-tool
+mkdir -p {root}/src/android/CHIPTool/app/libs/jniLibs/x86
+
+cp {out}/android-x86-chip-tool/lib/jni/x86/libSetupPayloadParser.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86/libSetupPayloadParser.so
+
+cp {out}/android-x86-chip-tool/lib/jni/x86/libCHIPController.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86/libCHIPController.so
+
+cp {out}/android-x86-chip-tool/lib/jni/x86/libc++_shared.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86/libc++_shared.so
+
+cp {out}/android-x86-chip-tool/lib/jni/x86/libCHIPAppServer.so {root}/src/android/CHIPTool/app/libs/jniLibs/x86/libCHIPAppServer.so
+
+cp {out}/android-x86-chip-tool/lib/src/controller/java/CHIPController.jar {root}/src/android/CHIPTool/app/libs/CHIPController.jar
+
+cp {out}/android-x86-chip-tool/lib/src/setup_payload/java/SetupPayloadParser.jar {root}/src/android/CHIPTool/app/libs/SetupPayloadParser.jar
+
+cp {out}/android-x86-chip-tool/lib/src/platform/android/AndroidPlatform.jar {root}/src/android/CHIPTool/app/libs/AndroidPlatform.jar
+
+cp {out}/android-x86-chip-tool/lib/src/app/server/java/CHIPAppServer.jar {root}/src/android/CHIPTool/app/libs/CHIPAppServer.jar
+
+# Building APP android-x86-chip-tool
+{root}/src/android/CHIPTool/gradlew -p {root}/src/android/CHIPTool -PmatterBuildSrcDir={out}/android-x86-chip-tool -PmatterSdkSourceBuild=false -PbuildDir={out}/android-x86-chip-tool assembleDebug
+
+# Building efr32-brd4161a-light
+ninja -C {out}/efr32-brd4161a-light
+
+# Building efr32-brd4161a-light-rpc
+ninja -C {out}/efr32-brd4161a-light-rpc
+
+# Building efr32-brd4161a-lock
+ninja -C {out}/efr32-brd4161a-lock
+
+# Building efr32-brd4161a-unit-test
+ninja -C {out}/efr32-brd4161a-unit-test
+
+# Building efr32-brd4161a-window-covering
+ninja -C {out}/efr32-brd4161a-window-covering
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-c3devkit-all-clusters
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-c3devkit-all-clusters/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-c3devkit-all-clusters build'
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-devkitc-all-clusters
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-devkitc-all-clusters build'
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-devkitc-all-clusters-ipv6only
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-all-clusters-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-devkitc-all-clusters-ipv6only build'
+
+rm -f examples/bridge-app/esp32/sdkconfig
+
+# Building esp32-devkitc-bridge
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-bridge/sdkconfig.defaults
+idf.py -C examples/bridge-app/esp32 -B {out}/esp32-devkitc-bridge build'
+
+rm -f examples/lock-app/esp32/sdkconfig
+
+# Building esp32-devkitc-lock
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-lock/sdkconfig.defaults
+idf.py -C examples/lock-app/esp32 -B {out}/esp32-devkitc-lock build'
+
+rm -f examples/shell/esp32/sdkconfig
+
+# Building esp32-devkitc-shell
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-shell/sdkconfig.defaults
+idf.py -C examples/shell/esp32 -B {out}/esp32-devkitc-shell build'
+
+rm -f examples/temperature-measurement-app/esp32/sdkconfig
+
+# Building esp32-devkitc-temperature-measurement
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-devkitc-temperature-measurement/sdkconfig.defaults
+idf.py -C examples/temperature-measurement-app/esp32 -B {out}/esp32-devkitc-temperature-measurement build'
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters build'
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-ipv6only
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-ipv6only build'
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-rpc
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-rpc/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-rpc build'
+
+rm -f examples/all-clusters-app/esp32/sdkconfig
+
+# Building esp32-m5stack-all-clusters-rpc-ipv6only
+bash -c 'source $IDF_PATH/export.sh; source scripts/activate.sh; 
+export SDKCONFIG_DEFAULTS={out}/esp32-m5stack-all-clusters-rpc-ipv6only/sdkconfig.defaults
+idf.py -C examples/all-clusters-app/esp32 -B {out}/esp32-m5stack-all-clusters-rpc-ipv6only build'
+
+# Building infineon-p6-all-clusters
+ninja -C {out}/infineon-p6-all-clusters
+
+# Building infineon-p6-lock
+ninja -C {out}/infineon-p6-lock
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-debug
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-debug/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-all-clusters-debug
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-debug
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-develop
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-all-clusters-develop
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-all-clusters-release
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-all-clusters-release/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-all-clusters-release
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-all-clusters-release
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-light-debug
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-light-debug/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-light-debug
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-light-debug
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-light-develop
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-light-develop/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-light-develop
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-light-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-light-release
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-light-release/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-light-release
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-light-release
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-lock-debug
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-lock-debug/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-lock-debug
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-lock-debug
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-lock-develop
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-lock-develop/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-lock-develop
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-lock-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-lock-release
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-lock-release/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-lock-release
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-lock-release
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-pigweed-debug
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-pigweed-debug/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-pigweed-debug
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-pigweed-debug
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-pigweed-develop
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-pigweed-develop/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-pigweed-develop
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-pigweed-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-pigweed-release
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-pigweed-release/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-pigweed-release
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-pigweed-release
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-shell-debug
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-shell-debug/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-shell-debug
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-shell-debug
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-shell-develop
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-shell-develop/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-shell-develop
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-shell-develop
+
+# Remove old artifacts mbed-CY8CPROTO_062_4343W-shell-release
+bash -c 'rm -rf {out}/mbed-CY8CPROTO_062_4343W-shell-release/chip-*'
+
+# Building mbed-CY8CPROTO_062_4343W-shell-release
+cmake --build {out}/mbed-CY8CPROTO_062_4343W-shell-release
+
+# Building nrf-nrf52840-light
+ninja -C {out}/nrf-nrf52840-light
+
+# Building nrf-nrf52840-light-rpc
+ninja -C {out}/nrf-nrf52840-light-rpc
+
+# Building nrf-nrf52840-lock
+ninja -C {out}/nrf-nrf52840-lock
+
+# Building nrf-nrf52840-pump
+ninja -C {out}/nrf-nrf52840-pump
+
+# Building nrf-nrf52840-pump-controller
+ninja -C {out}/nrf-nrf52840-pump-controller
+
+# Building nrf-nrf52840-shell
+ninja -C {out}/nrf-nrf52840-shell
+
+# Building nrf-nrf5340-light
+ninja -C {out}/nrf-nrf5340-light
+
+# Building nrf-nrf5340-light-rpc
+ninja -C {out}/nrf-nrf5340-light-rpc
+
+# Building nrf-nrf5340-lock
+ninja -C {out}/nrf-nrf5340-lock
+
+# Building nrf-nrf5340-pump
+ninja -C {out}/nrf-nrf5340-pump
+
+# Building nrf-nrf5340-pump-controller
+ninja -C {out}/nrf-nrf5340-pump-controller
+
+# Building nrf-nrf5340-shell
+ninja -C {out}/nrf-nrf5340-shell
+
+# Building qpg-qpg6100-lock
+ninja -C {out}/qpg-qpg6100-lock
+
+# Building telink-tlsr9518adk80d-light
+ninja -C {out}/telink-tlsr9518adk80d-light
+
+# Building tizen-arm-light
+ninja -C {out}/tizen-arm-light

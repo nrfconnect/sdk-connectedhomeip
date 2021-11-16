@@ -55,6 +55,7 @@
 #include <app/util/basic-types.h>
 #include <app/util/types_stub.h> // For various types.
 
+#include <app/ConcreteAttributePath.h>
 #include <lib/support/Variant.h>
 #include <messaging/ExchangeContext.h>
 
@@ -163,12 +164,31 @@ union EmberAfDefaultOrMinMaxAttributeValue
     EmberAfAttributeMinMaxValue * ptrToMinMaxValue;
 };
 
+// Attribute masks modify how attributes are used by the framework
+//
+// Attribute that has this mask is NOT read-only
+#define ATTRIBUTE_MASK_WRITABLE (0x01)
+// Attribute that has this mask is saved to a token
+#define ATTRIBUTE_MASK_TOKENIZE (0x02)
+// Attribute that has this mask has a min/max values
+#define ATTRIBUTE_MASK_MIN_MAX (0x04)
+// Manufacturer specific attribute
+#define ATTRIBUTE_MASK_MANUFACTURER_SPECIFIC (0x08)
+// Attribute deferred to external storage
+#define ATTRIBUTE_MASK_EXTERNAL_STORAGE (0x10)
+// Attribute is singleton
+#define ATTRIBUTE_MASK_SINGLETON (0x20)
+// Attribute is a client attribute
+#define ATTRIBUTE_MASK_CLIENT (0x40)
+// Attribute is nullable
+#define ATTRIBUTE_MASK_NULLABLE (0x80)
+
 /**
  * @brief Each attribute has it's metadata stored in such struct.
  *
  * There is only one of these per attribute across all endpoints.
  */
-typedef struct
+struct EmberAfAttributeMetadata
 {
     /**
      * Attribute ID, according to ZCL specs.
@@ -184,8 +204,7 @@ typedef struct
     uint16_t size;
     /**
      * Attribute mask, tagging attribute with specific
-     * functionality. See ATTRIBUTE_MASK_ macros defined
-     * in att-storage.h.
+     * functionality.
      */
     EmberAfAttributeMask mask;
     /**
@@ -193,7 +212,12 @@ typedef struct
      * depends on the mask.
      */
     EmberAfDefaultOrMinMaxAttributeValue defaultValue;
-} EmberAfAttributeMetadata;
+
+    /**
+     * Check whether this attribute is nullable.
+     */
+    bool IsNullable() const { return mask & ATTRIBUTE_MASK_NULLABLE; }
+};
 
 /**
  * @brief Struct describing cluster
@@ -435,7 +459,7 @@ typedef struct
  */
 struct EmberAfClusterCommand
 {
-    chip::NodeId SourceNodeId() const { return source->GetSecureSession().GetPeerNodeId(); }
+    chip::NodeId SourceNodeId() const { return source->GetSessionHandle().GetPeerNodeId(); }
 
     /**
      * APS frame for the incoming message
@@ -1016,68 +1040,6 @@ enum
     EMBER_AF_PLUGIN_PRICE_CPP_AUTH_RESERVED = 4
 };
 
-/**
- * @brief Value used when setting or getting the endpoint in a report table
- * entry.  It indicates that the entry is not in use.
- */
-#define EMBER_AF_PLUGIN_REPORTING_UNUSED_ENDPOINT_ID 0x00
-/**
- * @brief A structure used to store reporting configurations.  If endpoint
- * field is ::EMBER_AF_PLUGIN_REPORTING_UNUSED_ENDPOINT_ID, the entry is
- * unused.
- */
-typedef struct
-{
-    /** EMBER_ZCL_REPORTING_DIRECTION_REPORTED for reports sent from the local
-     *  device or EMBER_ZCL_REPORTING_DIRECTION_RECEIVED for reports received
-     *  from a remote device.
-     */
-    EmberAfReportingDirection direction;
-    /** The local endpoint from which the attribute is reported or to which the
-     * report is received.  If ::EMBER_AF_PLUGIN_REPORTING_UNUSED_ENDPOINT_ID,
-     * the entry is unused.
-     */
-    chip::EndpointId endpoint;
-    /** The cluster where the attribute is located. */
-    chip::ClusterId clusterId;
-    /** The id of the attribute being reported or received. */
-    chip::AttributeId attributeId;
-    /** CLUSTER_MASK_SERVER for server-side attributes or CLUSTER_MASK_CLIENT for
-     *  client-side attributes.
-     */
-    uint8_t mask;
-    /** Manufacturer code associated with the cluster and/or attribute.  If the
-     *  cluster id is inside the manufacturer-specific range, this value
-     *  indicates the manufacturer code for the cluster.  Otherwise, if this
-     *  value is non-zero and the cluster id is a standard ZCL cluster, it
-     *  indicates the manufacturer code for attribute.
-     */
-    uint16_t manufacturerCode;
-    union
-    {
-        struct
-        {
-            /** The minimum reporting interval, measured in seconds. */
-            uint16_t minInterval;
-            /** The maximum reporting interval, measured in seconds. */
-            uint16_t maxInterval;
-            /** The minimum change to the attribute that will result in a report
-             *  being sent.
-             */
-            uint32_t reportableChange;
-        } reported;
-        struct
-        {
-            /** The node id of the source of the received reports. */
-            chip::NodeId source;
-            /** The remote endpoint from which the attribute is reported. */
-            chip::EndpointId endpoint;
-            /** The maximum expected time between reports, measured in seconds. */
-            uint16_t timeout;
-        } received;
-    } data;
-} EmberAfPluginReportingEntry;
-
 typedef enum
 {
     EMBER_AF_PLUGIN_TUNNELING_CLIENT_SUCCESS                          = 0x00,
@@ -1227,23 +1189,14 @@ typedef void (*EmberAfInitFunction)(chip::EndpointId endpoint);
  *
  * This function is called just after an attribute changes.
  */
-typedef void (*EmberAfClusterAttributeChangedCallback)(chip::EndpointId endpoint, chip::AttributeId attributeId);
-
-/**
- * @brief Type for referring to the manufacturer specific
- *        attribute changed callback function.
- *
- * This function is called just after a manufacturer specific attribute changes.
- */
-typedef void (*EmberAfManufacturerSpecificClusterAttributeChangedCallback)(chip::EndpointId endpoint, chip::AttributeId attributeId,
-                                                                           uint16_t manufacturerCode);
+typedef void (*EmberAfClusterAttributeChangedCallback)(const chip::app::ConcreteAttributePath & attributePath);
 
 /**
  * @brief Type for referring to the pre-attribute changed callback function.
  *
  * This function is called before an attribute changes.
  */
-typedef EmberAfStatus (*EmberAfClusterPreAttributeChangedCallback)(chip::EndpointId endpoint, chip::AttributeId attributeId,
+typedef EmberAfStatus (*EmberAfClusterPreAttributeChangedCallback)(const chip::app::ConcreteAttributePath & attributePath,
                                                                    EmberAfAttributeType attributeType, uint16_t size,
                                                                    uint8_t * value);
 

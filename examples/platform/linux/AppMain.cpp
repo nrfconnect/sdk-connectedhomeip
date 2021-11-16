@@ -28,17 +28,18 @@
 #include <lib/core/NodeId.h>
 
 #include <credentials/DeviceAttestationCredsProvider.h>
+#include <credentials/DeviceAttestationVerifier.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <credentials/examples/DeviceAttestationVerifierExample.h>
 
 #include <lib/support/CHIPMem.h>
-#include <lib/support/RandUtils.h>
 #include <lib/support/ScopedBuffer.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
 #include <ControllerShellCommands.h>
-#include <controller/CHIPDeviceController.h>
+#include <controller/CHIPDeviceControllerFactory.h>
 #include <controller/ExampleOperationalCredentialsIssuer.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
 #include <platform/KeyValueStoreManager.h>
@@ -106,8 +107,12 @@ static bool EnsureWifiIsStarted()
 
 int ChipLinuxAppInit(int argc, char ** argv)
 {
-    CHIP_ERROR err                                   = CHIP_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+#if CONFIG_NETWORK_LAYER_BLE
     chip::RendezvousInformationFlags rendezvousFlags = chip::RendezvousInformationFlag::kBLE;
+#else  // CONFIG_NETWORK_LAYER_BLE
+    chip::RendezvousInformationFlag rendezvousFlags = RendezvousInformationFlag::kOnNetwork;
+#endif // CONFIG_NETWORK_LAYER_BLE
 
 #ifdef CONFIG_RENDEZVOUS_MODE
     rendezvousFlags = static_cast<chip::RendezvousInformationFlags>(CONFIG_RENDEZVOUS_MODE);
@@ -204,24 +209,32 @@ class MyServerStorageDelegate : public PersistentStorageDelegate
 
 DeviceCommissioner gCommissioner;
 MyServerStorageDelegate gServerStorage;
+chip::SimpleFabricStorage gFabricStorage;
 ExampleOperationalCredentialsIssuer gOpCredsIssuer;
 
 CHIP_ERROR InitCommissioner()
 {
     NodeId localId = chip::kPlaceholderNodeId;
 
-    chip::Controller::CommissionerInitParams params;
+    chip::Controller::FactoryInitParams factoryParams;
+    chip::Controller::SetupParams params;
 
+    ReturnErrorOnFailure(gFabricStorage.Initialize(&gServerStorage));
+
+    factoryParams.fabricStorage = &gFabricStorage;
+    // use a different listen port for the commissioner.
+    factoryParams.listenPort              = LinuxDeviceOptions::GetInstance().securedCommissionerPort;
     params.storageDelegate                = &gServerStorage;
-    params.mDeviceAddressUpdateDelegate   = nullptr;
+    params.deviceAddressUpdateDelegate    = nullptr;
     params.operationalCredentialsDelegate = &gOpCredsIssuer;
 
     ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gServerStorage));
 
-    // use a different listen port for the commissioner.
-    ReturnErrorOnFailure(gCommissioner.SetUdpListenPort(LinuxDeviceOptions::GetInstance().securedCommissionerPort));
     // No need to explicitly set the UDC port since we will use default
     ReturnErrorOnFailure(gCommissioner.SetUdcListenPort(LinuxDeviceOptions::GetInstance().unsecuredCommissionerPort));
+
+    // Initialize device attestation verifier
+    SetDeviceAttestationVerifier(Examples::GetExampleDACVerifier());
 
     chip::Platform::ScopedMemoryBuffer<uint8_t> noc;
     VerifyOrReturnError(noc.Alloc(chip::Controller::kMaxCHIPDERCertLength), CHIP_ERROR_NO_MEMORY);
@@ -246,7 +259,9 @@ CHIP_ERROR InitCommissioner()
     params.controllerICAC   = icacSpan;
     params.controllerNOC    = nocSpan;
 
-    ReturnErrorOnFailure(gCommissioner.Init(params));
+    auto & factory = chip::Controller::DeviceControllerFactory::GetInstance();
+    ReturnErrorOnFailure(factory.Init(factoryParams));
+    ReturnErrorOnFailure(factory.SetupCommissioner(params, gCommissioner));
 
     return CHIP_NO_ERROR;
 }
@@ -277,13 +292,20 @@ void ChipLinuxAppMainLoop()
     // Init ZCL Data Model and CHIP App Server
     chip::Server::GetInstance().Init(nullptr, securePort, unsecurePort);
 
+    // Now that the server has started and we are done with our startup logging,
+    // log our discovery/onboarding information again so it's not lost in the
+    // noise.
+    ConfigurationMgr().LogDeviceConfig();
+
+    PrintOnboardingCodes(LinuxDeviceOptions::GetInstance().payload);
+
     // Initialize device attestation config
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 
 #if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
     InitCommissioner();
 #if defined(ENABLE_CHIP_SHELL)
-    chip::Shell::RegisterDiscoverCommands(&gCommissioner);
+    chip::Shell::RegisterControllerCommands(&gCommissioner);
 #endif // defined(ENABLE_CHIP_SHELL)
 #endif // CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
 

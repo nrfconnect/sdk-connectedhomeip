@@ -2182,6 +2182,86 @@ using CHIP_ERROR = ::chip::ChipError;
 #define CHIP_ERROR_MESSAGE_COUNTER_OUT_OF_WINDOW               CHIP_CORE_ERROR(0xc7)
 
 /**
+ * @def CHIP_ERROR_REBOOT_SIGNAL_RECEIVED
+ *
+ * @brief
+ *   Termination signal is received
+ */
+#define CHIP_ERROR_REBOOT_SIGNAL_RECEIVED                      CHIP_CORE_ERROR(0xc8)
+
+/**
+ * @def CHIP_ERROR_NO_SHARED_TRUSTED_ROOT
+ *
+ * @brief
+ *   The CASE session could not be established as peer's credentials do not have
+ *   a common root of trust.
+ */
+#define CHIP_ERROR_NO_SHARED_TRUSTED_ROOT                      CHIP_CORE_ERROR(0xc9)
+
+/*
+ * @def CHIP_ERROR_IM_STATUS_CODE_RECEIVED
+ *
+ * @brief
+ *   Indicates an IM status code was received. Usually accompanied with
+ *   the actual IM status code.
+ */
+#define CHIP_ERROR_IM_STATUS_CODE_RECEIVED                     CHIP_CORE_ERROR(0xca)
+
+/*
+ * @def CHIP_ERROR_ANOTHER_COMMISSIONING_IN_PROGRESS
+ *
+ * @brief
+ *   Indicates that the commissioning window on the device is already open, and another
+ *   commissioning is in progress
+ */
+#define CHIP_ERROR_ANOTHER_COMMISSIONING_IN_PROGRESS           CHIP_CORE_ERROR(0xcb)
+
+/**
+ * @def CHIP_ERROR_IM_MALFORMED_COMMAND_STATUS_IB
+ *
+ * @brief
+ *   The CommandStatusCodeIB is malformed: it either does not contain
+ *   the required elements
+ */
+#define CHIP_ERROR_IM_MALFORMED_COMMAND_STATUS_IB         CHIP_CORE_ERROR(0xcb)
+
+/**
+ * @def CHIP_ERROR_IM_MALFORMED_INVOKE_RESPONSE_IB
+ *
+ * @brief
+ *   The InvokeResponseIB is malformed: it either does not contain
+ *   the required elements
+ */
+#define CHIP_ERROR_IM_MALFORMED_INVOKE_RESPONSE_IB         CHIP_CORE_ERROR(0xcc)
+
+/**
+ * @def CHIP_ERROR_IM_MALFORMED_INVOKE_RESPONSE_MESSAGE
+ *
+ * @brief
+ *   The InvokeResponseMessage is malformed: it either does not contain
+ *   the required elements
+ */
+#define CHIP_ERROR_IM_MALFORMED_INVOKE_REQUEST_MESSAGE    CHIP_CORE_ERROR(0xcd)
+
+/**
+ * @def CHIP_ERROR_IM_MALFORMED_INVOKE_RESPONSE_MESSAGE
+ *
+ * @brief
+ *   The InvokeResponseMessage is malformed: it either does not contain
+ *   the required elements
+ */
+#define CHIP_ERROR_IM_MALFORMED_INVOKE_RESPONSE_MESSAGE    CHIP_CORE_ERROR(0xce)
+
+/**
+ * @def CHIP_ERROR_IM_MALFORMED_ATTRIBUTE_REPORT_MESSAGE
+ *
+ * @brief
+ *   The InvokeResponseMessage is malformed: it either does not contain
+ *   the required elements
+ */
+#define CHIP_ERROR_IM_MALFORMED_ATTRIBUTE_REPORT_MESSAGE    CHIP_CORE_ERROR(0xcf)
+
+/**
  *  @}
  */
 

@@ -94,22 +94,28 @@ jobs:
             - name: Create zip files for Python CHIP Controller debug and release packages
               timeout-minutes: 10
               run: |
-                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_debug.zip out/python_x64_debug/controller/python/chip-*.whl out/python_arm64_debug/controller/python/chip-*.whl
-                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_release.zip out/python_x64_release/controller/python/chip-*.whl out/python_arm64_release/controller/python/chip-*.whl
+                  python -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_debug.zip out/python_x64_debug/controller/python/chip-*.whl out/python_arm64_debug/controller/python/chip-*.whl
+                  python -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_release.zip out/python_x64_release/controller/python/chip-*.whl out/python_arm64_release/controller/python/chip-*.whl
             - name: Build arm CHIPTool
               timeout-minutes: 10
               env:
                 TARGET_CPU: arm
               run: |
-                  scripts/run_in_build_env.sh "./scripts/build/build_examples.py --platform android --board arm build"
-                  cp out/android-arm-chip_tool/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_armv7l.apk
+                  scripts/examples/android_app.sh
+                  yes | "$ANDROID_HOME/tools/bin/sdkmanager" --licenses
+                  cd src/android/CHIPTool
+                  ./gradlew build
+                  cp app/build/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_armv7l.apk
             - name: Build arm64 CHIPTool
               timeout-minutes: 10
               env:
                 TARGET_CPU: arm64
               run: |
-                  scripts/run_in_build_env.sh "./scripts/build/build_examples.py --platform android --board arm64 build"
-                  cp out/android-arm64-chip_tool/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_armv7l.apk
+                  scripts/examples/android_app.sh
+                  yes | "$ANDROID_HOME/tools/bin/sdkmanager" --licenses
+                  cd src/android/CHIPTool
+                  ./gradlew build
+                  cp app/build/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_aarch64.apk
             - name: Upload artifacts
               uses: actions/upload-artifact@v2
               with:

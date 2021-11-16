@@ -1,8 +1,6 @@
 package com.google.chip.chiptool.clusterclient
 
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -42,15 +40,6 @@ class SensorClientFragment : Fragment() {
       savedInstanceState: Bundle?
   ): View {
     return inflater.inflate(R.layout.sensor_client_fragment, container, false).apply {
-      deviceIdEd.addTextChangedListener(object : TextWatcher {
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-          if (s.isNullOrEmpty())
-            return
-          updateAddress(s.toString())
-        }
-        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-        override fun afterTextChanged(s: Editable?) = Unit
-      })
       clusterNameSpinner.adapter = makeClusterNamesAdapter()
       clusterNameSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onNothingSelected(parent: AdapterView<*>?) = Unit
@@ -88,24 +77,12 @@ class SensorClientFragment : Fragment() {
   override fun onStart() {
     super.onStart()
     deviceIdEd.setText(DeviceIdUtil.getLastDeviceId(requireContext()).toString())
-    updateAddress(deviceIdEd.text.toString())
   }
 
   override fun onStop() {
     super.onStop()
     scope.cancel()
     resetSensorGraph() // reset the graph on fragment exit
-  }
-
-  private fun updateAddress(deviceId: String) {
-    try {
-      ChipClient.getDeviceController(requireContext()).updateDevice(
-          /* fabric ID */ 5544332211,
-          deviceId.toULong().toLong()
-      )
-    } catch (ex: Exception) {
-      showMessage(R.string.update_device_address_failure, ex.toString())
-    }
   }
 
   private fun resetSensorGraph() {

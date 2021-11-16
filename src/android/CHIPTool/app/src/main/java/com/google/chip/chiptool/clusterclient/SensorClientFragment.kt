@@ -7,7 +7,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -43,11 +42,15 @@ class SensorClientFragment : Fragment() {
       savedInstanceState: Bundle?
   ): View {
     return inflater.inflate(R.layout.sensor_client_fragment, container, false).apply {
-      deviceIdEd.setOnEditorActionListener { textView, actionId, event ->
-        if (actionId == EditorInfo.IME_ACTION_DONE)
-          updateAddress(textView.text.toString())
-        actionId == EditorInfo.IME_ACTION_DONE
-      }
+      deviceIdEd.addTextChangedListener(object : TextWatcher {
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+          if (s.isNullOrEmpty())
+            return
+          updateAddress(s.toString())
+        }
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+        override fun afterTextChanged(s: Editable?) = Unit
+      })
       clusterNameSpinner.adapter = makeClusterNamesAdapter()
       clusterNameSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onNothingSelected(parent: AdapterView<*>?) = Unit

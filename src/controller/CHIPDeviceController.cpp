@@ -913,6 +913,55 @@ CHIP_ERROR DeviceCommissioner::Commission(NodeId remoteDeviceId, CommissioningPa
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR DeviceCommissioner::PairTestDeviceWithoutSecurity(NodeId remoteDeviceId, const Transport::PeerAddress & peerAddress)
+{
+    CHIP_ERROR err                                         = CHIP_NO_ERROR;
+    CommissioneeDeviceProxy * device                       = nullptr;
+    SecurePairingUsingTestSecret * testSecurePairingSecret = nullptr;
+
+    // Check that the caller has provided an IP address (instead of a BLE peer address)
+    VerifyOrExit(peerAddress.GetTransportType() == Transport::Type::kUdp, err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrExit(IsOperationalNodeId(remoteDeviceId), err = CHIP_ERROR_INVALID_ARGUMENT);
+
+    VerifyOrExit(mState == State::Initialized, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mDeviceBeingCommissioned == nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+
+    testSecurePairingSecret = chip::Platform::New<SecurePairingUsingTestSecret>();
+    VerifyOrExit(testSecurePairingSecret != nullptr, err = CHIP_ERROR_NO_MEMORY);
+
+    device = mCommissioneeDevicePool.CreateObject();
+    VerifyOrExit(device != nullptr, err = CHIP_ERROR_NO_MEMORY);
+
+    device->Init(GetControllerDeviceInitParams(), remoteDeviceId, peerAddress, mFabricIndex);
+
+    err = mSystemState->SessionMgr()->NewPairing(device->GetSecureSessionHolder(),
+                                                 Optional<Transport::PeerAddress>::Value(peerAddress), device->GetDeviceId(),
+                                                 testSecurePairingSecret, CryptoContext::SessionRole::kInitiator, mFabricIndex);
+
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Failed in setting up secure channel: err %s", ErrorStr(err));
+        OnSessionEstablishmentError(err);
+        ExitNow();
+    }
+
+    if (mPairingDelegate != nullptr)
+    {
+        mPairingDelegate->OnStatusUpdate(DevicePairingDelegate::SecurePairingSuccess);
+    }
+
+    RendezvousCleanup(CHIP_NO_ERROR);
+    mDeviceBeingCommissioned = device;
+
+exit:
+    if (testSecurePairingSecret != nullptr)
+    {
+        chip::Platform::Delete(testSecurePairingSecret);
+    }
+
+    return err;
+}
+
 CHIP_ERROR DeviceCommissioner::StopPairing(NodeId remoteDeviceId)
 {
     VerifyOrReturnError(mState == State::Initialized, CHIP_ERROR_INCORRECT_STATE);

@@ -295,7 +295,7 @@ CHIP_ERROR DeviceController::UpdateDevice(NodeId deviceId)
 {
 #if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
     return Dnssd::Resolver::Instance().ResolveNodeId(PeerId().SetCompressedFabricId(GetCompressedFabricId()).SetNodeId(deviceId),
-                                                     chip::Inet::IPAddressType::kAny);
+                                                     chip::Inet::IPAddressType::kAny, true);
 #else
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
@@ -1900,7 +1900,7 @@ void DeviceCommissioner::AdvanceCommissioningStage(CHIP_ERROR err)
         RendezvousCleanup(CHIP_NO_ERROR);
 #if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
         ChipLogProgress(Controller, "Finding node on operational network");
-        Dnssd::Resolver::Instance().ResolveNodeId(peerId, Inet::IPAddressType::kAny);
+        Dnssd::Resolver::Instance().ResolveNodeId(peerId, Inet::IPAddressType::kAny, false);
 #endif
     }
     break;

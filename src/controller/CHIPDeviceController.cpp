@@ -467,7 +467,7 @@ CHIP_ERROR DeviceController::ComputePASEVerifier(uint32_t iterations, uint32_t s
 }
 
 CHIP_ERROR DeviceController::OpenCommissioningWindowWithCallback(NodeId deviceId, uint16_t timeout, uint16_t iteration,
-                                                                 uint16_t discriminator, uint8_t option,
+                                                                 SetupPayload & payload, uint8_t option,
                                                                  Callback::Callback<OnOpenCommissioningWindow> * callback)
 {
     ChipLogProgress(Controller, "OpenCommissioningWindow for device ID %" PRIu64, deviceId);
@@ -478,11 +478,8 @@ CHIP_ERROR DeviceController::OpenCommissioningWindowWithCallback(NodeId deviceId
 
     std::string QRCode;
     std::string manualPairingCode;
-    SetupPayload payload;
     CommissioningWindowOption commissioningWindowOption;
     ByteSpan salt(reinterpret_cast<const uint8_t *>(kSpake2pKeyExchangeSalt), strlen(kSpake2pKeyExchangeSalt));
-
-    payload.discriminator = discriminator;
 
     switch (option)
     {

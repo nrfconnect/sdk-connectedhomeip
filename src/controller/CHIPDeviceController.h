@@ -298,7 +298,8 @@ public:
     CHIP_ERROR OpenCommissioningWindow(NodeId deviceId, uint16_t timeout, uint16_t iteration, uint16_t discriminator,
                                        uint8_t option, SetupPayload & payload)
     {
-        return OpenCommissioningWindowWithCallback(deviceId, timeout, iteration, discriminator, option, nullptr);
+        payload.discriminator = discriminator;
+        return OpenCommissioningWindowWithCallback(deviceId, timeout, iteration, payload, option, nullptr);
     }
 
     /**
@@ -318,7 +319,7 @@ public:
      *
      * @return CHIP_ERROR         CHIP_NO_ERROR on success, or corresponding error
      */
-    CHIP_ERROR OpenCommissioningWindowWithCallback(NodeId deviceId, uint16_t timeout, uint16_t iteration, uint16_t discriminator,
+    CHIP_ERROR OpenCommissioningWindowWithCallback(NodeId deviceId, uint16_t timeout, uint16_t iteration, SetupPayload & payload,
                                                    uint8_t option, Callback::Callback<OnOpenCommissioningWindow> * callback);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_DNSSD

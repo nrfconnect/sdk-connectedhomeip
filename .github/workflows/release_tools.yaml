@@ -108,8 +108,9 @@ jobs:
               env:
                 TARGET_CPU: arm64
               run: |
+                  git clean -fdx src/android/CHIPTool
                   scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target android-arm64-chip-tool build"
-                  cp out/android-arm64-chip-tool/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_armv7l.apk
+                  cp out/android-arm64-chip-tool/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_aarch64.apk
             - name: Upload artifacts
               uses: actions/upload-artifact@v2
               with:

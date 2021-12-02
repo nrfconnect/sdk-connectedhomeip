@@ -19,19 +19,16 @@ import com.jjoe64.graphview.LabelFormatter
 import com.jjoe64.graphview.Viewport
 import com.jjoe64.graphview.series.DataPoint
 import com.jjoe64.graphview.series.LineGraphSeries
+import kotlinx.android.synthetic.main.sensor_client_fragment.*
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import kotlinx.android.synthetic.main.sensor_client_fragment.clusterNameSpinner
-import kotlinx.android.synthetic.main.sensor_client_fragment.deviceIdEd
-import kotlinx.android.synthetic.main.sensor_client_fragment.endpointIdEd
-import kotlinx.android.synthetic.main.sensor_client_fragment.lastValueTv
-import kotlinx.android.synthetic.main.sensor_client_fragment.sensorGraph
 import kotlinx.android.synthetic.main.sensor_client_fragment.view.clusterNameSpinner
-import kotlinx.android.synthetic.main.sensor_client_fragment.view.readSensorBtn
+import kotlinx.android.synthetic.main.sensor_client_fragment.view.deviceIdEd
+import kotlinx.android.synthetic.main.sensor_client_fragment.view.endpointIdEd
 import kotlinx.android.synthetic.main.sensor_client_fragment.view.sensorGraph
+import kotlinx.android.synthetic.main.sensor_client_fragment.view.readSensorBtn
 import kotlinx.android.synthetic.main.sensor_client_fragment.view.watchSensorBtn
-import kotlinx.android.synthetic.main.sensor_client_fragment.watchSensorBtn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

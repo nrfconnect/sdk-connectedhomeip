@@ -100,7 +100,7 @@ endif()
 
 if (CONFIG_NORDIC_SECURITY_BACKEND)
     zephyr_include_directories($<TARGET_PROPERTY:mbedtls_external,INTERFACE_INCLUDE_DIRECTORIES>)
-    zephyr_include_directories($<TARGET_PROPERTY:mbedcrypto_includes,INTERFACE_INCLUDE_DIRECTORIES>)
+    zephyr_include_directories($<TARGET_PROPERTY:mbedcrypto_common,INTERFACE_INCLUDE_DIRECTORIES>)
     if(TARGET platform_cc3xx)
         zephyr_include_directories($<TARGET_PROPERTY:platform_cc3xx,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()

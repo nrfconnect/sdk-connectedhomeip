@@ -36,7 +36,7 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 
-#include <power/reboot.h>
+#include <sys/reboot.h>
 
 namespace chip {
 namespace DeviceLayer {

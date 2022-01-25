@@ -104,7 +104,9 @@ CHIP_ERROR DeviceControllerFactory::InitSystemState(FactoryInitParams params)
     ReturnErrorOnFailure(DeviceLayer::PlatformMgr().InitChipStack());
 
     stateParams.systemLayer        = &DeviceLayer::SystemLayer();
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
     stateParams.tcpEndPointManager = DeviceLayer::TCPEndPointManager();
+#endif
     stateParams.udpEndPointManager = DeviceLayer::UDPEndPointManager();
 #else
     stateParams.systemLayer        = params.systemLayer;

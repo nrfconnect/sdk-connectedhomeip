@@ -23,7 +23,7 @@ portpicker
 mobly
 
 # zephyr
-west>=0.11.0
+west>=0.12.0
 intelhex
 
 # happy tests

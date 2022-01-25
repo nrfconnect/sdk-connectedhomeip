@@ -176,10 +176,8 @@ void PairingCommand::OnOpenCommissioningWindowResponse(void * context, NodeId re
 
 CHIP_ERROR PairingCommand::OpenCommissioningWindow()
 {
-    SetupPayload payload;
-    payload.discriminator = mDiscriminator;
-    return mController.OpenCommissioningWindowWithCallback(mNodeId, mTimeout, mIteration, payload, mCommissioningWindowOption,
-                                                           &mOnOpenCommissioningWindowCallback);
+    return mController.OpenCommissioningWindowWithCallback(mNodeId, mTimeout, mIteration, mDiscriminator,
+                                                           mCommissioningWindowOption, &mOnOpenCommissioningWindowCallback);
 }
 
 void PairingCommand::OnStatusUpdate(DevicePairingDelegate::Status status)

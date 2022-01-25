@@ -4,7 +4,6 @@ add_library(suppress_zephyr_warnings INTERFACE)
 target_compile_options(suppress_zephyr_warnings INTERFACE
     -Wno-redundant-decls
     -Wno-missing-field-initializers
-    -Wno-cast-qual
 )
 
 pw_add_module_library(pw_sys_io.nrfconnect

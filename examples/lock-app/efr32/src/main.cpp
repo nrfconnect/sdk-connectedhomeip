@@ -48,8 +48,16 @@
 #include "lcd.h"
 #endif
 
-#if CHIP_ENABLE_OPENTHREAD
+#if PW_RPC_ENABLED
+#include "Rpc.h"
+#endif
+
+#ifdef ENABLE_CHIP_SHELL
+#include "matter_shell.h"
+#endif
+
 #include <mbedtls/platform.h>
+#if CHIP_ENABLE_OPENTHREAD
 #include <openthread/cli.h>
 #include <openthread/dataset.h>
 #include <openthread/error.h>
@@ -61,6 +69,10 @@
 #include <openthread/tasklet.h>
 #include <openthread/thread.h>
 #endif // CHIP_ENABLE_OPENTHREAD
+
+#if defined(RS911X_WIFI) || defined(WF200_WIFI)
+#include "wfx_host_events.h"
+#endif /* RS911X_WIFI */
 
 using namespace ::chip;
 using namespace ::chip::Inet;
@@ -104,6 +116,10 @@ int main(void)
     init_efrPlatform();
     mbedtls_platform_set_calloc_free(CHIPPlatformMemoryCalloc, CHIPPlatformMemoryFree);
 
+#if PW_RPC_ENABLED
+    chip::rpc::Init();
+#endif
+
     EFR32_LOG("==================================================");
     EFR32_LOG("chip-efr32-lock-example starting");
     EFR32_LOG("==================================================");
@@ -130,7 +146,14 @@ int main(void)
         appError(ret);
     }
 
+#if CHIP_DEVICE_CONFIG_THREAD_FTD
     ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
+#else // CHIP_DEVICE_CONFIG_THREAD_FTD
+#if CHIP_DEVICE_CONFIG_ENABLE_SED
+    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_SleepyEndDevice);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_SED
+    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
+#endif // CHIP_DEVICE_CONFIG_THREAD_FTD
     if (ret != CHIP_NO_ERROR)
     {
         EFR32_LOG("ConnectivityMgr().SetThreadDeviceType() failed");
@@ -157,6 +180,13 @@ int main(void)
         appError(ret);
     }
 #endif // CHIP_ENABLE_OPENTHREAD
+#ifdef WF200_WIFI
+    // Start wfx bus communication task.
+    wfx_bus_start();
+#ifdef SL_WFX_USE_SECURE_LINK
+    wfx_securelink_task_start(); // start securelink key renegotiation task
+#endif                           // SL_WFX_USE_SECURE_LINK
+#endif                           /* WF200_WIFI */
 
     EFR32_LOG("Starting App Task");
     ret = GetAppTask().StartAppTask();
@@ -165,6 +195,10 @@ int main(void)
         EFR32_LOG("GetAppTask().Init() failed");
         appError(ret);
     }
+
+#ifdef ENABLE_CHIP_SHELL
+    chip::startShellTask();
+#endif
 
     EFR32_LOG("Starting FreeRTOS scheduler");
     sl_system_kernel_start();

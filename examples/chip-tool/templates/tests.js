@@ -28,6 +28,10 @@ function getTests()
     'Test_TC_BOOL_2_1',
   ];
 
+  const BridgedActions = [
+    'Test_TC_BRAC_1_1',
+  ];
+
   const ColorControl = [
     'Test_TC_CC_1_1',
     'Test_TC_CC_2_1',
@@ -54,6 +58,14 @@ function getTests()
     'Test_TC_CC_9_3',
   ];
 
+  const DeviceDiscovery = [
+    'Test_TC_DD_1_5',
+    'Test_TC_DD_1_6',
+    'Test_TC_DD_1_7',
+    'Test_TC_DD_1_8',
+    'Test_TC_DD_1_9',
+  ];
+
   const DeviceManagement = [
     'Test_TC_DM_1_1',
     'Test_TC_DM_3_1',
@@ -62,6 +74,11 @@ function getTests()
 
   const ElectricalMeasurement = [
     'Test_TC_EMR_1_1',
+  ];
+
+  const EthernetNetworkDiagnostics = [
+    'Test_TC_ETHDIAG_1_1',
+    'Test_TC_ETHDIAG_2_1',
   ];
 
   const FlowMeasurement = [
@@ -83,9 +100,11 @@ function getTests()
   const LevelControl = [
     'Test_TC_LVL_1_1',
     'Test_TC_LVL_2_1',
+    'Test_TC_LVL_2_2',
     'Test_TC_LVL_3_1',
     'Test_TC_LVL_4_1',
     'Test_TC_LVL_5_1',
+    'Test_TC_LVL_6_1',
   ];
 
   const MediaControl = [
@@ -102,6 +121,17 @@ function getTests()
     'Test_TC_MC_3_9',
     'Test_TC_MC_3_10',
     'Test_TC_MC_3_11',
+    'Test_TC_MC_5_1',
+    'Test_TC_MC_5_2',
+    'Test_TC_MC_5_3',
+    'Test_TC_MC_6_1',
+    'Test_TC_MC_6_2',
+    'Test_TC_MC_6_3',
+    'Test_TC_MC_6_4',
+    'Test_TC_MC_7_1',
+    'Test_TC_MC_7_2',
+    'Test_TC_MC_8_1',
+    'Test_TC_MC_9_1',
   ];
 
   const OnOff = [
@@ -109,6 +139,10 @@ function getTests()
     'Test_TC_OO_2_1',
     'Test_TC_OO_2_2',
     'Test_TC_OO_2_3',
+  ];
+
+  const PowerSource = [
+    'Test_TC_PS_1_1',
   ];
 
   const PressureMeasurement = [
@@ -129,6 +163,11 @@ function getTests()
     'Test_TC_RH_2_2',
   ];
 
+  const Switch = [
+    'Test_TC_SWTCH_2_1',
+    'Test_TC_SWTCH_2_2',
+  ];
+
   const TemperatureMeasurement = [
     'Test_TC_TM_1_1',
     'Test_TC_TM_2_1',
@@ -138,6 +177,7 @@ function getTests()
   const Thermostat = [
     'Test_TC_TSTAT_1_1',
     'Test_TC_TSTAT_2_1',
+    'Test_TC_TSTAT_2_2',
   ];
 
   const ThermostatUserConfiguration = [
@@ -148,13 +188,18 @@ function getTests()
 
   const ThreadNetworkDiagnostics = [
     'Test_TC_DIAGTH_1_1',
-    'Test_TC_DIAGSW_3_2',
+  ];
+
+  const WiFiNetworkDiagnostics = [
+    'Test_TC_WIFIDIAG_1_1',
+    'Test_TC_WIFIDIAG_3_1',
   ];
 
   const WindowCovering = [
     'Test_TC_WNCV_1_1',
     'Test_TC_WNCV_2_1',
     'Test_TC_WNCV_2_2',
+    'Test_TC_WNCV_2_4',
     'Test_TC_WNCV_2_5',
     'Test_TC_WNCV_3_1',
     'Test_TC_WNCV_3_2',
@@ -170,8 +215,9 @@ function getTests()
     'TV_WakeOnLanCluster',
     'TV_ApplicationBasicCluster',
     'TV_MediaPlaybackCluster',
-    'TV_TvChannelCluster',
+    'TV_ChannelCluster',
     'TV_LowPowerCluster',
+    'TV_ContentLauncherCluster',
     'TV_MediaInputCluster',
   ];
 
@@ -181,15 +227,22 @@ function getTests()
     'TestConstraints',
     'TestDelayCommands',
     'TestLogCommands',
+    'TestSaveAs',
+    'TestConfigVariables',
     'TestDescriptorCluster',
     'TestBasicInformation',
     'TestIdentifyCluster',
+    'TestGroupsCluster',
+    'TestGroupKeyManagementCluster',
     'TestOperationalCredentialsCluster',
     'TestModeSelectCluster',
+    'TestGroupMessaging',
   ];
 
   const SoftwareDiagnostics = [
-    'Test_TC_DIAGSW_1_1',
+    'Test_TC_SWDIAG_1_1',
+    'Test_TC_SWDIAG_2_1',
+    'Test_TC_SWDIAG_3_1',
   ];
 
   const Subscriptions = [
@@ -199,22 +252,28 @@ function getTests()
   const tests = [
     BinaryInput, //
     BooleanState, //
+    BridgedActions, //
     ColorControl, //
+    DeviceDiscovery, //
     DeviceManagement, //
     ElectricalMeasurement, //
+    EthernetNetworkDiagnostics, //
     FlowMeasurement, //
     IlluminanceMeasurement, //
     LevelControl, //
     MediaControl, //
     OccupancySensing, //
     OnOff, //
+    PowerSource, //
     PressureMeasurement, //
     PumpConfigurationControl, //
     RelativeHumidityMeasurement, //
+    Switch, //
     TemperatureMeasurement, //
     Thermostat, //
     ThermostatUserConfiguration, //
     ThreadNetworkDiagnostics, //
+    WiFiNetworkDiagnostics, //
     WindowCovering, //
     TV, //
     Others, //

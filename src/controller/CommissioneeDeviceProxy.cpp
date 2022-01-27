@@ -56,11 +56,10 @@ CHIP_ERROR CommissioneeDeviceProxy::LoadSecureSessionParametersIfNeeded(bool & d
     }
     else
     {
-        if (mSecureSession.HasValue())
+        if (mSecureSession)
         {
-            Transport::SecureSession * secureSession = mSessionManager->GetSecureSession(mSecureSession.Value());
             // Check if the connection state has the correct transport information
-            if (secureSession->GetPeerAddress().GetTransportType() == Transport::Type::kUndefined)
+            if (mSecureSession->AsSecureSession()->GetPeerAddress().GetTransportType() == Transport::Type::kUndefined)
             {
                 mState = ConnectionState::NotConnected;
                 ReturnErrorOnFailure(LoadSecureSessionParameters());
@@ -78,53 +77,47 @@ CHIP_ERROR CommissioneeDeviceProxy::LoadSecureSessionParametersIfNeeded(bool & d
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CommissioneeDeviceProxy::SendCommands(app::CommandSender * commandObj)
+CHIP_ERROR CommissioneeDeviceProxy::SendCommands(app::CommandSender * commandObj, Optional<System::Clock::Timeout> timeout)
 {
     bool loadedSecureSession = false;
     ReturnErrorOnFailure(LoadSecureSessionParametersIfNeeded(loadedSecureSession));
     VerifyOrReturnError(commandObj != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    return commandObj->SendCommandRequest(mSecureSession.Value());
+    return commandObj->SendCommandRequest(mSecureSession.Get(), timeout);
 }
 
-void CommissioneeDeviceProxy::OnNewConnection(SessionHandle session)
+void CommissioneeDeviceProxy::OnSessionReleased()
 {
-    mState = ConnectionState::SecureConnected;
-    mSecureSession.SetValue(session);
-}
-
-void CommissioneeDeviceProxy::OnConnectionExpired(SessionHandle session)
-{
-    VerifyOrReturn(mSecureSession.HasValue() && mSecureSession.Value() == session,
-                   ChipLogDetail(Controller, "Connection expired, but it doesn't match the current session"));
     mState = ConnectionState::NotConnected;
-    mSecureSession.ClearValue();
 }
 
 CHIP_ERROR CommissioneeDeviceProxy::CloseSession()
 {
     ReturnErrorCodeIf(mState != ConnectionState::SecureConnected, CHIP_ERROR_INCORRECT_STATE);
-    if (mSecureSession.HasValue())
+    if (mSecureSession)
     {
-        mSessionManager->ExpirePairing(mSecureSession.Value());
+        mSessionManager->ExpirePairing(mSecureSession.Get());
     }
     mState = ConnectionState::NotConnected;
     mPairing.Clear();
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CommissioneeDeviceProxy::UpdateDeviceData(const Transport::PeerAddress & addr, uint32_t mrpIdleInterval,
-                                                     uint32_t mrpActiveInterval)
+CHIP_ERROR CommissioneeDeviceProxy::UpdateDeviceData(const Transport::PeerAddress & addr,
+                                                     const ReliableMessageProtocolConfig & config)
 {
     bool didLoad;
 
     mDeviceAddress = addr;
 
-    mMrpIdleInterval   = mrpIdleInterval;
-    mMrpActiveInterval = mrpActiveInterval;
+    mMRPConfig = config;
+
+    // Initialize PASE session state with any MRP parameters that DNS-SD has provided.
+    // It can be overridden by PASE session protocol messages that include MRP parameters.
+    mPairing.SetMRPConfig(mMRPConfig);
 
     ReturnErrorOnFailure(LoadSecureSessionParametersIfNeeded(didLoad));
 
-    if (!mSecureSession.HasValue())
+    if (!mSecureSession)
     {
         // Nothing needs to be done here.  It's not an error to not have a
         // secureSession.  For one thing, we could have gotten an different
@@ -133,32 +126,45 @@ CHIP_ERROR CommissioneeDeviceProxy::UpdateDeviceData(const Transport::PeerAddres
         return CHIP_NO_ERROR;
     }
 
-    Transport::SecureSession * secureSession = mSessionManager->GetSecureSession(mSecureSession.Value());
+    Transport::SecureSession * secureSession = mSecureSession.Get()->AsSecureSession();
     secureSession->SetPeerAddress(addr);
-    secureSession->SetMRPIntervals(mrpIdleInterval, mrpActiveInterval);
 
     return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR CommissioneeDeviceProxy::SetConnected()
+{
+    if (mState != ConnectionState::Connecting)
+    {
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
+    mState = ConnectionState::SecureConnected;
+    bool _didLoad;
+    CHIP_ERROR err = LoadSecureSessionParametersIfNeeded(_didLoad);
+    if (err != CHIP_NO_ERROR)
+    {
+        mState = ConnectionState::NotConnected;
+    }
+    return err;
 }
 
 void CommissioneeDeviceProxy::Reset()
 {
     SetActive(false);
 
-    mState          = ConnectionState::NotConnected;
-    mSessionManager = nullptr;
-    mInetLayer      = nullptr;
+    mState              = ConnectionState::NotConnected;
+    mSessionManager     = nullptr;
+    mUDPEndPointManager = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     mBleLayer = nullptr;
 #endif
     mExchangeMgr = nullptr;
-
-    ReleaseDAC();
-    ReleasePAI();
 }
 
 CHIP_ERROR CommissioneeDeviceProxy::LoadSecureSessionParameters()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+    SessionHolder sessionHolder;
 
     if (mSessionManager == nullptr || mState == ConnectionState::SecureConnected)
     {
@@ -170,9 +176,9 @@ CHIP_ERROR CommissioneeDeviceProxy::LoadSecureSessionParameters()
         ExitNow(err = CHIP_NO_ERROR);
     }
 
-    err = mSessionManager->NewPairing(Optional<Transport::PeerAddress>::Value(mDeviceAddress), mDeviceId, &mPairing,
-                                      CryptoContext::SessionRole::kInitiator, mFabricIndex);
-    SuccessOrExit(err);
+    SuccessOrExit(mSessionManager->NewPairing(mSecureSession, Optional<Transport::PeerAddress>::Value(mDeviceAddress),
+                                              GetDeviceId(), &mPairing, CryptoContext::SessionRole::kInitiator, mFabricIndex));
+    mState = ConnectionState::SecureConnected;
 
 exit:
 
@@ -193,95 +199,14 @@ bool CommissioneeDeviceProxy::GetAddress(Inet::IPAddress & addr, uint16_t & port
     return true;
 }
 
-void CommissioneeDeviceProxy::ReleaseDAC()
+CommissioneeDeviceProxy::~CommissioneeDeviceProxy() {}
+
+CHIP_ERROR CommissioneeDeviceProxy::SetPeerId(ByteSpan rcac, ByteSpan noc)
 {
-    if (mDAC != nullptr)
-    {
-        Platform::MemoryFree(mDAC);
-    }
-    mDACLen = 0;
-    mDAC    = nullptr;
-}
-
-CHIP_ERROR CommissioneeDeviceProxy::SetDAC(const ByteSpan & dac)
-{
-    if (dac.size() == 0)
-    {
-        ReleaseDAC();
-        return CHIP_NO_ERROR;
-    }
-
-    VerifyOrReturnError(dac.size() <= Credentials::kMaxDERCertLength, CHIP_ERROR_INVALID_ARGUMENT);
-    if (mDACLen != 0)
-    {
-        ReleaseDAC();
-    }
-
-    VerifyOrReturnError(CanCastTo<uint16_t>(dac.size()), CHIP_ERROR_INVALID_ARGUMENT);
-    if (mDAC == nullptr)
-    {
-        mDAC = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(dac.size()));
-    }
-    VerifyOrReturnError(mDAC != nullptr, CHIP_ERROR_NO_MEMORY);
-    mDACLen = static_cast<uint16_t>(dac.size());
-    memcpy(mDAC, dac.data(), mDACLen);
-
-    return CHIP_NO_ERROR;
-}
-
-void CommissioneeDeviceProxy::ReleasePAI()
-{
-    if (mPAI != nullptr)
-    {
-        chip::Platform::MemoryFree(mPAI);
-    }
-    mPAILen = 0;
-    mPAI    = nullptr;
-}
-
-CHIP_ERROR CommissioneeDeviceProxy::SetPAI(const chip::ByteSpan & pai)
-{
-    if (pai.size() == 0)
-    {
-        ReleasePAI();
-        return CHIP_NO_ERROR;
-    }
-
-    VerifyOrReturnError(pai.size() <= Credentials::kMaxDERCertLength, CHIP_ERROR_INVALID_ARGUMENT);
-    if (mPAILen != 0)
-    {
-        ReleasePAI();
-    }
-
-    VerifyOrReturnError(CanCastTo<uint16_t>(pai.size()), CHIP_ERROR_INVALID_ARGUMENT);
-    if (mPAI == nullptr)
-    {
-        mPAI = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(pai.size()));
-    }
-    VerifyOrReturnError(mPAI != nullptr, CHIP_ERROR_NO_MEMORY);
-    mPAILen = static_cast<uint16_t>(pai.size());
-    memcpy(mPAI, pai.data(), mPAILen);
-
-    return CHIP_NO_ERROR;
-}
-
-CommissioneeDeviceProxy::~CommissioneeDeviceProxy()
-{
-    ReleaseDAC();
-    ReleasePAI();
-}
-
-CHIP_ERROR CommissioneeDeviceProxy::SetNOCCertBufferSize(size_t new_size)
-{
-    ReturnErrorCodeIf(new_size > sizeof(mNOCCertBuffer), CHIP_ERROR_INVALID_ARGUMENT);
-    mNOCCertBufferSize = new_size;
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR CommissioneeDeviceProxy::SetICACertBufferSize(size_t new_size)
-{
-    ReturnErrorCodeIf(new_size > sizeof(mICACertBuffer), CHIP_ERROR_INVALID_ARGUMENT);
-    mICACertBufferSize = new_size;
+    CompressedFabricId compressedFabricId;
+    NodeId nodeId;
+    ReturnErrorOnFailure(Credentials::ExtractNodeIdCompressedFabricIdFromOpCerts(rcac, noc, compressedFabricId, nodeId));
+    mPeerId = PeerId().SetCompressedFabricId(compressedFabricId).SetNodeId(nodeId);
     return CHIP_NO_ERROR;
 }
 

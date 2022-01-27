@@ -98,20 +98,38 @@ private:
 
     CHIP_ERROR _StartChipTimer(System::Clock::Timeout duration) { return CHIP_ERROR_NOT_IMPLEMENTED; }
 
+    CHIP_ERROR _GetFixedLabelList(EndpointId endpoint,
+                                  AttributeList<app::Clusters::FixedLabel::Structs::LabelStruct::Type, kMaxFixedLabels> & labelList)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
+    CHIP_ERROR _SetUserLabelList(EndpointId endpoint,
+                                 AttributeList<app::Clusters::UserLabel::Structs::LabelStruct::Type, kMaxUserLabels> & labelList)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
+    CHIP_ERROR _GetUserLabelList(EndpointId endpoint,
+                                 AttributeList<app::Clusters::UserLabel::Structs::LabelStruct::Type, kMaxUserLabels> & labelList)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
+    CHIP_ERROR _GetSupportedLocales(AttributeList<chip::CharSpan, kMaxLanguageTags> & supportedLocales)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
+    CHIP_ERROR _GetSupportedCalendarTypes(
+        AttributeList<app::Clusters::TimeFormatLocalization::CalendarType, kMaxCalendarTypes> & supportedCalendarTypes)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
     void _LockChipStack() {}
     bool _TryLockChipStack() { return true; }
     void _UnlockChipStack() {}
-
-    CHIP_ERROR _GetCurrentHeapFree(uint64_t & currentHeapFree);
-    CHIP_ERROR _GetCurrentHeapUsed(uint64_t & currentHeapUsed);
-    CHIP_ERROR _GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark);
-    CHIP_ERROR _GetThreadMetrics(ThreadMetrics ** threadMetricsOut);
-    void _ReleaseThreadMetrics(ThreadMetrics * threadMetrics);
-
-    CHIP_ERROR _GetRebootCount(uint16_t & rebootCount);
-    CHIP_ERROR _GetUpTime(uint64_t & upTime);
-    CHIP_ERROR _GetTotalOperationalHours(uint32_t & totalOperationalHours);
-    CHIP_ERROR _GetBootReasons(uint8_t & bootReasons);
 
     // ===== Members for internal use by the following friends.
 

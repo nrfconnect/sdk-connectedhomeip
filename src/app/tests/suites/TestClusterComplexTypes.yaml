@@ -19,6 +19,10 @@ config:
     endpoint: 1
 
 tests:
+    - label: "Wait for the commissioned device to be retrieved"
+      cluster: "DelayCommands"
+      command: "WaitForCommissionee"
+
     - label: "Send Test Command with optional arg set to null."
       # Not in TestCluster.yaml for now because this test depends on
       # distinguishing "null" and "not sent" for a nullable+optional
@@ -39,731 +43,190 @@ tests:
               - name: "originalValue"
                 value: null
 
+    # The timed invoke tests are not in TestCluster.yaml for now because Darwin
+    # SDK APIs have not been updated to do timed invoke properly yet.
+
+    - label: "Send command that needs timed invoke without a timeout value"
+      command: "timedInvokeRequest"
+      response:
+          # No timed interaction timeout provided, so not doing a timed interaction.
+          error: NEEDS_TIMED_INTERACTION
+
+    - label: "Send command that needs timed invoke with a long timeout value"
+      # Expecting a success response here.
+      command: "timedInvokeRequest"
+      timedInteractionTimeoutMs: 10000
+
     - label:
-          "Write attribute LIST With List of INT8U and none of them is set to 0"
-      command: "writeAttribute"
-      attribute: "list_int8u"
-      arguments:
-          value: [1, 2, 3, 4]
-
-    - label: "Read attribute LIST With List of INT8U"
-      command: "readAttribute"
-      attribute: "list_int8u"
+          "Send command that needs timed invoke with a too-short timeout value"
+      command: "timedInvokeRequest"
+      timedInteractionTimeoutMs: 1
+      # Try to ensure that we are unresponsive for long enough that the timeout
+      # expires.
+      busyWaitMs: 100
       response:
-          value: [1, 2, 3, 4]
+          error: UNSUPPORTED_ACCESS
 
-    - label: "Write attribute LIST With List of OCTET_STRING"
-      command: "writeAttribute"
-      attribute: "list_octet_string"
-      arguments:
-          value: ["Test0", "Test1", "Test2", "Test3"]
+    - label:
+          "Send command that does not need timed invoke with a long timeout
+          value"
+      # Expecting a success response here.
+      command: "test"
+      timedInteractionTimeoutMs: 10000
 
-    - label: "Read attribute LIST With List of OCTET_STRING"
-      command: "readAttribute"
-      attribute: "list_octet_string"
+    - label:
+          "Send command that does not need timed invoke with a too-short timeout
+          value"
+      command: "test"
+      timedInteractionTimeoutMs: 1
+      # Try to ensure that we are unresponsive for long enough that the timeout
+      # expires.
+      busyWaitMs: 100
       response:
-          value: ["Test0", "Test1", "Test2", "Test3"]
+          error: UNSUPPORTED_ACCESS
 
-    - label: "Write attribute LIST With List of LIST_STRUCT_OCTET_STRING"
-      command: "writeAttribute"
-      attribute: "list_struct_octet_string"
-      arguments:
-          value:
-              [
-                  { fabricIndex: 0, operationalCert: "Test0" },
-                  { fabricIndex: 1, operationalCert: "Test1" },
-                  { fabricIndex: 2, operationalCert: "Test2" },
-                  { fabricIndex: 3, operationalCert: "Test3" },
-              ]
+    # The timed write tests are not in TestCluster.yaml for now because Darwin
+    # SDK APIs have not been updated to do timed invoke properly yet.
 
-    - label: "Read attribute LIST With List of LIST_STRUCT_OCTET_STRING"
+    - label: "Read attribute that needs timed write initial state"
       command: "readAttribute"
-      attribute: "list_struct_octet_string"
+      attribute: "timed_write_boolean"
       response:
-          value:
-              [
-                  { fabricIndex: 0, operationalCert: "Test0" },
-                  { fabricIndex: 1, operationalCert: "Test1" },
-                  { fabricIndex: 2, operationalCert: "Test2" },
-                  { fabricIndex: 3, operationalCert: "Test3" },
-              ]
+          value: false
 
-    # Nullable attributes
-
-    # Tests for nullable Boolean attribute
-
-    - label: "Write attribute NULLABLE_BOOLEAN null"
+    - label: "Write attribute that needs timed write without a timeout value"
       command: "writeAttribute"
-      attribute: "nullable_boolean"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_BOOLEAN null"
-      command: "readAttribute"
-      attribute: "nullable_boolean"
-      response:
-          value: null
-
-    - label: "Write attribute NULLABLE_BOOLEAN True"
-      command: "writeAttribute"
-      attribute: "nullable_boolean"
+      attribute: "timed_write_boolean"
       arguments:
           value: true
+      response:
+          # No timed interaction timeout provided, so not doing a timed interaction.
+          error: NEEDS_TIMED_INTERACTION
 
-    - label: "Read attribute NULLABLE_BOOLEAN True"
+    - label: "Read attribute that needs timed write state unchanged 1"
       command: "readAttribute"
-      attribute: "nullable_boolean"
+      attribute: "timed_write_boolean"
+      response:
+          value: false
+
+    - label:
+          "Write attribute that needs timed write with a too-short timeout value"
+      command: "writeAttribute"
+      attribute: "timed_write_boolean"
+      arguments:
+          value: true
+      timedInteractionTimeoutMs: 1
+      # Try to ensure that we are unresponsive for long enough that the timeout
+      # expires.
+      busyWaitMs: 100
+      response:
+          error: UNSUPPORTED_ACCESS
+
+    - label: "Read attribute that needs timed write state unchanged 2"
+      command: "readAttribute"
+      attribute: "timed_write_boolean"
+      response:
+          value: false
+
+    - label: "Write attribute that needs timed write with a long timeout value"
+      # Expecting a success response here.
+      command: "writeAttribute"
+      attribute: "timed_write_boolean"
+      arguments:
+          value: true
+      timedInteractionTimeoutMs: 10000
+
+    - label: "Read attribute that needs timed write state changed"
+      command: "readAttribute"
+      attribute: "timed_write_boolean"
       response:
           value: true
 
-    # Tests for nullable Bitmap8 attribute
-
-    - label: "Write attribute NULLABLE_BITMAP8 Max Value"
+    - label: "Write attribute that needs timed write reset to default"
+      # Expecting a success response here.
       command: "writeAttribute"
-      attribute: "nullable_bitmap8"
+      attribute: "timed_write_boolean"
       arguments:
-          value: 254
+          value: false
+      timedInteractionTimeoutMs: 10000
 
-    - label: "Read attribute NULLABLE_BITMAP8 Max Value"
+    - label: "Read attribute that does not need timed write initial value"
       command: "readAttribute"
-      attribute: "nullable_bitmap8"
+      attribute: "boolean"
       response:
-          value: 254
+          value: false
 
-    - label: "Write attribute NULLABLE_BITMAP8 Invalid Value"
+    - label:
+          "Write attribute that does not need timed write with a too-short
+          timeout value"
       command: "writeAttribute"
-      attribute: "nullable_bitmap8"
+      attribute: "boolean"
       arguments:
-          value: 255
+          value: true
+      timedInteractionTimeoutMs: 1
+      # Try to ensure that we are unresponsive for long enough that the timeout
+      # expires.
+      busyWaitMs: 100
       response:
-          error: 1
+          error: UNSUPPORTED_ACCESS
 
-    - label: "Read attribute NULLABLE_BITMAP8 unchanged Value"
+    - label: "Read attribute that does not need timed write unchanged value"
       command: "readAttribute"
-      attribute: "nullable_bitmap8"
+      attribute: "boolean"
       response:
-          value: 254
+          value: false
 
-    - label: "Write attribute NULLABLE_BITMAP8 null Value"
+    - label:
+          "Write attribute that does not need timed write with a long timeout
+          value"
+      # Expecting a success response here.
       command: "writeAttribute"
-      attribute: "nullable_bitmap8"
+      attribute: "boolean"
       arguments:
-          value: null
+          value: true
+      timedInteractionTimeoutMs: 10000
 
-    - label: "Read attribute NULLABLE_BITMAP8 null Value"
+    - label: "Read attribute that does not need timed write changed value"
       command: "readAttribute"
-      attribute: "nullable_bitmap8"
+      attribute: "boolean"
       response:
-          value: null
+          value: true
 
-    # Tests for nullable Bitmap16 attribute
-
-    - label: "Write attribute NULLABLE_BITMAP16 Max Value"
+    - label: "Write attribute that does not need timed write reset to default"
       command: "writeAttribute"
-      attribute: "nullable_bitmap16"
+      attribute: "boolean"
       arguments:
-          value: 65534
+          value: false
 
-    - label: "Read attribute NULLABLE_BITMAP16 Max Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap16"
-      response:
-          value: 65534
-
-    - label: "Write attribute NULLABLE_BITMAP16 Invalid Value"
+    # Struct-typed attribute
+    - label: "Write struct-typed attribute"
       command: "writeAttribute"
-      attribute: "nullable_bitmap16"
+      attribute: "struct_attr"
       arguments:
-          value: 65535
-      response:
-          error: 1
+          value:
+              {
+                  a: 5,
+                  b: true,
+                  c: 2,
+                  d: "abc",
+                  e: "",
+                  f: 17,
+                  g: 1.5,
+                  h: 3.14159265358979,
+              }
 
-    - label: "Read attribute NULLABLE_BITMAP16 unchanged Value"
+    - label: "Read struct-typed attribute"
       command: "readAttribute"
-      attribute: "nullable_bitmap16"
+      attribute: "struct_attr"
       response:
-          value: 65534
-
-    - label: "Write attribute NULLABLE_BITMAP16 null Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap16"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_BITMAP16 null Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap16"
-      response:
-          value: null
-
-    # Tests for nullable Bitmap32 attribute
-
-    - label: "Write attribute NULLABLE_BITMAP32 Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap32"
-      arguments:
-          value: 4294967294
-
-    - label: "Read attribute NULLABLE_BITMAP32 Max Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap32"
-      response:
-          value: 4294967294
-
-    - label: "Write attribute NULLABLE_BITMAP32 Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap32"
-      arguments:
-          value: 4294967295
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_BITMAP32 unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap32"
-      response:
-          value: 4294967294
-
-    - label: "Write attribute NULLABLE_BITMAP32 null Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap32"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_BITMAP32 null Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap32"
-      response:
-          value: null
-
-    # Tests for nullable Bitmap64 attribute
-
-    - label: "Write attribute NULLABLE_BITMAP64 Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap64"
-      arguments:
-          value: "18446744073709551614"
-
-    - label: "Read attribute NULLABLE_BITMAP64 Max Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap64"
-      response:
-          value: "18446744073709551614"
-
-    - label: "Write attribute NULLABLE_BITMAP64 Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap64"
-      arguments:
-          value: "18446744073709551615"
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_BITMAP64 unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap64"
-      response:
-          value: "18446744073709551614"
-
-    - label: "Write attribute NULLABLE_BITMAP64 null Value"
-      command: "writeAttribute"
-      attribute: "nullable_bitmap64"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_BITMAP64 null Value"
-      command: "readAttribute"
-      attribute: "nullable_bitmap64"
-      response:
-          value: null
-
-    # Tests for UInt8 attribute
-
-    - label: "Write attribute NULLABLE_INT8U Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_int8u"
-      arguments:
-          value: 254
-
-    - label: "Read attribute NULLABLE_INT8U Max Value"
-      command: "readAttribute"
-      attribute: "nullable_int8u"
-      response:
-          value: 254
-
-    - label: "Write attribute NULLABLE_INT8U Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int8u"
-      arguments:
-          value: 255
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT8U unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int8u"
-      response:
-          value: 254
-
-    - label: "Write attribute NULLABLE_INT8U null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int8u"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT8U null Value"
-      command: "readAttribute"
-      attribute: "nullable_int8u"
-      response:
-          value: null
-
-    # Tests for UInt16 attribute
-
-    - label: "Write attribute NULLABLE_INT16U Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_int16u"
-      arguments:
-          value: 65534
-
-    - label: "Read attribute NULLABLE_INT16U Max Value"
-      command: "readAttribute"
-      attribute: "nullable_int16u"
-      response:
-          value: 65534
-
-    - label: "Write attribute NULLABLE_INT16U Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int16u"
-      arguments:
-          value: 65535
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT16U unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int16u"
-      response:
-          value: 65534
-
-    - label: "Write attribute NULLABLE_INT16U null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int16u"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT16U null Value"
-      command: "readAttribute"
-      attribute: "nullable_int16u"
-      response:
-          value: null
-
-    # Tests for UInt32 attribute
-
-    - label: "Write attribute NULLABLE_INT32U Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_int32u"
-      arguments:
-          value: 4294967294
-
-    - label: "Read attribute NULLABLE_INT32U Max Value"
-      command: "readAttribute"
-      attribute: "nullable_int32u"
-      response:
-          value: 4294967294
-
-    - label: "Write attribute NULLABLE_INT32U Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int32u"
-      arguments:
-          value: 4294967295
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT32U unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int32u"
-      response:
-          value: 4294967294
-
-    - label: "Write attribute NULLABLE_INT32U null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int32u"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT32U null Value"
-      command: "readAttribute"
-      attribute: "nullable_int32u"
-      response:
-          value: null
-
-    # Tests for UInt64 attribute
-
-    - label: "Write attribute NULLABLE_INT64U Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_int64u"
-      arguments:
-          value: "18446744073709551614"
-
-    - label: "Read attribute NULLABLE_INT64U Max Value"
-      command: "readAttribute"
-      attribute: "nullable_int64u"
-      response:
-          value: "18446744073709551614"
-
-    - label: "Write attribute NULLABLE_INT64U Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int64u"
-      arguments:
-          value: "18446744073709551615"
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT64U unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int64u"
-      response:
-          value: "18446744073709551614"
-
-    - label: "Write attribute NULLABLE_INT64U null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int64u"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT64U null Value"
-      command: "readAttribute"
-      attribute: "nullable_int64u"
-      response:
-          value: null
-
-    # Tests for Int8 attribute
-
-    - label: "Write attribute NULLABLE_INT8S Min Value"
-      command: "writeAttribute"
-      attribute: "nullable_int8s"
-      arguments:
-          value: -127
-
-    - label: "Read attribute NULLABLE_INT8S Min Value"
-      command: "readAttribute"
-      attribute: "nullable_int8s"
-      response:
-          value: -127
-
-    - label: "Write attribute NULLABLE_INT8S Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int8s"
-      arguments:
-          value: -128
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT8S unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int8s"
-      response:
-          value: -127
-
-    - label: "Write attribute NULLABLE_INT8S null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int8s"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT8S null Value"
-      command: "readAttribute"
-      attribute: "nullable_int8s"
-      response:
-          value: null
-
-    # Tests for Int16 attribute
-
-    - label: "Write attribute NULLABLE_INT16S Min Value"
-      command: "writeAttribute"
-      attribute: "nullable_int16s"
-      arguments:
-          value: -32767
-
-    - label: "Read attribute NULLABLE_INT16S Min Value"
-      command: "readAttribute"
-      attribute: "nullable_int16s"
-      response:
-          value: -32767
-
-    - label: "Write attribute NULLABLE_INT16S Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int16s"
-      arguments:
-          value: -32768
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT16S unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int16s"
-      response:
-          value: -32767
-
-    - label: "Write attribute NULLABLE_INT16S null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int16s"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT16S null Value"
-      command: "readAttribute"
-      attribute: "nullable_int16s"
-      response:
-          value: null
-
-    # Tests for Int32 attribute
-
-    - label: "Write attribute NULLABLE_INT32S Min Value"
-      command: "writeAttribute"
-      attribute: "nullable_int32s"
-      arguments:
-          value: -2147483647
-
-    - label: "Read attribute NULLABLE_INT32S Min Value"
-      command: "readAttribute"
-      attribute: "nullable_int32s"
-      response:
-          value: -2147483647
-
-    - label: "Write attribute NULLABLE_INT32S Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int32s"
-      arguments:
-          value: -2147483648
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT32S unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int32s"
-      response:
-          value: -2147483647
-
-    - label: "Write attribute NULLABLE_INT32S null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int32s"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT32S null Value"
-      command: "readAttribute"
-      attribute: "nullable_int32s"
-      response:
-          value: null
-
-    # Tests for Int64 attribute
-
-    - label: "Write attribute NULLABLE_INT64S Min Value"
-      command: "writeAttribute"
-      attribute: "nullable_int64s"
-      arguments:
-          value: "-9223372036854775807"
-
-    - label: "Read attribute NULLABLE_INT64S Min Value"
-      command: "readAttribute"
-      attribute: "nullable_int64s"
-      response:
-          value: "-9223372036854775807"
-
-    - label: "Write attribute NULLABLE_INT64S Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_int64s"
-      arguments:
-          # This is a nasty hack: -9223372036854775808 is not a valid way to
-          # write a long long in C++, leading to warnings.  So this tries to
-          # work around that.
-          value: "-9223372036854775807LL - 1"
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_INT64S unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_int64s"
-      response:
-          value: "-9223372036854775807"
-
-    - label: "Write attribute NULLABLE_INT64S null Value"
-      command: "writeAttribute"
-      attribute: "nullable_int64s"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_INT64S null Value"
-      command: "readAttribute"
-      attribute: "nullable_int64s"
-      response:
-          value: null
-
-    # Tests for Enum8 attribute
-
-    - label: "Write attribute NULLABLE_ENUM8 Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_enum8"
-      arguments:
-          value: 254
-
-    - label: "Read attribute NULLABLE_ENUM8 Max Value"
-      command: "readAttribute"
-      attribute: "nullable_enum8"
-      response:
-          value: 254
-
-    - label: "Write attribute NULLABLE_ENUM8 Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_enum8"
-      arguments:
-          value: 255
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_ENUM8 unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_enum8"
-      response:
-          value: 254
-
-    - label: "Write attribute NULLABLE_ENUM8 null Value"
-      command: "writeAttribute"
-      attribute: "nullable_enum8"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_ENUM8 null Value"
-      command: "readAttribute"
-      attribute: "nullable_enum8"
-      response:
-          value: null
-
-    # Tests for Enum16 attribute
-
-    - label: "Write attribute NULLABLE_ENUM16 Max Value"
-      command: "writeAttribute"
-      attribute: "nullable_enum16"
-      arguments:
-          value: 65534
-
-    - label: "Read attribute NULLABLE_ENUM16 Max Value"
-      command: "readAttribute"
-      attribute: "nullable_enum16"
-      response:
-          value: 65534
-
-    - label: "Write attribute NULLABLE_ENUM16 Invalid Value"
-      command: "writeAttribute"
-      attribute: "nullable_enum16"
-      arguments:
-          value: 65535
-      response:
-          error: 1
-
-    - label: "Read attribute NULLABLE_ENUM16 unchanged Value"
-      command: "readAttribute"
-      attribute: "nullable_enum16"
-      response:
-          value: 65534
-
-    - label: "Write attribute NULLABLE_ENUM16 null Value"
-      command: "writeAttribute"
-      attribute: "nullable_enum16"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_ENUM16 null Value"
-      command: "readAttribute"
-      attribute: "nullable_enum16"
-      response:
-          value: null
-
-    # Tests for Octet String attribute
-
-    - label: "Read attribute NULLABLE_OCTET_STRING Default Value"
-      command: "readAttribute"
-      attribute: "nullable_octet_string"
-      response:
-          value: ""
-
-    - label: "Write attribute NULLABLE_OCTET_STRING"
-      command: "writeAttribute"
-      attribute: "nullable_octet_string"
-      arguments:
-          value: "TestValue"
-
-    - label: "Read attribute NULLABLE_OCTET_STRING"
-      command: "readAttribute"
-      attribute: "nullable_octet_string"
-      response:
-          value: "TestValue"
-
-    - label: "Write attribute NULLABLE_OCTET_STRING"
-      command: "writeAttribute"
-      attribute: "nullable_octet_string"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_OCTET_STRING"
-      command: "readAttribute"
-      attribute: "nullable_octet_string"
-      response:
-          value: null
-
-    - label: "Write attribute NULLABLE_OCTET_STRING"
-      command: "writeAttribute"
-      attribute: "nullable_octet_string"
-      arguments:
-          value: ""
-
-    - label: "Read attribute NULLABLE_OCTET_STRING"
-      command: "readAttribute"
-      attribute: "nullable_octet_string"
-      response:
-          value: ""
-
-    # Tests for Char String attribute
-
-    - label: "Read attribute NULLABLE_CHAR_STRING Default Value"
-      command: "readAttribute"
-      attribute: "nullable_char_string"
-      response:
-          value: ""
-
-    - label: "Write attribute NULLABLE_CHAR_STRING"
-      command: "writeAttribute"
-      attribute: "nullable_char_string"
-      arguments:
-          value: "☉T☉"
-
-    - label: "Read attribute NULLABLE_CHAR_STRING"
-      command: "readAttribute"
-      attribute: "nullable_char_string"
-      disabled: true
-      response:
-          value: "☉T☉"
-
-    - label: "Write attribute NULLABLE_CHAR_STRING - Value too long"
-      command: "writeAttribute"
-      attribute: "nullable_char_string"
-      arguments:
-          value: null
-
-    - label: "Read attribute NULLABLE_CHAR_STRING"
-      command: "readAttribute"
-      attribute: "nullable_char_string"
-      response:
-          value: null
-
-    - label: "Write attribute NULLABLE_CHAR_STRING - Empty"
-      command: "writeAttribute"
-      attribute: "nullable_char_string"
-      arguments:
-          value: ""
-
-    - label: "Read attribute NULLABLE_CHAR_STRING"
-      command: "readAttribute"
-      attribute: "nullable_char_string"
-      response:
-          value: ""
+          value:
+              {
+                  a: 5,
+                  b: true,
+                  c: 2,
+                  d: "abc",
+                  e: "",
+                  f: 17,
+                  g: 1.5,
+                  h: 3.14159265358979,
+              }

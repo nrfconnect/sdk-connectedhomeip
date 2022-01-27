@@ -23,6 +23,8 @@ static_library("nrfconnect") {
     "../SingletonConfigurationManager.cpp",
     "../Zephyr/BLEManagerImpl.cpp",
     "../Zephyr/ConfigurationManagerImpl.cpp",
+    "../Zephyr/DiagnosticDataProviderImpl.cpp",
+    "../Zephyr/DiagnosticDataProviderImpl.h",
     "../Zephyr/KeyValueStoreManagerImpl.cpp",
     "../Zephyr/Logging.cpp",
     "../Zephyr/PlatformManagerImpl.cpp",
@@ -45,7 +47,7 @@ static_library("nrfconnect") {
     "SystemPlatformConfig.h",
   ]
 
-  deps = []
+  deps = [ "${chip_root}/src/setup_payload:additional_data_payload" ]
 
   public_deps = [ "${chip_root}/src/platform:platform_base" ]
 
@@ -66,6 +68,13 @@ static_library("nrfconnect") {
     sources += [
       "../Zephyr/NFCManagerImpl.cpp",
       "NFCManagerImpl.h",
+    ]
+  }
+
+  if (chip_enable_ota_requestor) {
+    sources += [
+      "OTAImageProcessorImpl.cpp",
+      "OTAImageProcessorImpl.h",
     ]
   }
 }

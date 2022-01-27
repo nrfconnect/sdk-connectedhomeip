@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -22,11 +22,9 @@
 #include <cinttypes>
 
 #include <app-common/zap-generated/enums.h>
-#include <app/Command.h>
 #include <app/util/CHIPDeviceCallbacksMgr.h>
 #include <app/util/af-enums.h>
 #include <app/util/af.h>
-#include <app/util/attribute-list-byte-span.h>
 #include <app/util/basic-types.h>
 #include <lib/core/CHIPEncoding.h>
 #include <lib/support/SafeInt.h>
@@ -35,7 +33,6 @@
 
 using namespace ::chip;
 using namespace ::chip::app::DataModel;
-using namespace ::chip::app::List;
 
 namespace {
 [[maybe_unused]] constexpr uint16_t kByteSpanSizeLengthInBytes = 2;
@@ -133,3 +130,45 @@ namespace {
 
 // Singleton instance of the callbacks manager
 app::CHIPDeviceCallbacksMgr & gCallbacks = app::CHIPDeviceCallbacksMgr::GetInstance();
+
+bool emberAfOtaSoftwareUpdateProviderClusterApplyUpdateResponseCallback(EndpointId endpoint, app::CommandSender * commandObj,
+                                                                        uint8_t action, uint32_t delayedActionTime)
+{
+    ChipLogProgress(Zcl, "ApplyUpdateResponse:");
+    ChipLogProgress(Zcl, "  action: %" PRIu8 "", action);
+    ChipLogProgress(Zcl, "  delayedActionTime: %" PRIu32 "", delayedActionTime);
+
+    GET_CLUSTER_RESPONSE_CALLBACKS("OtaSoftwareUpdateProviderClusterApplyUpdateResponseCallback");
+
+    Callback::Callback<OtaSoftwareUpdateProviderClusterApplyUpdateResponseCallback> * cb =
+        Callback::Callback<OtaSoftwareUpdateProviderClusterApplyUpdateResponseCallback>::FromCancelable(onSuccessCallback);
+    cb->mCall(cb->mContext, action, delayedActionTime);
+    return true;
+}
+
+bool emberAfOtaSoftwareUpdateProviderClusterQueryImageResponseCallback(EndpointId endpoint, app::CommandSender * commandObj,
+                                                                       uint8_t status, uint32_t delayedActionTime,
+                                                                       chip::CharSpan imageURI, uint32_t softwareVersion,
+                                                                       chip::CharSpan softwareVersionString,
+                                                                       chip::ByteSpan updateToken, bool userConsentNeeded,
+                                                                       chip::ByteSpan metadataForRequestor)
+{
+    ChipLogProgress(Zcl, "QueryImageResponse:");
+    ChipLogProgress(Zcl, "  status: %" PRIu8 "", status);
+    ChipLogProgress(Zcl, "  delayedActionTime: %" PRIu32 "", delayedActionTime);
+    ChipLogProgress(Zcl, "  imageURI: %.*s", static_cast<int>(imageURI.size()), imageURI.data());
+    ChipLogProgress(Zcl, "  softwareVersion: %" PRIu32 "", softwareVersion);
+    ChipLogProgress(Zcl, "  softwareVersionString: %.*s", static_cast<int>(softwareVersionString.size()),
+                    softwareVersionString.data());
+    ChipLogProgress(Zcl, "  updateToken: %zu", updateToken.size());
+    ChipLogProgress(Zcl, "  userConsentNeeded: %d", userConsentNeeded);
+    ChipLogProgress(Zcl, "  metadataForRequestor: %zu", metadataForRequestor.size());
+
+    GET_CLUSTER_RESPONSE_CALLBACKS("OtaSoftwareUpdateProviderClusterQueryImageResponseCallback");
+
+    Callback::Callback<OtaSoftwareUpdateProviderClusterQueryImageResponseCallback> * cb =
+        Callback::Callback<OtaSoftwareUpdateProviderClusterQueryImageResponseCallback>::FromCancelable(onSuccessCallback);
+    cb->mCall(cb->mContext, status, delayedActionTime, imageURI, softwareVersion, softwareVersionString, updateToken,
+              userConsentNeeded, metadataForRequestor);
+    return true;
+}

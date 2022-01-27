@@ -28,6 +28,8 @@ static_library("mbed") {
     "ConnectivityManagerImpl.h",
     "DeviceNetworkProvisioningDelegateImpl.cpp",
     "DeviceNetworkProvisioningDelegateImpl.h",
+    "DiagnosticDataProviderImpl.cpp",
+    "DiagnosticDataProviderImpl.h",
     "KeyValueStoreManagerImpl.cpp",
     "KeyValueStoreManagerImpl.h",
     "Logging.cpp",
@@ -42,6 +44,6 @@ static_library("mbed") {
 
   if (chip_enable_openthread && chip_mdns == "platform") {
     sources += [ "../OpenThread/DnssdImpl.cpp" ]
-    deps += [ "${chip_root}/src/lib/dnssd:platform_header" ]
+    public_deps += [ "${chip_root}/src/lib/dnssd:platform_header" ]
   }
 }

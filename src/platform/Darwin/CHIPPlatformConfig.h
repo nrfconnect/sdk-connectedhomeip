@@ -25,7 +25,7 @@
 
 // ==================== General Platform Adaptations ====================
 
-#define ChipDie() abort()
+#define CHIP_CONFIG_ABORT() abort()
 
 // TODO:(#756) Add FabricState support
 #define CHIP_CONFIG_ENABLE_FABRIC_STATE 0
@@ -94,10 +94,6 @@
 #define CHIP_CONFIG_MAX_CHANNEL_HANDLES 32
 #endif // CHIP_CONFIG_MAX_CHANNEL_HANDLES
 
-#ifndef CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
-#define CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT 6
-#endif // CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
-
 #ifndef CHIP_LOG_FILTERING
 #define CHIP_LOG_FILTERING 1
 #endif // CHIP_LOG_FILTERING
@@ -108,7 +104,7 @@
 
 // TODO - Fine tune MRP default parameters for Darwin platform
 #define CHIP_CONFIG_MRP_DEFAULT_INITIAL_RETRY_INTERVAL (15000)
-#define CHIP_CONFIG_MRP_DEFAULT_ACTIVE_RETRY_INTERVAL (2000)
+#define CHIP_CONFIG_MRP_DEFAULT_ACTIVE_RETRY_INTERVAL (2000_ms32)
 
 // ==================== Security Configuration Overrides ====================
 

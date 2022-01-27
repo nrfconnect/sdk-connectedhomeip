@@ -31,6 +31,7 @@
 
 #include <lib/support/ObjectLifeCycle.h>
 #include <system/SystemLayer.h>
+#include <system/SystemTimer.h>
 #include <system/WakeEvent.h>
 
 namespace chip {
@@ -39,8 +40,8 @@ namespace System {
 class LayerImplSelect : public LayerSocketsLoop
 {
 public:
-    LayerImplSelect()  = default;
-    ~LayerImplSelect() = default;
+    LayerImplSelect() = default;
+    ~LayerImplSelect() { VerifyOrDie(mLayerState.Destroy()); }
 
     // Layer overrides.
     CHIP_ERROR Init() override;
@@ -71,8 +72,11 @@ public:
 #if CHIP_SYSTEM_CONFIG_USE_DISPATCH
     void SetDispatchQueue(dispatch_queue_t dispatchQueue) override { mDispatchQueue = dispatchQueue; };
     dispatch_queue_t GetDispatchQueue() override { return mDispatchQueue; };
-    void HandleTimerComplete(Timer * timer);
+    void HandleTimerComplete(TimerList::Node * timer);
 #endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
+
+    // Expose the result of WaitForEvents() for non-blocking socket implementations.
+    bool IsSelectResultValid() const { return mSelectResult >= 0; }
 
 protected:
     static SocketEvents SocketEventsFromFDs(int socket, const fd_set & readfds, const fd_set & writefds, const fd_set & exceptfds);
@@ -90,7 +94,8 @@ protected:
     };
     SocketWatch mSocketWatchPool[kSocketWatchMax];
 
-    Timer::MutexedList mTimerList;
+    TimerPool<TimerList::Node> mTimerPool;
+    TimerList mTimerList;
     timeval mNextTimeout;
 
     // Members for select loop

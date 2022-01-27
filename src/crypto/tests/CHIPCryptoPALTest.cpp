@@ -63,6 +63,7 @@
 #endif
 
 #include <credentials/CHIPCert.h>
+#include <credentials/tests/CHIPAttCert_test_vectors.h>
 #include <credentials/tests/CHIPCert_test_vectors.h>
 
 #define HSM_ECC_KEYID 0x11223344
@@ -593,6 +594,40 @@ static void TestAES_CCM_128DecryptInvalidIVLen(nlTestSuite * inSuite, void * inC
     NL_TEST_ASSERT(inSuite, numOfTestsRan > 0);
 }
 
+static void TestAES_CCM_128Containers(nlTestSuite * inSuite, void * inContext)
+{
+    HeapChecker heapChecker(inSuite);
+    uint8_t testVector[kAES_CCM128_Key_Length];
+    AesCcm128Key deepCopy;
+    AesCcm128KeySpan shallowCopy;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    // Give us some data.
+    err = DRBG_get_bytes(testVector, sizeof(testVector));
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Test deep copy from array.
+    deepCopy = AesCcm128Key(testVector);
+    NL_TEST_ASSERT(inSuite, memcmp(deepCopy, testVector, sizeof(testVector)) == 0);
+
+    // Test sanitization.
+    deepCopy.~AesCcm128Key();
+    new (&deepCopy) AesCcm128Key();
+    NL_TEST_ASSERT(inSuite, memcmp(deepCopy, testVector, sizeof(testVector)));
+
+    // Give us different data.
+    err = DRBG_get_bytes(testVector, sizeof(testVector));
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Test deep copy from KeySpan.
+    shallowCopy = AesCcm128KeySpan(testVector);
+    deepCopy    = AesCcm128Key(shallowCopy);
+    NL_TEST_ASSERT(inSuite, memcmp(deepCopy, testVector, sizeof(testVector)) == 0);
+
+    // Test Span getter.
+    NL_TEST_ASSERT(inSuite, memcmp(testVector, deepCopy.Span().data(), deepCopy.Span().size()) == 0);
+}
+
 static void TestAsn1Conversions(nlTestSuite * inSuite, void * inContext)
 {
     HeapChecker heapChecker(inSuite);
@@ -614,7 +649,7 @@ static void TestAsn1Conversions(nlTestSuite * inSuite, void * inContext)
         out_der_sig.Calloc(out_der_sig_allocated_size);
         NL_TEST_ASSERT(inSuite, out_der_sig);
 
-        // Test converstion from ASN.1 ER to raw
+        // Test conversion from ASN.1 ER to raw
         MutableByteSpan out_raw_sig_span(out_raw_sig.Get(), out_raw_sig_allocated_size);
 
         CHIP_ERROR status = EcdsaAsn1SignatureToRaw(vector->fe_length_bytes,
@@ -1741,10 +1776,12 @@ static void TestCompressedFabricIdentifier(nlTestSuite * inSuite, void * inConte
     };
     static_assert(sizeof(kExpectedCompressedFabricIdentifier) == kCompressedFabricIdentifierSize,
                   "Expected compressed fabric identifier must the correct size");
+    const uint64_t kExpectedCompressedFabricIdentifierInt = 0x87e1b004e235a130;
 
     uint8_t compressed_fabric_id[kCompressedFabricIdentifierSize];
     MutableByteSpan compressed_fabric_id_span(compressed_fabric_id);
     ClearSecretData(compressed_fabric_id, sizeof(compressed_fabric_id));
+    uint64_t compressed_fabric_id_int;
 
     CHIP_ERROR error = GenerateCompressedFabricId(root_public_key, kFabricId, compressed_fabric_id_span);
     NL_TEST_ASSERT(inSuite, error == CHIP_NO_ERROR);
@@ -1771,6 +1808,11 @@ static void TestCompressedFabricIdentifier(nlTestSuite * inSuite, void * inConte
     MutableByteSpan compressed_fabric_id_small_span(compressed_fabric_id, kCompressedFabricIdentifierSize - 1);
     error = GenerateCompressedFabricId(root_public_key, kFabricId, compressed_fabric_id_small_span);
     NL_TEST_ASSERT(inSuite, error == CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    // Test overload that writes to an integer output type.
+    error = GenerateCompressedFabricId(root_public_key, kFabricId, compressed_fabric_id_int);
+    NL_TEST_ASSERT(inSuite, error == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, compressed_fabric_id_int == kExpectedCompressedFabricIdentifierInt);
 
     // Test invalid public key
     const uint8_t kInvalidRootPublicKey[65] = {
@@ -1853,82 +1895,47 @@ static void TestX509_CertChainValidation(nlTestSuite * inSuite, void * inContext
     err = GetTestCert(TestCert::kNode01_01, TestCertLoadFlags::kDERForm, leaf_cert);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
+    CertificateChainValidationResult chainValidationResult;
     err = ValidateCertificateChain(root_cert.data(), root_cert.size(), ica_cert.data(), ica_cert.size(), leaf_cert.data(),
-                                   leaf_cert.size());
+                                   leaf_cert.size(), chainValidationResult);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, chainValidationResult == CertificateChainValidationResult::kSuccess);
+
+    // Now test for invalid arguments.
+    err = ValidateCertificateChain(nullptr, 0, ica_cert.data(), ica_cert.size(), leaf_cert.data(), leaf_cert.size(),
+                                   chainValidationResult);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, chainValidationResult == CertificateChainValidationResult::kRootArgumentInvalid);
+
+    err = ValidateCertificateChain(root_cert.data(), root_cert.size(), nullptr, 0, leaf_cert.data(), leaf_cert.size(),
+                                   chainValidationResult);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, chainValidationResult == CertificateChainValidationResult::kICAArgumentInvalid);
+
+    err = ValidateCertificateChain(root_cert.data(), root_cert.size(), ica_cert.data(), ica_cert.size(), nullptr, 0,
+                                   chainValidationResult);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
+    NL_TEST_ASSERT(inSuite, chainValidationResult == CertificateChainValidationResult::kLeafArgumentInvalid);
+
+    // Now test with an ICA certificate that does not correspond to the chain
+    ByteSpan wrong_ica_cert;
+    err = GetTestCert(TestCert::kICA02, TestCertLoadFlags::kDERForm, wrong_ica_cert);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    // Now test chain without ICA certificate
-    err = GetTestCert(TestCert::kRoot01, TestCertLoadFlags::kDERForm, root_cert);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = GetTestCert(TestCert::kNode01_02, TestCertLoadFlags::kDERForm, leaf_cert);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ValidateCertificateChain(root_cert.data(), root_cert.size(), nullptr, 0, leaf_cert.data(), leaf_cert.size());
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = ValidateCertificateChain(root_cert.data(), root_cert.size(), wrong_ica_cert.data(), wrong_ica_cert.size(),
+                                   leaf_cert.data(), leaf_cert.size(), chainValidationResult);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_TRUSTED);
+    NL_TEST_ASSERT(inSuite, chainValidationResult == CertificateChainValidationResult::kChainInvalid);
 }
 
-static void TestSKID_x509Extraction(nlTestSuite * inSuite, void * inContext)
+static void TestX509_IssuingTimestampValidation(nlTestSuite * inSuite, void * inContext)
 {
     using namespace TestCerts;
+    using namespace ASN1;
 
     HeapChecker heapChecker(inSuite);
     CHIP_ERROR err = CHIP_NO_ERROR;
-    uint8_t skidBuf[Credentials::kKeyIdentifierLength];
-    MutableByteSpan skidOut(skidBuf);
 
-    ByteSpan cert;
-    ByteSpan skidSpan;
-
-    for (size_t i = 0; i < gNumTestCerts; i++)
-    {
-        uint8_t certType = gTestCerts[i];
-
-        err = GetTestCert(certType, TestCertLoadFlags::kDERForm, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        err = GetTestCertSKID(certType, skidSpan);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-        err = ExtractSKIDFromX509Cert(cert, skidOut);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, skidSpan.data_equal(skidOut));
-    }
-}
-
-static void TestAKID_x509Extraction(nlTestSuite * inSuite, void * inContext)
-{
-    using namespace TestCerts;
-
-    HeapChecker heapChecker(inSuite);
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    uint8_t akidBuf[Credentials::kKeyIdentifierLength];
-    MutableByteSpan akidOut(akidBuf);
-
-    ByteSpan cert;
-    ByteSpan akidSpan;
-
-    for (size_t i = 0; i < gNumTestCerts; i++)
-    {
-        uint8_t certType = gTestCerts[i];
-
-        err = GetTestCert(certType, TestCertLoadFlags::kDERForm, cert);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        err = GetTestCertAKID(certType, akidSpan);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-        err = ExtractAKIDFromX509Cert(cert, akidOut);
-        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-        NL_TEST_ASSERT(inSuite, akidSpan.data_equal(akidOut));
-    }
-}
-
-static void TestVID_x509Extraction(nlTestSuite * inSuite, void * inContext)
-{
-    using namespace TestCerts;
-
-    HeapChecker heapChecker(inSuite);
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    VendorId vid;
     /*
     credentials/test/attestation/Chip-Test-DAC-FFF1-8000-000A-Cert.pem
     -----BEGIN CERTIFICATE-----
@@ -1945,8 +1952,12 @@ static void TestVID_x509Extraction(nlTestSuite * inSuite, void * inContext)
     OS8H8W2E/ctS268o19k=
     -----END CERTIFICATE-----
     */
-    VendorId expectedVid                   = (VendorId) 0xFFF1;
-    static const uint8_t sDacCertificate[] = {
+    /*
+    Validity
+        Not Before: Jun 28 14:23:43 2021 GMT
+        Not After : Dec 31 23:59:59 9999 GMT
+    */
+    constexpr uint8_t kDacCertificate[] = {
         0x30, 0x82, 0x01, 0xEA, 0x30, 0x82, 0x01, 0x8F, 0xA0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x08, 0x05, 0x1A, 0x69, 0xE5, 0xE7,
         0x80, 0x34, 0x3E, 0x30, 0x0A, 0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x02, 0x30, 0x46, 0x31, 0x18, 0x30,
         0x16, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0C, 0x0F, 0x4D, 0x61, 0x74, 0x74, 0x65, 0x72, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20,
@@ -1973,17 +1984,227 @@ static void TestVID_x509Extraction(nlTestSuite * inSuite, void * inContext)
         0x21, 0x00, 0xBE, 0x2D, 0xB4, 0x7A, 0xAB, 0x33, 0x75, 0x17, 0x8E, 0x12, 0x49, 0xA0, 0x79, 0x20, 0xA0, 0xAC, 0x6E, 0xAA,
         0x39, 0x2F, 0x07, 0xF1, 0x6D, 0x84, 0xFD, 0xCB, 0x52, 0xDB, 0xAF, 0x28, 0xD7, 0xD9
     };
-    ByteSpan cert(sDacCertificate);
+    ByteSpan kDacCert(kDacCertificate);
 
-    err = ExtractVIDFromX509Cert(cert, vid);
+    ByteSpan rootCert;
+    err = GetTestCert(TestCert::kRoot01, TestCertLoadFlags::kDERForm, rootCert);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, vid == expectedVid);
+
+    ByteSpan icaCert;
+    err = GetTestCert(TestCert::kICA01, TestCertLoadFlags::kDERForm, icaCert);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    ByteSpan leafCert;
+    err = GetTestCert(TestCert::kNode01_01, TestCertLoadFlags::kDERForm, leafCert);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    err = IsCertificateValidAtIssuance(leafCert, icaCert);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    err = IsCertificateValidAtIssuance(leafCert, rootCert);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    err = IsCertificateValidAtIssuance(kDacCert, leafCert);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+#if !defined(CURRENT_TIME_NOT_IMPLEMENTED)
+    // test certificate validity (this one contains validity until year 9999 so it will not fail soon)
+    err = IsCertificateValidAtCurrentTime(kDacCert);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+#endif
+}
+
+static void TestSKID_x509Extraction(nlTestSuite * inSuite, void * inContext)
+{
+    using namespace TestCerts;
+
+    HeapChecker heapChecker(inSuite);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    uint8_t skidBuf[kSubjectKeyIdentifierLength];
+    MutableByteSpan skidOut(skidBuf);
+
+    ByteSpan cert;
+    ByteSpan skidSpan;
+
+    for (size_t i = 0; i < gNumTestCerts; i++)
+    {
+        uint8_t certType = gTestCerts[i];
+
+        err = GetTestCert(certType, TestCertLoadFlags::kDERForm, cert);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        err = GetTestCertSKID(certType, skidSpan);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+        err = ExtractSKIDFromX509Cert(cert, skidOut);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, skidSpan.data_equal(skidOut));
+    }
+}
+
+static void TestAKID_x509Extraction(nlTestSuite * inSuite, void * inContext)
+{
+    using namespace TestCerts;
+
+    HeapChecker heapChecker(inSuite);
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    uint8_t akidBuf[kAuthorityKeyIdentifierLength];
+    MutableByteSpan akidOut(akidBuf);
+
+    ByteSpan cert;
+    ByteSpan akidSpan;
+
+    for (size_t i = 0; i < gNumTestCerts; i++)
+    {
+        uint8_t certType = gTestCerts[i];
+
+        err = GetTestCert(certType, TestCertLoadFlags::kDERForm, cert);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        err = GetTestCertAKID(certType, akidSpan);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+        err = ExtractAKIDFromX509Cert(cert, akidOut);
+        NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, akidSpan.data_equal(akidOut));
+    }
+}
+
+static void TestVID_x509Extraction(nlTestSuite * inSuite, void * inContext)
+{
+    using namespace TestCerts;
+
+    HeapChecker heapChecker(inSuite);
 
     // Test scenario where Certificate does not contain a Vendor ID field
-    err = GetTestCert(TestCert::kNode01_01, TestCertLoadFlags::kDERForm, cert);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = ExtractVIDFromX509Cert(cert, vid);
-    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_KEY_NOT_FOUND);
+    ByteSpan kOpCertNoVID;
+    NL_TEST_ASSERT(inSuite, GetTestCert(TestCert::kNode01_01, TestCertLoadFlags::kDERForm, kOpCertNoVID) == CHIP_NO_ERROR);
+
+    struct TestCase
+    {
+        ByteSpan cert;
+        uint16_t expectedVid;
+        CHIP_ERROR expectedResult;
+    };
+
+    const TestCase kTestCases[] = {
+        { sTestCert_PAA_FFF1_Cert, 0xFFF1, CHIP_NO_ERROR },
+        { sTestCert_PAI_FFF1_8000_Cert, 0xFFF1, CHIP_NO_ERROR },
+        { sTestCert_DAC_FFF1_8000_0004_Cert, 0xFFF1, CHIP_NO_ERROR },
+        { sTestCert_PAI_FFF2_8001_Cert, 0xFFF2, CHIP_NO_ERROR },
+        { sTestCert_DAC_FFF2_8001_0009_Cert, 0xFFF2, CHIP_NO_ERROR },
+        // VID not present cases:
+        { sTestCert_PAA_NoVID_Cert, 0xFFFF, CHIP_ERROR_KEY_NOT_FOUND },
+        { kOpCertNoVID, 0xFFFF, CHIP_ERROR_KEY_NOT_FOUND },
+    };
+
+    for (const auto & testCase : kTestCases)
+    {
+        uint16_t vid;
+        CHIP_ERROR result = ExtractDNAttributeFromX509Cert(MatterOid::kVendorId, testCase.cert, vid);
+        NL_TEST_ASSERT(inSuite, result == testCase.expectedResult);
+
+        // In success cases, make sure the VID matches expectation.
+        if (testCase.expectedResult == CHIP_NO_ERROR)
+        {
+            NL_TEST_ASSERT(inSuite, vid == testCase.expectedVid);
+        }
+    }
+}
+
+static void TestPID_x509Extraction(nlTestSuite * inSuite, void * inContext)
+{
+    using namespace TestCerts;
+
+    HeapChecker heapChecker(inSuite);
+    /*
+    credentials/test/attestation/Chip-Test-DAC-FFF1-8000-0004-Cert.pem
+    */
+
+    // Test scenario where Certificate does not contain a Vendor ID field
+    ByteSpan kOpCertNoVID;
+    NL_TEST_ASSERT(inSuite, GetTestCert(TestCert::kNode01_01, TestCertLoadFlags::kDERForm, kOpCertNoVID) == CHIP_NO_ERROR);
+
+    struct TestCase
+    {
+        ByteSpan cert;
+        uint16_t expectedPid;
+        CHIP_ERROR expectedResult;
+    };
+
+    const TestCase kTestCases[] = {
+        { sTestCert_PAI_FFF1_8000_Cert, 0x8000, CHIP_NO_ERROR },
+        { sTestCert_DAC_FFF1_8000_0004_Cert, 0x8000, CHIP_NO_ERROR },
+        { sTestCert_PAI_FFF2_8001_Cert, 0x8001, CHIP_NO_ERROR },
+        { sTestCert_DAC_FFF2_8001_0009_Cert, 0x8001, CHIP_NO_ERROR },
+        { sTestCert_DAC_FFF2_8002_0016_Cert, 0x8002, CHIP_NO_ERROR },
+        // PID not present cases:
+        { sTestCert_PAA_FFF1_Cert, 0xFFFF, CHIP_ERROR_KEY_NOT_FOUND },
+        { sTestCert_PAA_NoVID_Cert, 0xFFFF, CHIP_ERROR_KEY_NOT_FOUND },
+        { sTestCert_PAI_FFF2_NoPID_Cert, 0xFFFF, CHIP_ERROR_KEY_NOT_FOUND },
+        { kOpCertNoVID, 0xFFFF, CHIP_ERROR_KEY_NOT_FOUND },
+    };
+
+    for (const auto & testCase : kTestCases)
+    {
+        uint16_t pid;
+        CHIP_ERROR result = ExtractDNAttributeFromX509Cert(MatterOid::kProductId, testCase.cert, pid);
+        NL_TEST_ASSERT(inSuite, result == testCase.expectedResult);
+
+        // In success cases, make sure the PID matches expectation.
+        if (testCase.expectedResult == CHIP_NO_ERROR)
+        {
+            NL_TEST_ASSERT(inSuite, pid == testCase.expectedPid);
+        }
+    }
+}
+
+const uint8_t kEpochKeyBuffer1[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES] = { 0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+                                                                                   0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf };
+const uint8_t kEpochKeyBuffer2[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES] = { 0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+                                                                                   0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf };
+const uint8_t kGroupOperationalKey1[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES] = { 0x9d, 0xe1, 0x07, 0xde, 0x33, 0x11,
+                                                                                        0x2c, 0x52, 0x11, 0x0b, 0x7e, 0xc1,
+                                                                                        0x20, 0x9e, 0x6f, 0x0c };
+const uint8_t kGroupOperationalKey2[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES] = { 0x7a, 0x33, 0xdb, 0x90, 0x5c, 0x7b,
+                                                                                        0x7e, 0x14, 0xa9, 0x20, 0xf8, 0x40,
+                                                                                        0xae, 0x48, 0xd3, 0xfe };
+const uint16_t kGroupSessionId1                                                     = 0xbc66;
+const uint16_t kGroupSessionId2                                                     = 0x038d;
+
+static void TestGroup_OperationalKeyDerivation(nlTestSuite * inSuite, void * inContext)
+{
+    uint8_t key_buffer[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES] = { 0 };
+    ByteSpan epoch_key(kEpochKeyBuffer1, sizeof(kEpochKeyBuffer1));
+    MutableByteSpan operational_key(key_buffer, sizeof(key_buffer));
+
+    // Invalid Epoch Key
+    NL_TEST_ASSERT(inSuite, CHIP_ERROR_INVALID_ARGUMENT == DeriveGroupOperationalKey(ByteSpan(), operational_key));
+
+    // Epoch Key 1
+    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == DeriveGroupOperationalKey(epoch_key, operational_key));
+    NL_TEST_ASSERT(inSuite, 0 == memcmp(operational_key.data(), kGroupOperationalKey1, sizeof(kGroupOperationalKey1)));
+
+    // Epoch Key 2
+    epoch_key = ByteSpan(kEpochKeyBuffer2, sizeof(kEpochKeyBuffer2));
+    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == DeriveGroupOperationalKey(epoch_key, operational_key));
+    NL_TEST_ASSERT(inSuite, 0 == memcmp(operational_key.data(), kGroupOperationalKey2, sizeof(kGroupOperationalKey2)));
+}
+
+static void TestGroup_SessionIdDerivation(nlTestSuite * inSuite, void * inContext)
+{
+    ByteSpan operational_key1(kGroupOperationalKey1, sizeof(kGroupOperationalKey1));
+    ByteSpan operational_key2(kGroupOperationalKey2, sizeof(kGroupOperationalKey2));
+    uint16_t session_id = 0;
+
+    // Bad Key
+    NL_TEST_ASSERT(inSuite, CHIP_ERROR_INVALID_ARGUMENT == DeriveGroupSessionId(ByteSpan(), session_id));
+
+    // Session ID 1
+    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == DeriveGroupSessionId(operational_key1, session_id));
+    NL_TEST_ASSERT(inSuite, kGroupSessionId1 == session_id);
+
+    // Session ID 2
+    NL_TEST_ASSERT(inSuite, CHIP_NO_ERROR == DeriveGroupSessionId(operational_key2, session_id));
+    NL_TEST_ASSERT(inSuite, kGroupSessionId2 == session_id);
 }
 
 /**
@@ -1999,6 +2220,7 @@ static const nlTest sTests[] = {
     NL_TEST_DEF("Test encrypting AES-CCM-128 using invalid tag", TestAES_CCM_128EncryptInvalidTagLen),
     NL_TEST_DEF("Test decrypting AES-CCM-128 invalid key", TestAES_CCM_128DecryptInvalidKey),
     NL_TEST_DEF("Test decrypting AES-CCM-128 invalid IV", TestAES_CCM_128DecryptInvalidIVLen),
+    NL_TEST_DEF("Test decrypting AES-CCM-128 Containers", TestAES_CCM_128Containers),
     NL_TEST_DEF("Test encrypting AES-CCM-256 test vectors", TestAES_CCM_256EncryptTestVectors),
     NL_TEST_DEF("Test decrypting AES-CCM-256 test vectors", TestAES_CCM_256DecryptTestVectors),
     NL_TEST_DEF("Test encrypting AES-CCM-256 using nil key", TestAES_CCM_256EncryptNilKey),
@@ -2047,9 +2269,13 @@ static const nlTest sTests[] = {
     NL_TEST_DEF("Test x509 Certificate Extraction from PKCS7", TestX509_PKCS7Extraction),
 #endif // CHIP_CRYPTO_OPENSSL
     NL_TEST_DEF("Test x509 Certificate Chain Validation", TestX509_CertChainValidation),
+    NL_TEST_DEF("Test x509 Certificate Timestamp Validation", TestX509_IssuingTimestampValidation),
     NL_TEST_DEF("Test Subject Key Id Extraction from x509 Certificate", TestSKID_x509Extraction),
     NL_TEST_DEF("Test Authority Key Id Extraction from x509 Certificate", TestAKID_x509Extraction),
     NL_TEST_DEF("Test Vendor ID Extraction from x509 Attestation Certificate", TestVID_x509Extraction),
+    NL_TEST_DEF("Test Product ID Extraction from x509 Attestation Certificate", TestPID_x509Extraction),
+    NL_TEST_DEF("Test Group Operation Key Derivation", TestGroup_OperationalKeyDerivation),
+    NL_TEST_DEF("Test Group Session ID Derivation", TestGroup_SessionIdDerivation),
     NL_TEST_SENTINEL()
 };
 

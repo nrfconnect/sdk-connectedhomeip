@@ -168,12 +168,12 @@ In order to send commands to a device, it must be paired with the client and
 connected to the network.
 
 To run the commissioning process via BLE, run the built executable and pass it
-the network ssid and password, fabric id, discriminator and pairing code of the
-remote device.
+the node id to assign to the newly-commissioned node, network ssid and password,
+discriminator and pairing code of the remote device.
 
 Example:
 
-    $ chip-tool pairing ble-wifi network_ssid network_password 0 20202021 3840
+    $ chip-tool pairing ble-wifi node_id_to_assign network_ssid network_password 20202021 3840
 
 ## Sending ZCL commands
 
@@ -226,15 +226,15 @@ To run the commissioning process via BLE:
 
 -   Pass the Wi-Fi credentials to the device:
 
-        chip-device-ctrl > zcl NetworkCommissioning AddWiFiNetwork 1234 0 0 ssid=str:TESTSSID credentials=str:P455W4RD breadcrumb=0 timeoutMs=1000
+        chip-device-ctrl > zcl NetworkCommissioning AddOrUpdateWiFiNetwork 1234 0 0 ssid=str:TESTSSID credentials=str:P455W4RD breadcrumb=0 timeoutMs=1000
 
 -   Enable the Wi-Fi interface:
 
-        chip-device-ctrl > zcl NetworkCommissioning EnableNetwork 1234 0 0 networkID=str:TESTSSID breadcrumb=0 timeoutMs=1000
+        chip-device-ctrl > zcl NetworkCommissioning ConnectNetwork 1234 0 0 networkID=str:TESTSSID breadcrumb=0 timeoutMs=1000
 
 -   Close BLE connection:
 
-        chip-device-ctrl > zcl NetworkCommissioning EnableNetwork 1234 0 0 networkID=str:TESTSSID breadcrumb=0 timeoutMs=1000
+        chip-device-ctrl > zcl NetworkCommissioning ConnectNetwork 1234 0 0 networkID=str:TESTSSID breadcrumb=0 timeoutMs=1000
 
 -   Discover IP address of the device (address is cached in the controller for
     later usage). You should provide the fabric and node ID:

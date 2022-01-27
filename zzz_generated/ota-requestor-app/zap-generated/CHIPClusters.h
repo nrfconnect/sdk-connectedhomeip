@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -45,11 +45,6 @@ public:
                           chip::VendorId vendorId, uint16_t productId, uint32_t softwareVersion, uint8_t protocolsSupported,
                           uint16_t hardwareVersion, chip::CharSpan location, bool requestorCanConsent,
                           chip::ByteSpan metadataForProvider);
-
-    // Cluster Attributes
-    CHIP_ERROR ReadAttributeClusterRevision(Callback::Cancelable * onSuccessCallback, Callback::Cancelable * onFailureCallback);
-
-private:
 };
 
 } // namespace Controller

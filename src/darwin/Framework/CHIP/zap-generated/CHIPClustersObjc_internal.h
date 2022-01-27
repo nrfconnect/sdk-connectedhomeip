@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -20,6 +20,10 @@
 #import <Foundation/Foundation.h>
 
 #import "CHIPDevice.h"
+
+@interface CHIPAccessControl ()
+@property (readonly) chip::Controller::AccessControlCluster cppCluster;
+@end
 
 @interface CHIPAccountLogin ()
 @property (readonly) chip::Controller::AccountLoginCluster cppCluster;
@@ -67,6 +71,10 @@
 
 @interface CHIPBridgedDeviceBasic ()
 @property (readonly) chip::Controller::BridgedDeviceBasicCluster cppCluster;
+@end
+
+@interface CHIPChannel ()
+@property (readonly) chip::Controller::ChannelCluster cppCluster;
 @end
 
 @interface CHIPColorControl ()
@@ -137,6 +145,10 @@
 @property (readonly) chip::Controller::LevelControlCluster cppCluster;
 @end
 
+@interface CHIPLocalizationConfiguration ()
+@property (readonly) chip::Controller::LocalizationConfigurationCluster cppCluster;
+@end
+
 @interface CHIPLowPower ()
 @property (readonly) chip::Controller::LowPowerCluster cppCluster;
 @end
@@ -185,6 +197,10 @@
 @property (readonly) chip::Controller::PowerSourceCluster cppCluster;
 @end
 
+@interface CHIPPowerSourceConfiguration ()
+@property (readonly) chip::Controller::PowerSourceConfigurationCluster cppCluster;
+@end
+
 @interface CHIPPressureMeasurement ()
 @property (readonly) chip::Controller::PressureMeasurementCluster cppCluster;
 @end
@@ -209,10 +225,6 @@
 @property (readonly) chip::Controller::SwitchCluster cppCluster;
 @end
 
-@interface CHIPTvChannel ()
-@property (readonly) chip::Controller::TvChannelCluster cppCluster;
-@end
-
 @interface CHIPTargetNavigator ()
 @property (readonly) chip::Controller::TargetNavigatorCluster cppCluster;
 @end
@@ -235,6 +247,14 @@
 
 @interface CHIPThreadNetworkDiagnostics ()
 @property (readonly) chip::Controller::ThreadNetworkDiagnosticsCluster cppCluster;
+@end
+
+@interface CHIPTimeFormatLocalization ()
+@property (readonly) chip::Controller::TimeFormatLocalizationCluster cppCluster;
+@end
+
+@interface CHIPUserLabel ()
+@property (readonly) chip::Controller::UserLabelCluster cppCluster;
 @end
 
 @interface CHIPWakeOnLan ()

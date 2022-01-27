@@ -26,7 +26,7 @@
 
 // ==================== General Platform Adaptations ====================
 
-#define ChipDie() abort()
+#define CHIP_CONFIG_ABORT() abort()
 
 #define CHIP_CONFIG_ENABLE_FABRIC_STATE 0
 
@@ -79,10 +79,6 @@
 #ifndef CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
 #define CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS 8
 #endif // CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
-
-#ifndef CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
-#define CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT 6
-#endif // CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
 
 #ifndef CHIP_LOG_FILTERING
 #define CHIP_LOG_FILTERING 0

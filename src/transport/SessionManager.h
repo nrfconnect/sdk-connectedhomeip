@@ -31,11 +31,16 @@
 #include <lib/core/CHIPCore.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/DLLUtil.h>
+#include <messaging/ReliableMessageProtocolConfig.h>
 #include <protocols/secure_channel/Constants.h>
 #include <transport/CryptoContext.h>
+#include <transport/GroupSession.h>
 #include <transport/MessageCounterManagerInterface.h>
 #include <transport/SecureSessionTable.h>
+#include <transport/SessionDelegate.h>
 #include <transport/SessionHandle.h>
+#include <transport/SessionHolder.h>
+#include <transport/SessionMessageDelegate.h>
 #include <transport/TransportMgr.h>
 #include <transport/UnauthenticatedSessionTable.h>
 #include <transport/raw/Base.h>
@@ -113,67 +118,6 @@ private:
     EncryptedPacketBufferHandle(PacketBufferHandle && aBuffer) : PacketBufferHandle(std::move(aBuffer)) {}
 };
 
-/**
- * @brief
- *   This class provides a skeleton for the callback functions. The functions will be
- *   called by SecureSssionMgrBase object on specific events. If the user of SessionManager
- *   is interested in receiving these callbacks, they can specialize this class and handle
- *   each trigger in their implementation of this class.
- */
-class DLL_EXPORT SessionManagerDelegate
-{
-public:
-    enum class DuplicateMessage : uint8_t
-    {
-        Yes,
-        No,
-    };
-
-    /**
-     * @brief
-     *   Called when a new message is received. The function must internally release the
-     *   msgBuf after processing it.
-     *
-     * @param packetHeader  The message header
-     * @param payloadHeader The payload header
-     * @param session       The handle to the secure session
-     * @param source        The sender's address
-     * @param isDuplicate   The message is a duplicate of previously received message
-     * @param msgBuf        The received message
-     */
-    virtual void OnMessageReceived(const PacketHeader & packetHeader, const PayloadHeader & payloadHeader, SessionHandle session,
-                                   const Transport::PeerAddress & source, DuplicateMessage isDuplicate,
-                                   System::PacketBufferHandle && msgBuf)
-    {}
-
-    /**
-     * @brief
-     *   Called when received message processing resulted in error
-     *
-     * @param error   error code
-     * @param source  network entity that sent the message
-     */
-    virtual void OnReceiveError(CHIP_ERROR error, const Transport::PeerAddress & source) {}
-
-    /**
-     * @brief
-     *   Called when a new pairing is being established
-     *
-     * @param session The handle to the secure session
-     */
-    virtual void OnNewConnection(SessionHandle session) {}
-
-    /**
-     * @brief
-     *   Called when a new connection is closing
-     *
-     * @param session The handle to the secure session
-     */
-    virtual void OnConnectionExpired(SessionHandle session) {}
-
-    virtual ~SessionManagerDelegate() {}
-};
-
 class DLL_EXPORT SessionManager : public TransportMgrDelegate
 {
 public:
@@ -191,25 +135,22 @@ public:
      *    3. Encode the packet header and prepend it to message.
      *   Returns a encrypted message in encryptedMessage.
      */
-    CHIP_ERROR PrepareMessage(SessionHandle session, PayloadHeader & payloadHeader, System::PacketBufferHandle && msgBuf,
+    CHIP_ERROR PrepareMessage(const SessionHandle & session, PayloadHeader & payloadHeader, System::PacketBufferHandle && msgBuf,
                               EncryptedPacketBufferHandle & encryptedMessage);
 
     /**
      * @brief
      *   Send a prepared message to a currently connected peer.
      */
-    CHIP_ERROR SendPreparedMessage(SessionHandle session, const EncryptedPacketBufferHandle & preparedMessage);
+    CHIP_ERROR SendPreparedMessage(const SessionHandle & session, const EncryptedPacketBufferHandle & preparedMessage);
 
-    Transport::SecureSession * GetSecureSession(SessionHandle session);
+    /// @brief Set the delegate for handling incoming messages. There can be only one message delegate (probably the
+    /// ExchangeManager)
+    void SetMessageDelegate(SessionMessageDelegate * cb) { mCB = cb; }
 
-    /**
-     * @brief
-     *   Set the callback object.
-     *
-     * @details
-     *   Release if there was an existing callback object
-     */
-    void SetDelegate(SessionManagerDelegate * cb) { mCB = cb; }
+    void RegisterRecoveryDelegate(SessionRecoveryDelegate & cb);
+    void UnregisterRecoveryDelegate(SessionRecoveryDelegate & cb);
+    void RefreshSessionOperationalData(const SessionHandle & sessionHandle);
 
     /**
      * @brief
@@ -220,10 +161,10 @@ public:
      *   establishes the security keys for secure communication with the
      *   peer node.
      */
-    CHIP_ERROR NewPairing(const Optional<Transport::PeerAddress> & peerAddr, NodeId peerNodeId, PairingSession * pairing,
-                          CryptoContext::SessionRole direction, FabricIndex fabric);
+    CHIP_ERROR NewPairing(SessionHolder & sessionHolder, const Optional<Transport::PeerAddress> & peerAddr, NodeId peerNodeId,
+                          PairingSession * pairing, CryptoContext::SessionRole direction, FabricIndex fabric);
 
-    void ExpirePairing(SessionHandle session);
+    void ExpirePairing(const SessionHandle & session);
     void ExpireAllPairings(NodeId peerNodeId, FabricIndex fabric);
     void ExpireAllPairingsForFabric(FabricIndex fabric);
 
@@ -262,14 +203,29 @@ public:
      */
     void OnMessageReceived(const Transport::PeerAddress & source, System::PacketBufferHandle && msgBuf) override;
 
-    Optional<SessionHandle> CreateUnauthenticatedSession(const Transport::PeerAddress & peerAddress)
+    Optional<SessionHandle> CreateUnauthenticatedSession(const Transport::PeerAddress & peerAddress,
+                                                         const ReliableMessageProtocolConfig & config)
     {
-        Optional<Transport::UnauthenticatedSessionHandle> session = mUnauthenticatedSessions.FindOrAllocateEntry(peerAddress);
-        return session.HasValue() ? MakeOptional<SessionHandle>(session.Value()) : NullOptional;
+        return mUnauthenticatedSessions.FindOrAllocateEntry(peerAddress, config);
     }
 
+    // TODO: implements group sessions
+    Optional<SessionHandle> CreateGroupSession(GroupId group, chip::FabricIndex fabricIndex)
+    {
+        return mGroupSessions.AllocEntry(group, fabricIndex);
+    }
+    Optional<SessionHandle> FindGroupSession(GroupId group, chip::FabricIndex fabricIndex)
+    {
+        return mGroupSessions.FindEntry(group, fabricIndex);
+    }
+    void RemoveGroupSession(Transport::GroupSession * session) { mGroupSessions.DeleteEntry(session); }
+
     // TODO: this is a temporary solution for legacy tests which use nodeId to send packets
+    // and tv-casting-app that uses the TV's node ID to find the associated secure session
     SessionHandle FindSecureSessionForNode(NodeId peerNodeId);
+
+    using SessionHandleCallback = bool (*)(void * context, SessionHandle & sessionHandle);
+    CHIP_ERROR ForEachSessionHandle(void * context, SessionHandleCallback callback);
 
 private:
     /**
@@ -289,26 +245,28 @@ private:
 
     System::Layer * mSystemLayer = nullptr;
     Transport::UnauthenticatedSessionTable<CHIP_CONFIG_UNAUTHENTICATED_CONNECTION_POOL_SIZE> mUnauthenticatedSessions;
-    Transport::SecureSessionTable<CHIP_CONFIG_PEER_CONNECTION_POOL_SIZE> mSecureSessions; // < Active connections to other peers
-    State mState;                                                                         // < Initialization state of the object
+    Transport::SecureSessionTable<CHIP_CONFIG_PEER_CONNECTION_POOL_SIZE> mSecureSessions;
+    Transport::GroupSessionTable<CHIP_CONFIG_GROUP_CONNECTION_POOL_SIZE> mGroupSessions;
+    State mState; // < Initialization state of the object
 
-    SessionManagerDelegate * mCB                                       = nullptr;
+    SessionMessageDelegate * mCB = nullptr;
+
+    BitMapObjectPool<std::reference_wrapper<SessionRecoveryDelegate>, CHIP_CONFIG_MAX_SESSION_RECOVERY_DELEGATES>
+        mSessionRecoveryDelegates;
+
     TransportMgrBase * mTransportMgr                                   = nullptr;
     Transport::MessageCounterManagerInterface * mMessageCounterManager = nullptr;
 
     GlobalUnencryptedMessageCounter mGlobalUnencryptedMessageCounter;
     GlobalEncryptedMessageCounter mGlobalEncryptedMessageCounter;
 
+    friend class SessionHandle;
+
     /** Schedules a new oneshot timer for checking connection expiry. */
     void ScheduleExpiryTimer();
 
     /** Cancels any active timers for connection expiry checks. */
     void CancelExpiryTimer();
-
-    /**
-     * Called when a specific connection expires.
-     */
-    void HandleConnectionExpired(const Transport::SecureSession & state);
 
     /**
      * Callback for timer expiry check
@@ -323,6 +281,8 @@ private:
 
     void MessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                          System::PacketBufferHandle && msg);
+
+    void OnReceiveError(CHIP_ERROR error, const Transport::PeerAddress & source);
 
     static bool IsControlMessage(PayloadHeader & payloadHeader)
     {

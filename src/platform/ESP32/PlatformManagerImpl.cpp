@@ -27,7 +27,9 @@
 
 #include <app-common/zap-generated/enums.h>
 #include <crypto/CHIPCryptoPAL.h>
+#include <platform/ESP32/DiagnosticDataProviderImpl.h>
 #include <platform/ESP32/ESP32Utils.h>
+#include <platform/ESP32/SystemTimeSupport.h>
 #include <platform/PlatformManager.h>
 #include <platform/internal/GenericPlatformManagerImpl_FreeRTOS.cpp>
 
@@ -58,6 +60,7 @@ static int app_entropy_source(void * data, unsigned char * output, size_t len, s
 CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
 {
     SetConfigurationMgr(&ConfigurationManagerImpl::GetDefaultInstance());
+    SetDiagnosticDataProvider(&DiagnosticDataProviderImpl::GetDefaultInstance());
 
     esp_err_t err;
     // Arrange for CHIP-encapsulated ESP32 errors to be translated to text
@@ -121,6 +124,7 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
     // to finish the initialization process.
     ReturnErrorOnFailure(Internal::GenericPlatformManagerImpl_FreeRTOS<PlatformManagerImpl>::_InitChipStack());
 
+    ReturnErrorOnFailure(System::Clock::InitClock_RealTime());
 exit:
     return chip::DeviceLayer::Internal::ESP32Utils::MapError(err);
 }
@@ -129,7 +133,7 @@ CHIP_ERROR PlatformManagerImpl::_Shutdown()
 {
     uint64_t upTime = 0;
 
-    if (_GetUpTime(upTime) == CHIP_NO_ERROR)
+    if (GetDiagnosticDataProvider().GetUpTime(upTime) == CHIP_NO_ERROR)
     {
         uint32_t totalOperationalHours = 0;
 
@@ -148,104 +152,6 @@ CHIP_ERROR PlatformManagerImpl::_Shutdown()
     }
 
     return Internal::GenericPlatformManagerImpl_FreeRTOS<PlatformManagerImpl>::_Shutdown();
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapFree(uint64_t & currentHeapFree)
-{
-    currentHeapFree = esp_get_free_heap_size();
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapUsed(uint64_t & currentHeapUsed)
-{
-    currentHeapUsed = heap_caps_get_total_size(MALLOC_CAP_DEFAULT) - esp_get_free_heap_size();
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark)
-{
-    currentHeapHighWatermark = heap_caps_get_total_size(MALLOC_CAP_DEFAULT) - esp_get_minimum_free_heap_size();
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetRebootCount(uint16_t & rebootCount)
-{
-    uint32_t count = 0;
-
-    CHIP_ERROR err = ConfigurationMgr().GetRebootCount(count);
-
-    if (err == CHIP_NO_ERROR)
-    {
-        VerifyOrReturnError(count <= UINT16_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
-        rebootCount = static_cast<uint16_t>(count);
-    }
-
-    return err;
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetUpTime(uint64_t & upTime)
-{
-    System::Clock::Timestamp currentTime = System::SystemClock().GetMonotonicTimestamp();
-
-    if (currentTime >= mStartTime)
-    {
-        upTime = std::chrono::duration_cast<System::Clock::Seconds64>(currentTime - mStartTime).count();
-        return CHIP_NO_ERROR;
-    }
-
-    return CHIP_ERROR_INVALID_TIME;
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetTotalOperationalHours(uint32_t & totalOperationalHours)
-{
-    uint64_t upTime = 0;
-
-    if (_GetUpTime(upTime) == CHIP_NO_ERROR)
-    {
-        uint32_t totalHours = 0;
-        if (ConfigurationMgr().GetTotalOperationalHours(totalHours) == CHIP_NO_ERROR)
-        {
-            VerifyOrReturnError(upTime / 3600 <= UINT32_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
-            totalOperationalHours = totalHours + static_cast<uint32_t>(upTime / 3600);
-            return CHIP_NO_ERROR;
-        }
-    }
-
-    return CHIP_ERROR_INVALID_TIME;
-}
-
-CHIP_ERROR PlatformManagerImpl::_GetBootReasons(uint8_t & bootReason)
-{
-    bootReason = EMBER_ZCL_BOOT_REASON_TYPE_UNSPECIFIED;
-    uint8_t reason;
-    reason = static_cast<uint8_t>(esp_reset_reason());
-    if (reason == ESP_RST_UNKNOWN)
-    {
-        bootReason = EMBER_ZCL_BOOT_REASON_TYPE_UNSPECIFIED;
-    }
-    else if (reason == ESP_RST_POWERON)
-    {
-        bootReason = EMBER_ZCL_BOOT_REASON_TYPE_POWER_ON_REBOOT;
-    }
-    else if (reason == ESP_RST_BROWNOUT)
-    {
-        bootReason = EMBER_ZCL_BOOT_REASON_TYPE_BROWN_OUT_RESET;
-    }
-    else if (reason == ESP_RST_SW)
-    {
-        bootReason = EMBER_ZCL_BOOT_REASON_TYPE_SOFTWARE_RESET;
-    }
-    else if (reason == ESP_RST_INT_WDT)
-    {
-        bootReason = EMBER_ZCL_BOOT_REASON_TYPE_SOFTWARE_WATCHDOG_RESET;
-        /* Reboot can be due to hardware or software watchdog*/
-    }
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR PlatformManagerImpl::InitLwIPCoreLock(void)
-{
-    return Internal::InitLwIPCoreLock();
 }
 
 void PlatformManagerImpl::HandleESPSystemEvent(void * arg, esp_event_base_t eventBase, int32_t eventId, void * eventData)
@@ -278,40 +184,40 @@ void PlatformManagerImpl::HandleESPSystemEvent(void * arg, esp_event_base_t even
         switch (eventId)
         {
         case WIFI_EVENT_SCAN_DONE:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiStaScanDone, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiStaScanDone));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiStaScanDone, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiStaScanDone));
             break;
         case WIFI_EVENT_STA_CONNECTED:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiStaConnected, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiStaConnected));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiStaConnected, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiStaConnected));
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiStaDisconnected, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiStaDisconnected));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiStaDisconnected, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiStaDisconnected));
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiStaAuthModeChange, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiStaAuthModeChange));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiStaAuthModeChange, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiStaAuthModeChange));
             break;
         case WIFI_EVENT_STA_WPS_ER_PIN:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiStaWpsErPin, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiStaWpsErPin));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiStaWpsErPin, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiStaWpsErPin));
             break;
         case WIFI_EVENT_STA_WPS_ER_FAILED:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiStaWpsErFailed, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiStaWpsErFailed));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiStaWpsErFailed, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiStaWpsErFailed));
             break;
         case WIFI_EVENT_AP_STACONNECTED:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiApStaConnected, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiApStaConnected));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiApStaConnected, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiApStaConnected));
             break;
         case WIFI_EVENT_AP_STADISCONNECTED:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiApStaDisconnected, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiApStaDisconnected));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiApStaDisconnected, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiApStaDisconnected));
             break;
         case WIFI_EVENT_AP_PROBEREQRECVED:
-            memcpy(&event.Platform.ESPSystemEvent.Data.WifiApProbeReqRecved, eventData,
-                   sizeof(event.Platform.ESPSystemEvent.Data.WifiApProbeReqRecved));
+            memcpy(&event.Platform.ESPSystemEvent.Data.WiFiApProbeReqRecved, eventData,
+                   sizeof(event.Platform.ESPSystemEvent.Data.WiFiApProbeReqRecved));
             break;
         default:
             break;

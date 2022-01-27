@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2022 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -58,6 +58,9 @@ constexpr uint32_t kPBKDFMaximumIterations = 100000;
 constexpr uint32_t kPBKDFMinimumSaltLen    = 16;
 constexpr uint32_t kPBKDFMaximumSaltLen    = 32;
 
+// Specifications section 5.1.1.6
+constexpr uint32_t kSetupPINCodeMaximumValue = 99999998;
+
 using namespace Crypto;
 
 constexpr size_t kSpake2p_WS_Length = kP256_FE_Length + 8;
@@ -85,13 +88,11 @@ public:
     PASESession();
     PASESession(PASESession &&)      = default;
     PASESession(const PASESession &) = delete;
-    PASESession & operator=(const PASESession &) = default;
-    PASESession & operator=(PASESession &&) = default;
 
     virtual ~PASESession();
 
-    // TODO: The SetPeerNodeId method should not be exposed; we should not need
-    // to associate a node ID with a PASE session.
+    // TODO: The SetPeerNodeId method should not be exposed; PASE sessions
+    // should not need to be told their peer node ID
     using PairingSession::SetPeerNodeId;
 
     /**
@@ -107,7 +108,7 @@ public:
      * @return CHIP_ERROR     The result of initialization
      */
     CHIP_ERROR WaitForPairing(uint32_t mySetUpPINCode, uint32_t pbkdf2IterCount, const ByteSpan & salt, uint16_t mySessionId,
-                              SessionEstablishmentDelegate * delegate);
+                              Optional<ReliableMessageProtocolConfig> mrpConfig, SessionEstablishmentDelegate * delegate);
 
     /**
      * @brief
@@ -123,7 +124,8 @@ public:
      * @return CHIP_ERROR     The result of initialization
      */
     CHIP_ERROR WaitForPairing(const PASEVerifier & verifier, uint32_t pbkdf2IterCount, const ByteSpan & salt, uint16_t passcodeID,
-                              uint16_t mySessionId, SessionEstablishmentDelegate * delegate);
+                              uint16_t mySessionId, Optional<ReliableMessageProtocolConfig> mrpConfig,
+                              SessionEstablishmentDelegate * delegate);
 
     /**
      * @brief
@@ -141,7 +143,8 @@ public:
      * @return CHIP_ERROR      The result of initialization
      */
     CHIP_ERROR Pair(const Transport::PeerAddress peerAddress, uint32_t peerSetUpPINCode, uint16_t mySessionId,
-                    Messaging::ExchangeContext * exchangeCtxt, SessionEstablishmentDelegate * delegate);
+                    Optional<ReliableMessageProtocolConfig> mrpConfig, Messaging::ExchangeContext * exchangeCtxt,
+                    SessionEstablishmentDelegate * delegate);
 
     /**
      * @brief
@@ -163,16 +166,12 @@ public:
      *   Derive a secure session from the paired session. The API will return error
      *   if called before pairing is established.
      *
-     * @param session     Referene to the secure session that will be
+     * @param session     Reference to the secure session that will be
      *                    initialized once pairing is complete
      * @param role        Role of the new session (initiator or responder)
      * @return CHIP_ERROR The result of session derivation
      */
     CHIP_ERROR DeriveSecureSession(CryptoContext & session, CryptoContext::SessionRole role) override;
-
-    const char * GetI2RSessionInfo() const override { return kSpake2pI2RSessionInfo; }
-
-    const char * GetR2ISessionInfo() const override { return kSpake2pR2ISessionInfo; }
 
     /** @brief Serialize the Pairing Session to a string.
      *
@@ -203,8 +202,6 @@ public:
      **/
     void Clear();
 
-    SessionEstablishmentExchangeDispatch & MessageDispatch() { return mMessageDispatch; }
-
     //// ExchangeDelegate Implementation ////
     /**
      * @brief
@@ -231,11 +228,7 @@ public:
      */
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override;
 
-    Messaging::ExchangeMessageDispatch * GetMessageDispatch(Messaging::ReliableMessageMgr * rmMgr,
-                                                            SessionManager * sessionManager) override
-    {
-        return &mMessageDispatch;
-    }
+    Messaging::ExchangeMessageDispatch & GetMessageDispatch() override { return SessionEstablishmentExchangeDispatch::Instance(); }
 
 private:
     enum Spake2pErrorType : uint8_t
@@ -271,6 +264,12 @@ private:
 
     void CloseExchange();
 
+    /**
+     * Clear our reference to our exchange context pointer so that it can close
+     * itself at some later time.
+     */
+    void DiscardExchange();
+
     SessionEstablishmentDelegate * mDelegate = nullptr;
 
     Protocols::SecureChannel::MsgType mNextExpectedMsg = Protocols::SecureChannel::MsgType::PASE_PakeError;
@@ -302,7 +301,7 @@ private:
 
     Messaging::ExchangeContext * mExchangeCtxt = nullptr;
 
-    SessionEstablishmentExchangeDispatch mMessageDispatch;
+    Optional<ReliableMessageProtocolConfig> mLocalMRPConfig;
 
     struct Spake2pErrorMsg
     {
@@ -334,7 +333,7 @@ constexpr chip::NodeId kTestDeviceNodeId     = 12344321;
 class SecurePairingUsingTestSecret : public PairingSession
 {
 public:
-    SecurePairingUsingTestSecret()
+    SecurePairingUsingTestSecret() : PairingSession(Transport::SecureSession::Type::kPASE)
     {
         // Do not set to 0 to prevent unwanted unsecured session
         // since the session type is unknown.
@@ -342,7 +341,8 @@ public:
         SetPeerSessionId(1);
     }
 
-    SecurePairingUsingTestSecret(uint16_t peerSessionId, uint16_t localSessionId)
+    SecurePairingUsingTestSecret(uint16_t peerSessionId, uint16_t localSessionId) :
+        PairingSession(Transport::SecureSession::Type::kPASE)
     {
         SetLocalSessionId(localSessionId);
         SetPeerSessionId(peerSessionId);
@@ -368,10 +368,6 @@ public:
         memcpy(serializable.mKe, kTestSecret, secretLen);
         return CHIP_NO_ERROR;
     }
-
-    const char * GetI2RSessionInfo() const override { return "i2r"; }
-
-    const char * GetR2ISessionInfo() const override { return "r2i"; }
 
 private:
     const char * kTestSecret = CHIP_CONFIG_TEST_SHARED_SECRET_VALUE;

@@ -2,11 +2,11 @@
 
 #include "platform/internal/CHIPDeviceLayerInternal.h"
 
-#include <inet/InetLayer.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/PlatformManager.h>
 #include <platform/ScopedLock.h>
 #include <platform/internal/GenericPlatformManagerImpl.cpp>
+#include <platform/mbed/DiagnosticDataProviderImpl.h>
 #include <rtos/ThisThread.h>
 
 #include "MbedEventTimeout.h"
@@ -92,6 +92,7 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
 #endif
 
     SetConfigurationMgr(&ConfigurationManagerImpl::GetDefaultInstance());
+    SetDiagnosticDataProvider(&DiagnosticDataProviderImpl::GetDefaultInstance());
 
     // Call up to the base class _InitChipStack() to perform the bulk of the initialization.
     auto err = GenericPlatformManagerImpl<ImplClass>::_InitChipStack();

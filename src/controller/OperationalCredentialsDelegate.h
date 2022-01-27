@@ -30,9 +30,10 @@ namespace chip {
 namespace Controller {
 
 typedef void (*OnNOCChainGeneration)(void * context, CHIP_ERROR status, const ByteSpan & noc, const ByteSpan & icac,
-                                     const ByteSpan & rcac);
+                                     const ByteSpan & rcac, Optional<Crypto::AesCcm128KeySpan> ipk, Optional<NodeId> adminSubject);
 
 constexpr uint32_t kMaxCHIPDERCertLength = 600;
+constexpr size_t kOpCSRNonceLength       = 32;
 
 /// Callbacks for CHIP operational credentials generation
 class DLL_EXPORT OperationalCredentialsDelegate
@@ -76,6 +77,13 @@ public:
      *   fabric ID.
      */
     virtual void SetFabricIdForNextNOCRequest(FabricId fabricId) {}
+
+    virtual CHIP_ERROR ObtainCsrNonce(MutableByteSpan & csrNonce)
+    {
+        VerifyOrReturnError(csrNonce.size() == kOpCSRNonceLength, CHIP_ERROR_INVALID_ARGUMENT);
+        ReturnErrorOnFailure(Crypto::DRBG_get_bytes(csrNonce.data(), csrNonce.size()));
+        return CHIP_NO_ERROR;
+    }
 };
 
 } // namespace Controller

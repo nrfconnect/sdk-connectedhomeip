@@ -117,10 +117,12 @@ bool AttributePathExpandIterator::Next()
 {
     for (; mpClusterInfo != nullptr; (mpClusterInfo = mpClusterInfo->mpNext, mEndpointIndex = UINT16_MAX))
     {
+        mOutputPath.mExpanded = mpClusterInfo->HasAttributeWildcard();
+
         if (mEndpointIndex == UINT16_MAX)
         {
             // Special case: If this is a concrete path, we just return its value as-is.
-            if (!mpClusterInfo->HasWildcard())
+            if (!mpClusterInfo->HasAttributeWildcard())
             {
                 mOutputPath.mEndpointId  = mpClusterInfo->mEndpointId;
                 mOutputPath.mClusterId   = mpClusterInfo->mClusterId;
@@ -175,7 +177,7 @@ bool AttributePathExpandIterator::Next()
     }
 
     // Reset to default, invalid value.
-    mOutputPath = ConcreteAttributePath();
+    mOutputPath = ConcreteReadAttributePath();
     return false;
 }
 } // namespace app

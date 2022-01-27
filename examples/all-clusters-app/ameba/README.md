@@ -10,10 +10,10 @@ control.
     -   [Building the Example Application](#building-the-example-application)
     -   [Commissioning and cluster control](#commissioning-and-cluster-control)
         -   [Commissioning](#commissioning)
-            -   [Bypass mode](#bypass-mode)
             -   [BLE mode](#ble-mode)
             -   [IP mode](#ip-mode)
         -   [Cluster control](#cluster-control)
+    -   [Running RPC Console](#running-rpc-console)
 
 ---
 
@@ -59,26 +59,7 @@ The CHIP demo application is supported on
 
 ## Commissioning
 
-There are three commissioning modes supported by Ameba platform:
-
-### Bypass mode
-
-1. In "connectedhomeip/config/ameba/args.gni"
-
-    - set `chip_bypass_rendezvous = true`
-    - Set `chip_config_network_layer_ble = false`
-
-2. In "connectedhomeip/src/platform/Ameba/CHIPDevicePlatformConfig.h"
-
-    - Set `#define CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE 0`
-
-3. Build and Flash
-4. Use ATS\$ command to run all-cluster example.
-5. Connect to AP using `ATW0, ATW1, ATWC` commands
-6. Test with
-   [Chip-Tool](https://github.com/project-chip/connectedhomeip/tree/master/examples/chip-tool)
-   or
-   [Python Controller](https://github.com/project-chip/connectedhomeip/blob/master/docs/guides/python_chip_controller_building.md).
+There are two commissioning modes supported by Ameba platform:
 
 ### BLE mode
 
@@ -133,3 +114,31 @@ to be On or Off.
     [Python Controller](https://github.com/project-chip/connectedhomeip/blob/master/docs/guides/python_chip_controller_building.md#step-8-control-application-zcl-clusters)
 
           $ chip-device-ctrl > zcl OnOff Toggle 1234 1 0
+
+## Running RPC Console
+
+-   Connect a USB-TTL Adapter as shown below
+
+            Ameba         USB-TTL
+            A19           TX
+            A18           RX
+            GND           GND
+
+-   Build the
+    [chip-rpc console](https://github.com/project-chip/connectedhomeip/tree/master/examples/common/pigweed/rpc_console)
+
+-   As part of building the example with RPCs enabled the chip_rpc python
+    interactive console is installed into your venv. The python wheel files are
+    also created in the output folder: out/debug/chip_rpc_console_wheels. To
+    install the wheel files without rebuilding:
+
+            $ pip3 install out/debug/chip_rpc_console_wheels/*.whl
+
+-   Launch the chip-rpc console after inputting `ATS$` command
+
+            $ python3 -m chip_rpc.console --device /dev/tty<port connected to USB-TTL adapter> -b 115200
+
+-   Get and Set lighting directly using the RPC console
+
+            rpcs.chip.rpc.Lighting.Get()
+            rpcs.chip.rpc.Lighting.Set(on=True, level=128, color=protos.chip.rpc.LightingColor(hue=5, saturation=5))

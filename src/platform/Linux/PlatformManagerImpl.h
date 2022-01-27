@@ -23,8 +23,6 @@
 
 #pragma once
 
-#include <memory>
-
 #include <platform/PlatformManager.h>
 #include <platform/internal/GenericPlatformManagerImpl_POSIX.h>
 
@@ -56,21 +54,27 @@ public:
     GDBusConnection * GetGDBusConnection();
 #endif
 
+    System::Clock::Timestamp GetStartTime() { return mStartTime; }
+
+    void HandleGeneralFault(uint32_t EventId);
+    void HandleSoftwareFault(uint32_t EventId);
+    void HandleSwitchEvent(uint32_t EventId);
+
 private:
     // ===== Methods that implement the PlatformManager abstract interface.
 
     CHIP_ERROR _InitChipStack();
     CHIP_ERROR _Shutdown();
-    CHIP_ERROR _GetCurrentHeapFree(uint64_t & currentHeapFree);
-    CHIP_ERROR _GetCurrentHeapUsed(uint64_t & currentHeapUsed);
-    CHIP_ERROR _GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark);
-    CHIP_ERROR _GetThreadMetrics(ThreadMetrics ** threadMetricsOut);
-    void _ReleaseThreadMetrics(ThreadMetrics * threadMetrics);
-
-    CHIP_ERROR _GetRebootCount(uint16_t & rebootCount);
-    CHIP_ERROR _GetUpTime(uint64_t & upTime);
-    CHIP_ERROR _GetTotalOperationalHours(uint32_t & totalOperationalHours);
-    CHIP_ERROR _GetBootReasons(uint8_t & bootReasons);
+    CHIP_ERROR
+    _GetFixedLabelList(EndpointId endpoint,
+                       AttributeList<app::Clusters::FixedLabel::Structs::LabelStruct::Type, kMaxFixedLabels> & labelList);
+    CHIP_ERROR _SetUserLabelList(EndpointId endpoint,
+                                 AttributeList<app::Clusters::UserLabel::Structs::LabelStruct::Type, kMaxUserLabels> & labelList);
+    CHIP_ERROR _GetUserLabelList(EndpointId endpoint,
+                                 AttributeList<app::Clusters::UserLabel::Structs::LabelStruct::Type, kMaxUserLabels> & labelList);
+    CHIP_ERROR _GetSupportedLocales(AttributeList<chip::CharSpan, kMaxLanguageTags> & supportedLocales);
+    CHIP_ERROR _GetSupportedCalendarTypes(
+        AttributeList<app::Clusters::TimeFormatLocalization::CalendarType, kMaxCalendarTypes> & supportedCalendarTypes);
 
     // ===== Members for internal use by the following friends.
 
@@ -112,7 +116,7 @@ inline PlatformManager & PlatformMgr()
  * Returns the platform-specific implementation of the PlatformManager singleton object.
  *
  * chip applications can use this to gain access to features of the PlatformManager
- * that are specific to the ESP32 platform.
+ * that are specific to the platform.
  */
 inline PlatformManagerImpl & PlatformMgrImpl()
 {

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <app-common/zap-generated/cluster-objects.h>
 #include <app/server/AppDelegate.h>
 #include <protocols/secure_channel/RendezvousParameters.h>
 #include <protocols/secure_channel/SessionIDAllocator.h>
@@ -58,13 +59,14 @@ public:
 
     void CloseCommissioningWindow();
 
-    bool IsCommissioningWindowOpen() { return mCommissioningWindowOpen; }
+    app::Clusters::AdministratorCommissioning::CommissioningWindowStatus CommissioningWindowStatus() const { return mWindowStatus; }
 
     //////////// SessionEstablishmentDelegate Implementation ///////////////
     void OnSessionEstablishmentError(CHIP_ERROR error) override;
     void OnSessionEstablishmentStarted() override;
     void OnSessionEstablished() override;
 
+    void Shutdown();
     void Cleanup();
 
     void OnPlatformEvent(const DeviceLayer::ChipDeviceEvent * event);
@@ -76,15 +78,22 @@ private:
 
     CHIP_ERROR StartAdvertisement();
 
-    CHIP_ERROR StopAdvertisement();
+    CHIP_ERROR StopAdvertisement(bool aShuttingDown);
 
     CHIP_ERROR OpenCommissioningWindow();
+
+    // Helper for Shutdown and Cleanup.  Does not do anything with
+    // advertisements, because Shutdown and Cleanup want to handle those
+    // differently.
+    void ResetState();
 
     AppDelegate * mAppDelegate = nullptr;
     Server * mServer           = nullptr;
 
-    bool mCommissioningWindowOpen = false;
-    bool mIsBLE                   = true;
+    app::Clusters::AdministratorCommissioning::CommissioningWindowStatus mWindowStatus =
+        app::Clusters::AdministratorCommissioning::CommissioningWindowStatus::kWindowNotOpen;
+
+    bool mIsBLE = true;
 
     bool mOriginalDiscriminatorCached = false;
     uint16_t mOriginalDiscriminator   = 0;

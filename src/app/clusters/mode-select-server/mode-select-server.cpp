@@ -42,12 +42,12 @@ class ModeSelectAttrAccess : public AttributeAccessInterface
 public:
     ModeSelectAttrAccess() : AttributeAccessInterface(Optional<EndpointId>::Missing(), ModeSelect::Id) {}
 
-    CHIP_ERROR Read(const ConcreteAttributePath & aPath, AttributeValueEncoder & aEncoder) override;
+    CHIP_ERROR Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder) override;
 };
 
 ModeSelectAttrAccess gModeSelectAttrAccess;
 
-CHIP_ERROR ModeSelectAttrAccess::Read(const ConcreteAttributePath & aPath, AttributeValueEncoder & aEncoder)
+CHIP_ERROR ModeSelectAttrAccess::Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder)
 {
     VerifyOrDie(aPath.mClusterId == ModeSelect::Id);
 
@@ -59,11 +59,11 @@ CHIP_ERROR ModeSelectAttrAccess::Read(const ConcreteAttributePath & aPath, Attri
             gSupportedModeManager->getModeOptionsProvider(aPath.mEndpointId);
         if (modeOptionsProvider.begin() == nullptr)
         {
-            aEncoder.Encode(DataModel::List<ModeSelect::Structs::ModeOptionStruct::Type>());
+            aEncoder.EncodeEmptyList();
             return CHIP_NO_ERROR;
         }
         CHIP_ERROR err;
-        err = aEncoder.EncodeList([modeOptionsProvider](const TagBoundEncoder & encoder) -> CHIP_ERROR {
+        err = aEncoder.EncodeList([modeOptionsProvider](const auto & encoder) -> CHIP_ERROR {
             const auto * end = modeOptionsProvider.end();
             for (auto * it = modeOptionsProvider.begin(); it != end; ++it)
             {

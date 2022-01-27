@@ -84,7 +84,7 @@ Silicon Labs platform.
           $ cd ~/connectedhomeip
           $ rm -rf ./out/
 
-OR use GN/Ninja directly
+    OR use GN/Ninja directly
 
           $ cd ~/connectedhomeip/examples/lock-app/efr32
           $ git submodule update --init
@@ -97,6 +97,34 @@ OR use GN/Ninja directly
 
           $ cd ~/connectedhomeip/examples/lock-app/efr32
           $ rm -rf out/
+
+*   Build the example as Sleepy End Device (SED)
+
+          $ ./scripts/examples/gn_efr32_example.sh ./examples/lighting-app/efr32/ ./out/lighting-app_SED BRD4161A --sed
+
+    or use gn as previously mentioned but adding the following arguments:
+
+          $ gn gen out/debug '--args=efr32_board="BRD4161A" enable_sleepy_device=true chip_openthread_ftd=false'
+
+*   Build the example with pigweed RCP
+
+          $ ./scripts/examples/gn_efr32_example.sh examples/lock-app/efr32/ out/lock_app_rpc BRD4161A 'import("//with_pw_rpc.gni")'
+
+    or use GN/Ninja Directly
+
+          $ cd ~/connectedhomeip/examples/lock-app/efr32
+          $ git submodule update --init
+          $ source third_party/connectedhomeip/scripts/activate.sh
+          $ export EFR32_BOARD=BRD4161A
+          $ gn gen out/debug --args='import("//with_pw_rpc.gni")'
+          $ ninja -C out/debug
+
+    [Running Pigweed RPC console](#running-pigweed-rpc-console)
+
+For more build options, help is provided when running the build script without
+arguments
+
+         ./scripts/examples/gn_efr32_example.sh
 
 <a name="flashing"></a>
 
@@ -231,9 +259,9 @@ combination with JLinkRTTClient as follows:
 
       connect -ble 3840 73141520 1234
 
-      zcl NetworkCommissioning AddThreadNetwork 1234 0 0 operationalDataset=hex:0e080000000000000000000300000b35060004001fffe00208dead00beef00cafe0708fddead00beef000005108e11d8ea8ffaa875713699f59e8807e0030a4f70656e5468726561640102c2980410edc641eb63b100b87e90a9980959befc0c0402a0fff8 breadcrumb=0 timeoutMs=1000
+      zcl NetworkCommissioning AddOrUpdateThreadNetwork 1234 0 0 operationalDataset=hex:0e080000000000000000000300000b35060004001fffe00208dead00beef00cafe0708fddead00beef000005108e11d8ea8ffaa875713699f59e8807e0030a4f70656e5468726561640102c2980410edc641eb63b100b87e90a9980959befc0c0402a0fff8 breadcrumb=0 timeoutMs=1000
 
-      zcl NetworkCommissioning EnableNetwork 1234 0 0 networkID=hex:dead00beef00cafe breadcrumb=0 timeoutMs=1000
+      zcl NetworkCommissioning ConnectNetwork 1234 0 0 networkID=hex:dead00beef00cafe breadcrumb=0 timeoutMs=1000
 
       close-ble
 

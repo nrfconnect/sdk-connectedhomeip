@@ -16,6 +16,7 @@
  */
 #import "CHIPDeviceController.h"
 
+#import "CHIPCommissioningParameters.h"
 #import "CHIPDevicePairingDelegateBridge.h"
 #import "CHIPDevice_Internal.h"
 #import "CHIPError_Internal.h"
@@ -36,7 +37,7 @@
 #include <controller/CHIPDeviceController.h>
 #include <controller/CHIPDeviceControllerFactory.h>
 #include <credentials/DeviceAttestationVerifier.h>
-#include <credentials/examples/DeviceAttestationVerifierExample.h>
+#include <credentials/examples/DefaultDeviceAttestationVerifier.h>
 #include <lib/support/CHIPMem.h>
 #include <platform/PlatformManager.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
@@ -190,7 +191,9 @@ static NSString * const kErrorSetupCodeGen = @"Generating Manual Pairing Code fa
         }
 
         // Initialize device attestation verifier
-        chip::Credentials::SetDeviceAttestationVerifier(chip::Credentials::Examples::GetExampleDACVerifier());
+        // TODO: Replace testingRootStore with a AttestationTrustStore that has the necessary official PAA roots available
+        const chip::Credentials::AttestationTrustStore * testingRootStore = chip::Credentials::GetTestAttestationTrustStore();
+        chip::Credentials::SetDeviceAttestationVerifier(chip::Credentials::GetDefaultDACVerifier(testingRootStore));
 
         params.fabricStorage = _fabricStorage;
         commissionerParams.storageDelegate = _persistentStorageDelegateBridge;
@@ -350,6 +353,47 @@ static NSString * const kErrorSetupCodeGen = @"Generating Manual Pairing Code fa
     return success;
 }
 
+- (BOOL)commissionDevice:(uint64_t)deviceId
+     commissioningParams:(CHIPCommissioningParameters *)commissioningParams
+                   error:(NSError * __autoreleasing *)error
+{
+    __block CHIP_ERROR errorCode = CHIP_ERROR_INCORRECT_STATE;
+    __block BOOL success = NO;
+    if (![self isRunning]) {
+        success = ![self checkForError:errorCode logMsg:kErrorNotRunning error:error];
+        return success;
+    }
+    dispatch_sync(_chipWorkQueue, ^{
+        if ([self isRunning]) {
+            chip::Controller::CommissioningParameters params;
+            if (commissioningParams.CSRNonce) {
+                params.SetCSRNonce(
+                    chip::ByteSpan((uint8_t *) commissioningParams.CSRNonce.bytes, commissioningParams.CSRNonce.length));
+            }
+            if (commissioningParams.attestationNonce) {
+                params.SetAttestationNonce(chip::ByteSpan(
+                    (uint8_t *) commissioningParams.attestationNonce.bytes, commissioningParams.attestationNonce.length));
+            }
+            if (commissioningParams.threadOperationalDataset) {
+                params.SetThreadOperationalDataset(chip::ByteSpan((uint8_t *) commissioningParams.threadOperationalDataset.bytes,
+                    commissioningParams.threadOperationalDataset.length));
+            }
+            if (commissioningParams.wifiSSID && commissioningParams.wifiCredentials) {
+                chip::ByteSpan ssid((uint8_t *) commissioningParams.wifiSSID.bytes, commissioningParams.wifiSSID.length);
+                chip::ByteSpan credentials(
+                    (uint8_t *) commissioningParams.wifiCredentials.bytes, commissioningParams.wifiCredentials.length);
+                chip::Controller::WiFiCredentials wifiCreds(ssid, credentials);
+                params.SetWiFiCredentials(wifiCreds);
+            }
+
+            _operationalCredentialsDelegate->SetDeviceID(deviceId);
+            errorCode = self.cppCommissioner->Commission(deviceId, params);
+        }
+        success = ![self checkForError:errorCode logMsg:kErrorPairDevice error:error];
+    });
+    return success;
+}
+
 - (BOOL)unpairDevice:(uint64_t)deviceID error:(NSError * __autoreleasing *)error
 {
     __block CHIP_ERROR errorCode = CHIP_ERROR_INCORRECT_STATE;
@@ -401,6 +445,25 @@ static NSString * const kErrorSetupCodeGen = @"Generating Manual Pairing Code fa
     });
 
     return paired;
+}
+
+- (CHIPDevice *)getDeviceBeingCommissioned:(uint64_t)deviceId error:(NSError * __autoreleasing *)error
+{
+    CHIP_ERROR errorCode = CHIP_ERROR_INCORRECT_STATE;
+    if (![self isRunning]) {
+        [self checkForError:errorCode logMsg:kErrorNotRunning error:error];
+        return nil;
+    }
+
+    chip::CommissioneeDeviceProxy * deviceProxy;
+    errorCode = self->_cppCommissioner->GetDeviceBeingCommissioned(deviceId, &deviceProxy);
+    if (errorCode != CHIP_NO_ERROR) {
+        if (error) {
+            *error = [CHIPError errorForCHIPErrorCode:errorCode];
+        }
+        return nil;
+    }
+    return [[CHIPDevice alloc] initWithDevice:deviceProxy];
 }
 
 - (BOOL)getConnectedDevice:(uint64_t)deviceID

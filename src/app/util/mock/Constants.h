@@ -23,13 +23,17 @@
 
 #pragma once
 
+#include <app/ConcreteAttributePath.h>
+#include <lib/core/CHIPError.h>
+#include <lib/core/CHIPTLV.h>
 #include <lib/core/DataModelTypes.h>
 
 namespace chip {
 namespace Test {
-constexpr EndpointId kMockEndpoint1 = 0xFFFE;
-constexpr EndpointId kMockEndpoint2 = 0xFFFD;
-constexpr EndpointId kMockEndpoint3 = 0xFFFC;
+constexpr EndpointId kMockEndpoint1   = 0xFFFE;
+constexpr EndpointId kMockEndpoint2   = 0xFFFD;
+constexpr EndpointId kMockEndpoint3   = 0xFFFC;
+constexpr EndpointId kMockEndpointMin = 0xFFF1;
 
 constexpr AttributeId MockAttributeId(const uint16_t & id)
 {
@@ -41,5 +45,9 @@ constexpr AttributeId MockClusterId(const uint16_t & id)
     return (0xFFF1'0000 | id);
 }
 
+constexpr EventId MockEventId(const uint16_t & id)
+{
+    return (0xFFF1'0000 | id);
+}
 } // namespace Test
 } // namespace chip

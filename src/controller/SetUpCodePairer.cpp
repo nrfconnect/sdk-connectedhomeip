@@ -44,50 +44,49 @@ CHIP_ERROR SetUpCodePairer::PairDevice(NodeId remoteId, const char * setUpCode)
     mRemoteId     = remoteId;
     mSetUpPINCode = payload.setUpPINCode;
 
-    return Connect(payload.rendezvousInformation, payload.discriminator, !isQRCode);
+    return Connect(payload);
 }
 
-CHIP_ERROR SetUpCodePairer::Connect(RendezvousInformationFlag rendezvousInformation, uint16_t discriminator, bool isShort)
+CHIP_ERROR SetUpCodePairer::Connect(SetupPayload & payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     bool isRunning = false;
 
-    bool searchOverAll = rendezvousInformation == RendezvousInformationFlag::kNone;
-    if (searchOverAll || rendezvousInformation == RendezvousInformationFlag::kBLE)
+    bool searchOverAll = payload.rendezvousInformation == RendezvousInformationFlag::kNone;
+    if (searchOverAll || payload.rendezvousInformation == RendezvousInformationFlag::kBLE)
     {
-        if (CHIP_NO_ERROR == (err = StartDiscoverOverBle(discriminator, isShort)))
+        if (CHIP_NO_ERROR == (err = StartDiscoverOverBle(payload)))
         {
             isRunning = true;
         }
         VerifyOrReturnError(searchOverAll || CHIP_NO_ERROR == err, err);
     }
 
-    if (searchOverAll || rendezvousInformation == RendezvousInformationFlag::kOnNetwork)
+    if (searchOverAll || payload.rendezvousInformation == RendezvousInformationFlag::kSoftAP)
     {
-        if (CHIP_NO_ERROR == (err = StartDiscoverOverIP(discriminator, isShort)))
+        if (CHIP_NO_ERROR == (err = StartDiscoverOverSoftAP(payload)))
         {
             isRunning = true;
         }
         VerifyOrReturnError(searchOverAll || CHIP_NO_ERROR == err, err);
     }
 
-    if (searchOverAll || rendezvousInformation == RendezvousInformationFlag::kSoftAP)
+    // We always want to search on network because any node that has already been commissioned will use on-network regardless of the
+    // QR code flag.
+    if (CHIP_NO_ERROR == (err = StartDiscoverOverIP(payload)))
     {
-        if (CHIP_NO_ERROR == (err = StartDiscoverOverSoftAP(discriminator, isShort)))
-        {
-            isRunning = true;
-        }
-        VerifyOrReturnError(searchOverAll || CHIP_NO_ERROR == err, err);
+        isRunning = true;
     }
+    VerifyOrReturnError(searchOverAll || CHIP_NO_ERROR == err, err);
 
     return isRunning ? CHIP_NO_ERROR : CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
-CHIP_ERROR SetUpCodePairer::StartDiscoverOverBle(uint16_t discriminator, bool isShort)
+CHIP_ERROR SetUpCodePairer::StartDiscoverOverBle(SetupPayload & payload)
 {
 #if CONFIG_NETWORK_LAYER_BLE
     VerifyOrReturnError(mBleLayer != nullptr, CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE);
-    return mBleLayer->NewBleConnectionByDiscriminator(discriminator, this, OnDiscoveredDeviceOverBleSuccess,
+    return mBleLayer->NewBleConnectionByDiscriminator(payload.discriminator, this, OnDiscoveredDeviceOverBleSuccess,
                                                       OnDiscoveredDeviceOverBleError);
 #else
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
@@ -104,12 +103,14 @@ CHIP_ERROR SetUpCodePairer::StopConnectOverBle()
 #endif // CONFIG_NETWORK_LAYER_BLE
 }
 
-CHIP_ERROR SetUpCodePairer::StartDiscoverOverIP(uint16_t discriminator, bool isShort)
+CHIP_ERROR SetUpCodePairer::StartDiscoverOverIP(SetupPayload & payload)
 {
 #if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
-    mCommissioner->RegisterDeviceDiscoveryDelegate(this);
-    Dnssd::DiscoveryFilter filter(isShort ? Dnssd::DiscoveryFilterType::kShort : Dnssd::DiscoveryFilterType::kLong, discriminator);
-    return mCommissioner->DiscoverCommissionableNodes(filter);
+    currentFilter.type = payload.isShortDiscriminator ? Dnssd::DiscoveryFilterType::kShortDiscriminator
+                                                      : Dnssd::DiscoveryFilterType::kLongDiscriminator;
+    currentFilter.code =
+        payload.isShortDiscriminator ? static_cast<uint16_t>((payload.discriminator >> 8) & 0x0F) : payload.discriminator;
+    return mCommissioner->DiscoverCommissionableNodes(currentFilter);
 #else
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
@@ -118,12 +119,12 @@ CHIP_ERROR SetUpCodePairer::StartDiscoverOverIP(uint16_t discriminator, bool isS
 CHIP_ERROR SetUpCodePairer::StopConnectOverIP()
 {
 #if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
-    mCommissioner->RegisterDeviceDiscoveryDelegate(nullptr);
+    currentFilter.type = Dnssd::DiscoveryFilterType::kNone;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR SetUpCodePairer::StartDiscoverOverSoftAP(uint16_t discriminator, bool isShort)
+CHIP_ERROR SetUpCodePairer::StartDiscoverOverSoftAP(SetupPayload & payload)
 {
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
@@ -146,7 +147,9 @@ void SetUpCodePairer::OnDiscoveredDeviceOverBle(BLE_CONNECTION_OBJECT connObj)
 
     Transport::PeerAddress peerAddress = Transport::PeerAddress::BLE();
     RendezvousParameters params        = RendezvousParameters().SetPeerAddress(peerAddress).SetConnectionObject(connObj);
-    OnDeviceDiscovered(params);
+    // We don't have network credentials, so can't do the entire pairing flow.  Just establish a PASE session to the
+    //  device and let our consumer deal with the rest.
+    LogErrorOnFailure(mCommissioner->EstablishPASEConnection(mRemoteId, params.SetSetupPINCode(mSetUpPINCode)));
 }
 
 void SetUpCodePairer::OnDiscoveredDeviceOverBleSuccess(void * appState, BLE_CONNECTION_OBJECT connObj)
@@ -161,8 +164,32 @@ void SetUpCodePairer::OnDiscoveredDeviceOverBleError(void * appState, CHIP_ERROR
 #endif // CONFIG_NETWORK_LAYER_BLE
 
 #if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
-void SetUpCodePairer::OnDiscoveredDevice(const Dnssd::DiscoveredNodeData & nodeData)
+
+bool SetUpCodePairer::NodeMatchesCurrentFilter(const Dnssd::DiscoveredNodeData & nodeData)
 {
+    if (nodeData.commissioningMode == 0)
+    {
+        return false;
+    }
+
+    switch (currentFilter.type)
+    {
+    case Dnssd::DiscoveryFilterType::kShortDiscriminator:
+        return ((nodeData.longDiscriminator >> 8) & 0x0F) == currentFilter.code;
+    case Dnssd::DiscoveryFilterType::kLongDiscriminator:
+        return nodeData.longDiscriminator == currentFilter.code;
+    default:
+        return false;
+    }
+    return false;
+}
+
+void SetUpCodePairer::NotifyCommissionableDeviceDiscovered(const Dnssd::DiscoveredNodeData & nodeData)
+{
+    if (!NodeMatchesCurrentFilter(nodeData))
+    {
+        return;
+    }
     LogErrorOnFailure(StopConnectOverBle());
     LogErrorOnFailure(StopConnectOverIP());
     LogErrorOnFailure(StopConnectOverSoftAP());

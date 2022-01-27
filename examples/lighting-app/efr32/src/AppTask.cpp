@@ -28,6 +28,7 @@
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/cluster-id.h>
 #include <app/clusters/identify-server/identify-server.h>
+#include <app/clusters/on-off-server/on-off-server.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -50,6 +51,9 @@
 #include <platform/OpenThread/OpenThreadUtils.h>
 #include <platform/ThreadStackManager.h>
 #endif
+#ifdef SL_WIFI
+#include "wfx_host_events.h"
+#endif /* SL_WIFI */
 
 #define FACTORY_RESET_TRIGGER_TIMEOUT 3000
 #define FACTORY_RESET_CANCEL_WINDOW_TIMEOUT 3000
@@ -72,9 +76,17 @@ QueueHandle_t sAppEventQueue;
 LEDWidget sStatusLED;
 LEDWidget sLightLED;
 
+#ifdef SL_WIFI
+bool sIsWiFiProvisioned = false;
+bool sIsWiFiEnabled     = false;
+bool sIsWiFiAttached    = false;
+#endif /* SL_WIFI */
+
+#if CHIP_ENABLE_OPENTHREAD
 bool sIsThreadProvisioned = false;
 bool sIsThreadEnabled     = false;
-bool sHaveBLEConnections  = false;
+#endif /* CHIP_ENABLE_OPENTHREAD */
+bool sHaveBLEConnections = false;
 
 EmberAfIdentifyEffectIdentifier sIdentifyEffect = EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT;
 
@@ -84,12 +96,18 @@ StaticQueue_t sAppEventQueueStruct;
 StackType_t appStack[APP_TASK_STACK_SIZE / sizeof(StackType_t)];
 StaticTask_t appTaskStruct;
 
-inline void OnTriggerEffectCompleted(chip::System::Layer * systemLayer, void * appState)
+/**********************************************************
+ * Identify Callbacks
+ *********************************************************/
+
+namespace {
+void OnTriggerIdentifyEffectCompleted(chip::System::Layer * systemLayer, void * appState)
 {
     sIdentifyEffect = EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT;
 }
+} // namespace
 
-void OnTriggerEffect(Identify * identify)
+void OnTriggerIdentifyEffect(Identify * identify)
 {
     sIdentifyEffect = identify->mCurrentEffectIdentifier;
 
@@ -105,14 +123,16 @@ void OnTriggerEffect(Identify * identify)
     case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BLINK:
     case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BREATHE:
     case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_OKAY:
-        (void) chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds16(5), OnTriggerEffectCompleted, identify);
+        (void) chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds16(5), OnTriggerIdentifyEffectCompleted,
+                                                           identify);
         break;
     case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_FINISH_EFFECT:
-        (void) chip::DeviceLayer::SystemLayer().CancelTimer(OnTriggerEffectCompleted, identify);
-        (void) chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds16(1), OnTriggerEffectCompleted, identify);
+        (void) chip::DeviceLayer::SystemLayer().CancelTimer(OnTriggerIdentifyEffectCompleted, identify);
+        (void) chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Seconds16(1), OnTriggerIdentifyEffectCompleted,
+                                                           identify);
         break;
     case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT:
-        (void) chip::DeviceLayer::SystemLayer().CancelTimer(OnTriggerEffectCompleted, identify);
+        (void) chip::DeviceLayer::SystemLayer().CancelTimer(OnTriggerIdentifyEffectCompleted, identify);
         sIdentifyEffect = EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT;
         break;
     default:
@@ -125,7 +145,53 @@ Identify gIdentify = {
     [](Identify *) { ChipLogProgress(Zcl, "onIdentifyStart"); },
     [](Identify *) { ChipLogProgress(Zcl, "onIdentifyStop"); },
     EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED,
-    OnTriggerEffect,
+    OnTriggerIdentifyEffect,
+};
+
+/**********************************************************
+ * OffWithEffect Callbacks
+ *********************************************************/
+
+void OnTriggerOffWithEffect(OnOffEffect * effect)
+{
+    chip::app::Clusters::OnOff::OnOffEffectIdentifier effectId = effect->mEffectIdentifier;
+    uint8_t effectVariant                                      = effect->mEffectVariant;
+
+    // Uses print outs until we can support the effects
+    if (effectId == EMBER_ZCL_ON_OFF_EFFECT_IDENTIFIER_DELAYED_ALL_OFF)
+    {
+        if (effectVariant == EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_FADE_TO_OFF_IN_0P8_SECONDS)
+        {
+            ChipLogProgress(Zcl, "EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_FADE_TO_OFF_IN_0P8_SECONDS");
+        }
+        else if (effectVariant == EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_NO_FADE)
+        {
+            ChipLogProgress(Zcl, "EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_NO_FADE");
+        }
+        else if (effectVariant ==
+                 EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_50_PERCENT_DIM_DOWN_IN_0P8_SECONDS_THEN_FADE_TO_OFF_IN_12_SECONDS)
+        {
+            ChipLogProgress(Zcl,
+                            "EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_50_PERCENT_DIM_DOWN_IN_0P8_SECONDS_THEN_FADE_TO_OFF_"
+                            "IN_12_SECONDS");
+        }
+    }
+    else if (effectId == EMBER_ZCL_ON_OFF_EFFECT_IDENTIFIER_DYING_LIGHT)
+    {
+        if (effectVariant ==
+            EMBER_ZCL_ON_OFF_DYING_LIGHT_EFFECT_VARIANT_20_PERCENTER_DIM_UP_IN_0P5_SECONDS_THEN_FADE_TO_OFF_IN_1_SECOND)
+        {
+            ChipLogProgress(
+                Zcl, "EMBER_ZCL_ON_OFF_DYING_LIGHT_EFFECT_VARIANT_20_PERCENTER_DIM_UP_IN_0P5_SECONDS_THEN_FADE_TO_OFF_IN_1_SECOND");
+        }
+    }
+}
+
+OnOffEffect gEffect = {
+    chip::EndpointId{ 1 },
+    OnTriggerOffWithEffect,
+    EMBER_ZCL_ON_OFF_EFFECT_IDENTIFIER_DELAYED_ALL_OFF,
+    static_cast<uint8_t>(EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_FADE_TO_OFF_IN_0P8_SECONDS),
 };
 
 } // namespace
@@ -154,6 +220,18 @@ CHIP_ERROR AppTask::Init()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
+#ifdef SL_WIFI
+    /*
+     * Wait for the WiFi to be initialized
+     */
+    EFR32_LOG("APP: Wait WiFi Init");
+    while (!wfx_hw_ready())
+    {
+        vTaskDelay(10);
+    }
+    EFR32_LOG("APP: Done WiFi Init");
+    /* We will init server when we get IP */
+#endif
     // Init ZCL Data Model
     chip::Server::GetInstance().Init();
 
@@ -173,7 +251,7 @@ CHIP_ERROR AppTask::Init()
         appError(APP_ERROR_CREATE_TIMER_FAILED);
     }
 
-    EFR32_LOG("Current Firmware Version: %s", CHIP_DEVICE_CONFIG_DEVICE_FIRMWARE_REVISION_STRING);
+    EFR32_LOG("Current Software Version: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
     err = LightMgr().Init();
     if (err != CHIP_NO_ERROR)
     {
@@ -240,9 +318,16 @@ void AppTask::AppTaskMain(void * pvParameter)
         // when the CHIP task is busy (e.g. with a long crypto operation).
         if (PlatformMgr().TryLockChipStack())
         {
+#ifdef SL_WIFI
+            sIsWiFiProvisioned = ConnectivityMgr().IsWiFiStationProvisioned();
+            sIsWiFiEnabled     = ConnectivityMgr().IsWiFiStationEnabled();
+            sIsWiFiAttached    = ConnectivityMgr().IsWiFiStationConnected();
+#endif /* SL_WIFI */
+#if CHIP_ENABLE_OPENTHREAD
             sIsThreadProvisioned = ConnectivityMgr().IsThreadProvisioned();
             sIsThreadEnabled     = ConnectivityMgr().IsThreadEnabled();
-            sHaveBLEConnections  = (ConnectivityMgr().NumBLEConnections() != 0);
+#endif /* CHIP_ENABLE_OPENTHREAD */
+            sHaveBLEConnections = (ConnectivityMgr().NumBLEConnections() != 0);
             PlatformMgr().UnlockChipStack();
         }
 
@@ -279,18 +364,16 @@ void AppTask::AppTaskMain(void * pvParameter)
                     sStatusLED.Blink(300, 700);
                 }
             }
-            else if (sIsThreadProvisioned && sIsThreadEnabled)
+#if CHIP_ENABLE_OPENTHREAD
+            if (sIsThreadProvisioned && sIsThreadEnabled)
+#else
+            if (sIsWiFiProvisioned && sIsWiFiEnabled && !sIsWiFiAttached)
+#endif
             {
                 sStatusLED.Blink(950, 50);
             }
-            else if (sHaveBLEConnections)
-            {
-                sStatusLED.Blink(100, 100);
-            }
-            else
-            {
-                sStatusLED.Blink(50, 950);
-            }
+            else if (sHaveBLEConnections) { sStatusLED.Blink(100, 100); }
+            else { sStatusLED.Blink(50, 950); }
         }
 
         sStatusLED.Animate();
@@ -430,16 +513,17 @@ void AppTask::FunctionHandler(AppEvent * aEvent)
             sAppTask.CancelTimer();
             sAppTask.mFunction = kFunction_NoneSelected;
 
+#ifdef SL_WIFI
+            if (!ConnectivityMgr().IsWiFiStationProvisioned())
+#else
             if (!ConnectivityMgr().IsThreadProvisioned())
+#endif /* !SL_WIFI */
             {
                 // Enable BLE advertisements
                 ConnectivityMgr().SetBLEAdvertisingEnabled(true);
                 ConnectivityMgr().SetBLEAdvertisingMode(ConnectivityMgr().kFastAdvertising);
             }
-            else
-            {
-                EFR32_LOG("Network is already provisioned, Ble advertissement not enabled");
-            }
+            else { EFR32_LOG("Network is already provisioned, Ble advertissement not enabled"); }
         }
         else if (sAppTask.mFunctionTimerActive && sAppTask.mFunction == kFunction_FactoryReset)
         {
@@ -586,8 +670,8 @@ void AppTask::UpdateClusterState(void)
     uint8_t newValue = LightMgr().IsLightOn();
 
     // write the new on/off value
-    EmberAfStatus status = emberAfWriteAttribute(1, ZCL_ON_OFF_CLUSTER_ID, ZCL_ON_OFF_ATTRIBUTE_ID, CLUSTER_MASK_SERVER,
-                                                 (uint8_t *) &newValue, ZCL_BOOLEAN_ATTRIBUTE_TYPE);
+    EmberAfStatus status = OnOffServer::Instance().setOnOffValue(1, newValue, false);
+
     if (status != EMBER_ZCL_STATUS_SUCCESS)
     {
         EFR32_LOG("ERR: updating on/off %x", status);

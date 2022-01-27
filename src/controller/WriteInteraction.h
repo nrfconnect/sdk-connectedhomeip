@@ -22,6 +22,7 @@
 #include <app/WriteClient.h>
 #include <controller/CommandSenderAllocator.h>
 #include <controller/TypedCommandCallback.h>
+#include <lib/core/Optional.h>
 
 namespace chip {
 namespace Controller {
@@ -45,9 +46,8 @@ public:
     //
     // In the latter case, path will be non-null. Otherwise, it shall be null.
     //
-    using OnErrorCallbackType =
-        std::function<void(const app::ConcreteAttributePath * path, app::StatusIB status, CHIP_ERROR aError)>;
-    using OnDoneCallbackType = std::function<void(app::WriteClient *, WriteCallback *)>;
+    using OnErrorCallbackType = std::function<void(const app::ConcreteAttributePath * path, CHIP_ERROR err)>;
+    using OnDoneCallbackType  = std::function<void(app::WriteClient *)>;
 
     WriteCallback(OnSuccessCallbackType aOnSuccess, OnErrorCallbackType aOnError, OnDoneCallbackType aOnDone) :
         mOnSuccess(aOnSuccess), mOnError(aOnError), mOnDone(aOnDone)
@@ -55,27 +55,34 @@ public:
 
     void OnResponse(const app::WriteClient * apWriteClient, const app::ConcreteAttributePath & aPath, app::StatusIB status) override
     {
-        if (status.mStatus == Protocols::InteractionModel::Status::Success)
+        if (status.IsSuccess())
         {
             mOnSuccess(aPath);
         }
         else
         {
-            mOnError(&aPath, status, CHIP_ERROR_IM_STATUS_CODE_RECEIVED);
+            mOnError(&aPath, status.ToChipError());
         }
     }
 
-    void OnError(const app::WriteClient * apWriteClient, CHIP_ERROR aError) override
+    void OnError(const app::WriteClient * apWriteClient, CHIP_ERROR aError) override { mOnError(nullptr, aError); }
+
+    void OnDone(app::WriteClient * apWriteClient) override
     {
-        mOnError(nullptr, app::StatusIB(Protocols::InteractionModel::Status::Failure), aError);
+        if (mOnDone != nullptr)
+        {
+            mOnDone(apWriteClient);
+        }
+
+        chip::Platform::Delete(apWriteClient);
+        // Always needs to be the last call
+        chip::Platform::Delete(this);
     }
 
-    void OnDone(app::WriteClient * apWriteClient) override { mOnDone(apWriteClient, this); }
-
 private:
-    OnSuccessCallbackType mOnSuccess;
-    OnErrorCallbackType mOnError;
-    OnDoneCallbackType mOnDone;
+    OnSuccessCallbackType mOnSuccess = nullptr;
+    OnErrorCallbackType mOnError     = nullptr;
+    OnDoneCallbackType mOnDone       = nullptr;
 };
 
 /**
@@ -85,33 +92,65 @@ private:
  * with a small number of instantiations (one per type).
  */
 template <typename AttrType>
-CHIP_ERROR WriteAttribute(SessionHandle sessionHandle, chip::EndpointId endpointId, ClusterId clusterId, AttributeId attributeId,
-                          const AttrType & requestData, WriteCallback::OnSuccessCallbackType onSuccessCb,
-                          WriteCallback::OnErrorCallbackType onErrorCb)
+CHIP_ERROR WriteAttribute(const SessionHandle & sessionHandle, chip::EndpointId endpointId, ClusterId clusterId,
+                          AttributeId attributeId, const AttrType & requestData, WriteCallback::OnSuccessCallbackType onSuccessCb,
+                          WriteCallback::OnErrorCallbackType onErrorCb, const Optional<uint16_t> & aTimedWriteTimeoutMs,
+                          WriteCallback::OnDoneCallbackType onDoneCb = nullptr)
 {
-    app::WriteClientHandle handle;
+    auto callback = Platform::MakeUnique<WriteCallback>(onSuccessCb, onErrorCb, onDoneCb);
+    auto client   = Platform::MakeUnique<app::WriteClient>(app::InteractionModelEngine::GetInstance()->GetExchangeManager(),
+                                                         callback.get(), aTimedWriteTimeoutMs);
 
-    auto onDone = [](app::WriteClient * apWriteClient, WriteCallback * callback) { chip::Platform::Delete(callback); };
-
-    auto callback = Platform::MakeUnique<WriteCallback>(onSuccessCb, onErrorCb, onDone);
     VerifyOrReturnError(callback != nullptr, CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnError(client != nullptr, CHIP_ERROR_NO_MEMORY);
 
-    ReturnErrorOnFailure(app::InteractionModelEngine::GetInstance()->NewWriteClient(handle, callback.get()));
-    ReturnErrorOnFailure(
-        handle.EncodeAttributeWritePayload(chip::app::AttributePathParams(endpointId, clusterId, attributeId), requestData));
-    ReturnErrorOnFailure(handle.SendWriteRequest(sessionHandle));
+    if (sessionHandle->IsGroupSession())
+    {
+        ReturnErrorOnFailure(
+            client->EncodeAttributeWritePayload(chip::app::AttributePathParams(clusterId, attributeId), requestData));
+    }
+    else
+    {
+        ReturnErrorOnFailure(
+            client->EncodeAttributeWritePayload(chip::app::AttributePathParams(endpointId, clusterId, attributeId), requestData));
+    }
 
+    ReturnErrorOnFailure(client->SendWriteRequest(sessionHandle));
+
+    // At this point the handle will ensure our callback's OnDone is always
+    // called.
+    client.release();
     callback.release();
+
     return CHIP_NO_ERROR;
 }
 
 template <typename AttributeInfo>
-CHIP_ERROR WriteAttribute(SessionHandle sessionHandle, chip::EndpointId endpointId,
+CHIP_ERROR WriteAttribute(const SessionHandle & sessionHandle, chip::EndpointId endpointId,
                           const typename AttributeInfo::Type & requestData, WriteCallback::OnSuccessCallbackType onSuccessCb,
-                          WriteCallback::OnErrorCallbackType onErrorCb)
+                          WriteCallback::OnErrorCallbackType onErrorCb, const Optional<uint16_t> & aTimedWriteTimeoutMs,
+                          WriteCallback::OnDoneCallbackType onDoneCb = nullptr)
 {
     return WriteAttribute(sessionHandle, endpointId, AttributeInfo::GetClusterId(), AttributeInfo::GetAttributeId(), requestData,
-                          onSuccessCb, onErrorCb);
+                          onSuccessCb, onErrorCb, aTimedWriteTimeoutMs, onDoneCb);
+}
+
+template <typename AttributeInfo>
+CHIP_ERROR WriteAttribute(const SessionHandle & sessionHandle, chip::EndpointId endpointId,
+                          const typename AttributeInfo::Type & requestData, WriteCallback::OnSuccessCallbackType onSuccessCb,
+                          WriteCallback::OnErrorCallbackType onErrorCb, uint16_t aTimedWriteTimeoutMs,
+                          WriteCallback::OnDoneCallbackType onDoneCb = nullptr)
+{
+    return WriteAttribute<AttributeInfo>(sessionHandle, endpointId, requestData, onSuccessCb, onErrorCb, onDoneCb,
+                                         MakeOptional(aTimedWriteTimeoutMs), onDoneCb);
+}
+
+template <typename AttributeInfo, typename std::enable_if_t<!AttributeInfo::MustUseTimedWrite(), int> = 0>
+CHIP_ERROR WriteAttribute(const SessionHandle & sessionHandle, chip::EndpointId endpointId,
+                          const typename AttributeInfo::Type & requestData, WriteCallback::OnSuccessCallbackType onSuccessCb,
+                          WriteCallback::OnErrorCallbackType onErrorCb, WriteCallback::OnDoneCallbackType onDoneCb = nullptr)
+{
+    return WriteAttribute<AttributeInfo>(sessionHandle, endpointId, requestData, onSuccessCb, onErrorCb, NullOptional, onDoneCb);
 }
 
 } // namespace Controller

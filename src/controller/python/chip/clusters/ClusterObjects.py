@@ -140,7 +140,7 @@ class ClusterObjectDescriptor:
         for tag, value in tlvData.items():
             descriptor = self.GetFieldByTag(tag)
             if not descriptor:
-                # We do not have enough infomation for this field.
+                # We do not have enough information for this field.
                 ret[tag] = value
                 continue
 
@@ -213,8 +213,12 @@ class ClusterCommand(ClusterObject):
     def command_id(self) -> int:
         raise NotImplementedError()
 
+    @ChipUtility.classproperty
+    def must_use_timed_invoke(cls) -> bool:
+        return False
 
-class Cluster:
+
+class Cluster(ClusterObject):
     ''' This class does nothing, but a convenient class that generated clusters can inherit from.
     This gives the ability that the users can use issubclass(X, Cluster) to determine if the class represnents a Cluster.
     '''
@@ -260,6 +264,10 @@ class ClusterAttributeDescriptor:
         raise NotImplementedError()
 
     @ChipUtility.classproperty
+    def must_use_timed_write(cls) -> bool:
+        return False
+
+    @ChipUtility.classproperty
     def _cluster_object(cls) -> ClusterObject:
         return make_dataclass('InternalClass',
                               [
@@ -275,3 +283,13 @@ class ClusterAttributeDescriptor:
                                   )
                               ],
                               bases=(ClusterObject,))
+
+
+class ClusterEvent(ClusterObject):
+    @ChipUtility.classproperty
+    def cluster_id(self) -> int:
+        raise NotImplementedError()
+
+    @ChipUtility.classproperty
+    def event_id(self) -> int:
+        raise NotImplementedError()

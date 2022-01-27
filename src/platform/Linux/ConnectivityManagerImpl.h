@@ -41,7 +41,13 @@
 #include <platform/Linux/dbus/wpa/DBusWpaBss.h>
 #include <platform/Linux/dbus/wpa/DBusWpaInterface.h>
 #include <platform/Linux/dbus/wpa/DBusWpaNetwork.h>
+
+#include <mutex>
 #endif
+
+#include <platform/Linux/NetworkCommissioningDriver.h>
+#include <platform/NetworkCommissioning.h>
+#include <vector>
 
 namespace chip {
 namespace Inet {
@@ -108,16 +114,41 @@ class ConnectivityManagerImpl final : public ConnectivityManager,
 public:
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
     CHIP_ERROR ProvisionWiFiNetwork(const char * ssid, const char * key);
+    CHIP_ERROR ConnectWiFiNetworkAsync(ByteSpan ssid, ByteSpan credentials,
+                                       NetworkCommissioning::Internal::WirelessDriver::ConnectCallback * connectCallback);
+    void PostNetworkConnect();
+    static void _ConnectWiFiNetworkAsyncCallback(GObject * source_object, GAsyncResult * res, gpointer user_data);
+    CHIP_ERROR CommitConfig();
+
     void StartWiFiManagement();
     bool IsWiFiManagementStarted();
+    CHIP_ERROR GetWiFiBssId(ByteSpan & value);
+    CHIP_ERROR GetWiFiSecurityType(uint8_t & securityType);
+    CHIP_ERROR GetWiFiVersion(uint8_t & wiFiVersion);
+    CHIP_ERROR GetConnectedNetwork(NetworkCommissioning::Network & network);
+    CHIP_ERROR StartWiFiScan(ByteSpan ssid, NetworkCommissioning::WiFiDriver::ScanCallback * callback);
 #endif
 
+    const char * GetEthernetIfName() { return (mEthIfName[0] == '\0') ? nullptr : mEthIfName; }
+
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-    static const char * GetWiFiIfName() { return sWiFiIfName; }
+    static const char * GetWiFiIfName() { return (sWiFiIfName[0] == '\0') ? nullptr : sWiFiIfName; }
 #endif
 
 private:
     // ===== Members that implement the ConnectivityManager abstract interface.
+
+    struct WiFiNetworkScanned
+    {
+        // The fields matches WiFiInterfaceScanResult::Type.
+        uint8_t ssid[Internal::kMaxWiFiSSIDLength];
+        uint8_t ssidLen;
+        uint8_t bssid[6];
+        int8_t rssi;
+        uint16_t frequencyBand;
+        uint8_t channel;
+        uint8_t security;
+    };
 
     CHIP_ERROR _Init();
     void _OnPlatformEvent(const ChipDeviceEvent * event);
@@ -136,9 +167,6 @@ private:
 
     WiFiAPMode _GetWiFiAPMode();
     CHIP_ERROR _SetWiFiAPMode(WiFiAPMode val);
-    CHIP_ERROR _GetWiFiBssId(ByteSpan & value);
-    CHIP_ERROR _GetWiFiSecurityType(uint8_t & securityType);
-    CHIP_ERROR _GetWiFiVersion(uint8_t & wiFiVersion);
     bool _IsWiFiAPActive();
     bool _IsWiFiAPApplicationControlled();
     void _DemandStartWiFiAP();
@@ -146,52 +174,28 @@ private:
     void _MaintainOnDemandWiFiAP();
     System::Clock::Timeout _GetWiFiAPIdleTimeout();
     void _SetWiFiAPIdleTimeout(System::Clock::Timeout val);
+    static CHIP_ERROR StopAutoScan();
 
     static void _OnWpaProxyReady(GObject * source_object, GAsyncResult * res, gpointer user_data);
     static void _OnWpaInterfaceRemoved(WpaFiW1Wpa_supplicant1 * proxy, const gchar * path, GVariant * properties,
                                        gpointer user_data);
     static void _OnWpaInterfaceAdded(WpaFiW1Wpa_supplicant1 * proxy, const gchar * path, GVariant * properties, gpointer user_data);
+    static void _OnWpaPropertiesChanged(WpaFiW1Wpa_supplicant1Interface * proxy, GVariant * changed_properties,
+                                        const gchar * const * invalidated_properties, gpointer user_data);
     static void _OnWpaInterfaceReady(GObject * source_object, GAsyncResult * res, gpointer user_data);
     static void _OnWpaInterfaceProxyReady(GObject * source_object, GAsyncResult * res, gpointer user_data);
     static void _OnWpaBssProxyReady(GObject * source_object, GAsyncResult * res, gpointer user_data);
+    static void _OnWpaInterfaceScanDone(GObject * source_object, GAsyncResult * res, gpointer user_data);
 
+    static bool _GetBssInfo(const gchar * bssPath, NetworkCommissioning::WiFiScanResponse & result);
+
+    static bool mAssociattionStarted;
     static BitFlags<ConnectivityFlags> mConnectivityFlag;
     static struct GDBusWpaSupplicant mWpaSupplicant;
     static std::mutex mWpaSupplicantMutex;
 #endif
 
-    void _ReleaseNetworkInterfaces(NetworkInterface * netifp);
-    CHIP_ERROR _GetNetworkInterfaces(NetworkInterface ** netifpp);
-    CHIP_ERROR _GetEthPHYRate(uint8_t & pHYRate);
-    CHIP_ERROR _GetEthFullDuplex(bool & fullDuplex);
-    CHIP_ERROR _GetEthTimeSinceReset(uint64_t & timeSinceReset);
-    CHIP_ERROR _GetEthPacketRxCount(uint64_t & packetRxCount);
-    CHIP_ERROR _GetEthPacketTxCount(uint64_t & packetTxCount);
-    CHIP_ERROR _GetEthTxErrCount(uint64_t & txErrCount);
-    CHIP_ERROR _GetEthCollisionCount(uint64_t & collisionCount);
-    CHIP_ERROR _GetEthOverrunCount(uint64_t & overrunCount);
-    CHIP_ERROR _ResetEthNetworkDiagnosticsCounts();
-
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-    CHIP_ERROR _GetWiFiChannelNumber(uint16_t & channelNumber);
-    CHIP_ERROR _GetWiFiRssi(int8_t & rssi);
-    CHIP_ERROR _GetWiFiBeaconLostCount(uint32_t & beaconLostCount);
-    CHIP_ERROR _GetWiFiPacketMulticastRxCount(uint32_t & packetMulticastRxCount);
-    CHIP_ERROR _GetWiFiPacketMulticastTxCount(uint32_t & packetMulticastTxCount);
-    CHIP_ERROR _GetWiFiPacketUnicastRxCount(uint32_t & packetUnicastRxCount);
-    CHIP_ERROR _GetWiFiPacketUnicastTxCount(uint32_t & packetUnicastTxCount);
-    CHIP_ERROR _GetWiFiCurrentMaxRate(uint64_t & currentMaxRate);
-    CHIP_ERROR _GetWiFiOverrunCount(uint64_t & overrunCount);
-    CHIP_ERROR _ResetWiFiNetworkDiagnosticsCounts();
-#endif
-
     // ==================== ConnectivityManager Private Methods ====================
-
-    CHIP_ERROR ResetEthernetStatsCount();
-
-#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-    CHIP_ERROR ResetWiFiStatsCount();
-#endif
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
     void DriveAPState();
@@ -209,11 +213,6 @@ private:
 
     // ===== Private members reserved for use by this class only.
 
-    uint64_t mEthPacketRxCount  = 0;
-    uint64_t mEthPacketTxCount  = 0;
-    uint64_t mEthTxErrCount     = 0;
-    uint64_t mEthCollisionCount = 0;
-    uint64_t mEthOverrunCount   = 0;
     char mEthIfName[IFNAMSIZ];
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
@@ -223,18 +222,14 @@ private:
     System::Clock::Timestamp mLastAPDemandTime;
     System::Clock::Timeout mWiFiStationReconnectInterval;
     System::Clock::Timeout mWiFiAPIdleTimeout;
-    uint8_t mWiFiMacAddress[kMaxHardwareAddrSize];
 #endif
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-    uint32_t mBeaconLostCount        = 0;
-    uint32_t mPacketMulticastRxCount = 0;
-    uint32_t mPacketMulticastTxCount = 0;
-    uint32_t mPacketUnicastRxCount   = 0;
-    uint32_t mPacketUnicastTxCount   = 0;
-    uint64_t mOverrunCount           = 0;
     static char sWiFiIfName[IFNAMSIZ];
 #endif
+
+    static NetworkCommissioning::WiFiDriver::ScanCallback * mpScanCallback;
+    static NetworkCommissioning::Internal::WirelessDriver::ConnectCallback * mpConnectCallback;
 };
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA

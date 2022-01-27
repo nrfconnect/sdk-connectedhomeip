@@ -15,23 +15,6 @@
  *    limitations under the License.
  */
 
-/**
- *
- *    Copyright (c) 2020 Silicon Labs
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance  the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- */
-
 #include "window-covering-server.h"
 
 #include <app-common/zap-generated/attribute-id.h>
@@ -56,64 +39,73 @@
 using namespace chip;
 using namespace chip::app::Clusters::WindowCovering;
 
-#define WC_PERCENT100THS_MAX 10000
+#define CHECK_BOUNDS_INVALID(MIN, VAL, MAX) ((VAL < MIN) || (VAL > MAX))
+#define CHECK_BOUNDS_VALID(MIN, VAL, MAX) (!CHECK_BOUNDS_INVALID(MIN, VAL, MAX))
 
-static bool HasFeature(chip::EndpointId endpoint, Features feature)
+/*
+ * ConvertValue: Converts values from one range to another
+ * Range In  -> from  inputLowValue to   inputHighValue
+ * Range Out -> from outputLowValue to outputtHighValue
+ * offset true  -> allows to take into account the minimum of each range in the conversion
+ * offset false -> applies only the basic "rule of three" for the conversion
+ */
+static uint16_t ConvertValue(uint16_t inputLowValue, uint16_t inputHighValue, uint16_t outputLowValue, uint16_t outputHighValue,
+                             uint16_t value, bool offset)
 {
-    return true;
-}
+    uint16_t inputMin = inputLowValue, inputMax = inputHighValue, inputRange = UINT16_MAX;
+    uint16_t outputMin = outputLowValue, outputMax = outputHighValue, outputRange = UINT16_MAX;
 
-static uint16_t ValueToPercent100ths(uint16_t openLimit, uint16_t closedLimit, uint16_t value)
-{
-    uint16_t minimum = 0, range = UINT16_MAX;
-
-    if (openLimit > closedLimit)
+    if (inputLowValue > inputHighValue)
     {
-        minimum = closedLimit;
-        range   = static_cast<uint16_t>(openLimit - minimum);
+        inputMin = inputHighValue;
+        inputMax = inputLowValue;
+    }
+
+    if (outputLowValue > outputHighValue)
+    {
+        outputMin = outputHighValue;
+        outputMax = outputLowValue;
+    }
+
+    inputRange  = static_cast<uint16_t>(inputMax - inputMin);
+    outputRange = static_cast<uint16_t>(outputMax - outputMin);
+
+    if (offset)
+    {
+        if (value < inputMin)
+        {
+            return outputMin;
+        }
+
+        if (value > inputMax)
+        {
+            return outputMax;
+        }
+
+        if (inputRange > 0)
+        {
+            return static_cast<uint16_t>(outputMin + ((outputRange * (value - inputMin) / inputRange)));
+        }
     }
     else
     {
-        minimum = openLimit;
-        range   = static_cast<uint16_t>(closedLimit - minimum);
+        if (inputRange > 0)
+        {
+            return static_cast<uint16_t>((outputRange * (value) / inputRange));
+        }
     }
 
-    if (value < minimum)
-    {
-        return 0;
-    }
-
-    if (range > 0)
-    {
-        return static_cast<uint16_t>(WC_PERCENT100THS_MAX * (value - minimum) / range);
-    }
-
-    return WC_PERCENT100THS_MAX;
+    return outputMax;
 }
 
-static uint16_t Percent100thsToValue(uint16_t openLimit, uint16_t closedLimit, uint16_t percent100ths)
+static Percent100ths ValueToPercent100ths(AbsoluteLimits limits, uint16_t absolute)
 {
-    uint16_t minimum = 0, maximum = UINT16_MAX, range = UINT16_MAX;
+    return ConvertValue(limits.open, limits.closed, WC_PERCENT100THS_MIN_OPEN, WC_PERCENT100THS_MAX_CLOSED, absolute, true);
+}
 
-    if (openLimit > closedLimit)
-    {
-        minimum = closedLimit;
-        maximum = openLimit;
-    }
-    else
-    {
-        minimum = openLimit;
-        maximum = closedLimit;
-    }
-
-    range = static_cast<uint16_t>(maximum - minimum);
-
-    if (percent100ths > WC_PERCENT100THS_MAX)
-    {
-        return maximum;
-    }
-
-    return static_cast<uint16_t>(minimum + ((range * percent100ths) / WC_PERCENT100THS_MAX));
+static uint16_t Percent100thsToValue(AbsoluteLimits limits, Percent100ths relative)
+{
+    return ConvertValue(WC_PERCENT100THS_MIN_OPEN, WC_PERCENT100THS_MAX_CLOSED, limits.open, limits.closed, relative, true);
 }
 
 static OperationalState ValueToOperationalState(uint8_t value)
@@ -152,32 +144,28 @@ namespace app {
 namespace Clusters {
 namespace WindowCovering {
 
-bool IsOpen(chip::EndpointId endpoint)
+bool HasFeature(chip::EndpointId endpoint, WcFeature feature)
 {
-    uint16_t liftPosition = 0;
-    uint16_t liftLimit    = 0;
-    uint16_t tiltPosition = 0;
-    uint16_t tiltLimit    = 0;
+    bool hasFeature     = false;
+    uint32_t featureMap = 0;
 
-    Attributes::TargetPositionLiftPercent100ths::Get(endpoint, &liftPosition);
-    Attributes::InstalledOpenLimitLift::Get(endpoint, &liftLimit);
-    Attributes::TargetPositionTiltPercent100ths::Get(endpoint, &tiltPosition);
-    Attributes::InstalledOpenLimitTilt::Get(endpoint, &tiltLimit);
-    return liftPosition == liftLimit && tiltPosition == tiltLimit;
+    EmberAfStatus status = Attributes::FeatureMap::Get(endpoint, &featureMap);
+    if (EMBER_ZCL_STATUS_SUCCESS == status)
+    {
+        hasFeature = (featureMap & chip::to_underlying(feature));
+    }
+
+    return hasFeature;
 }
 
-bool IsClosed(chip::EndpointId endpoint)
+static bool HasFeaturePaLift(chip::EndpointId endpoint)
 {
-    uint16_t liftPosition = 0;
-    uint16_t liftLimit    = 0;
-    uint16_t tiltPosition = 0;
-    uint16_t tiltLimit    = 0;
+    return (HasFeature(endpoint, WcFeature::kLift) && HasFeature(endpoint, WcFeature::kPositionAwareLift));
+}
 
-    Attributes::TargetPositionLiftPercent100ths::Get(endpoint, &liftPosition);
-    Attributes::InstalledClosedLimitLift::Get(endpoint, &liftLimit);
-    Attributes::TargetPositionTiltPercent100ths::Get(endpoint, &tiltPosition);
-    Attributes::InstalledClosedLimitTilt::Get(endpoint, &tiltLimit);
-    return liftPosition == liftLimit && tiltPosition == tiltLimit;
+static bool HasFeaturePaTilt(chip::EndpointId endpoint)
+{
+    return (HasFeature(endpoint, WcFeature::kTilt) && HasFeature(endpoint, WcFeature::kPositionAwareTilt));
 }
 
 void TypeSet(chip::EndpointId endpoint, EmberAfWcType type)
@@ -194,9 +182,15 @@ EmberAfWcType TypeGet(chip::EndpointId endpoint)
 
 void ConfigStatusSet(chip::EndpointId endpoint, const ConfigStatus & status)
 {
-    uint8_t value = (status.operational ? 0x01 : 0) | (status.online ? 0x02 : 0) | (status.liftIsReversed ? 0x04 : 0) |
-        (status.liftIsPA ? 0x08 : 0) | (status.tiltIsPA ? 0x10 : 0) | (status.liftIsEncoderControlled ? 0x20 : 0) |
-        (status.tiltIsEncoderControlled ? 0x40 : 0);
+    /* clang-format off */
+    uint8_t value = (status.operational ? 0x01 : 0)
+                    | (status.online ? 0x02 : 0)
+                    | (status.liftIsReversed ? 0x04 : 0)
+                    | (status.liftIsPA ? 0x08 : 0)
+                    | (status.tiltIsPA ? 0x10 : 0)
+                    | (status.liftIsEncoderControlled ? 0x20 : 0)
+                    | (status.tiltIsEncoderControlled ? 0x40 : 0);
+    /* clang-format on */
     Attributes::ConfigStatus::Set(endpoint, value);
 }
 
@@ -214,6 +208,21 @@ const ConfigStatus ConfigStatusGet(chip::EndpointId endpoint)
     status.liftIsEncoderControlled = (value & 0x20) ? 1 : 0;
     status.tiltIsEncoderControlled = (value & 0x40) ? 1 : 0;
     return status;
+}
+
+void OperationalStatusSetWithGlobalUpdated(chip::EndpointId endpoint, OperationalStatus & status)
+{
+    /* Global Always follow Lift by priority and then fallback to Tilt */
+    if (OperationalState::Stall != status.lift)
+    {
+        status.global = status.lift;
+    }
+    else
+    {
+        status.global = status.tilt;
+    }
+
+    OperationalStatusSet(endpoint, status);
 }
 
 void OperationalStatusSet(chip::EndpointId endpoint, const OperationalStatus & status)
@@ -271,12 +280,19 @@ const Mode ModeGet(chip::EndpointId endpoint)
 
 void SafetyStatusSet(chip::EndpointId endpoint, SafetyStatus & status)
 {
-    uint16_t value = (status.remoteLockout ? 0x0001 : 0) | (status.tamperDetection ? 0x0002 : 0) |
-        (status.failedCommunication ? 0x0004 : 0) | (status.positionFailure ? 0x0008 : 0) |
-        (status.thermalProtection ? 0x0010 : 0) | (status.obstacleDetected ? 0x0020 : 0) | (status.powerIssue ? 0x0040 : 0) |
-        (status.stopInput ? 0x0080 : 0);
-    value |= (uint16_t)(status.motorJammed ? 0x0100 : 0) | (uint16_t)(status.hardwareFailure ? 0x0200 : 0) |
-        (uint16_t)(status.manualOperation ? 0x0400 : 0);
+    /* clang-format off */
+    uint16_t value = (status.remoteLockout ? 0x0001 : 0)
+                     | (status.tamperDetection ? 0x0002 : 0)
+                     | (status.failedCommunication ? 0x0004 : 0)
+                     | (status.positionFailure ? 0x0008 : 0)
+                     | (status.thermalProtection ? 0x0010 : 0)
+                     | (status.obstacleDetected ? 0x0020 : 0)
+                     | (status.powerIssue ? 0x0040 : 0)
+                     | (status.stopInput ? 0x0080 : 0);
+    value |= (uint16_t) (status.motorJammed ? 0x0100 : 0)
+             | (uint16_t) (status.hardwareFailure ? 0x0200 : 0)
+             | (uint16_t) (status.manualOperation ? 0x0400 : 0);
+    /* clang-format on */
     Attributes::SafetyStatus::Set(endpoint, value);
 }
 
@@ -300,13 +316,54 @@ const SafetyStatus SafetyStatusGet(chip::EndpointId endpoint)
     return status;
 }
 
+LimitStatus CheckLimitState(uint16_t position, AbsoluteLimits limits)
+{
+
+    if (limits.open > limits.closed)
+        return LimitStatus::Inverted;
+
+    if (position == limits.open)
+        return LimitStatus::IsUpOrOpen;
+
+    if (position == limits.closed)
+        return LimitStatus::IsDownOrClose;
+
+    if ((limits.open > 0) && (position < limits.open))
+        return LimitStatus::IsPastUpOrOpen;
+
+    if ((limits.closed > 0) && (position > limits.closed))
+        return LimitStatus::IsPastDownOrClose;
+
+    return LimitStatus::Intermediate;
+}
+
+bool IsPercent100thsValid(Percent100ths percent100ths)
+{
+    if (CHECK_BOUNDS_VALID(WC_PERCENT100THS_MIN_OPEN, percent100ths, WC_PERCENT100THS_MAX_CLOSED))
+        return true;
+
+    return false;
+}
+
+bool IsPercent100thsValid(NPercent100ths percent100ths)
+{
+    if (!percent100ths.IsNull())
+    {
+        return IsPercent100thsValid(percent100ths.Value());
+    }
+
+    return true;
+}
+
 uint16_t LiftToPercent100ths(chip::EndpointId endpoint, uint16_t lift)
 {
     uint16_t openLimit   = 0;
     uint16_t closedLimit = 0;
     Attributes::InstalledOpenLimitLift::Get(endpoint, &openLimit);
     Attributes::InstalledClosedLimitLift::Get(endpoint, &closedLimit);
-    return ValueToPercent100ths(openLimit, closedLimit, lift);
+
+    AbsoluteLimits limits = { .open = openLimit, .closed = closedLimit };
+    return ValueToPercent100ths(limits, lift);
 }
 
 uint16_t Percent100thsToLift(chip::EndpointId endpoint, uint16_t percent100ths)
@@ -315,7 +372,9 @@ uint16_t Percent100thsToLift(chip::EndpointId endpoint, uint16_t percent100ths)
     uint16_t closedLimit = 0;
     Attributes::InstalledOpenLimitLift::Get(endpoint, &openLimit);
     Attributes::InstalledClosedLimitLift::Get(endpoint, &closedLimit);
-    return Percent100thsToValue(openLimit, closedLimit, percent100ths);
+
+    AbsoluteLimits limits = { .open = openLimit, .closed = closedLimit };
+    return Percent100thsToValue(limits, percent100ths);
 }
 
 void LiftPositionSet(chip::EndpointId endpoint, uint16_t percent100ths)
@@ -335,7 +394,10 @@ uint16_t TiltToPercent100ths(chip::EndpointId endpoint, uint16_t tilt)
     uint16_t closedLimit = 0;
     Attributes::InstalledOpenLimitTilt::Get(endpoint, &openLimit);
     Attributes::InstalledClosedLimitTilt::Get(endpoint, &closedLimit);
-    return ValueToPercent100ths(openLimit, closedLimit, tilt);
+
+    AbsoluteLimits limits = { .open = openLimit, .closed = closedLimit };
+
+    return ValueToPercent100ths(limits, tilt);
 }
 
 uint16_t Percent100thsToTilt(chip::EndpointId endpoint, uint16_t percent100ths)
@@ -344,7 +406,10 @@ uint16_t Percent100thsToTilt(chip::EndpointId endpoint, uint16_t percent100ths)
     uint16_t closedLimit = 0;
     Attributes::InstalledOpenLimitTilt::Get(endpoint, &openLimit);
     Attributes::InstalledClosedLimitTilt::Get(endpoint, &closedLimit);
-    return Percent100thsToValue(openLimit, closedLimit, percent100ths);
+
+    AbsoluteLimits limits = { .open = openLimit, .closed = closedLimit };
+
+    return Percent100thsToValue(limits, percent100ths);
 }
 
 void TiltPositionSet(chip::EndpointId endpoint, uint16_t percent100ths)
@@ -356,6 +421,26 @@ void TiltPositionSet(chip::EndpointId endpoint, uint16_t percent100ths)
     Attributes::CurrentPositionTiltPercentage::Set(endpoint, percent);
     Attributes::CurrentPositionTiltPercent100ths::Set(endpoint, percent100ths);
     emberAfWindowCoveringClusterPrint("Tilt Position Set: %u%%", percent);
+}
+
+OperationalState ComputeOperationalState(uint16_t target, uint16_t current)
+{
+    OperationalState opState = OperationalState::Stall;
+
+    if (current != target)
+    {
+        opState = (current < target) ? OperationalState::MovingDownOrClose : OperationalState::MovingUpOrOpen;
+    }
+    return opState;
+}
+
+OperationalState ComputeOperationalState(NPercent100ths target, NPercent100ths current)
+{
+    if (!current.IsNull() && !target.IsNull())
+    {
+        return ComputeOperationalState(target.Value(), current.Value());
+    }
+    return OperationalState::Stall;
 }
 
 } // namespace WindowCovering
@@ -387,13 +472,13 @@ bool emberAfWindowCoveringClusterUpOrOpenCallback(app::CommandHandler * commandO
     EndpointId endpoint = commandPath.mEndpointId;
 
     emberAfWindowCoveringClusterPrint("UpOrOpen command received");
-    if (HasFeature(endpoint, Features::Lift))
+    if (HasFeature(endpoint, WcFeature::kLift))
     {
-        Attributes::TargetPositionLiftPercent100ths::Set(endpoint, 0);
+        Attributes::TargetPositionLiftPercent100ths::Set(endpoint, WC_PERCENT100THS_MIN_OPEN);
     }
-    if (HasFeature(endpoint, Features::Tilt))
+    if (HasFeature(endpoint, WcFeature::kTilt))
     {
-        Attributes::TargetPositionTiltPercent100ths::Set(endpoint, 0);
+        Attributes::TargetPositionTiltPercent100ths::Set(endpoint, WC_PERCENT100THS_MIN_OPEN);
     }
     emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
     return true;
@@ -408,13 +493,13 @@ bool emberAfWindowCoveringClusterDownOrCloseCallback(app::CommandHandler * comma
     EndpointId endpoint = commandPath.mEndpointId;
 
     emberAfWindowCoveringClusterPrint("DownOrClose command received");
-    if (HasFeature(endpoint, Features::Lift))
+    if (HasFeature(endpoint, WcFeature::kLift))
     {
-        Attributes::TargetPositionLiftPercent100ths::Set(endpoint, WC_PERCENT100THS_MAX);
+        Attributes::TargetPositionLiftPercent100ths::Set(endpoint, WC_PERCENT100THS_MAX_CLOSED);
     }
-    if (HasFeature(endpoint, Features::Tilt))
+    if (HasFeature(endpoint, WcFeature::kTilt))
     {
-        Attributes::TargetPositionTiltPercent100ths::Set(endpoint, WC_PERCENT100THS_MAX);
+        Attributes::TargetPositionTiltPercent100ths::Set(endpoint, WC_PERCENT100THS_MAX_CLOSED);
     }
     emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
     return true;
@@ -428,9 +513,22 @@ emberAfWindowCoveringClusterStopMotionCallback(app::CommandHandler * commandObj,
                                                const Commands::StopMotion::DecodableType & fields)
 {
     emberAfWindowCoveringClusterPrint("StopMotion command received");
+    app::DataModel::Nullable<Percent100ths> current;
+    chip::EndpointId endpoint = commandPath.mEndpointId;
 
-    emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
-    return true;
+    if (HasFeaturePaLift(endpoint))
+    {
+        (void) Attributes::CurrentPositionLiftPercent100ths::Get(endpoint, current);
+        (void) Attributes::TargetPositionLiftPercent100ths::Set(endpoint, current);
+    }
+
+    if (HasFeaturePaTilt(endpoint))
+    {
+        (void) Attributes::CurrentPositionTiltPercent100ths::Get(endpoint, current);
+        (void) Attributes::TargetPositionTiltPercent100ths::Set(endpoint, current);
+    }
+
+    return EMBER_SUCCESS == emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
 }
 
 /**
@@ -444,18 +542,15 @@ bool emberAfWindowCoveringClusterGoToLiftValueCallback(app::CommandHandler * com
 
     EndpointId endpoint = commandPath.mEndpointId;
 
-    bool hasLift         = HasFeature(endpoint, Features::Lift);
-    bool isPositionAware = HasFeature(endpoint, Features::PositionAware);
-
     emberAfWindowCoveringClusterPrint("GoToLiftValue Value command received");
-    if (hasLift && isPositionAware)
+    if (HasFeature(endpoint, WcFeature::kAbsolutePosition) && HasFeaturePaLift(endpoint))
     {
         Attributes::TargetPositionLiftPercent100ths::Set(endpoint, LiftToPercent100ths(endpoint, liftValue));
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
     }
     else
     {
-        emberAfWindowCoveringClusterPrint("Err Device is not PA=%u or LF=%u", isPositionAware, hasLift);
+        emberAfWindowCoveringClusterPrint("Err Device is not PA LF");
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_ACTION_DENIED);
     }
     return true;
@@ -473,19 +568,23 @@ bool emberAfWindowCoveringClusterGoToLiftPercentageCallback(app::CommandHandler 
 
     EndpointId endpoint = commandPath.mEndpointId;
 
-    bool hasLift         = HasFeature(endpoint, Features::Lift);
-    bool isPositionAware = HasFeature(endpoint, Features::PositionAware);
-
     emberAfWindowCoveringClusterPrint("GoToLiftPercentage Percentage command received");
-    if (hasLift && isPositionAware)
+    if (HasFeaturePaLift(endpoint))
     {
-        Attributes::TargetPositionLiftPercent100ths::Set(
-            endpoint, static_cast<uint16_t>(liftPercentageValue > 100 ? liftPercent100thsValue : liftPercentageValue * 100));
-        emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
+        if (IsPercent100thsValid(liftPercent100thsValue))
+        {
+            Attributes::TargetPositionLiftPercent100ths::Set(
+                endpoint, static_cast<uint16_t>(liftPercentageValue > 100 ? liftPercent100thsValue : liftPercentageValue * 100));
+            emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
+        }
+        else
+        {
+            emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_INVALID_VALUE);
+        }
     }
     else
     {
-        emberAfWindowCoveringClusterPrint("Err Device is not PA=%u or LF=%u", isPositionAware, hasLift);
+        emberAfWindowCoveringClusterPrint("Err Device is not PA LF");
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_ACTION_DENIED);
     }
     return true;
@@ -502,18 +601,15 @@ bool emberAfWindowCoveringClusterGoToTiltValueCallback(app::CommandHandler * com
 
     EndpointId endpoint = commandPath.mEndpointId;
 
-    bool hasTilt         = HasFeature(endpoint, Features::Tilt);
-    bool isPositionAware = HasFeature(endpoint, Features::PositionAware);
-
     emberAfWindowCoveringClusterPrint("GoToTiltValue command received");
-    if (hasTilt && isPositionAware)
+    if (HasFeature(endpoint, WcFeature::kAbsolutePosition) && HasFeaturePaTilt(endpoint))
     {
         Attributes::TargetPositionTiltPercent100ths::Set(endpoint, TiltToPercent100ths(endpoint, tiltValue));
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
     }
     else
     {
-        emberAfWindowCoveringClusterPrint("Err Device is not PA=%u or TL=%u", isPositionAware, hasTilt);
+        emberAfWindowCoveringClusterPrint("Err Device is not PA TL");
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_ACTION_DENIED);
     }
     return true;
@@ -531,19 +627,23 @@ bool emberAfWindowCoveringClusterGoToTiltPercentageCallback(app::CommandHandler 
 
     EndpointId endpoint = commandPath.mEndpointId;
 
-    bool hasTilt         = HasFeature(endpoint, Features::Tilt);
-    bool isPositionAware = HasFeature(endpoint, Features::PositionAware);
-
     emberAfWindowCoveringClusterPrint("GoToTiltPercentage command received");
-    if (hasTilt && isPositionAware)
+    if (HasFeaturePaTilt(endpoint))
     {
-        Attributes::TargetPositionTiltPercent100ths::Set(
-            endpoint, static_cast<uint16_t>(tiltPercentageValue > 100 ? tiltPercent100thsValue : tiltPercentageValue * 100));
-        emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
+        if (IsPercent100thsValid(tiltPercent100thsValue))
+        {
+            Attributes::TargetPositionTiltPercent100ths::Set(
+                endpoint, static_cast<uint16_t>(tiltPercentageValue > 100 ? tiltPercent100thsValue : tiltPercentageValue * 100));
+            emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_SUCCESS);
+        }
+        else
+        {
+            emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_INVALID_VALUE);
+        }
     }
     else
     {
-        emberAfWindowCoveringClusterPrint("Err Device is not PA=%u or TL=%u", isPositionAware, hasTilt);
+        emberAfWindowCoveringClusterPrint("Err Device is not PA TL");
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_ACTION_DENIED);
     }
     return true;

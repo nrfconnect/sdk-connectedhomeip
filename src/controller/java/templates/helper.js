@@ -19,11 +19,10 @@
 const zapPath      = '../../../../third_party/zap/repo/dist/src-electron/';
 const templateUtil = require(zapPath + 'generator/template-util.js')
 const zclHelper    = require(zapPath + 'generator/helper-zcl.js')
-const queryCommand = require(zapPath + 'db/query-command.js')
 
 const ChipTypesHelper = require('../../../../src/app/zap-templates/common/ChipTypesHelper.js');
 const StringHelper    = require('../../../../src/app/zap-templates/common/StringHelper.js');
-const ChipHelper      = require('../../../../src/app/zap-templates/templates/chip/helper.js');
+const appHelper       = require('../../../../src/app/zap-templates/templates/app/helper.js');
 
 function convertBasicCTypeToJavaType(cType)
 {
@@ -41,6 +40,10 @@ function convertBasicCTypeToJavaType(cType)
     return 'long';
   case 'bool':
     return 'boolean';
+  case 'float':
+    return 'float';
+  case 'double':
+    return 'double';
   default:
     error = 'Unhandled type ' + cType;
     throw error;
@@ -56,6 +59,10 @@ function convertBasicCTypeToJniType(cType)
     return 'jlong';
   case 'boolean':
     return 'jboolean';
+  case 'float':
+    return 'jfloat';
+  case 'double':
+    return 'jdouble';
   default:
     error = 'Unhandled type ' + cType;
     throw error;
@@ -71,37 +78,37 @@ function convertBasicCTypeToJavaBoxedType(cType)
     return 'Long';
   case 'boolean':
     return 'Boolean';
+  case 'float':
+    return 'Float';
+  case 'double':
+    return 'Double';
   default:
     error = 'Unhandled type ' + cType;
     throw error;
   }
 }
 
-function asJavaBasicType(type)
+function asJavaBoxedType(type, zclType)
 {
   if (StringHelper.isOctetString(type)) {
     return 'byte[]';
   } else if (StringHelper.isCharString(type)) {
     return 'String';
   } else {
-    return convertBasicCTypeToJavaType(ChipTypesHelper.asBasicType(this.chipType));
-  }
-}
-
-function asJavaBoxedType(type)
-{
-  if (StringHelper.isOctetString(type)) {
-    return 'byte[]';
-  } else if (StringHelper.isCharString(type)) {
-    return 'String';
-  } else {
-    return convertBasicCTypeToJavaBoxedType(ChipTypesHelper.asBasicType(this.chipType));
+    try {
+      return convertBasicCTypeToJavaBoxedType(ChipTypesHelper.asBasicType(zclType));
+    } catch (error) {
+      // Unknown type, default to Object.
+      return "Object";
+    }
   }
 }
 
 function asJniBasicType(type, useBoxedTypes)
 {
-  if (StringHelper.isOctetString(type)) {
+  if (this.isOptional) {
+    return 'jobject';
+  } else if (StringHelper.isOctetString(type)) {
     return 'jbyteArray';
   } else if (StringHelper.isCharString(type)) {
     return 'jstring';
@@ -113,42 +120,7 @@ function asJniBasicType(type, useBoxedTypes)
   }
 }
 
-function asJavaBasicTypeForZclType(type, useBoxedTypes)
-{
-  function fn(pkgId)
-  {
-    const options = { 'hash' : {} };
-    return zclHelper.asUnderlyingZclType.call(this, type, options).then(zclType => {
-      if (useBoxedTypes) {
-        return convertBasicCTypeToJavaBoxedType(ChipTypesHelper.asBasicType(zclType));
-      } else {
-        return convertBasicCTypeToJavaType(ChipTypesHelper.asBasicType(zclType));
-      }
-    })
-  }
-
-  const promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this)).catch(err => console.log(err));
-  return templateUtil.templatePromise(this.global, promise)
-}
-
-function asJniBasicTypeForZclType(type)
-{
-  function fn(pkgId)
-  {
-    const options = { 'hash' : {} };
-    return zclHelper.asUnderlyingZclType.call(this, type, options).then(zclType => {
-      return convertBasicCTypeToJniType(ChipTypesHelper.asBasicType(zclType));
-    })
-  }
-
-  const promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this)).catch(err => {
-    console.log(err);
-    throw err;
-  });
-  return templateUtil.templatePromise(this.global, promise)
-}
-
-function asJniSignature(type, useBoxedTypes)
+function asJniSignatureBasic(type, useBoxedTypes)
 {
   function fn(pkgId)
   {
@@ -181,12 +153,24 @@ function convertCTypeToJniSignature(cType, useBoxedTypes)
     return 'J';
   case 'boolean':
     return 'Z';
+  case 'double':
+    return 'D';
+  case 'float':
+    return 'F';
   case 'Boolean':
     return 'Ljava/lang/Boolean;';
   case 'Integer':
     return 'Ljava/lang/Integer;';
   case 'Long':
     return 'Ljava/lang/Long;';
+  case 'double':
+    return 'D';
+  case 'Double':
+    return 'Ljava/lang/Double;';
+  case 'float':
+    return 'F';
+  case 'Float':
+    return 'Ljava/lang/Float;';
   default:
     error = 'Unhandled Java type ' + javaType + ' for C type ' + cType;
     throw error;
@@ -205,58 +189,149 @@ function convertAttributeCallbackTypeToJavaName(cType)
   }
 }
 
-function notLastSupportedEntryTypes(context, options)
+async function asUnderlyingBasicType(type)
 {
-  if (context.items.length == 0) {
-    return
-  }
-
-  let lastIndex = context.items.length - 1;
-  while (context.items[lastIndex].isStruct || context.items[lastIndex].isArray) {
-    lastIndex--;
-  }
-
-  if (this.index != lastIndex) {
-    return options.fn(this);
-  }
+  const options = { 'hash' : {} };
+  let zclType   = await zclHelper.asUnderlyingZclType.call(this, type, options);
+  return ChipTypesHelper.asBasicType(zclType);
 }
 
-function omitCommaForFirstNonStatusCommand(id, index)
+async function asJavaType(type, zclType, cluster, options)
 {
-  let promise = templateUtil.ensureZclPackageId(this)
-                    .then((pkgId) => { return queryCommand.selectCommandArgumentsByCommandId(this.global.db, id, pkgId) })
-                    .catch(err => {
-                      console.log(err);
-                      throw err;
-                    })
-                    .then((result) => {
-                      // Currently, we omit array types, so don't count it as a valid non-status command.
-                      let firstNonStatusCommandIndex = result.findIndex((command) => !command.isArray);
-                      if (firstNonStatusCommandIndex == -1 || firstNonStatusCommandIndex != index) {
-                        return ", ";
-                      }
-                      return "";
-                    })
-                    .catch(err => {
-                      console.log(err);
-                      throw err;
-                    });
+  let pkgId = await templateUtil.ensureZclPackageId(this);
+  if (zclType == null) {
+    const options = { 'hash' : {} };
+    zclType       = await zclHelper.asUnderlyingZclType.call(this, type, options);
+  }
+  let isStruct = await zclHelper.isStruct(this.global.db, type, pkgId).then(zclType => zclType != 'unknown');
 
-  return templateUtil.templatePromise(this.global, promise);
+  let classType = "";
+
+  if (StringHelper.isOctetString(type)) {
+    classType += 'byte[]';
+  } else if (StringHelper.isCharString(type)) {
+    classType += 'String';
+  } else if (isStruct) {
+    classType += `ChipStructs.${appHelper.asUpperCamelCase(cluster)}Cluster${appHelper.asUpperCamelCase(type)}`;
+  } else {
+    classType += asJavaBoxedType(type, zclType);
+  }
+
+  if (!options.hash.forceNotList && (this.isArray || this.entryType)) {
+    if (!options.hash.removeGenericType) {
+      classType = 'ArrayList<' + classType + '>';
+    } else {
+      classType = 'ArrayList';
+    }
+  }
+
+  if (this.isOptional) {
+    if (!options.hash.removeGenericType) {
+      classType = 'Optional<' + classType + '>';
+    } else {
+      classType = 'Optional';
+    }
+  }
+
+  if (this.isNullable && options.hash.includeAnnotations) {
+    classType = '@Nullable ' + classType;
+  }
+
+  return classType;
+}
+
+async function asJniType(type, zclType, cluster, options)
+{
+  let types = await asJniHelper.call(this, type, zclType, cluster, options);
+  return types["jniType"];
+}
+
+async function asJniSignature(type, zclType, cluster, useBoxedTypes, options)
+{
+  let types = await asJniHelper.call(this, type, zclType, cluster, options);
+  return useBoxedTypes ? types["jniBoxedSignature"] : types["jniSignature"];
+}
+
+async function asJniClassName(type, zclType, cluster, options)
+{
+  let types = await asJniHelper.call(this, type, zclType, cluster, options);
+  return types["jniClassName"];
+}
+
+async function asJniHelper(type, zclType, cluster, options)
+{
+  let pkgId = await templateUtil.ensureZclPackageId(this);
+  if (zclType == null) {
+    zclType = await zclHelper.asUnderlyingZclType.call(this, type, options);
+  }
+  let isStruct = await zclHelper.isStruct(this.global.db, type, pkgId).then(zclType => zclType != 'unknown');
+
+  if (this.isOptional) {
+    const signature = "Ljava/util/Optional;"
+    return { jniType : "jobject", jniSignature : signature, jniBoxedSignature : signature };
+  }
+
+  if (this.isArray) {
+    const signature = "Ljava/util/ArrayList;"
+    return { jniType : "jobject", jniSignature : signature, jniBoxedSignature : signature };
+  }
+
+  if (StringHelper.isOctetString(type)) {
+    const signature = "[B";
+    return { jniType : "jbyteArray", jniSignature : signature, jniBoxedSignature : signature };
+  }
+
+  if (StringHelper.isCharString(type)) {
+    const signature = "Ljava/lang/String;";
+    return { jniType : "jstring", jniSignature : signature, jniBoxedSignature : signature };
+  }
+
+  if (isStruct) {
+    const signature
+        = `Lchip/devicecontroller/ChipStructs$${appHelper.asUpperCamelCase(cluster)}Cluster${appHelper.asUpperCamelCase(type)};`;
+    return { jniType : "jobject", jniSignature : signature, jniBoxedSignature : signature };
+  }
+
+  let jniBoxedSignature;
+  try {
+    jniBoxedSignature = await asJniSignatureBasic.call(this, type, true);
+  } catch (error) {
+    jniBoxedSignature = "Ljava/lang/Object;";
+  }
+  let jniSignature;
+  try {
+    jniSignature = await asJniSignatureBasic.call(this, type, false);
+  } catch (error) {
+    jniSignature = "Ljava/lang/Object;";
+  }
+  // Example: Ljava/lang/Integer; -> java/lang/Integer, needed for JNI class lookup
+  let jniClassName = jniBoxedSignature.substring(1, jniBoxedSignature.length - 1);
+  return {
+    jniType : asJniBasicType(type, true),
+    jniSignature : jniSignature,
+    jniBoxedSignature : jniBoxedSignature,
+    jniClassName : jniClassName
+  };
+}
+
+function incrementDepth(depth)
+{
+  return depth + 1;
 }
 
 //
 // Module exports
 //
-exports.asJavaBasicType                        = asJavaBasicType;
+exports.asUnderlyingBasicType                  = asUnderlyingBasicType;
+exports.asJavaType                             = asJavaType;
 exports.asJavaBoxedType                        = asJavaBoxedType;
-exports.asJniBasicType                         = asJniBasicType;
-exports.asJniBasicTypeForZclType               = asJniBasicTypeForZclType;
+exports.asJniType                              = asJniType;
 exports.asJniSignature                         = asJniSignature;
-exports.asJavaBasicTypeForZclType              = asJavaBasicTypeForZclType;
+exports.asJniClassName                         = asJniClassName;
+exports.asJniBasicType                         = asJniBasicType;
+exports.asJniSignatureBasic                    = asJniSignatureBasic;
 exports.convertBasicCTypeToJniType             = convertBasicCTypeToJniType;
 exports.convertCTypeToJniSignature             = convertCTypeToJniSignature;
 exports.convertBasicCTypeToJavaBoxedType       = convertBasicCTypeToJavaBoxedType;
 exports.convertAttributeCallbackTypeToJavaName = convertAttributeCallbackTypeToJavaName;
-exports.omitCommaForFirstNonStatusCommand      = omitCommaForFirstNonStatusCommand;
-exports.notLastSupportedEntryTypes             = notLastSupportedEntryTypes;
+exports.incrementDepth                         = incrementDepth;

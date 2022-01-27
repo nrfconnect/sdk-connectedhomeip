@@ -23,9 +23,10 @@
  */
 #pragma once
 
+#include <new>
+
 #include <lib/core/CHIPCore.h>
 #include <lib/core/InPlace.h>
-#include <lib/support/Variant.h>
 
 namespace chip {
 
@@ -157,7 +158,14 @@ public:
     }
 
     /** Gets the current value of the optional. Valid IFF `HasValue`. */
-    const T & Value() const
+    T & Value() &
+    {
+        VerifyOrDie(HasValue());
+        return mValue.mData;
+    }
+
+    /** Gets the current value of the optional. Valid IFF `HasValue`. */
+    const T & Value() const &
     {
         VerifyOrDie(HasValue());
         return mValue.mData;
@@ -195,6 +203,12 @@ private:
         T mData;
     } mValue;
 };
+
+template <class T>
+constexpr Optional<std::decay_t<T>> MakeOptional(T && value)
+{
+    return Optional<std::decay_t<T>>(InPlace, std::forward<T>(value));
+}
 
 template <class T, class... Args>
 constexpr Optional<T> MakeOptional(Args &&... args)

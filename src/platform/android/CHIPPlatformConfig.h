@@ -25,7 +25,7 @@
 
 // ==================== General Platform Adaptations ====================
 
-#define ChipDie() abort()
+#define CHIP_CONFIG_ABORT() abort()
 
 // TODO:(#756) Add FabricState support
 #define CHIP_CONFIG_ENABLE_FABRIC_STATE 0
@@ -95,10 +95,6 @@ using CHIP_CONFIG_PERSISTED_STORAGE_KEY_TYPE = const char *;
 #ifndef CHIP_CONFIG_MAX_CHANNEL_HANDLES
 #define CHIP_CONFIG_MAX_CHANNEL_HANDLES 32
 #endif // CHIP_CONFIG_MAX_CHANNEL_HANDLES
-
-#ifndef CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
-#define CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT 6
-#endif // CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
 
 #ifndef CHIP_LOG_FILTERING
 #define CHIP_LOG_FILTERING 0

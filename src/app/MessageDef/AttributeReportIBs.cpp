@@ -47,7 +47,7 @@ CHIP_ERROR AttributeReportIBs::Parser::CheckSchemaValidity() const
 
     while (CHIP_NO_ERROR == (err = reader.Next()))
     {
-        VerifyOrReturnError(TLV::AnonymousTag == reader.GetTag(), CHIP_ERROR_INVALID_TLV_TAG);
+        VerifyOrReturnError(TLV::AnonymousTag() == reader.GetTag(), CHIP_ERROR_INVALID_TLV_TAG);
         {
             AttributeReportIB::Parser AttributeReport;
             ReturnErrorOnFailure(AttributeReport.Init(reader));
@@ -96,5 +96,29 @@ AttributeReportIBs::Builder & AttributeReportIBs::Builder::EndOfAttributeReportI
     EndOfContainer();
     return *this;
 }
+
+CHIP_ERROR AttributeReportIBs::Builder::EncodeAttributeStatus(const ConcreteReadAttributePath & aPath, const StatusIB & aStatus)
+{
+    AttributeReportIB::Builder & attributeReport = CreateAttributeReport();
+    ReturnErrorOnFailure(GetError());
+    AttributeStatusIB::Builder & attributeStatusIBBuilder = attributeReport.CreateAttributeStatus();
+    ReturnErrorOnFailure(attributeReport.GetError());
+    AttributePathIB::Builder & attributePathIBBuilder = attributeStatusIBBuilder.CreatePath();
+    ReturnErrorOnFailure(attributeStatusIBBuilder.GetError());
+
+    attributePathIBBuilder.Endpoint(aPath.mEndpointId)
+        .Cluster(aPath.mClusterId)
+        .Attribute(aPath.mAttributeId)
+        .EndOfAttributePathIB();
+    ReturnErrorOnFailure(attributePathIBBuilder.GetError());
+    StatusIB::Builder & statusIBBuilder = attributeStatusIBBuilder.CreateErrorStatus();
+    ReturnErrorOnFailure(attributeStatusIBBuilder.GetError());
+    statusIBBuilder.EncodeStatusIB(aStatus);
+    ReturnErrorOnFailure(statusIBBuilder.GetError());
+
+    ReturnErrorOnFailure(attributeStatusIBBuilder.EndOfAttributeStatusIB().GetError());
+    return attributeReport.EndOfAttributeReportIB().GetError();
+}
+
 } // namespace app
 } // namespace chip

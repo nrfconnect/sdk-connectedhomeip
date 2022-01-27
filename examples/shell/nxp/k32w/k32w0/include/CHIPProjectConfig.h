@@ -65,32 +65,32 @@
 #define CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_ID 0x4B4C
 
 /**
- * CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_REVISION
+ * CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION
  *
- * The product revision number assigned to device or product by the device vendor.  This
+ * The hardware version number assigned to device or product by the device vendor.  This
  * number is scoped to the device product id, and typically corresponds to a revision of the
  * physical device, a change to its packaging, and/or a change to its marketing presentation.
- * This value is generally *not* incremented for device software revisions.
+ * This value is generally *not* incremented for device software versions.
  */
-#define CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_REVISION 100
+#define CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION 100
 
-#ifndef CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_PRODUCT_REVISION_STRING
-#define CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_PRODUCT_REVISION_STRING "v0.1.0"
+#ifndef CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION_STRING
+#define CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION_STRING "v0.1.0"
 #endif
 
 /**
- * CHIP_DEVICE_CONFIG_DEVICE_FIRMWARE_REVISION_STRING
+ * CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING
  *
- * A string identifying the firmware revision running on the device.
- * CHIP currently expects the firmware version to be in the format
+ * A string identifying the software version running on the device.
+ * CHIP currently expects the software version to be in the format
  * {MAJOR_VERSION}.0d{MINOR_VERSION}
  */
-#ifndef CHIP_DEVICE_CONFIG_DEVICE_FIRMWARE_REVISION_STRING
-#define CHIP_DEVICE_CONFIG_DEVICE_FIRMWARE_REVISION_STRING "04-2020-te2"
+#ifndef CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING
+#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING "04-2020-te2"
 #endif
 
-#ifndef CHIP_DEVICE_CONFIG_DEVICE_FIRMWARE_REVISION
-#define CHIP_DEVICE_CONFIG_DEVICE_FIRMWARE_REVISION 42020
+#ifndef CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION
+#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION 42020
 #endif
 
 #ifndef CHIP_DEVICE_CONFIG_DEVICE_VENDOR_NAME
@@ -133,18 +133,11 @@
 #define CHIP_CONFIG_EVENT_LOGGING_WDM_OFFLOAD 1
 
 /**
- * CHIP_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS
+ * @def CHIP_CONFIG_ENABLE_SERVER_IM_EVENT
  *
- * Enable recording UTC timestamps.
+ * @brief Enable Interaction model Event support in server
  */
-#define CHIP_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS 1
-
-/**
- * CHIP_DEVICE_CONFIG_EVENT_LOGGING_DEBUG_BUFFER_SIZE
- *
- * A size, in bytes, of the individual debug event logging buffer.
- */
-#define CHIP_DEVICE_CONFIG_EVENT_LOGGING_DEBUG_BUFFER_SIZE (512)
+#define CHIP_CONFIG_ENABLE_SERVER_IM_EVENT 0
 
 /**
  * CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_TIMEOUT
@@ -173,13 +166,6 @@
  */
 #define CONFIG_CHIP_NFC_COMMISSIONING 0
 #define CHIP_DEVICE_CONFIG_ENABLE_NFC 0
-
-/**
- * CHIP_DEVICE_CONFIG_THREAD_FTD
- *
- * Shell Demo Application is a Thread SED (Sleepy End Device)
- */
-#define CHIP_DEVICE_CONFIG_THREAD_FTD 0
 
 /**
  *  @def CHIP_CONFIG_MAX_DEVICE_ADMINS

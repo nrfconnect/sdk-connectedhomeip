@@ -33,6 +33,7 @@
 #include <app/util/basic-types.h>
 #include <controller-clusters/zap-generated/CHIPClientCallbacks.h>
 #include <controller/CHIPDeviceControllerSystemState.h>
+#include <controller/OperationalCredentialsDelegate.h>
 #include <lib/core/CHIPCallback.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/support/DLLUtil.h>
@@ -41,6 +42,7 @@
 #include <messaging/Flags.h>
 #include <protocols/secure_channel/PASESession.h>
 #include <protocols/secure_channel/SessionIDAllocator.h>
+#include <transport/SessionHolder.h>
 #include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/MessageHeader.h>
@@ -53,7 +55,6 @@
 
 namespace chip {
 
-constexpr size_t kOpCSRNonceLength       = 32;
 constexpr size_t kAttestationNonceLength = 32;
 
 using DeviceIPTransportMgr = TransportMgr<Transport::UDP /* IPv6 */
@@ -65,12 +66,12 @@ using DeviceIPTransportMgr = TransportMgr<Transport::UDP /* IPv6 */
 
 struct ControllerDeviceInitParams
 {
-    DeviceTransportMgr * transportMgr           = nullptr;
-    SessionManager * sessionManager             = nullptr;
-    Messaging::ExchangeManager * exchangeMgr    = nullptr;
-    Inet::InetLayer * inetLayer                 = nullptr;
-    PersistentStorageDelegate * storageDelegate = nullptr;
-    SessionIDAllocator * idAllocator            = nullptr;
+    DeviceTransportMgr * transportMgr                             = nullptr;
+    SessionManager * sessionManager                               = nullptr;
+    Messaging::ExchangeManager * exchangeMgr                      = nullptr;
+    Inet::EndPointManager<Inet::UDPEndPoint> * udpEndPointManager = nullptr;
+    PersistentStorageDelegate * storageDelegate                   = nullptr;
+    SessionIDAllocator * idAllocator                              = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * bleLayer = nullptr;
 #endif
@@ -79,18 +80,18 @@ struct ControllerDeviceInitParams
     Controller::DeviceControllerInteractionModelDelegate * imDelegate = nullptr;
 };
 
-class CommissioneeDeviceProxy : public DeviceProxy
+class CommissioneeDeviceProxy : public DeviceProxy, public SessionReleaseDelegate
 {
 public:
     ~CommissioneeDeviceProxy();
-    CommissioneeDeviceProxy() {}
+    CommissioneeDeviceProxy() : mSecureSession(*this) {}
     CommissioneeDeviceProxy(const CommissioneeDeviceProxy &) = delete;
 
     /**
      * @brief
      *   Send the command in internal command sender.
      */
-    CHIP_ERROR SendCommands(app::CommandSender * commandObj) override;
+    CHIP_ERROR SendCommands(app::CommandSender * commandObj, Optional<System::Clock::Timeout> timeout) override;
 
     /**
      * @brief Get the IP address and port assigned to the device.
@@ -119,12 +120,12 @@ public:
      */
     void Init(ControllerDeviceInitParams params, FabricIndex fabric)
     {
-        mSessionManager = params.sessionManager;
-        mExchangeMgr    = params.exchangeMgr;
-        mInetLayer      = params.inetLayer;
-        mFabricIndex    = fabric;
-        mIDAllocator    = params.idAllocator;
-        mpIMDelegate    = params.imDelegate;
+        mSessionManager     = params.sessionManager;
+        mExchangeMgr        = params.exchangeMgr;
+        mUDPEndPointManager = params.udpEndPointManager;
+        mFabricIndex        = fabric;
+        mIDAllocator        = params.idAllocator;
+        mpIMDelegate        = params.imDelegate;
 #if CONFIG_NETWORK_LAYER_BLE
         mBleLayer = params.bleLayer;
 #endif
@@ -149,29 +150,21 @@ public:
     void Init(ControllerDeviceInitParams params, NodeId deviceId, const Transport::PeerAddress & peerAddress, FabricIndex fabric)
     {
         Init(params, fabric);
-        mDeviceId = deviceId;
-        mState    = ConnectionState::Connecting;
+        mPeerId = PeerId().SetNodeId(deviceId);
+        mState  = ConnectionState::Connecting;
 
         mDeviceAddress = peerAddress;
     }
 
     /**
      * @brief
-     *   Called when a new pairing is being established
-     *
-     * @param session A handle to the secure session
-     */
-    void OnNewConnection(SessionHandle session);
-
-    /**
-     * @brief
-     *   Called when a connection is closing.
+     *   Called when the associated session is released
      *
      *   The receiver should release all resources associated with the connection.
      *
      * @param session A handle to the secure session
      */
-    void OnConnectionExpired(SessionHandle session) override;
+    void OnSessionReleased() override;
 
     /**
      *  In case there exists an open session to the device, mark it as expired.
@@ -188,13 +181,12 @@ public:
      *   Since the device settings might have been moved from RAM to the persistent storage, the function
      *   will load the device settings first, before making the changes.
      *
-     * @param[in] addr                Address of the device to be set.
-     * @param[in] mrpIdleInterval     MRP idle retransmission interval of the device to be set.
-     * @param[in] mrpActiveInterval   MRP active retransmision interval of the device to be set.
+     * @param[in] addr   Address of the device to be set.
+     * @param[in] config MRP parameters
      *
      * @return CHIP_NO_ERROR if the data has been updated, an error code otherwise.
      */
-    CHIP_ERROR UpdateDeviceData(const Transport::PeerAddress & addr, uint32_t mrpIdleInterval, uint32_t mrpActiveInterval);
+    CHIP_ERROR UpdateDeviceData(const Transport::PeerAddress & addr, const ReliableMessageProtocolConfig & config);
     /**
      * @brief
      *   Return whether the current device object is actively associated with a paired CHIP
@@ -204,17 +196,28 @@ public:
 
     void SetActive(bool active) { mActive = active; }
 
+    /**
+     * @brief
+     * Called to indicate this proxy has been paired successfully.
+     *
+     * This causes the secure session parameters to be loaded and stores the session details in the session manager.
+     */
+    CHIP_ERROR SetConnected();
+
     bool IsSecureConnected() const override { return IsActive() && mState == ConnectionState::SecureConnected; }
 
     bool IsSessionSetupInProgress() const { return IsActive() && mState == ConnectionState::Connecting; }
 
     void Reset();
 
-    NodeId GetDeviceId() const override { return mDeviceId; }
+    NodeId GetDeviceId() const override { return mPeerId.GetNodeId(); }
+    PeerId GetPeerId() const { return mPeerId; }
+    CHIP_ERROR SetPeerId(ByteSpan rcac, ByteSpan noc) override;
 
-    bool MatchesSession(SessionHandle session) const { return mSecureSession.HasValue() && mSecureSession.Value() == session; }
+    bool MatchesSession(const SessionHandle & session) const { return mSecureSession.Contains(session); }
 
-    chip::Optional<SessionHandle> GetSecureSession() const override { return mSecureSession; }
+    SessionHolder & GetSecureSessionHolder() { return mSecureSession; }
+    chip::Optional<SessionHandle> GetSecureSession() const override { return mSecureSession.ToOptional(); }
 
     Messaging::ExchangeManager * GetExchangeManager() const override { return mExchangeMgr; }
 
@@ -229,44 +232,6 @@ public:
         bool loadedSecureSession = false;
         return LoadSecureSessionParametersIfNeeded(loadedSecureSession);
     };
-
-    CHIP_ERROR SetCSRNonce(ByteSpan csrNonce)
-    {
-        VerifyOrReturnError(csrNonce.size() == sizeof(mCSRNonce), CHIP_ERROR_INVALID_ARGUMENT);
-        memcpy(mCSRNonce, csrNonce.data(), csrNonce.size());
-        return CHIP_NO_ERROR;
-    }
-
-    ByteSpan GetCSRNonce() const { return ByteSpan(mCSRNonce, sizeof(mCSRNonce)); }
-
-    CHIP_ERROR SetAttestationNonce(ByteSpan attestationNonce)
-    {
-        VerifyOrReturnError(attestationNonce.size() == sizeof(mAttestationNonce), CHIP_ERROR_INVALID_ARGUMENT);
-        memcpy(mAttestationNonce, attestationNonce.data(), attestationNonce.size());
-        return CHIP_NO_ERROR;
-    }
-
-    ByteSpan GetAttestationNonce() const { return ByteSpan(mAttestationNonce, sizeof(mAttestationNonce)); }
-
-    bool AreCredentialsAvailable() const { return (mDAC != nullptr && mDACLen != 0); }
-
-    ByteSpan GetDAC() const { return ByteSpan(mDAC, mDACLen); }
-    ByteSpan GetPAI() const { return ByteSpan(mPAI, mPAILen); }
-
-    CHIP_ERROR SetDAC(const ByteSpan & dac);
-    CHIP_ERROR SetPAI(const ByteSpan & pai);
-
-    MutableByteSpan GetMutableNOCCert() { return MutableByteSpan(mNOCCertBuffer, sizeof(mNOCCertBuffer)); }
-
-    CHIP_ERROR SetNOCCertBufferSize(size_t new_size);
-
-    ByteSpan GetNOCCert() const { return ByteSpan(mNOCCertBuffer, mNOCCertBufferSize); }
-
-    MutableByteSpan GetMutableICACert() { return MutableByteSpan(mICACertBuffer, sizeof(mICACertBuffer)); }
-
-    CHIP_ERROR SetICACertBufferSize(size_t new_size);
-
-    ByteSpan GetICACert() const { return ByteSpan(mICACertBuffer, mICACertBufferSize); }
 
     Controller::DeviceControllerInteractionModelDelegate * GetInteractionModelDelegate() override { return mpIMDelegate; };
 
@@ -283,14 +248,15 @@ private:
         kYes,
         kNo,
     };
-    /* Node ID assigned to the CHIP device */
-    NodeId mDeviceId;
+
+    /* Compressed fabric ID and node ID assigned to the device. */
+    PeerId mPeerId;
 
     /** Address used to communicate with the device.
      */
     Transport::PeerAddress mDeviceAddress = Transport::PeerAddress::UDP(Inet::IPAddress::Any);
 
-    Inet::InetLayer * mInetLayer = nullptr;
+    Inet::EndPointManager<Inet::UDPEndPoint> * mUDPEndPointManager = nullptr;
 
     bool mActive           = false;
     ConnectionState mState = ConnectionState::NotConnected;
@@ -305,7 +271,7 @@ private:
 
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
 
-    Optional<SessionHandle> mSecureSession = Optional<SessionHandle>::Missing();
+    SessionHolderWithDelegate mSecureSession;
 
     Controller::DeviceControllerInteractionModelDelegate * mpIMDelegate = nullptr;
 
@@ -329,25 +295,7 @@ private:
      */
     CHIP_ERROR LoadSecureSessionParametersIfNeeded(bool & didLoad);
 
-    void ReleaseDAC();
-    void ReleasePAI();
-
     FabricIndex mFabricIndex = kUndefinedFabricIndex;
-
-    // TODO: Offload Nonces and DAC/PAI into a new struct
-    uint8_t mCSRNonce[kOpCSRNonceLength];
-    uint8_t mAttestationNonce[kAttestationNonceLength];
-
-    uint8_t * mDAC   = nullptr;
-    uint16_t mDACLen = 0;
-    uint8_t * mPAI   = nullptr;
-    uint16_t mPAILen = 0;
-
-    uint8_t mNOCCertBuffer[Credentials::kMaxCHIPCertLength];
-    size_t mNOCCertBufferSize = 0;
-
-    uint8_t mICACertBuffer[Credentials::kMaxCHIPCertLength];
-    size_t mICACertBufferSize = 0;
 
     SessionIDAllocator * mIDAllocator = nullptr;
 };

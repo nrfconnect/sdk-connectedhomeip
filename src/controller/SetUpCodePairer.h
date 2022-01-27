@@ -48,9 +48,6 @@ namespace Controller {
 class DeviceCommissioner;
 
 class DLL_EXPORT SetUpCodePairer
-#if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
-    : public DeviceDiscoveryDelegate
-#endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
 {
 public:
     SetUpCodePairer(DeviceCommissioner * commissioner) : mCommissioner(commissioner) {}
@@ -58,25 +55,25 @@ public:
 
     CHIP_ERROR PairDevice(chip::NodeId remoteId, const char * setUpCode);
 
+// Called by the DeviceCommissioner to notify that we have discovered a new device.
+#if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
+    void NotifyCommissionableDeviceDiscovered(const chip::Dnssd::DiscoveredNodeData & nodeData);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
+
 #if CONFIG_NETWORK_LAYER_BLE
     void SetBleLayer(Ble::BleLayer * bleLayer) { mBleLayer = bleLayer; };
 #endif // CONFIG_NETWORK_LAYER_BLE
 
 private:
-    CHIP_ERROR Connect(RendezvousInformationFlag rendezvousInformation, uint16_t discriminator, bool isShort);
-    CHIP_ERROR StartDiscoverOverBle(uint16_t discriminator, bool isShort);
+    CHIP_ERROR Connect(SetupPayload & paload);
+    CHIP_ERROR StartDiscoverOverBle(SetupPayload & payload);
     CHIP_ERROR StopConnectOverBle();
-    CHIP_ERROR StartDiscoverOverIP(uint16_t discriminator, bool isShort);
+    CHIP_ERROR StartDiscoverOverIP(SetupPayload & payload);
     CHIP_ERROR StopConnectOverIP();
-    CHIP_ERROR StartDiscoverOverSoftAP(uint16_t discriminator, bool isShort);
+    CHIP_ERROR StartDiscoverOverSoftAP(SetupPayload & payload);
     CHIP_ERROR StopConnectOverSoftAP();
 
     void OnDeviceDiscovered(RendezvousParameters & params);
-
-#if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
-    /////////// DeviceDiscoveryDelegate Interface /////////
-    void OnDiscoveredDevice(const chip::Dnssd::DiscoveredNodeData & nodeData) override;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_DNSSD
 
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * mBleLayer = nullptr;
@@ -85,6 +82,11 @@ private:
     static void OnDiscoveredDeviceOverBleSuccess(void * appState, BLE_CONNECTION_OBJECT connObj);
     static void OnDiscoveredDeviceOverBleError(void * appState, CHIP_ERROR err);
 #endif // CONFIG_NETWORK_LAYER_BLE
+
+#if CHIP_DEVICE_CONFIG_ENABLE_DNSSD
+    bool NodeMatchesCurrentFilter(const Dnssd::DiscoveredNodeData & nodeData);
+    Dnssd::DiscoveryFilter currentFilter;
+#endif
 
     DeviceCommissioner * mCommissioner = nullptr;
     chip::NodeId mRemoteId;

@@ -11,7 +11,7 @@ namespace {
 Structs::ModeOptionStruct::Type buildModeOptionStruct(const char * label, uint8_t mode, uint32_t semanticTag)
 {
     Structs::ModeOptionStruct::Type option;
-    option.label       = CharSpan(label, strlen(label));
+    option.label       = CharSpan::fromCharString(label);
     option.mode        = mode;
     option.semanticTag = semanticTag;
     return option;
@@ -62,7 +62,7 @@ EmberAfStatus StaticSupportedModesManager::getModeOptionByMode(unsigned short en
         }
     }
     emberAfPrintln(EMBER_AF_PRINT_DEBUG, "Cannot find the mode %" PRIu8, mode);
-    return EMBER_ZCL_STATUS_INVALID_ARGUMENT;
+    return EMBER_ZCL_STATUS_INVALID_VALUE;
 }
 
 const ModeSelect::SupportedModesManager * ModeSelect::getSupportedModesManager()

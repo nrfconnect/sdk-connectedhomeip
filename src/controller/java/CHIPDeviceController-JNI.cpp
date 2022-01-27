@@ -62,6 +62,7 @@ using namespace chip::Controller;
 static void * IOThreadMain(void * arg);
 static CHIP_ERROR N2J_PaseVerifierParams(JNIEnv * env, jlong setupPincode, jint passcodeId, jbyteArray pakeVerifier,
                                          jobject & outParams);
+static CHIP_ERROR N2J_NetworkLocation(JNIEnv * env, jstring ipAddress, jint port, jobject & outLocation);
 
 namespace {
 
@@ -146,8 +147,9 @@ JNI_METHOD(jlong, newDeviceController)(JNIEnv * env, jobject self)
 
     ChipLogProgress(Controller, "newDeviceController() called");
 
-    wrapper = AndroidDeviceControllerWrapper::AllocateNew(sJVM, self, kLocalDeviceId, &DeviceLayer::SystemLayer(),
-                                                          &DeviceLayer::InetLayer(), &err);
+    wrapper =
+        AndroidDeviceControllerWrapper::AllocateNew(sJVM, self, kLocalDeviceId, &DeviceLayer::SystemLayer(),
+                                                    DeviceLayer::TCPEndPointManager(), DeviceLayer::UDPEndPointManager(), &err);
     SuccessOrExit(err);
 
     // Create and start the IO thread. Must be called after Controller()->Init
@@ -176,8 +178,39 @@ exit:
     return result;
 }
 
+JNI_METHOD(void, commissionDevice)
+(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jbyteArray csrNonce, jobject networkCredentials)
+{
+    chip::DeviceLayer::StackLock lock;
+    CHIP_ERROR err                           = CHIP_NO_ERROR;
+    AndroidDeviceControllerWrapper * wrapper = AndroidDeviceControllerWrapper::FromJNIHandle(handle);
+
+    ChipLogProgress(Controller, "commissionDevice() called");
+
+    CommissioningParameters commissioningParams = CommissioningParameters();
+    if (networkCredentials != nullptr)
+    {
+        err = wrapper->ApplyNetworkCredentials(commissioningParams, networkCredentials);
+        VerifyOrExit(err == CHIP_NO_ERROR, err = CHIP_ERROR_INVALID_ARGUMENT);
+    }
+
+    if (csrNonce != nullptr)
+    {
+        JniByteArray jniCsrNonce(env, csrNonce);
+        commissioningParams.SetCSRNonce(jniCsrNonce.byteSpan());
+    }
+    err = wrapper->Controller()->Commission(deviceId, commissioningParams);
+exit:
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Failed to commission the device.");
+        JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, err);
+    }
+}
+
 JNI_METHOD(void, pairDevice)
-(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jint connObj, jlong pinCode, jbyteArray csrNonce)
+(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jint connObj, jlong pinCode, jbyteArray csrNonce,
+ jobject networkCredentials)
 {
     chip::DeviceLayer::StackLock lock;
     CHIP_ERROR err                           = CHIP_NO_ERROR;
@@ -185,18 +218,22 @@ JNI_METHOD(void, pairDevice)
 
     ChipLogProgress(Controller, "pairDevice() called with device ID, connection object, and pincode");
 
-    RendezvousParameters params = RendezvousParameters()
-                                      .SetSetupPINCode(pinCode)
+    RendezvousParameters rendezvousParams = RendezvousParameters()
+                                                .SetSetupPINCode(pinCode)
 #if CONFIG_NETWORK_LAYER_BLE
-                                      .SetConnectionObject(reinterpret_cast<BLE_CONNECTION_OBJECT>(connObj))
+                                                .SetConnectionObject(reinterpret_cast<BLE_CONNECTION_OBJECT>(connObj))
 #endif
-                                      .SetPeerAddress(Transport::PeerAddress::BLE());
+                                                .SetPeerAddress(Transport::PeerAddress::BLE());
+
+    CommissioningParameters commissioningParams = CommissioningParameters();
+    wrapper->ApplyNetworkCredentials(commissioningParams, networkCredentials);
+
     if (csrNonce != nullptr)
     {
         JniByteArray jniCsrNonce(env, csrNonce);
-        params.SetCSRNonce(jniCsrNonce.byteSpan());
+        commissioningParams.SetCSRNonce(jniCsrNonce.byteSpan());
     }
-    err = wrapper->Controller()->PairDevice(deviceId, params);
+    err = wrapper->Controller()->PairDevice(deviceId, rendezvousParams, commissioningParams);
 
     if (err != CHIP_NO_ERROR)
     {
@@ -206,7 +243,7 @@ JNI_METHOD(void, pairDevice)
 }
 
 JNI_METHOD(void, pairDeviceWithAddress)
-(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jstring address, jint port, jint discriminator, jint pinCode,
+(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jstring address, jint port, jint discriminator, jlong pinCode,
  jbyteArray csrNonce)
 {
     chip::DeviceLayer::StackLock lock;
@@ -221,20 +258,68 @@ JNI_METHOD(void, pairDeviceWithAddress)
                    ChipLogError(Controller, "Failed to parse IP address."),
                    JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, CHIP_ERROR_INVALID_ARGUMENT));
 
-    RendezvousParameters params = RendezvousParameters()
-                                      .SetDiscriminator(discriminator)
-                                      .SetSetupPINCode(pinCode)
-                                      .SetPeerAddress(Transport::PeerAddress::UDP(addr, port));
+    RendezvousParameters rendezvousParams = RendezvousParameters()
+                                                .SetDiscriminator(discriminator)
+                                                .SetSetupPINCode(pinCode)
+                                                .SetPeerAddress(Transport::PeerAddress::UDP(addr, port));
+    CommissioningParameters commissioningParams = CommissioningParameters();
     if (csrNonce != nullptr)
     {
         JniByteArray jniCsrNonce(env, csrNonce);
-        params.SetCSRNonce(jniCsrNonce.byteSpan());
+        commissioningParams.SetCSRNonce(jniCsrNonce.byteSpan());
     }
-    err = wrapper->Controller()->PairDevice(deviceId, params);
+    err = wrapper->Controller()->PairDevice(deviceId, rendezvousParams, commissioningParams);
 
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "Failed to pair the device.");
+        JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, err);
+    }
+}
+
+JNI_METHOD(void, establishPaseConnection)(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jint connObj, jlong pinCode)
+{
+    chip::DeviceLayer::StackLock lock;
+    CHIP_ERROR err                           = CHIP_NO_ERROR;
+    AndroidDeviceControllerWrapper * wrapper = AndroidDeviceControllerWrapper::FromJNIHandle(handle);
+
+    RendezvousParameters rendezvousParams = RendezvousParameters()
+                                                .SetSetupPINCode(pinCode)
+#if CONFIG_NETWORK_LAYER_BLE
+                                                .SetConnectionObject(reinterpret_cast<BLE_CONNECTION_OBJECT>(connObj))
+#endif
+                                                .SetPeerAddress(Transport::PeerAddress::BLE());
+
+    err = wrapper->Controller()->EstablishPASEConnection(deviceId, rendezvousParams);
+
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Failed to establish PASE connection.");
+        JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, err);
+    }
+}
+
+JNI_METHOD(void, establishPaseConnectionByAddress)
+(JNIEnv * env, jobject self, jlong handle, jlong deviceId, jstring address, jint port, jlong pinCode)
+{
+    chip::DeviceLayer::StackLock lock;
+    CHIP_ERROR err                           = CHIP_NO_ERROR;
+    AndroidDeviceControllerWrapper * wrapper = AndroidDeviceControllerWrapper::FromJNIHandle(handle);
+
+    Inet::IPAddress addr;
+    JniUtfString addrJniString(env, address);
+    VerifyOrReturn(Inet::IPAddress::FromString(addrJniString.c_str(), addr),
+                   ChipLogError(Controller, "Failed to parse IP address."),
+                   JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, CHIP_ERROR_INVALID_ARGUMENT));
+
+    RendezvousParameters rendezvousParams =
+        RendezvousParameters().SetSetupPINCode(pinCode).SetPeerAddress(Transport::PeerAddress::UDP(addr, port));
+
+    err = wrapper->Controller()->EstablishPASEConnection(deviceId, rendezvousParams);
+
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Failed to establish PASE connection.");
         JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, err);
     }
 }
@@ -331,6 +416,13 @@ JNI_METHOD(void, shutdownSubscriptions)(JNIEnv * env, jobject self, jlong handle
     chip::DeviceLayer::StackLock lock;
 
     DeviceProxy * device = reinterpret_cast<DeviceProxy *>(devicePtr);
+
+    //
+    // We should move away from this model of shutting down subscriptions in this manner and instead,
+    // have Java own the ReadClient objects directly and manage their lifetimes.
+    //
+    // #13163 tracks this issue.
+    //
     device->ShutdownSubscriptions();
 }
 
@@ -357,6 +449,40 @@ JNI_METHOD(jstring, getIpAddress)(JNIEnv * env, jobject self, jlong handle, jlon
 
     addr.ToString(addrStr);
     return env->NewStringUTF(addrStr);
+}
+
+JNI_METHOD(jobject, getNetworkLocation)(JNIEnv * env, jobject self, jlong handle, jlong deviceId)
+{
+    chip::DeviceLayer::StackLock lock;
+    AndroidDeviceControllerWrapper * wrapper = AndroidDeviceControllerWrapper::FromJNIHandle(handle);
+
+    chip::Inet::IPAddress addr;
+    uint16_t port;
+    jobject networkLocation;
+    char addrStr[50];
+
+    CHIP_ERROR err =
+        wrapper->Controller()->GetPeerAddressAndPort(PeerId()
+                                                         .SetCompressedFabricId(wrapper->Controller()->GetCompressedFabricId())
+                                                         .SetNodeId(static_cast<chip::NodeId>(deviceId)),
+                                                     addr, port);
+
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Failed to get device address.");
+        JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, err);
+    }
+
+    addr.ToString(addrStr);
+
+    err = N2J_NetworkLocation(env, env->NewStringUTF(addrStr), static_cast<jint>(port), networkLocation);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Controller, "Failed to create NetworkLocation");
+        JniReferences::GetInstance().ThrowError(env, sChipDeviceControllerExceptionCls, err);
+    }
+
+    return networkLocation;
 }
 
 JNI_METHOD(jlong, getCompressedFabricId)(JNIEnv * env, jobject self, jlong handle)
@@ -525,6 +651,27 @@ CHIP_ERROR N2J_PaseVerifierParams(JNIEnv * env, jlong setupPincode, jint passcod
     VerifyOrExit(constructor != nullptr, err = CHIP_JNI_ERROR_METHOD_NOT_FOUND);
 
     outParams = (jobject) env->NewObject(paramsClass, constructor, setupPincode, passcodeId, paseVerifier);
+
+    VerifyOrExit(!env->ExceptionCheck(), err = CHIP_JNI_ERROR_EXCEPTION_THROWN);
+exit:
+    return err;
+}
+
+CHIP_ERROR N2J_NetworkLocation(JNIEnv * env, jstring ipAddress, jint port, jobject & outLocation)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    jmethodID constructor;
+    jclass locationClass;
+
+    err = JniReferences::GetInstance().GetClassRef(env, "chip/devicecontroller/NetworkLocation", locationClass);
+    JniClass networkLocationClass(locationClass);
+    SuccessOrExit(err);
+
+    env->ExceptionClear();
+    constructor = env->GetMethodID(locationClass, "<init>", "(Ljava/lang/String;I)V");
+    VerifyOrExit(constructor != nullptr, err = CHIP_JNI_ERROR_METHOD_NOT_FOUND);
+
+    outLocation = (jobject) env->NewObject(locationClass, constructor, ipAddress, port);
 
     VerifyOrExit(!env->ExceptionCheck(), err = CHIP_JNI_ERROR_EXCEPTION_THROWN);
 exit:

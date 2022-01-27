@@ -202,6 +202,9 @@ config("strict_warnings") {
     "-Wshadow",
     "-Wunreachable-code",
     "-Wvla",
+    "-Wformat",
+    "-Wformat-nonliteral",
+    "-Wformat-security",
   ]
 
   cflags_cc = [ "-Wnon-virtual-dtor" ]
@@ -374,7 +377,16 @@ config("sanitize_default") {
   }
 }
 
+config("libfuzzer_fuzzing") {
+  cflags = [ "-fsanitize=fuzzer" ]
+  ldflags = cflags
+}
+
 config("fuzzing_default") {
+  configs = []
+  if (is_libfuzzer) {
+    configs += [ ":libfuzzer_fuzzing" ]
+  }
 }
 
 declare_args() {

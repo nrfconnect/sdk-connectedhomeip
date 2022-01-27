@@ -28,6 +28,8 @@
 #include "AttributeReportIB.h"
 
 #include <app/AppBuildConfig.h>
+#include <app/ConcreteAttributePath.h>
+#include <app/MessageDef/StatusIB.h>
 #include <app/util/basic-types.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/core/CHIPTLV.h>
@@ -68,12 +70,19 @@ public:
      */
     AttributeReportIB::Builder & CreateAttributeReport();
 
+    AttributeReportIB::Builder & GetAttributeReport() { return mAttributeReport; }
+
     /**
      *  @brief Mark the end of this AttributeReportIBs
      *
      *  @return A reference to *this
      */
     AttributeReportIBs::Builder & EndOfAttributeReportIBs();
+
+    /**
+     * Encode an AttributeReportIB containing an AttributeStatus.
+     */
+    CHIP_ERROR EncodeAttributeStatus(const ConcreteReadAttributePath & aPath, const StatusIB & aStatus);
 
 private:
     AttributeReportIB::Builder mAttributeReport;

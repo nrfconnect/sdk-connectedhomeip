@@ -18,7 +18,7 @@
 
 /**
  *    @file
- *      This file defines objects for a User-Directed Commissioning unsolicitied
+ *      This file defines objects for a User-Directed Commissioning unsolicited
  *      initiator (client) and recipient (server).
  *
  */
@@ -183,7 +183,7 @@ public:
      * Get the cache of UDC Clients
      *
      */
-    UDCClients<kMaxUDCClients> GetUDCClients() { return mUdcClients; }
+    UDCClients<kMaxUDCClients> & GetUDCClients() { return mUdcClients; }
 
     /**
      * Print the cache of UDC Clients

@@ -18,7 +18,7 @@
  */
 /* this file behaves like a config.h, comes first */
 
-#include "netsocket/WiFiInterface.h"
+#include <net_common.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <platform/ConnectivityManager.h>
@@ -123,7 +123,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
     mWiFiAPIdleTimeout            = System::Clock::Milliseconds32(CHIP_DEVICE_CONFIG_WIFI_AP_IDLE_TIMEOUT);
     mSecurityType                 = NSAPI_SECURITY_WPA_WPA2;
 
-    ::NetworkInterface * net_if = ::NetworkInterface::get_default_instance();
+    auto net_if = get_mbed_net_if();
     if (net_if == nullptr)
     {
         ChipLogError(DeviceLayer, "No network interface available");
@@ -132,12 +132,12 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
 
     if (net_if->wifiInterface() != nullptr)
     {
-        mWifiInterface   = net_if->wifiInterface();
+        mWiFiInterface   = net_if->wifiInterface();
         mWiFiStationMode = kWiFiStationMode_Enabled;
 
         // TODO: Add to user documentation that add_event_listener must be used
         // To add more listener to the interface
-        mWifiInterface->add_event_listener([this](nsapi_event_t event, intptr_t data) {
+        mWiFiInterface->add_event_listener([this](nsapi_event_t event, intptr_t data) {
             PlatformMgrImpl().mQueue.call([this, event, data] {
                 PlatformMgr().LockChipStack();
                 OnInterfaceEvent(event, data);
@@ -145,7 +145,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
             });
         });
 
-        mWifiInterface->set_blocking(false);
+        mWiFiInterface->set_blocking(false);
     }
     return err;
 }
@@ -208,14 +208,14 @@ void ConnectivityManagerImpl::OnInterfaceEvent(nsapi_event_t event, intptr_t dat
 CHIP_ERROR ConnectivityManagerImpl::ProvisionWiFiNetwork(const char * ssid, const char * key)
 {
     // Validate the interface is available
-    if (!mWifiInterface)
+    if (!mWiFiInterface)
     {
         ChipLogError(DeviceLayer, "WiFi interface not supported");
         return CHIP_ERROR_INCORRECT_STATE;
     }
 
     // Set WiFi credentials
-    auto error = mWifiInterface->set_credentials(ssid, key, mSecurityType);
+    auto error = mWiFiInterface->set_credentials(ssid, key, mSecurityType);
     if (error)
     {
         ChipLogError(DeviceLayer, "Set WiFi credentials failed %d", error);
@@ -224,7 +224,7 @@ CHIP_ERROR ConnectivityManagerImpl::ProvisionWiFiNetwork(const char * ssid, cons
 
     mIsProvisioned = true;
 
-    PlatformMgr().ScheduleWork(OnWifiStationChange, 0);
+    PlatformMgr().ScheduleWork(OnWiFiStationChange, 0);
 
     return CHIP_NO_ERROR;
 }
@@ -232,14 +232,14 @@ CHIP_ERROR ConnectivityManagerImpl::ProvisionWiFiNetwork(const char * ssid, cons
 void ConnectivityManagerImpl::_ClearWiFiStationProvision(void)
 {
     // Validate the interface is available
-    if (!mWifiInterface)
+    if (!mWiFiInterface)
     {
         ChipLogError(DeviceLayer, "WiFi interface not supported");
         return;
     }
 
     // Reset credentials
-    auto error = mWifiInterface->set_credentials("ssid", NULL, NSAPI_SECURITY_NONE);
+    auto error = mWiFiInterface->set_credentials("ssid", NULL, NSAPI_SECURITY_NONE);
     if (error)
     {
         ChipLogError(DeviceLayer, "Reset WiFi credentials failed %d", error);
@@ -248,7 +248,7 @@ void ConnectivityManagerImpl::_ClearWiFiStationProvision(void)
 
     mIsProvisioned = false;
 
-    PlatformMgr().ScheduleWork(OnWifiStationChange, 0);
+    PlatformMgr().ScheduleWork(OnWiFiStationChange, 0);
 }
 
 CHIP_ERROR ConnectivityManagerImpl::OnStationConnected()
@@ -266,7 +266,7 @@ CHIP_ERROR ConnectivityManagerImpl::OnStationConnected()
 
     // Update IP address
     SocketAddress address;
-    auto error = mWifiInterface->get_ip_address(&address);
+    auto error = mWiFiInterface->get_ip_address(&address);
     if (error != NSAPI_ERROR_OK)
     {
         if (mIp4Address != IPAddress::Any)
@@ -307,6 +307,35 @@ CHIP_ERROR ConnectivityManagerImpl::OnStationConnected()
                 event.InternetConnectivityChange.IPv6 = kConnectivity_NoChange;
                 ReturnErrorOnFailure(PlatformMgr().PostEvent(&event));
                 ChipLogProgress(DeviceLayer, "New Ip4 address set: %s", address.get_ip_address());
+            }
+
+            error = mWiFiInterface->get_ipv6_link_local_address(&address);
+            if (error)
+            {
+                if (mIp6Address != IPAddress::Any)
+                {
+                    // Unnexpected change, forward to the application
+                    mIp6Address = IPAddress::Any;
+                    ChipDeviceEvent event;
+                    event.Type                            = DeviceEventType::kInternetConnectivityChange;
+                    event.InternetConnectivityChange.IPv4 = kConnectivity_NoChange;
+                    event.InternetConnectivityChange.IPv6 = kConnectivity_Lost;
+                    ReturnErrorOnFailure(PlatformMgr().PostEvent(&event));
+                    ChipLogError(DeviceLayer, "Unnexpected loss of Ip6 address");
+                }
+            }
+            else
+            {
+                if (IPAddress::FromString(address.get_ip_address(), addr) && addr != mIp6Address)
+                {
+                    mIp6Address = addr;
+                    ChipDeviceEvent event;
+                    event.Type                            = DeviceEventType::kInternetConnectivityChange;
+                    event.InternetConnectivityChange.IPv4 = kConnectivity_NoChange;
+                    event.InternetConnectivityChange.IPv6 = kConnectivity_Established;
+                    ReturnErrorOnFailure(PlatformMgr().PostEvent(&event));
+                    ChipLogProgress(DeviceLayer, "New Ip6 address set %s", address.get_ip_address());
+                }
             }
         }
         else
@@ -389,7 +418,7 @@ void ConnectivityManagerImpl::ExecuteStationChange()
         mWiFiStationState != kWiFiStationState_Connected)
     {
         // Connect the interface with network
-        error = mWifiInterface->connect();
+        error = mWiFiInterface->connect();
         if (error)
         {
             ChipLogError(DeviceLayer, "Network connection failed %d", error);
@@ -400,7 +429,7 @@ void ConnectivityManagerImpl::ExecuteStationChange()
         mWiFiStationState == kWiFiStationState_Connected)
     {
         // Connect the interface with network
-        error = mWifiInterface->disconnect();
+        error = mWiFiInterface->disconnect();
         if (error)
         {
             ChipLogError(DeviceLayer, "Network disconnect failed %d", error);
@@ -408,7 +437,7 @@ void ConnectivityManagerImpl::ExecuteStationChange()
     }
 }
 
-void ConnectivityManagerImpl::OnWifiStationChange(intptr_t arg)
+void ConnectivityManagerImpl::OnWiFiStationChange(intptr_t arg)
 {
     sInstance.ExecuteStationChange();
 }

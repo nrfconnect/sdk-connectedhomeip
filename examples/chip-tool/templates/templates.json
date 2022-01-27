@@ -44,9 +44,14 @@
             "output": "cluster/Commands.h"
         },
         {
-            "path": "reporting-commands.zapt",
-            "name": "Reporting Commands header",
-            "output": "reporting/Commands.h"
+            "path": "logging/DataModelLogger.zapt",
+            "name": "Data Model Logger header",
+            "output": "cluster/logging/DataModelLogger.h"
+        },
+        {
+            "path": "logging/DataModelLogger-src.zapt",
+            "name": "Data Model Logger",
+            "output": "cluster/logging/DataModelLogger.cpp"
         },
         {
             "path": "tests-commands.zapt",

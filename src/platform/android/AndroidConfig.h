@@ -1,3 +1,5 @@
+
+
 /*
  *
  *    Copyright (c) 2020-2021 Project CHIP Authors
@@ -58,7 +60,8 @@ public:
     static const Key kConfigKey_MfrDeviceCert;
     static const Key kConfigKey_MfrDeviceICACerts;
     static const Key kConfigKey_MfrDevicePrivateKey;
-    static const Key kConfigKey_ProductRevision;
+    static const Key kConfigKey_HardwareVersion;
+    static const Key kConfigKey_HardwareVersionString;
     static const Key kConfigKey_ManufacturingDate;
     static const Key kConfigKey_SetupPinCode;
     static const Key kConfigKey_FabricId;
@@ -74,6 +77,17 @@ public:
     static const Key kConfigKey_RegulatoryLocation;
     static const Key kConfigKey_CountryCode;
     static const Key kConfigKey_Breadcrumb;
+    static const Key kConfigKey_ProductId;
+    static const Key kConfigKey_ProductName;
+    static const Key kConfigKey_SoftwareVersion;
+    static const Key kConfigKey_SoftwareVersionString;
+    static const Key kConfigKey_NodeLabel;
+    static const Key kConfigKey_PartNumber;
+    static const Key kConfigKey_ProductURL;
+    static const Key kConfigKey_ProductLabel;
+    static const Key kConfigKey_LocalConfigDisabled;
+    static const Key kConfigKey_Reachable;
+    static const Key kConfigKey_UniqueId;
 
     static const char kGroupKeyNamePrefix[];
 
@@ -97,12 +111,12 @@ public:
 
     static void RunConfigUnitTest();
 
+    static void InitializeWithObject(jobject managerObject);
+
 protected:
     // NVS Namespace helper functions.
     static CHIP_ERROR EnsureNamespace(const char * ns);
     static CHIP_ERROR ClearNamespace(const char * ns);
-
-    static void InitializeWithObject(jobject managerObject);
 };
 
 struct AndroidConfig::Key

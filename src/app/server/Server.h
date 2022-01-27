@@ -17,10 +17,18 @@
 
 #pragma once
 
-#include <app/OperationalDeviceProxy.h>
+#include <app/CASEClientPool.h>
+#include <app/CASESessionManager.h>
+#include <app/DefaultAttributePersistenceProvider.h>
+#include <app/OperationalDeviceProxyPool.h>
 #include <app/server/AppDelegate.h>
 #include <app/server/CommissioningWindowManager.h>
+#include <credentials/FabricTable.h>
+#include <credentials/GroupDataProviderImpl.h>
 #include <inet/InetConfig.h>
+#include <lib/core/CHIPConfig.h>
+#include <lib/support/SafeInt.h>
+#include <lib/support/TestPersistentStorageDelegate.h>
 #include <messaging/ExchangeMgr.h>
 #include <platform/KeyValueStoreManager.h>
 #include <protocols/secure_channel/CASEServer.h>
@@ -28,7 +36,6 @@
 #include <protocols/secure_channel/PASESession.h>
 #include <protocols/secure_channel/RendezvousParameters.h>
 #include <protocols/user_directed_commissioning/UserDirectedCommissioning.h>
-#include <transport/FabricTable.h>
 #include <transport/SessionManager.h>
 #include <transport/TransportMgr.h>
 #include <transport/TransportMgrBase.h>
@@ -64,6 +71,8 @@ public:
 
     FabricTable & GetFabricTable() { return mFabrics; }
 
+    CASESessionManager * GetCASESessionManager() { return &mCASESessionManager; }
+
     Messaging::ExchangeManager & GetExchangeManager() { return mExchangeMgr; }
 
     SessionIDAllocator & GetSessionIDAllocator() { return mSessionIDAllocator; }
@@ -71,13 +80,6 @@ public:
     SessionManager & GetSecureSessionManager() { return mSessions; }
 
     TransportMgrBase & GetTransportManager() { return mTransports; }
-
-    chip::OperationalDeviceProxy * GetOperationalDeviceProxy() { return mOperationalDeviceProxy; }
-
-    void SetOperationalDeviceProxy(chip::OperationalDeviceProxy * operationalDeviceProxy)
-    {
-        mOperationalDeviceProxy = operationalDeviceProxy;
-    }
 
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * getBleLayerObject() { return mBleLayer; }
@@ -90,31 +92,34 @@ public:
     static Server & GetInstance() { return sServer; }
 
 private:
-    Server() : mCommissioningWindowManager(this) {}
+    Server();
 
     static Server sServer;
 
-    class ServerStorageDelegate : public PersistentStorageDelegate, public FabricStorage
+    class DeviceStorageDelegate : public PersistentStorageDelegate, public FabricStorage
     {
         CHIP_ERROR SyncGetKeyValue(const char * key, void * buffer, uint16_t & size) override
         {
-            ReturnErrorOnFailure(DeviceLayer::PersistedStorage::KeyValueStoreMgr().Get(key, buffer, size));
+            size_t bytesRead;
+            ReturnErrorOnFailure(DeviceLayer::PersistedStorage::KeyValueStoreMgr().Get(key, buffer, size, &bytesRead));
+            if (!CanCastTo<uint16_t>(bytesRead))
+            {
+                ChipLogDetail(AppServer, "%zu is too big to fit in uint16_t", bytesRead);
+                return CHIP_ERROR_BUFFER_TOO_SMALL;
+            }
             ChipLogProgress(AppServer, "Retrieved from server storage: %s", key);
+            size = static_cast<uint16_t>(bytesRead);
             return CHIP_NO_ERROR;
         }
 
         CHIP_ERROR SyncSetKeyValue(const char * key, const void * value, uint16_t size) override
         {
-            ReturnErrorOnFailure(DeviceLayer::PersistedStorage::KeyValueStoreMgr().Put(key, value, size));
-            ChipLogProgress(AppServer, "Saved into server storage: %s", key);
-            return CHIP_NO_ERROR;
+            return DeviceLayer::PersistedStorage::KeyValueStoreMgr().Put(key, value, size);
         }
 
         CHIP_ERROR SyncDeleteKeyValue(const char * key) override
         {
-            ReturnErrorOnFailure(DeviceLayer::PersistedStorage::KeyValueStoreMgr().Delete(key));
-            ChipLogProgress(AppServer, "Deleted from server storage: %s", key);
-            return CHIP_NO_ERROR;
+            return DeviceLayer::PersistedStorage::KeyValueStoreMgr().Delete(key);
         }
 
         CHIP_ERROR SyncStore(FabricIndex fabricIndex, const char * key, const void * buffer, uint16_t size) override
@@ -130,6 +135,37 @@ private:
         CHIP_ERROR SyncDelete(FabricIndex fabricIndex, const char * key) override { return SyncDeleteKeyValue(key); };
     };
 
+    class GroupDataProviderListener final : public Credentials::GroupDataProvider::GroupListener
+    {
+    public:
+        GroupDataProviderListener() {}
+
+        CHIP_ERROR Init(ServerTransportMgr * transports)
+        {
+            VerifyOrReturnError(transports != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
+            mTransports = transports;
+            return CHIP_NO_ERROR;
+        };
+
+        void OnGroupAdded(chip::FabricIndex fabric_index, const Credentials::GroupDataProvider::GroupInfo & new_group) override
+        {
+            if (mTransports->MulticastGroupJoinLeave(Transport::PeerAddress::Multicast(fabric_index, new_group.group_id), true) !=
+                CHIP_NO_ERROR)
+            {
+                ChipLogError(AppServer, "Unable to listen to group");
+            }
+        };
+
+        void OnGroupRemoved(chip::FabricIndex fabric_index, const Credentials::GroupDataProvider::GroupInfo & old_group) override
+        {
+            mTransports->MulticastGroupJoinLeave(Transport::PeerAddress::Multicast(fabric_index, old_group.group_id), false);
+        };
+
+    private:
+        ServerTransportMgr * mTransports;
+    };
+
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * mBleLayer = nullptr;
 #endif
@@ -137,6 +173,11 @@ private:
     ServerTransportMgr mTransports;
     SessionManager mSessions;
     CASEServer mCASEServer;
+
+    CASESessionManager mCASESessionManager;
+    CASEClientPool<CHIP_CONFIG_DEVICE_MAX_ACTIVE_CASE_CLIENTS> mCASEClientPool;
+    OperationalDeviceProxyPool<CHIP_CONFIG_DEVICE_MAX_ACTIVE_DEVICES> mDevicePool;
+
     Messaging::ExchangeManager mExchangeMgr;
     FabricTable mFabrics;
     SessionIDAllocator mSessionIDAllocator;
@@ -145,11 +186,20 @@ private:
     chip::Protocols::UserDirectedCommissioning::UserDirectedCommissioningClient gUDCClient;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
     SecurePairingUsingTestSecret mTestPairing;
-
-    ServerStorageDelegate mServerStorage;
     CommissioningWindowManager mCommissioningWindowManager;
 
-    chip::OperationalDeviceProxy * mOperationalDeviceProxy = nullptr;
+    // Both PersistentStorageDelegate, and GroupDataProvider should be injected by the applications
+    // See: https://github.com/project-chip/connectedhomeip/issues/12276
+    // Currently, the GroupDataProvider cannot use KeyValueStoreMgr() due to
+    // (https://github.com/project-chip/connectedhomeip/issues/12174)
+#ifdef CHIP_USE_NON_PERSISTENT_STORAGE_DELEGATE
+    TestPersistentStorageDelegate mDeviceStorage;
+#else
+    DeviceStorageDelegate mDeviceStorage;
+#endif
+    Credentials::GroupDataProviderImpl mGroupsProvider;
+    app::DefaultAttributePersistenceProvider mAttributePersister;
+    GroupDataProviderListener mListener;
 
     // TODO @ceille: Maybe use OperationalServicePort and CommissionableServicePort
     uint16_t mSecuredServicePort;

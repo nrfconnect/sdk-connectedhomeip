@@ -47,6 +47,8 @@ static_library("Darwin") {
     "ConfigurationManagerImpl.h",
     "ConnectivityManagerImpl.cpp",
     "ConnectivityManagerImpl.h",
+    "DiagnosticDataProviderImpl.cpp",
+    "DiagnosticDataProviderImpl.h",
     "DnssdImpl.cpp",
     "DnssdImpl.h",
     "InetPlatformConfig.h",
@@ -73,6 +75,14 @@ static_library("Darwin") {
   ]
 
   public_configs = [ ":darwin_config" ]
+
+  if (chip_enable_ota_requestor) {
+    sources += [
+      # using the implements from Linux platform
+      "../Linux/OTAImageProcessorImpl.cpp",
+      "../Linux/OTAImageProcessorImpl.h",
+    ]
+  }
 
   if (chip_enable_ble) {
     sources += [

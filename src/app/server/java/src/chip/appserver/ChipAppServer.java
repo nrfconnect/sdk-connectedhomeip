@@ -21,9 +21,7 @@ package chip.appserver;
 public class ChipAppServer {
   private static final String TAG = ChipAppServer.class.getSimpleName();
 
-  static {
-    System.loadLibrary("CHIPAppServer");
-  }
-
   public native boolean startApp();
+
+  public native boolean stopApp();
 }

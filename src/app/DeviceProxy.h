@@ -43,12 +43,6 @@ public:
     DeviceProxy() {}
 
     /**
-     *   Called when a connection is closing.
-     *   The object releases all resources associated with the connection.
-     */
-    virtual void OnConnectionExpired(SessionHandle session) = 0;
-
-    /**
      *  Mark any open session with the device as expired.
      */
     virtual CHIP_ERROR Disconnect() = 0;
@@ -57,21 +51,9 @@ public:
 
     virtual bool GetAddress(Inet::IPAddress & addr, uint16_t & port) const { return false; }
 
-    virtual CHIP_ERROR SendReadAttributeRequest(app::AttributePathParams aPath, Callback::Cancelable * onSuccessCallback,
-                                                Callback::Cancelable * onFailureCallback, app::TLVDataFilter aTlvDataFilter);
-
-    virtual CHIP_ERROR SendSubscribeAttributeRequest(app::AttributePathParams aPath, uint16_t mMinIntervalFloorSeconds,
-                                                     uint16_t mMaxIntervalCeilingSeconds, Callback::Cancelable * onSuccessCallback,
-                                                     Callback::Cancelable * onFailureCallback);
     virtual CHIP_ERROR ShutdownSubscriptions() { return CHIP_ERROR_NOT_IMPLEMENTED; }
 
-    virtual CHIP_ERROR SendWriteAttributeRequest(app::WriteClientHandle aHandle, Callback::Cancelable * onSuccessCallback,
-                                                 Callback::Cancelable * onFailureCallback);
-
-    virtual CHIP_ERROR SendCommands(app::CommandSender * commandObj);
-
-    virtual void AddReportHandler(EndpointId endpoint, ClusterId cluster, AttributeId attribute,
-                                  Callback::Cancelable * onReportCallback, app::TLVDataFilter tlvDataFilter);
+    virtual CHIP_ERROR SendCommands(app::CommandSender * commandObj, chip::Optional<System::Clock::Timeout> timeout = NullOptional);
 
     // Interaction model uses the object and callback interface instead of sequence number to mark different transactions.
     virtual void AddIMResponseHandler(void * commandObj, Callback::Cancelable * onSuccessCallback,
@@ -87,11 +69,9 @@ public:
 
     virtual bool IsActive() const { return true; }
 
-    void GetMRPIntervals(uint32_t & idleInterval, uint32_t & activeInterval) const
-    {
-        idleInterval   = mMrpIdleInterval;
-        activeInterval = mMrpActiveInterval;
-    }
+    virtual CHIP_ERROR SetPeerId(ByteSpan rcac, ByteSpan noc) { return CHIP_ERROR_NOT_IMPLEMENTED; }
+
+    const ReliableMessageProtocolConfig & GetMRPConfig() const { return mMRPConfig; }
 
 protected:
     virtual bool IsSecureConnected() const = 0;
@@ -100,8 +80,7 @@ protected:
 
     app::CHIPDeviceCallbacksMgr & mCallbacksMgr = app::CHIPDeviceCallbacksMgr::GetInstance();
 
-    uint32_t mMrpIdleInterval   = CHIP_CONFIG_MRP_DEFAULT_IDLE_RETRY_INTERVAL;
-    uint32_t mMrpActiveInterval = CHIP_CONFIG_MRP_DEFAULT_ACTIVE_RETRY_INTERVAL;
+    ReliableMessageProtocolConfig mMRPConfig = gDefaultMRPConfig;
 };
 
 } // namespace chip

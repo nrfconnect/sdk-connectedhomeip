@@ -30,8 +30,8 @@
 #pragma once
 
 #include <app/DeviceControllerInteractionModelDelegate.h>
+#include <credentials/FabricTable.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
-#include <transport/FabricTable.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/UDP.h>
 #if CONFIG_DEVICE_LAYER
@@ -62,8 +62,9 @@ namespace Controller {
 
 struct DeviceControllerSystemStateParams
 {
-    System::Layer * systemLayer = nullptr;
-    Inet::InetLayer * inetLayer = nullptr;
+    System::Layer * systemLayer                                   = nullptr;
+    Inet::EndPointManager<Inet::TCPEndPoint> * tcpEndPointManager = nullptr;
+    Inet::EndPointManager<Inet::UDPEndPoint> * udpEndPointManager = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * bleLayer = nullptr;
 #endif
@@ -83,9 +84,10 @@ class DeviceControllerSystemState
 public:
     ~DeviceControllerSystemState(){};
     DeviceControllerSystemState(DeviceControllerSystemStateParams params) :
-        mSystemLayer(params.systemLayer), mInetLayer(params.inetLayer), mTransportMgr(params.transportMgr),
-        mSessionMgr(params.sessionMgr), mExchangeMgr(params.exchangeMgr), mMessageCounterManager(params.messageCounterManager),
-        mFabrics(params.fabricTable), mIMDelegate(params.imDelegate)
+        mSystemLayer(params.systemLayer), mTCPEndPointManager(params.tcpEndPointManager),
+        mUDPEndPointManager(params.udpEndPointManager), mTransportMgr(params.transportMgr), mSessionMgr(params.sessionMgr),
+        mExchangeMgr(params.exchangeMgr), mMessageCounterManager(params.messageCounterManager), mFabrics(params.fabricTable),
+        mIMDelegate(params.imDelegate)
     {
 #if CONFIG_NETWORK_LAYER_BLE
         mBleLayer = params.bleLayer;
@@ -94,20 +96,14 @@ public:
 
     DeviceControllerSystemState * Retain()
     {
-        if (mRefCount == std::numeric_limits<uint32_t>::max())
-        {
-            abort();
-        }
+        VerifyOrDie(mRefCount < std::numeric_limits<uint32_t>::max());
         ++mRefCount;
         return this;
     };
 
     void Release()
     {
-        if (mRefCount == 0)
-        {
-            abort();
-        }
+        VerifyOrDie(mRefCount > 0);
 
         mRefCount--;
         if (mRefCount == 1)
@@ -122,12 +118,13 @@ public:
     };
     bool IsInitialized()
     {
-        return mSystemLayer != nullptr && mInetLayer != nullptr && mTransportMgr != nullptr && mSessionMgr != nullptr &&
+        return mSystemLayer != nullptr && mUDPEndPointManager != nullptr && mTransportMgr != nullptr && mSessionMgr != nullptr &&
             mExchangeMgr != nullptr && mMessageCounterManager != nullptr && mFabrics != nullptr;
     };
 
     System::Layer * SystemLayer() { return mSystemLayer; };
-    Inet::InetLayer * InetLayer() { return mInetLayer; };
+    Inet::EndPointManager<Inet::TCPEndPoint> * TCPEndPointManager() { return mTCPEndPointManager; };
+    Inet::EndPointManager<Inet::UDPEndPoint> * UDPEndPointManager() { return mUDPEndPointManager; };
     DeviceTransportMgr * TransportMgr() { return mTransportMgr; };
     SessionManager * SessionMgr() { return mSessionMgr; };
     Messaging::ExchangeManager * ExchangeMgr() { return mExchangeMgr; }
@@ -141,8 +138,9 @@ public:
 private:
     DeviceControllerSystemState(){};
 
-    System::Layer * mSystemLayer = nullptr;
-    Inet::InetLayer * mInetLayer = nullptr;
+    System::Layer * mSystemLayer                                   = nullptr;
+    Inet::EndPointManager<Inet::TCPEndPoint> * mTCPEndPointManager = nullptr;
+    Inet::EndPointManager<Inet::UDPEndPoint> * mUDPEndPointManager = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * mBleLayer = nullptr;
 #endif

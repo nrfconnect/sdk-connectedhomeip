@@ -50,23 +50,29 @@
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/cluster-id.h>
+#include <app/clusters/door-lock-server/door-lock-server.h>
+#include <app/clusters/network-commissioning/network-commissioning.h>
+#include <app/clusters/on-off-server/on-off-server.h>
+#include <app/clusters/ota-requestor/BDXDownloader.h>
+#include <app/clusters/ota-requestor/OTARequestor.h>
 #include <app/server/AppDelegate.h>
 #include <app/server/Dnssd.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/af-types.h>
 #include <app/util/af.h>
+#include <binding-handler.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <lib/shell/Engine.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/ErrorStr.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/ESP32/NetworkCommissioningDriver.h>
+#include <platform/ESP32/OTAImageProcessorImpl.h>
+#include <platform/GenericOTARequestorDriver.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
-
-#include <app/clusters/door-lock-server/door-lock-server.h>
-#include <app/clusters/on-off-server/on-off-server.h>
 
 #if CONFIG_ENABLE_PW_RPC
 #include "Rpc.h"
@@ -76,7 +82,10 @@
 #include <platform/ThreadStackManager.h>
 #endif
 
+#include <OnOffCommands.h>
+
 using namespace ::chip;
+using namespace ::chip::Shell;
 using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
@@ -122,6 +131,13 @@ std::vector<gpio_num_t> button_gpios = { BUTTON_1_GPIO_NUM, BUTTON_2_GPIO_NUM, B
 
 #endif
 
+#if CONFIG_ENABLE_OTA_REQUESTOR
+OTARequestor gRequestorCore;
+GenericOTARequestorDriver gRequestorUser;
+BDXDownloader gDownloader;
+OTAImageProcessorImpl gImageProcessor;
+#endif
+
 // Pretend these are devices with endpoints with clusters with attributes
 typedef std::tuple<std::string, std::string> Attribute;
 typedef std::vector<Attribute> Attributes;
@@ -132,6 +148,16 @@ typedef std::vector<Endpoint> Endpoints;
 typedef std::tuple<std::string, Endpoints> Device;
 typedef std::vector<Device> Devices;
 Devices devices;
+
+namespace {
+app::Clusters::NetworkCommissioning::Instance
+    sWiFiNetworkCommissioningInstance(0 /* Endpoint Id */, &(NetworkCommissioning::ESPWiFiDriver::GetInstance()));
+} // namespace
+
+void NetWorkCommissioningInstInit()
+{
+    sWiFiNetworkCommissioningInstance.Init();
+}
 
 void AddAttribute(std::string name, std::string value)
 {
@@ -241,9 +267,10 @@ public:
             ESP_LOGI(TAG, "name and cluster: '%s' (%s)", name.c_str(), cluster.c_str());
             if (name == "State" && cluster == "Lock")
             {
+                using namespace chip::app::Clusters;
                 // update the doorlock attribute here
-                uint8_t attributeValue = value == "Closed" ? EMBER_ZCL_DOOR_LOCK_STATE_LOCKED : EMBER_ZCL_DOOR_LOCK_STATE_UNLOCKED;
-                chip::app::Clusters::DoorLock::Attributes::LockState::Set(DOOR_LOCK_SERVER_ENDPOINT, attributeValue);
+                auto attributeValue = value == "Closed" ? DoorLock::DlLockState::kLocked : DoorLock::DlLockState::kUnlocked;
+                DoorLock::Attributes::LockState::Set(DOOR_LOCK_SERVER_ENDPOINT, attributeValue);
             }
         }
     }
@@ -363,7 +390,7 @@ public:
 private:
     void DoReinit()
     {
-        CHIP_ERROR err = Dnssd::ServiceAdvertiser::Instance().Init(&DeviceLayer::InetLayer());
+        CHIP_ERROR err = Dnssd::ServiceAdvertiser::Instance().Init(DeviceLayer::UDPEndPointManager());
         if (err != CHIP_NO_ERROR)
         {
             ESP_LOGE(TAG, "Error initializing: %s", err.AsString());
@@ -378,10 +405,10 @@ public:
     {
         std::string resetWiFi                   = "Reset WiFi";
         std::string resetToFactory              = "Reset to factory";
-        std::string forceWifiCommissioningBasic = "Force WiFi commissioning (basic)";
+        std::string forceWiFiCommissioningBasic = "Force WiFi commissioning (basic)";
         options.emplace_back(resetWiFi);
         options.emplace_back(resetToFactory);
-        options.emplace_back(forceWifiCommissioningBasic);
+        options.emplace_back(forceWiFiCommissioningBasic);
     }
     virtual std::string GetTitle() { return "Setup"; }
     virtual int GetItemCount() { return options.size(); }
@@ -427,14 +454,6 @@ public:
 
 #endif // CONFIG_DEVICE_TYPE_M5STACK
 
-void SetupInitialLevelControlValues(chip::EndpointId endpointId)
-{
-    uint8_t level = UINT8_MAX;
-
-    emberAfWriteAttribute(endpointId, ZCL_LEVEL_CONTROL_CLUSTER_ID, ZCL_CURRENT_LEVEL_ATTRIBUTE_ID, CLUSTER_MASK_SERVER, &level,
-                          ZCL_INT8U_ATTRIBUTE_TYPE);
-}
-
 void SetupPretendDevices()
 {
     AddDevice("Watch");
@@ -472,7 +491,8 @@ void SetupPretendDevices()
     AddCluster("Lock");
     AddAttribute("State", "Open");
     // write the door lock state
-    chip::app::Clusters::DoorLock::Attributes::LockState::Set(DOOR_LOCK_SERVER_ENDPOINT, EMBER_ZCL_DOOR_LOCK_STATE_UNLOCKED);
+    chip::app::Clusters::DoorLock::Attributes::LockState::Set(DOOR_LOCK_SERVER_ENDPOINT,
+                                                              chip::app::Clusters::DoorLock::DlLockState::kUnlocked);
     AddDevice("Garage 1");
     AddEndpoint("Door 1");
     AddCluster("Door");
@@ -491,6 +511,18 @@ void SetupPretendDevices()
     AddEndpoint("Door 2");
     AddCluster("Door");
     AddAttribute("State", "Closed");
+
+    AddDevice("Occupancy Sensor");
+    AddEndpoint("External");
+    AddCluster("Occupancy Sensor");
+    AddAttribute("Occupancy", "1");
+    app::Clusters::OccupancySensing::Attributes::Occupancy::Set(1, 1);
+
+    AddDevice("Contact Sensor");
+    AddEndpoint("External");
+    AddCluster("Contact Sensor");
+    AddAttribute("BooleanState", "true");
+    app::Clusters::BooleanState::Attributes::StateValue::Set(1, true);
 }
 
 WiFiWidget pairingWindowLED;
@@ -519,10 +551,20 @@ static void InitServer(intptr_t context)
 
     // Initialize device attestation config
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-
+    NetWorkCommissioningInstInit();
     SetupPretendDevices();
-    SetupInitialLevelControlValues(/* endpointId = */ 1);
-    SetupInitialLevelControlValues(/* endpointId = */ 2);
+    InitBindingHandlers();
+}
+
+static void InitOTARequestor(void)
+{
+#if CONFIG_ENABLE_OTA_REQUESTOR
+    SetRequestorInstance(&gRequestorCore);
+    gRequestorCore.Init(&Server::GetInstance(), &gRequestorUser, &gDownloader);
+    gImageProcessor.SetOTADownloader(&gDownloader);
+    gDownloader.SetImageProcessorDelegate(&gImageProcessor);
+    gRequestorUser.Init(&gRequestorCore, &gImageProcessor);
+#endif
 }
 
 extern "C" void app_main()
@@ -554,6 +596,8 @@ extern "C" void app_main()
 
 #if CONFIG_ENABLE_CHIP_SHELL
     chip::LaunchShell();
+    OnOffCommands & onOffCommands = OnOffCommands::GetInstance();
+    onOffCommands.Register();
 #endif // CONFIG_ENABLE_CHIP_SHELL
 
 #if CONFIG_OPENTHREAD_ENABLED
@@ -582,6 +626,8 @@ extern "C" void app_main()
 
     // Print QR Code URL
     PrintOnboardingCodes(chip::RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE));
+
+    InitOTARequestor();
 
 #if CONFIG_HAVE_DISPLAY
     std::string qrCodeText;
@@ -682,10 +728,10 @@ extern "C" void app_main()
 
 #endif // CONFIG_HAVE_DISPLAY
 
+#if CONFIG_DEVICE_TYPE_M5STACK
     // Run the UI Loop
     while (true)
     {
-#if CONFIG_DEVICE_TYPE_M5STACK
         // TODO consider refactoring this example to use FreeRTOS tasks
 
         bool woken = false;
@@ -710,10 +756,9 @@ extern "C" void app_main()
             }
         }
 
-#endif // CONFIG_DEVICE_TYPE_M5STACK
-
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
+#endif // CONFIG_DEVICE_TYPE_M5STACK
 }
 
 bool lowPowerClusterSleep()

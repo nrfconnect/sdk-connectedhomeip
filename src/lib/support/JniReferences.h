@@ -20,7 +20,7 @@
 #include <jni.h>
 #include <lib/core/CHIPError.h>
 #include <lib/support/CodeUtils.h>
-#include <pthread.h>
+#include <lib/support/TypeTraits.h>
 #include <string>
 
 namespace chip {
@@ -82,11 +82,87 @@ public:
      */
     CHIP_ERROR CreateOptional(jobject objectToWrap, jobject & outOptional);
 
+    /**
+     * Retrieve the value of a java.util.Optional, or nullptr if the Optional is empty.
+     */
+    CHIP_ERROR GetOptionalValue(jobject optionalObj, jobject & optionalValue);
+
+    /**
+     * Get a primitive jint from the Java boxed type Integer, using intValue().
+     */
+    jint IntegerToPrimitive(jobject boxedObject);
+
+    /**
+     * Get a primitive jlong from the Java boxed type Long, using longValue().
+     */
+    jlong LongToPrimitive(jobject boxedObject);
+
+    /**
+     * Get a primitive jboolean from the Java boxed type Booelan, using booleanValue().
+     */
+    jboolean BooleanToPrimitive(jobject boxedObject);
+
+    /**
+     * Get a primitive jfloat from the Java boxed type Float, using floatValue().
+     */
+    jfloat FloatToPrimitive(jobject boxedObject);
+
+    /**
+     * Get a primitive jfloat from the Java boxed type Double, using doubleValue().
+     */
+    jdouble DoubleToPrimitive(jobject boxedObject);
+
+    CHIP_ERROR CreateArrayList(jobject & outList);
+
+    CHIP_ERROR AddToArrayList(jobject list, jobject objectToAdd);
+
+    CHIP_ERROR GetArrayListSize(jobject list, jint & size);
+
+    CHIP_ERROR GetArrayListItem(jobject list, jint index, jobject & outItem);
+
+    CHIP_ERROR GetObjectField(jobject objectToRead, const char * name, const char * signature, jobject & outObject);
+
+    /**
+     * Call a void method with no arguments named "OnSubscriptionEstablished" on the provided jobject.
+     */
+    CHIP_ERROR CallSubscriptionEstablished(jobject javaCallback);
+
+    /**
+     * Creates a boxed type (e.g. java.lang.Integer) based on the the class name ("java/lang/Integer"), constructor JNI signature
+     * ("(I)V"), and value.
+     */
+    template <class T, typename std::enable_if_t<!std::is_enum<T>::value, int> = 0>
+    CHIP_ERROR CreateBoxedObject(std::string boxedTypeClsName, std::string constructorSignature, T value, jobject & outObj)
+    {
+        JNIEnv * env   = GetEnvForCurrentThread();
+        CHIP_ERROR err = CHIP_NO_ERROR;
+        jclass boxedTypeCls;
+        err = GetClassRef(env, boxedTypeClsName.c_str(), boxedTypeCls);
+        VerifyOrReturnError(err == CHIP_NO_ERROR, err);
+
+        jmethodID boxedTypeConstructor = env->GetMethodID(boxedTypeCls, "<init>", constructorSignature.c_str());
+        outObj                         = env->NewObject(boxedTypeCls, boxedTypeConstructor, value);
+        env->DeleteGlobalRef(boxedTypeCls);
+
+        return err;
+    }
+
+    /**
+     * Handling for strongly-typed enums.
+     */
+    template <class T, typename std::enable_if_t<std::is_enum<T>::value, int> = 0>
+    CHIP_ERROR CreateBoxedObject(std::string boxedTypeClsName, std::string constructorSignature, T value, jobject & outObj)
+    {
+        return CreateBoxedObject(boxedTypeClsName, constructorSignature, chip::to_underlying(value), outObj);
+    }
+
 private:
     JniReferences() {}
 
     JavaVM * mJvm              = nullptr;
     jobject mClassLoader       = nullptr;
     jmethodID mFindClassMethod = nullptr;
+
+    jclass mArrayListClass = nullptr;
 };
 } // namespace chip

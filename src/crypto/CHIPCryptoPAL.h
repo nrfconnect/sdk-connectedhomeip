@@ -46,6 +46,8 @@ constexpr size_t kP256_ECDSA_Signature_Length_Raw = (2 * kP256_FE_Length);
 constexpr size_t kP256_Point_Length               = (2 * kP256_FE_Length + 1);
 constexpr size_t kSHA256_Hash_Length              = 32;
 constexpr size_t kSHA1_Hash_Length                = 20;
+constexpr size_t kSubjectKeyIdentifierLength      = kSHA1_Hash_Length;
+constexpr size_t kAuthorityKeyIdentifierLength    = kSHA1_Hash_Length;
 
 constexpr size_t CHIP_CRYPTO_GROUP_SIZE_BYTES      = kP256_FE_Length;
 constexpr size_t CHIP_CRYPTO_PUBLIC_KEY_SIZE_BYTES = kP256_Point_Length;
@@ -58,7 +60,10 @@ constexpr size_t kMax_ECDSA_Signature_Length = kP256_ECDSA_Signature_Length_Raw;
 constexpr size_t kMAX_FE_Length              = kP256_FE_Length;
 constexpr size_t kMAX_Point_Length           = kP256_Point_Length;
 constexpr size_t kMAX_Hash_Length            = kSHA256_Hash_Length;
-constexpr size_t kMAX_CSR_Length             = 512;
+
+// Max CSR length should be relatively small since it's a single P256 key and
+// no metadata is expected to be honored by the CA.
+constexpr size_t kMAX_CSR_Length = 255;
 
 constexpr size_t CHIP_CRYPTO_HASH_LEN_BYTES = kSHA256_Hash_Length;
 
@@ -420,12 +425,54 @@ public:
      **/
     const P256PublicKey & Pubkey() const override { return mPublicKey; }
 
+    /** Release resources associated with this key pair */
+    void Clear();
+
 private:
     P256PublicKey mPublicKey;
     P256KeypairContext mKeypair;
     bool mInitialized = false;
+};
 
-    void Clear();
+/**
+ *  @brief  A data structure for holding an AES CCM128 symmetric key, without the ownership of it.
+ */
+using AesCcm128KeySpan = FixedByteSpan<Crypto::kAES_CCM128_Key_Length>;
+
+class AesCcm128Key
+{
+public:
+    AesCcm128Key() {}
+
+    ~AesCcm128Key()
+    {
+        // Sanitize after use
+        ClearSecretData(&bytes[0], Length());
+    }
+
+    template <size_t N>
+    constexpr AesCcm128Key(const uint8_t (&raw_value)[N])
+    {
+        static_assert(N == kAES_CCM128_Key_Length, "Can only array-initialize from proper bounds");
+        memcpy(&bytes[0], &raw_value[0], N);
+    }
+
+    template <size_t N>
+    constexpr AesCcm128Key(const FixedByteSpan<N> & value)
+    {
+        static_assert(N == kAES_CCM128_Key_Length, "Can only initialize from proper sized byte span");
+        memcpy(&bytes[0], value.data(), N);
+    }
+
+    size_t Length() const { return sizeof(bytes); }
+    operator uint8_t *() { return bytes; }
+    operator const uint8_t *() const { return bytes; }
+    const uint8_t * ConstBytes() const { return &bytes[0]; }
+    AesCcm128KeySpan Span() const { return AesCcm128KeySpan(bytes); }
+    uint8_t * Bytes() { return &bytes[0]; }
+
+private:
+    uint8_t bytes[kAES_CCM128_Key_Length];
 };
 
 /**
@@ -814,7 +861,7 @@ public:
                                      size_t Lin_len);
 
     /**
-     * @brief Start the Spake2+ process as a prover (i.e. a commisioner).
+     * @brief Start the Spake2+ process as a prover (i.e. a commissioner).
      *
      * @param my_identity       The prover identity. May be NULL if identities are not established.
      * @param my_identity_len   The prover identity length.
@@ -1194,6 +1241,19 @@ private:
 CHIP_ERROR GenerateCompressedFabricId(const Crypto::P256PublicKey & root_public_key, uint64_t fabric_id,
                                       MutableByteSpan & out_compressed_fabric_id);
 
+/**
+ * @brief Compute the compressed fabric identifier used for operational discovery service
+ *        records from a Node's root public key and Fabric ID.  This is a conveniance
+ *        overload that writes to a uint64_t (CompressedFabricId) type.
+ *
+ * @param[in] root_public_key The root public key associated with the node's fabric
+ * @param[in] fabric_id The fabric ID associated with the node's fabric
+ * @param[out] compressedFabricId output location for compressed fabric ID
+ * @returns a CHIP_ERROR on failure or CHIP_NO_ERROR otherwise.
+ */
+CHIP_ERROR GenerateCompressedFabricId(const Crypto::P256PublicKey & rootPublicKey, uint64_t fabricId,
+                                      uint64_t & compressedFabricId);
+
 typedef CapacityBoundBuffer<kMax_x509_Certificate_Length> X509DerCertificate;
 
 CHIP_ERROR LoadCertsFromPKCS7(const char * pkcs7, X509DerCertificate * x509list, uint32_t * max_certs);
@@ -1202,8 +1262,59 @@ CHIP_ERROR LoadCertFromPKCS7(const char * pkcs7, X509DerCertificate * x509list, 
 
 CHIP_ERROR GetNumberOfCertsFromPKCS7(const char * pkcs7, uint32_t * n_certs);
 
+enum class CertificateChainValidationResult
+{
+    kSuccess = 0,
+
+    kRootFormatInvalid   = 100,
+    kRootArgumentInvalid = 101,
+
+    kICAFormatInvalid   = 200,
+    kICAArgumentInvalid = 201,
+
+    kLeafFormatInvalid   = 300,
+    kLeafArgumentInvalid = 301,
+
+    kChainInvalid = 400,
+
+    kNoMemory = 500,
+
+    kInternalFrameworkError = 600,
+};
+
 CHIP_ERROR ValidateCertificateChain(const uint8_t * rootCertificate, size_t rootCertificateLen, const uint8_t * caCertificate,
-                                    size_t caCertificateLen, const uint8_t * leafCertificate, size_t leafCertificateLen);
+                                    size_t caCertificateLen, const uint8_t * leafCertificate, size_t leafCertificateLen,
+                                    CertificateChainValidationResult & result);
+
+/**
+ * @brief Validate timestamp of a certificate (toBeEvaluatedCertificate) in comparison with other certificate's
+ *        (referenceCertificate) issuing timestamp.
+ *
+ * Errors are:
+ *   - CHIP_ERROR_CERT_EXPIRED if the certificate timestamp does not satisfy the reference certificate's issuing timestamp.
+ *   - CHIP_ERROR_INVALID_ARGUMENT when passing an invalid argument.
+ *   - CHIP_ERROR_INTERNAL on any unexpected crypto or data conversion errors.
+ *
+ *  @param referenceCertificate     A DER Certificate ByteSpan used as the issuing timestamp reference.
+ *  @param toBeEvaluatedCertificate A DER Certificate ByteSpan used to evaluate issuance against the referenceCertificate.
+ *
+ *  @returns a CHIP_ERROR (see above) on failure or CHIP_NO_ERROR otherwise.
+ **/
+CHIP_ERROR IsCertificateValidAtIssuance(const ByteSpan & referenceCertificate, const ByteSpan & toBeEvaluatedCertificate);
+
+/**
+ * @brief Validate a certificate's validity date against current time.
+ *
+ * Errors are:
+ *   - CHIP_ERROR_CERT_EXPIRED if the certificate has expired.
+ *   - CHIP_ERROR_INVALID_ARGUMENT when passing an invalid argument.
+ *   - CHIP_ERROR_INTERNAL on any unexpected crypto or data conversion errors.
+ *
+ *  @param certificate A DER Certificate ByteSpan used as the validity reference to be checked against current time.
+ *
+ *  @returns a CHIP_ERROR (see above) on failure or CHIP_NO_ERROR otherwise.
+ **/
+CHIP_ERROR IsCertificateValidAtCurrentTime(const ByteSpan & certificate);
 
 CHIP_ERROR ExtractPubkeyFromX509Cert(const ByteSpan & certificate, Crypto::P256PublicKey & pubkey);
 
@@ -1217,10 +1328,86 @@ CHIP_ERROR ExtractSKIDFromX509Cert(const ByteSpan & certificate, MutableByteSpan
  **/
 CHIP_ERROR ExtractAKIDFromX509Cert(const ByteSpan & certificate, MutableByteSpan & akid);
 
+enum class MatterOid
+{
+    kVendorId,
+    kProductId,
+};
+
 /**
- * @brief Extracts the Vendor ID from an X509 Certificate.
+ * @brief Extracts one of the IDs listed in MatterOid enum from an X509 Certificate.
  **/
-CHIP_ERROR ExtractVIDFromX509Cert(const ByteSpan & certificate, VendorId & vid);
+CHIP_ERROR ExtractDNAttributeFromX509Cert(MatterOid matterOid, const ByteSpan & certificate, uint16_t & id);
+
+/**
+ * @brief Opaque context used to protect the symmetric key. The key operations must
+ *        be performed without exposing the protected key value.
+ */
+class SymmetricKeyContext
+{
+public:
+    virtual ~SymmetricKeyContext() = default;
+    /**
+     * @brief Perform the message encryption as described in 4.7.2. (Security Processing of Outgoing Messages)
+     * @param[inout] plaintext     Outgoing message payload.
+     * @param[in] aad           Additional data (message header contents)
+     * @param[in] nonce         Nonce (Security Flags | Message Counter | Source Node ID)
+     * @param[out] out_mic      Outgoing Message Integrity Check
+     * @return CHIP_ERROR
+     */
+    virtual CHIP_ERROR EncryptMessage(MutableByteSpan & plaintext, const ByteSpan & aad, const ByteSpan & nonce,
+                                      MutableByteSpan & out_mic) const = 0;
+    /**
+     * @brief Perform the message decryption as described in 4.7.3.(Security Processing of Incoming Messages)
+     * @param ciphertext[inout] Incoming encrypted payload
+     * @param aad[in]   Additional data (message header contents)
+     * @param nonce[in] Nonce (Security Flags | Message Counter | Source Node ID)
+     * @param mic[in]   Incoming Message Integrity Check
+     * @return CHIP_ERROR
+     */
+    virtual CHIP_ERROR DecryptMessage(MutableByteSpan & ciphertext, const ByteSpan & aad, const ByteSpan & nonce,
+                                      const ByteSpan & mic) const = 0;
+
+    /**
+     * @brief Perform privacy encoding as described in 4.8.2. (Privacy Processing of Outgoing Messages)
+     * @param header[in/out]    Message header to encrypt
+     * @param session_id[in]    Outgoing SessionID
+     * @param payload[in]       Encrypted payload
+     * @param mic[in]       Outgoing Message Integrity Check
+     * @return CHIP_ERROR
+     */
+    virtual CHIP_ERROR EncryptPrivacy(MutableByteSpan & header, uint16_t session_id, const ByteSpan & payload,
+                                      const ByteSpan & mic) const = 0;
+
+    /**
+     * @brief Perform privacy decoding as described in 4.8.3. (Privacy Processing of Incoming Messages)
+     * @param header[in/out]    Message header to decrypt
+     * @param session_id[in]    Incoming SessionID
+     * @param payload[in]       Encrypted payload
+     * @param mic[in]           Outgoing Message Integrity Check
+     * @return CHIP_ERROR
+     */
+    virtual CHIP_ERROR DecryptPrivacy(MutableByteSpan & header, uint16_t session_id, const ByteSpan & payload,
+                                      const ByteSpan & mic) const = 0;
+};
+
+/**
+ *  @brief Derives the Operational Group Key using the Key Derivation Function (KDF) from the given epoch key.
+ * @param[in] epoch_key  The epoch key. Must be CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
+ * @param[out] out_key  Symmetric key used as the encryption key during message processing for group communication.
+ The buffer size must be at least CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
+ * @return Returns a CHIP_NO_ERROR on succcess, or CHIP_ERROR_INTERNAL if the provided key is invalid.
+ **/
+CHIP_ERROR DeriveGroupOperationalKey(const ByteSpan & epoch_key, MutableByteSpan & out_key);
+
+/**
+ *  @brief Derives the Group Session ID from a given operational group key using
+ *         the Key Derivation Function (Group Key Hash)
+ * @param[in] operational_key  The operational group key. Must be CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
+ * @param[out] session_id  Output of the Group Key Hash
+ * @return Returns a CHIP_NO_ERROR on succcess, or CHIP_ERROR_INVALID_ARGUMENT if the provided key is invalid.
+ **/
+CHIP_ERROR DeriveGroupSessionId(const ByteSpan & operational_key, uint16_t & session_id);
 
 } // namespace Crypto
 } // namespace chip

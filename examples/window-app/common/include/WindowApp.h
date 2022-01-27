@@ -87,6 +87,8 @@ public:
         ProvisionedStateChanged,
         ConnectivityStateChanged,
         BLEConnectionsChanged,
+        WinkOff,
+        WinkOn,
     };
 
     struct Event
@@ -133,9 +135,15 @@ public:
 protected:
     struct StateFlags
     {
+#if CHIP_ENABLE_OPENTHREAD
         bool isThreadProvisioned = false;
         bool isThreadEnabled     = false;
-        bool haveBLEConnections  = false;
+#else
+        bool isWiFiProvisioned = false;
+        bool isWiFiEnabled     = false;
+#endif
+        bool haveBLEConnections = false;
+        bool isWinking          = false;
     };
 
     Cover & GetCover();

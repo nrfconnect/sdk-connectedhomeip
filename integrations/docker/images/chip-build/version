@@ -1,1 +1,1 @@
-0.5.28 Version bump reason: [Ameba] Decompress toolchain in Docker
+0.5.52 Version bump reason: add python packages to zap image, for use by the python control scripts

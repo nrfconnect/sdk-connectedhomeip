@@ -1,5 +1,15 @@
 {{#if header}}
-{{#*inline "callbackType"}}{{#if (isStrEqual partial-type "Command")}}CHIP{{> @partial-block}}Type{{else}}{{> @partial-block}}{{/if}}{{/inline}}
+{{#*inline "callbackType"}}
+  {{#if partial-type}}
+    {{#if (isStrEqual partial-type "Command")}}
+      CHIP{{> @partial-block}}Type
+    {{else}}
+      {{> @partial-block}}
+    {{/if}}
+  {{else}}
+    {{> @partial-block}}
+  {{/if}}
+{{/inline}}
 class CHIP{{> @partial-block}}Bridge : public CHIPCallbackBridge<{{>callbackType}}>
 {
 public:
@@ -8,90 +18,93 @@ public:
       {};
     
     static void OnSuccessFn(void * context
-      {{#if (isStrEqual partial-type "Command")}}
-      , const chip::app::Clusters::{{asUpperCamelCase parent.name}}::Commands::{{asUpperCamelCase name}}::DecodableType & data
-      {{else if (isStrEqual partial-type "List")}}
-      , {{zapTypeToDecodableClusterObjectType type ns=parent.name isArgument=true}} list
-      {{else if partial-type}}
-      , {{asUnderlyingZclType partial-type}} value
+      {{#if partial-type}}
+        {{#if (isStrEqual partial-type "Status")}}
+        {{! No more args in this case }}
+        {{else if (isStrEqual partial-type "Command")}}
+        , const chip::app::Clusters::{{asUpperCamelCase parent.name}}::Commands::{{asUpperCamelCase name}}::DecodableType & data
+        {{else if (isStrEqual partial-type "CommandStatus")}}
+        , const chip::app::DataModel::NullObjectType &
+        {{else}}
+        UNEXPECTED PARTIAL TYPE
+        {{/if}}
       {{else}}
+      , {{zapTypeToDecodableClusterObjectType type ns=ns isArgument=true}} value
       {{/if}}
     );
 };
+
+{{#unless partial-type}}
+class CHIP{{> @partial-block}}SubscriptionBridge : public CHIP{{> @partial-block}}Bridge
+{
+public:
+    CHIP{{> @partial-block}}SubscriptionBridge(dispatch_queue_t queue, ResponseHandler handler, CHIPActionBlock action, SubscriptionEstablishedHandler establishedHandler)
+      : CHIP{{> @partial-block}}Bridge(queue, handler, action, true),
+        mEstablishedHandler(establishedHandler)
+      {}
+
+    static void OnSubscriptionEstablished(void * context);
+
+private:
+    SubscriptionEstablishedHandler mEstablishedHandler;
+};
+{{/unless}}
+
 {{else}}
 void CHIP{{> @partial-block}}Bridge::OnSuccessFn(void * context
-  {{#if (isStrEqual partial-type "Command")}}
-  , const chip::app::Clusters::{{asUpperCamelCase parent.name}}::Commands::{{asUpperCamelCase name}}::DecodableType & data
-  {{else if (isStrEqual partial-type "List")}}
-  , {{zapTypeToDecodableClusterObjectType type ns=parent.name isArgument=true}} list
-  {{else if partial-type}}
-  , {{asUnderlyingZclType partial-type}} value
+  {{#if partial-type}}
+    {{#if (isStrEqual partial-type "Status")}}
+    {{! No more args in this case }}
+    {{else if (isStrEqual partial-type "Command")}}
+    , const chip::app::Clusters::{{asUpperCamelCase parent.name}}::Commands::{{asUpperCamelCase name}}::DecodableType & data
+    {{else if (isStrEqual partial-type "CommandStatus")}}
+    , const chip::app::DataModel::NullObjectType &
+    {{else}}
+    UNEXPECTED PARTIAL TYPE
+    {{/if}}
   {{else}}
+  , {{zapTypeToDecodableClusterObjectType type ns=ns isArgument=true}} value
   {{/if}}
 )
 {
-    {{#if (isStrEqual partial-type "Command")}}
-    NSMutableDictionary * response = [[NSMutableDictionary alloc] init];
-    {{#chip_cluster_response_arguments}}
-    {
-      id value;
-      {{>decode_value target="value" source=(concat "data." (asLowerCamelCase label)) cluster=parent.parent.name errorCode="OnFailureFn(context, EMBER_ZCL_STATUS_INVALID_VALUE); return;"}}
-      response[@"{{asUpperCamelCase label}}"] = value;
-    }
-    {{/chip_cluster_response_arguments}}
-    DispatchSuccess(context, response);
-    {{else if (isStrEqual partial-type "List")}}
-    id array = [[NSMutableArray alloc] init];
-    auto iter = list.begin();
-    while (iter.Next())
-    {
-        auto & entry = iter.GetValue();
-        (void)entry; // All our types below might be unsupported
-        {{#if isStruct}}
-        [array addObject:@{
-          {{#chip_attribute_list_entryTypes}}
-          {{#if isOptional}}
-          {{! TODO: Add support for optional types, probably by having a templated ToObjectiveCType function }}
-          {{else if isNullable}}
-          {{! TODO: Add support for nullable types, probably by having a templated ToObjectiveCType function }}
-          {{else if isArray}}
-          {{! TODO: Add support for list members of structs in list attributes }}
-          @"{{asUpperCamelCase name}}": [[NSMutableArray alloc] init],
-          {{else if (isOctetString type)}}
-          @"{{asUpperCamelCase name}}" : [NSData dataWithBytes:entry.{{asLowerCamelCase name}}.data() length:entry.{{asLowerCamelCase name}}.size()],
-          {{else if (isCharString type)}}
-          @"{{asUpperCamelCase name}}" : [[NSString alloc] initWithBytes:entry.{{asLowerCamelCase name}}.data() length:entry.{{asLowerCamelCase name}}.size() encoding:NSUTF8StringEncoding],
-          {{else if isStruct}}
-          {{! TODO: Add support for struct members of structs in list attributes }}
-          @"{{asUpperCamelCase name}}": @{}
-          {{else}}
-          @"{{asUpperCamelCase name}}" : [NSNumber numberWith{{asObjectiveCNumberType label type false}}:entry.{{asLowerCamelCase name}}],
-          {{/if}}
-          {{/chip_attribute_list_entryTypes}}
-        }];
-        {{else if (isOctetString type)}}
-        [array addObject:[NSData dataWithBytes:entry.data() length:entry.size()]];
-        {{else if (isCharString type)}}
-        [array addObject:[[NSString alloc] initWithBytes:entry.data() length:entry.size() encoding:NSUTF8StringEncoding]];
-        {{else}}
-        [array addObject:[NSNumber numberWith{{asObjectiveCNumberType label type false}}:entry]];
-        {{/if}}
-    }
-    if (iter.GetStatus() != CHIP_NO_ERROR)
-    {
-        OnFailureFn(context, EMBER_ZCL_STATUS_INVALID_VALUE);
-        return;
-    }
-
-    DispatchSuccess(context, @{ @"value": array });
-    {{else if (isOctetString partial-type)}}
-    DispatchSuccess(context, @{ @"value": [NSData dataWithBytes: value.data() length: value.size()] });
-    {{else if (isCharString partial-type)}}
-    DispatchSuccess(context, @{ @"value": [[NSString alloc] initWithBytes:value.data() length:value.size() encoding:NSUTF8StringEncoding] });
-    {{else if partial-type}}
-    DispatchSuccess(context, @{ @"value": [NSNumber numberWith{{asObjectiveCNumberType name partial-type false}}:value] });
+    {{#if partial-type}}
+      {{#if (isStrEqual partial-type "Status")}}
+      DispatchSuccess(context, nil);
+      {{else if (isStrEqual partial-type "Command")}}
+      auto * response = [CHIP{{asUpperCamelCase parent.name}}Cluster{{asUpperCamelCase name}}Params new];
+      {{#chip_cluster_response_arguments}}
+      {
+        {{>decode_value target=(concat "response." (asStructPropertyName label)) source=(concat "data." (asLowerCamelCase label)) cluster=parent.parent.name errorCode="OnFailureFn(context, err); return;" depth=0}}
+      }
+      {{/chip_cluster_response_arguments}}
+      DispatchSuccess(context, response);
+      {{else if (isStrEqual partial-type "CommandStatus")}}
+      DispatchSuccess(context, nil);
+      {{else}}
+      UNEXPECTED PARTIAL TYPE
+      {{/if}}
     {{else}}
-    DispatchSuccess(context, nil);
+    {{asObjectiveCType type ns}} objCValue;
+    {{>decode_value target="objCValue" source="value" cluster=ns errorCode="OnFailureFn(context, err); return;" depth=0}}
+    DispatchSuccess(context, objCValue);
     {{/if}}
 };
+
+{{#unless partial-type}}
+void CHIP{{> @partial-block}}SubscriptionBridge::OnSubscriptionEstablished(void * context)
+{
+     auto * self = static_cast<CHIP{{> @partial-block}}SubscriptionBridge *>(context);
+     if (!self->mQueue) {
+         return;
+     }
+
+     if (self->mEstablishedHandler != nil) {
+         dispatch_async(self->mQueue, self->mEstablishedHandler);
+         // On failure, mEstablishedHandler will be cleaned up by our destructor,
+         // but we can clean it up earlier on successful subscription
+         // establishment.
+         self->mEstablishedHandler = nil;
+     }
+}
+{{/unless}}
 {{/if}}

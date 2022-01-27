@@ -21,15 +21,25 @@ const templateUtil = require(zapPath + 'generator/template-util.js')
 const zclHelper    = require(zapPath + 'generator/helper-zcl.js')
 const queryCommand = require(zapPath + 'db/query-command.js')
 const zclQuery     = require(zapPath + 'db/query-zcl.js')
+const queryEvents  = require(zapPath + 'db/query-event.js')
 const cHelper      = require(zapPath + 'generator/helper-c.js')
 const string       = require(zapPath + 'util/string.js')
+const dbEnum       = require(zapPath + '../src-shared/db-enum.js')
 
 const StringHelper    = require('../../common/StringHelper.js');
 const ChipTypesHelper = require('../../common/ChipTypesHelper.js');
 
+zclHelper['isEvent'] = function(db, event_name, packageId) {
+    return queryEvents
+      .selectAllEvents(db, packageId)
+      .then(events => events.find(event => event.name == event_name))
+      .then(events => events ? 'event' : dbEnum.zclType.unknown);
+}
+
 // This list of attributes is taken from section '11.2. Global Attributes' of the
 // Data Model specification.
 const kGlobalAttributes = [
+  0xfffb, // AttributeList
   0xfffc, // ClusterRevision
   0xfffd, // FeatureMap
 ];
@@ -96,19 +106,24 @@ function asReadType(type)
 // List of all cluster with generated functions
 var endpointClusterWithInit = [
   'Basic',
-  'Identify',
+  'Color Control',
   'Groups',
-  'Scenes',
+  'IAS Zone',
+  'Identify',
+  'Level Control',
+  'Localization Configuration',
   'Occupancy Sensing',
   'On/Off',
-  'Level Control',
-  'Color Control',
-  'IAS Zone',
   'Pump Configuration and Control',
+  'Scenes',
+  'Time Format Localization',
+  'Thermostat',
 ];
 var endpointClusterWithAttributeChanged = [ 'Identify', 'Door Lock', 'Pump Configuration and Control' ];
-var endpointClusterWithPreAttribute     = [ 'IAS Zone', 'Thermostat User Interface Configuration' ];
-var endpointClusterWithMessageSent      = [ 'IAS Zone' ];
+var endpointClusterWithPreAttribute     = [
+  'IAS Zone', 'Door Lock', 'Thermostat User Interface Configuration', 'Time Format Localization', 'Localization Configuration'
+];
+var endpointClusterWithMessageSent = [ 'IAS Zone' ];
 
 /**
  * Populate the GENERATED_FUNCTIONS field
@@ -263,8 +278,9 @@ function asPrintFormat(type)
   return templateUtil.templatePromise(this.global, promise)
 }
 
-function asTypeLiteralSuffix(type)
+function asTypedLiteral(value, type)
 {
+  const valueIsANumber = !isNaN(value);
   function fn(pkgId)
   {
     const options = { 'hash' : {} };
@@ -272,17 +288,37 @@ function asTypeLiteralSuffix(type)
       const basicType = ChipTypesHelper.asBasicType(zclType);
       switch (basicType) {
       case 'int32_t':
-        return 'L';
+        return value + (valueIsANumber ? 'L' : '');
       case 'int64_t':
-        return 'LL';
+        return value + (valueIsANumber ? 'LL' : '');
       case 'uint16_t':
-        return 'U';
+        return value + (valueIsANumber ? 'U' : '');
       case 'uint32_t':
-        return 'UL';
+        return value + (valueIsANumber ? 'UL' : '');
       case 'uint64_t':
-        return 'ULL';
+        return value + (valueIsANumber ? 'ULL' : '');
+      case 'float':
+        if (!valueIsANumber) {
+          return value;
+        }
+        if (value == Infinity || value == -Infinity) {
+          return `${(value < 0) ? '-' : ''}INFINITY`
+        }
+        // If the number looks like an integer, append ".0" to the end;
+        // otherwise adding an "f" suffix makes compilers complain.
+        value = value.toString();
+        if (value.match(/^[0-9]+$/)) {
+          value = value + ".0";
+        }
+        return value + 'f';
       default:
-        return '';
+        if (!valueIsANumber) {
+          return value;
+        }
+        if (value == Infinity || value == -Infinity) {
+          return `${(value < 0) ? '-' : ''}INFINITY`
+        }
+        return value;
       }
     })
   }
@@ -329,6 +365,16 @@ function asMEI(prefix, suffix)
   return cHelper.asHex((prefix << 16) + suffix, 8);
 }
 
+// Not to be exported.
+function nsValueToNamespace(ns)
+{
+  if (ns == "detail") {
+    return ns;
+  }
+
+  return asUpperCamelCase(ns);
+}
+
 /*
  * @brief
  *
@@ -349,27 +395,50 @@ async function zapTypeToClusterObjectType(type, isDecodable, options)
   let passByReference = false;
   async function fn(pkgId)
   {
-    const ns          = options.hash.ns ? ('chip::app::Clusters::' + asUpperCamelCase(options.hash.ns) + '::') : '';
+    const ns          = options.hash.ns ? ('chip::app::Clusters::' + nsValueToNamespace(options.hash.ns) + '::') : '';
     const typeChecker = async (method) => zclHelper[method](this.global.db, type, pkgId).then(zclType => zclType != 'unknown');
 
-    if (await typeChecker('isEnum')) {
+    const types = {
+      isEnum : await typeChecker('isEnum'),
+      isBitmap : await typeChecker('isBitmap'),
+      isEvent : await typeChecker('isEvent'),
+      isStruct : await typeChecker('isStruct'),
+    };
+
+    const typesCount = Object.values(types).filter(isType => isType).length;
+    if (typesCount > 1) {
+      let error = type + ' is ambiguous: \n';
+      Object.entries(types).forEach(([ key, value ]) => {
+        if (value) {
+          error += '\t' + key + ': ' + value + '\n';
+        }
+      });
+      throw error;
+    }
+
+    if (types.isEnum) {
       return ns + type;
     }
 
-    if (await typeChecker('isBitmap')) {
+    if (types.isBitmap) {
       return 'chip::BitFlags<' + ns + type + '>';
     }
 
-    if (await typeChecker('isStruct')) {
+    if (types.isStruct) {
       passByReference = true;
       return ns + 'Structs::' + type + '::' + (isDecodable ? 'DecodableType' : 'Type');
+    }
+
+    if (types.isEvent) {
+      passByReference = true;
+      return ns + 'Events::' + type + '::' + (isDecodable ? 'DecodableType' : 'Type');
     }
 
     return zclHelper.asUnderlyingZclType.call({ global : this.global }, type, options);
   }
 
   let typeStr = await templateUtil.ensureZclPackageId(this).then(fn.bind(this));
-  if ((this.isList || this.isArray || this.entryType) && !options.hash.forceNotList) {
+  if ((this.isArray || this.entryType) && !options.hash.forceNotList) {
     passByReference = true;
     // If we did not have a namespace provided, we can assume we're inside
     // chip::app.
@@ -472,7 +541,7 @@ async function _zapTypeToPythonClusterObjectType(type, options)
   }
 
   let promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this));
-  if ((this.isList || this.isArray || this.entryType) && !options.hash.forceNotList) {
+  if ((this.isArray || this.entryType) && !options.hash.forceNotList) {
     promise = promise.then(typeStr => `typing.List[${typeStr}]`);
   }
 
@@ -495,12 +564,182 @@ function zapTypeToPythonClusterObjectType(type, options)
   return _zapTypeToPythonClusterObjectType.call(this, type, options)
 }
 
+async function _getPythonFieldDefault(type, options)
+{
+  async function fn(pkgId)
+  {
+    const ns          = options.hash.ns;
+    const typeChecker = async (method) => zclHelper[method](this.global.db, type, pkgId).then(zclType => zclType != 'unknown');
+
+    if (await typeChecker('isEnum')) {
+      return '0';
+    }
+
+    if (await typeChecker('isBitmap')) {
+      return '0';
+    }
+
+    if (await typeChecker('isStruct')) {
+      return 'field(default_factory=lambda: ' + ns + '.Structs.' + type + '())';
+    }
+
+    if (StringHelper.isCharString(type)) {
+      return '""';
+    }
+
+    if (StringHelper.isOctetString(type)) {
+      return 'b""';
+    }
+
+    if ([ 'single', 'double' ].includes(type.toLowerCase())) {
+      return '0.0';
+    }
+
+    if (type.toLowerCase() == 'boolean') {
+      return 'False'
+    }
+
+    // #10748: asUnderlyingZclType will emit wrong types for int{48|56|64}(u), so we process all int values here.
+    if (type.toLowerCase().match(/^int\d+$/)) {
+      return '0'
+    }
+
+    if (type.toLowerCase().match(/^int\d+u$/)) {
+      return '0'
+    }
+
+    resolvedType = await zclHelper.asUnderlyingZclType.call({ global : this.global }, type, options);
+    {
+      basicType = ChipTypesHelper.asBasicType(resolvedType);
+      if (basicType.match(/^int\d+_t$/)) {
+        return '0'
+      }
+      if (basicType.match(/^uint\d+_t$/)) {
+        return '0'
+      }
+    }
+  }
+
+  let promise = templateUtil.ensureZclPackageId(this).then(fn.bind(this));
+  if ((this.isArray || this.entryType) && !options.hash.forceNotList) {
+    promise = promise.then(typeStr => `field(default_factory=lambda: [])`);
+  }
+
+  const isNull     = (this.isNullable && !options.hash.forceNotNullable);
+  const isOptional = (this.isOptional && !options.hash.forceNotOptional);
+
+  if (isNull && isOptional) {
+    promise = promise.then(typeStr => `None`);
+  } else if (isNull) {
+    promise = promise.then(typeStr => `NullValue`);
+  } else if (isOptional) {
+    promise = promise.then(typeStr => `None`);
+  }
+
+  return templateUtil.templatePromise(this.global, promise)
+}
+
+function getPythonFieldDefault(type, options)
+{
+  return _getPythonFieldDefault.call(this, type, options)
+}
+
 async function getResponseCommandName(responseRef, options)
 {
   let pkgId = await templateUtil.ensureZclPackageId(this);
 
   const { db, sessionId } = this.global;
   return queryCommand.selectCommandById(db, responseRef, pkgId).then(response => asUpperCamelCase(response.name));
+}
+
+// Allow-list of enums that we generate as enums, not enum classes.  The goal is
+// to drive this down to 0.
+function isWeaklyTypedEnum(label)
+{
+  return [
+    "AttributeWritePermission",
+    "BarrierControlBarrierPosition",
+    "BarrierControlMovingState",
+    "BootReasonType",
+    "ColorControlOptions",
+    "ColorLoopAction",
+    "ColorLoopDirection",
+    "ColorMode",
+    "ContentLaunchStatus",
+    "ContentLaunchStreamingType",
+    "DoorLockEventSource",
+    "DoorLockEventType",
+    "DoorLockOperatingMode",
+    "DoorLockOperationEventCode",
+    "DoorLockProgrammingEventCode",
+    "DoorLockState",
+    "DoorLockUserStatus",
+    "DoorLockUserType",
+    "DoorState",
+    "EnhancedColorMode",
+    "HardwareFaultType",
+    "HueDirection",
+    "HueMoveMode",
+    "HueStepMode",
+    "IasEnrollResponseCode",
+    "IasZoneState",
+    "IasZoneType",
+    "IdentifyEffectIdentifier",
+    "IdentifyEffectVariant",
+    "IdentifyIdentifyType",
+    "InterfaceType",
+    "KeypadLockout",
+    "LevelControlOptions",
+    "MoveMode",
+    "NetworkFaultType",
+    "NodeOperationalCertStatus",
+    "OnOffDelayedAllOffEffectVariant",
+    "OnOffDyingLightEffectVariant",
+    "OnOffEffectIdentifier",
+    "PHYRateType",
+    "RadioFaultType",
+    "RoutingRole",
+    "SaturationMoveMode",
+    "SaturationStepMode",
+    "SecurityType",
+    "SetpointAdjustMode",
+    "StartUpOnOffValue",
+    "StatusCode",
+    "StepMode",
+    "TemperatureDisplayMode",
+    "ThermostatControlSequence",
+    "ThermostatRunningMode",
+    "ThermostatSystemMode",
+    "WcEndProductType",
+    "WcType",
+    "WiFiVersionType",
+  ].includes(label);
+}
+
+function incrementDepth(depth)
+{
+  return depth + 1;
+}
+
+function hasProperty(obj, prop)
+{
+  return prop in obj;
+}
+
+async function zcl_events_fields_by_event_name(name, options)
+{
+  const { db, sessionId } = this.global;
+  const packageId         = await templateUtil.ensureZclPackageId(this)
+
+  const promise = queryEvents.selectAllEvents(db, packageId)
+                      .then(events => events.find(event => event.name == name))
+                      .then(evt => queryEvents.selectEventFieldsByEventId(db, evt.id))
+                      .then(fields => fields.map(field => {
+                        field.label = field.name;
+                        return field;
+                      }))
+                      .then(fields => templateUtil.collectBlocks(fields, options, this))
+  return templateUtil.templatePromise(this.global, promise)
 }
 
 //
@@ -510,12 +749,17 @@ exports.asPrintFormat                       = asPrintFormat;
 exports.asReadType                          = asReadType;
 exports.chip_endpoint_generated_functions   = chip_endpoint_generated_functions
 exports.chip_endpoint_cluster_list          = chip_endpoint_cluster_list
-exports.asTypeLiteralSuffix                 = asTypeLiteralSuffix;
+exports.asTypedLiteral                      = asTypedLiteral;
 exports.asLowerCamelCase                    = asLowerCamelCase;
 exports.asUpperCamelCase                    = asUpperCamelCase;
+exports.hasProperty                         = hasProperty;
 exports.hasSpecificAttributes               = hasSpecificAttributes;
 exports.asMEI                               = asMEI;
 exports.zapTypeToEncodableClusterObjectType = zapTypeToEncodableClusterObjectType;
 exports.zapTypeToDecodableClusterObjectType = zapTypeToDecodableClusterObjectType;
 exports.zapTypeToPythonClusterObjectType    = zapTypeToPythonClusterObjectType;
 exports.getResponseCommandName              = getResponseCommandName;
+exports.isWeaklyTypedEnum                   = isWeaklyTypedEnum;
+exports.getPythonFieldDefault               = getPythonFieldDefault;
+exports.incrementDepth                      = incrementDepth;
+exports.zcl_events_fields_by_event_name     = zcl_events_fields_by_event_name;

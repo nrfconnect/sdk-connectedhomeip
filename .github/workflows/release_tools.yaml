@@ -51,7 +51,7 @@ jobs:
             - name: Bootstrap
               timeout-minutes: 10
               run: scripts/build/gn_bootstrap.sh
-            - name: Install Python CHIP Controller dependencies
+            - name: Install Python CHIP Tool dependencies
               timeout-minutes: 10
               run: |
                   echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted" > /etc/apt/sources.list.d/arm64.list
@@ -60,51 +60,55 @@ jobs:
                   apt install -y --no-install-recommends -o APT::Immediate-Configure=false g++-aarch64-linux-gnu libgirepository1.0-dev
                   dpkg --add-architecture arm64
                   apt install -y --no-install-recommends -o APT::Immediate-Configure=false libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64
-            - name: Build x64 Python CHIP Controller with debug logs enabled
+            - name: Build x64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |
-                  scripts/run_in_build_env.sh "gn gen out/python_x64_debug --args='chip_mdns=\"platform\"'"
-                  scripts/run_in_build_env.sh "ninja -C out/python_x64_debug python"
-            - name: Build x64 Python CHIP Controller with debug logs disabled
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_debug --args='chip_mdns=\"platform\"'"
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_debug chip-tool"
+                  mv out/chiptool_x64_debug/chip-tool out/chiptool_x64_debug/chip-tool-x64-debug
+            - name: Build x64 CHIP Tool with debug logs disabled
               timeout-minutes: 10
               run: |
-                  scripts/run_in_build_env.sh "gn gen out/python_x64_release --args='chip_mdns=\"platform\" chip_detail_logging=false'"
-                  scripts/run_in_build_env.sh "ninja -C out/python_x64_release python"
-            - name: Build arm64 Python CHIP Controller with debug logs enabled
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_release --args='chip_mdns=\"platform\" chip_detail_logging=false'"
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_release chip-tool"
+                  mv out/chiptool_x64_release/chip-tool out/chiptool_x64_release/chip-tool-x64-release
+            - name: Build arm64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |
-                  scripts/run_in_build_env.sh "gn gen out/python_arm64_debug --args='chip_mdns=\"platform\"
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_arm64_debug --args='chip_mdns=\"platform\"
                       custom_toolchain=\"//build/toolchain/custom\"
                       target_cc=\"aarch64-linux-gnu-gcc\"
                       target_cxx=\"aarch64-linux-gnu-g++\"
                       target_ar=\"aarch64-linux-gnu-ar\"
                       target_cpu=\"arm64\"'"
-                  scripts/run_in_build_env.sh "ninja -C out/python_arm64_debug python"
-            - name: Build arm64 Python CHIP Controller with debug logs disabled
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_debug chip-tool"
+                  mv out/chiptool_arm64_debug/chip-tool out/chiptool_arm64_debug/chip-tool-arm64-debug
+            - name: Build arm64 CHIP Tool with debug logs disabled
               timeout-minutes: 10
               run: |
-                  scripts/run_in_build_env.sh "gn gen out/python_arm64_release --args='chip_mdns=\"platform\"
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_arm64_release --args='chip_mdns=\"platform\"
                       chip_detail_logging=false
                       custom_toolchain=\"//build/toolchain/custom\"
                       target_cc=\"aarch64-linux-gnu-gcc\"
                       target_cxx=\"aarch64-linux-gnu-g++\"
                       target_ar=\"aarch64-linux-gnu-ar\"
                       target_cpu=\"arm64\"'"
-                  scripts/run_in_build_env.sh "ninja -C out/python_arm64_release python"
-            - name: Create zip files for Python CHIP Controller debug and release packages
+                  scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_release chip-tool"
+                  mv out/chiptool_arm64_release/chip-tool out/chiptool_arm64_release/chip-tool-arm64-release
+            - name: Create zip files for CHIP Tool debug and release packages
               timeout-minutes: 10
               run: |
-                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_debug.zip out/python_x64_debug/controller/python/chip-*.whl out/python_arm64_debug/controller/python/chip-*.whl
-                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_release.zip out/python_x64_release/controller/python/chip-*.whl out/python_arm64_release/controller/python/chip-*.whl
-            - name: Build arm CHIPTool
-              timeout-minutes: 10
+                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_debug.zip out/chiptool_x64_debug/chip-tool-x64-debug out/chiptool_arm64_debug/chip-tool-arm64-debug
+                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_release.zip out/chiptool_x64_release/chip-tool-x64-release out/chiptool_arm64_release/chip-tool-arm64-release
+            - name: Build arm Android CHIPTool
+              timeout-minutes: 30
               env:
                 TARGET_CPU: arm
               run: |
                   scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target android-arm-chip-tool build"
                   cp out/android-arm-chip-tool/outputs/apk/debug/app-debug.apk /tmp/output_binaries/chip-tool-android_armv7l.apk
-            - name: Build arm64 CHIPTool
-              timeout-minutes: 10
+            - name: Build arm64 Android CHIPTool
+              timeout-minutes: 30
               env:
                 TARGET_CPU: arm64
               run: |

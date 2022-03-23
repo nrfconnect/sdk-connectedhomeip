@@ -102,7 +102,7 @@ void ExchangeContext::UpdateSEDPollingMode()
     }
 
     VerifyOrReturn(address.GetTransportType() != Transport::Type::kBle);
-    UpdateSEDPollingMode(IsResponseExpected() || IsSendExpected() || IsMessageNotAcked());
+    UpdateSEDPollingMode(IsResponseExpected() || IsSendExpected() || IsMessageNotAcked() || IsAckPending());
 }
 
 void ExchangeContext::UpdateSEDPollingMode(bool fastPollingMode)

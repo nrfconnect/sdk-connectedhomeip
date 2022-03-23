@@ -80,7 +80,7 @@ protected:
 
     app::CHIPDeviceCallbacksMgr & mCallbacksMgr = app::CHIPDeviceCallbacksMgr::GetInstance();
 
-    ReliableMessageProtocolConfig mMRPConfig = GetLocalMRPConfig();
+    ReliableMessageProtocolConfig mMRPConfig = gDefaultMRPConfig;
 };
 
 } // namespace chip

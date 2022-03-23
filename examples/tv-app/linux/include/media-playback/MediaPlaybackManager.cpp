@@ -18,130 +18,169 @@
 #include "MediaPlaybackManager.h"
 
 using namespace std;
+using namespace chip::app::DataModel;
 using namespace chip::app::Clusters::MediaPlayback;
+using namespace chip::Uint8;
+using chip::CharSpan;
 
 PlaybackStateEnum MediaPlaybackManager::HandleGetCurrentState()
 {
-    return PlaybackStateEnum::kPlaying;
+    return mCurrentState;
 }
 
 uint64_t MediaPlaybackManager::HandleGetStartTime()
 {
-    return 0;
+    return mStartTime;
 }
 
 uint64_t MediaPlaybackManager::HandleGetDuration()
 {
-    return 0;
+    return mDuration;
 }
 
-Structs::PlaybackPosition::Type MediaPlaybackManager::HandleGetSampledPosition()
+CHIP_ERROR MediaPlaybackManager::HandleGetSampledPosition(AttributeValueEncoder & aEncoder)
 {
-    Structs::PlaybackPosition::Type sampledPosition;
-    sampledPosition.updatedAt = 0;
-    sampledPosition.position  = 0;
-    return sampledPosition;
+    return aEncoder.Encode(mPlaybackPosition);
 }
 
 float MediaPlaybackManager::HandleGetPlaybackSpeed()
 {
-    return 0;
+    return mPlaybackSpeed;
 }
 
 uint64_t MediaPlaybackManager::HandleGetSeekRangeStart()
 {
-    return 0;
+    return mPlaybackPosition.position.Value();
 }
 
 uint64_t MediaPlaybackManager::HandleGetSeekRangeEnd()
 {
-    return 0;
+    return mDuration - mPlaybackPosition.position.Value();
 }
 
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandlePlay()
+void MediaPlaybackManager::HandlePlay(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
+{
+    // TODO: Insert code here
+    mCurrentState = PlaybackStateEnum::kPlaying;
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandlePause(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
+{
+    // TODO: Insert code here
+    mCurrentState = PlaybackStateEnum::kPaused;
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandleStop(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
+{
+    // TODO: Insert code here
+    mCurrentState = PlaybackStateEnum::kNotPlaying;
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandleFastForward(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
     // TODO: Insert code here
     Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
     response.status = StatusEnum::kSuccess;
-    return response;
+    helper.Success(response);
 }
 
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandlePause()
+void MediaPlaybackManager::HandlePrevious(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
+{
+    // TODO: Insert code here
+    mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(0) };
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandleRewind(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
+{
+    // TODO: Insert code here
+    mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(0) };
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandleSkipBackward(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper,
+                                              const uint64_t & deltaPositionMilliseconds)
+{
+    // TODO: Insert code here
+    uint64_t newPosition = mPlaybackPosition.position.Value() - deltaPositionMilliseconds;
+    mPlaybackPosition    = { 0, chip::app::DataModel::Nullable<uint64_t>(newPosition) };
+
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandleSkipForward(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper,
+                                             const uint64_t & deltaPositionMilliseconds)
+{
+    // TODO: Insert code here
+    uint64_t newPosition = mPlaybackPosition.position.Value() + deltaPositionMilliseconds;
+    newPosition          = newPosition > mDuration ? mDuration : newPosition;
+    mPlaybackPosition    = { 0, chip::app::DataModel::Nullable<uint64_t>(newPosition) };
+
+    Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+    response.status = StatusEnum::kSuccess;
+    helper.Success(response);
+}
+
+void MediaPlaybackManager::HandleSeek(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper,
+                                      const uint64_t & positionMilliseconds)
+{
+    // TODO: Insert code here
+    if (positionMilliseconds > mDuration)
+    {
+        Commands::PlaybackResponse::Type response;
+        response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+        response.status = StatusEnum::kSeekOutOfRange;
+        helper.Success(response);
+    }
+    else
+    {
+        mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(positionMilliseconds) };
+
+        Commands::PlaybackResponse::Type response;
+        response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
+        response.status = StatusEnum::kSuccess;
+        helper.Success(response);
+    }
+}
+
+void MediaPlaybackManager::HandleNext(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
     // TODO: Insert code here
     Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
     response.status = StatusEnum::kSuccess;
-    return response;
+    helper.Success(response);
 }
 
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleStop()
+void MediaPlaybackManager::HandleStartOver(CommandResponseHelper<Commands::PlaybackResponse::Type> & helper)
 {
     // TODO: Insert code here
+    mPlaybackPosition = { 0, chip::app::DataModel::Nullable<uint64_t>(0) };
     Commands::PlaybackResponse::Type response;
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("data response"));
     response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleFastForward()
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandlePrevious()
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleRewind()
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleSkipBackward(const uint64_t & deltaPositionMilliseconds)
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleSkipForward(const uint64_t & deltaPositionMilliseconds)
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleSeekRequest(const uint64_t & positionMilliseconds)
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleNext()
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
-}
-
-Commands::PlaybackResponse::Type MediaPlaybackManager::HandleStartOverRequest()
-{
-    // TODO: Insert code here
-    Commands::PlaybackResponse::Type response;
-    response.status = StatusEnum::kSuccess;
-    return response;
+    helper.Success(response);
 }

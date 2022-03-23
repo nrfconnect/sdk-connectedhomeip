@@ -104,7 +104,7 @@ CHIP_ERROR PersistentStorage::SyncGetKeyValue(const char * key, void * value, ui
 
     auto section = mConfig.sections[kDefaultSectionName];
     auto it      = section.find(key);
-    ReturnErrorCodeIf(it == section.end(), CHIP_ERROR_KEY_NOT_FOUND);
+    ReturnErrorCodeIf(it == section.end(), CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
 
     ReturnErrorCodeIf(!inipp::extract(section[key], iniValue), CHIP_ERROR_INVALID_ARGUMENT);
 
@@ -135,6 +135,9 @@ CHIP_ERROR PersistentStorage::SyncSetKeyValue(const char * key, const void * val
 CHIP_ERROR PersistentStorage::SyncDeleteKeyValue(const char * key)
 {
     auto section = mConfig.sections[kDefaultSectionName];
+    auto it      = section.find(key);
+    ReturnErrorCodeIf(it == section.end(), CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+
     section.erase(key);
 
     mConfig.sections[kDefaultSectionName] = section;
@@ -164,9 +167,8 @@ uint16_t PersistentStorage::GetListenPort()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    // By default chip-tool listens on CHIP_PORT + 1. This is done in order to avoid
-    // having 2 servers listening on CHIP_PORT when one runs an accessory server locally.
-    uint16_t chipListenPort = static_cast<uint16_t>(CHIP_PORT + 1);
+    // By default chip-tool listens on an ephemeral port.
+    uint16_t chipListenPort = 0;
 
     char value[6];
     uint16_t size = static_cast<uint16_t>(sizeof(value));

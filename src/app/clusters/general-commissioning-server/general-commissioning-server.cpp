@@ -32,6 +32,7 @@
 #include <platform/CHIPDeviceConfig.h>
 #include <platform/ConfigurationManager.h>
 #include <platform/DeviceControlServer.h>
+#include <trace/trace.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -45,7 +46,11 @@ using namespace chip::DeviceLayer;
     {                                                                                                                              \
         if (!::chip::ChipError::IsSuccess(expr))                                                                                   \
         {                                                                                                                          \
-            LogErrorOnFailure(commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::code));                      \
+            CHIP_ERROR statusErr = commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::code);                  \
+            if (statusErr != CHIP_NO_ERROR)                                                                                        \
+            {                                                                                                                      \
+                ChipLogError(Zcl, "%s: %" CHIP_ERROR_FORMAT, #expr, statusErr.Format());                                           \
+            }                                                                                                                      \
             return true;                                                                                                           \
         }                                                                                                                          \
     } while (false)
@@ -62,6 +67,7 @@ public:
 
 private:
     CHIP_ERROR ReadIfSupported(CHIP_ERROR (ConfigurationManager::*getter)(uint8_t &), AttributeValueEncoder & aEncoder);
+    CHIP_ERROR ReadBasicCommissioningInfo(AttributeValueEncoder & aEncoder);
 };
 
 GeneralCommissioningAttrAccess gAttrAccess;
@@ -82,9 +88,8 @@ CHIP_ERROR GeneralCommissioningAttrAccess::Read(const ConcreteReadAttributePath 
     case LocationCapability::Id: {
         return ReadIfSupported(&ConfigurationManager::GetLocationCapability, aEncoder);
     }
-    case BasicCommissioningInfoList::Id: {
-        // TODO: This should not be a list at all!
-        return aEncoder.EncodeEmptyList();
+    case BasicCommissioningInfo::Id: {
+        return ReadBasicCommissioningInfo(aEncoder);
     }
     default: {
         break;
@@ -110,19 +115,47 @@ CHIP_ERROR GeneralCommissioningAttrAccess::ReadIfSupported(CHIP_ERROR (Configura
     return aEncoder.Encode(data);
 }
 
+CHIP_ERROR GeneralCommissioningAttrAccess::ReadBasicCommissioningInfo(AttributeValueEncoder & aEncoder)
+{
+    BasicCommissioningInfo::TypeInfo::Type basicCommissioningInfo;
+
+    // TODO: The commissioner might use the critical parameters in BasicCommissioningInfo to initialize
+    // the CommissioningParameters at the beginning of commissioning flow.
+    basicCommissioningInfo.failSafeExpiryLengthSeconds = CHIP_DEVICE_CONFIG_FAILSAFE_EXPIRY_LENGTH_SEC;
+
+    return aEncoder.Encode(basicCommissioningInfo);
+}
+
 } // anonymous namespace
 
 bool emberAfGeneralCommissioningClusterArmFailSafeCallback(app::CommandHandler * commandObj,
                                                            const app::ConcreteCommandPath & commandPath,
                                                            const Commands::ArmFailSafe::DecodableType & commandData)
 {
-    DeviceControlServer * server = &DeviceLayer::DeviceControlServer::DeviceControlSvr();
-    CheckSuccess(server->ArmFailSafe(System::Clock::Seconds16(commandData.expiryLengthSeconds)), Failure);
-
+    MATTER_TRACE_EVENT_SCOPE("ArmFailSafe", "GeneralCommissioning");
+    FailSafeContext & failSafeContext = DeviceLayer::DeviceControlServer::DeviceControlSvr().GetFailSafeContext();
     Commands::ArmFailSafeResponse::Type response;
-    response.errorCode = GeneralCommissioningError::kOk;
-    response.debugText = CharSpan("", 0);
-    CheckSuccess(commandObj->AddResponseData(commandPath, response), Failure);
+
+    /*
+     * If the fail-safe timer was not currently armed, then the fail-safe timer SHALL be armed.
+     * If the fail-safe timer was currently armed, and current accessing fabric matches the fail-safe
+     * context’s Fabric Index, then the fail-safe timer SHALL be re-armed.
+     */
+
+    FabricIndex accessingFabricIndex = commandObj->GetAccessingFabricIndex();
+
+    if (!failSafeContext.IsFailSafeArmed() || failSafeContext.MatchesFabricIndex(accessingFabricIndex))
+    {
+        CheckSuccess(failSafeContext.ArmFailSafe(accessingFabricIndex, System::Clock::Seconds16(commandData.expiryLengthSeconds)),
+                     Failure);
+        response.errorCode = CommissioningError::kOk;
+        CheckSuccess(commandObj->AddResponseData(commandPath, response), Failure);
+    }
+    else
+    {
+        response.errorCode = CommissioningError::kBusyWithOtherAdmin;
+        CheckSuccess(commandObj->AddResponseData(commandPath, response), Failure);
+    }
 
     return true;
 }
@@ -131,22 +164,20 @@ bool emberAfGeneralCommissioningClusterCommissioningCompleteCallback(
     app::CommandHandler * commandObj, const app::ConcreteCommandPath & commandPath,
     const Commands::CommissioningComplete::DecodableType & commandData)
 {
+    MATTER_TRACE_EVENT_SCOPE("CommissioningComplete", "GeneralCommissioning");
     DeviceControlServer * server = &DeviceLayer::DeviceControlServer::DeviceControlSvr();
 
     /*
-     * Pass fabric and nodeId of commissioner to DeviceControlSvr.
+     * Pass fabric of commissioner to DeviceControlSvr.
      * This allows device to send messages back to commissioner.
      * Once bindings are implemented, this may no longer be needed.
      */
     SessionHandle handle = commandObj->GetExchangeContext()->GetSessionHandle();
-    server->SetFabricIndex(handle->AsSecureSession()->GetFabricIndex());
-    server->SetPeerNodeId(handle->AsSecureSession()->GetPeerNodeId());
 
-    CheckSuccess(server->CommissioningComplete(), Failure);
+    CheckSuccess(server->CommissioningComplete(handle->AsSecureSession()->GetPeerNodeId(), handle->GetFabricIndex()), Failure);
 
     Commands::CommissioningCompleteResponse::Type response;
-    response.errorCode = GeneralCommissioningError::kOk;
-    response.debugText = CharSpan("", 0);
+    response.errorCode = CommissioningError::kOk;
     CheckSuccess(commandObj->AddResponseData(commandPath, response), Failure);
 
     return true;
@@ -156,14 +187,14 @@ bool emberAfGeneralCommissioningClusterSetRegulatoryConfigCallback(app::CommandH
                                                                    const app::ConcreteCommandPath & commandPath,
                                                                    const Commands::SetRegulatoryConfig::DecodableType & commandData)
 {
+    MATTER_TRACE_EVENT_SCOPE("SetRegulatoryConfig", "GeneralCommissioning");
     DeviceControlServer * server = &DeviceLayer::DeviceControlServer::DeviceControlSvr();
 
     CheckSuccess(server->SetRegulatoryConfig(to_underlying(commandData.location), commandData.countryCode, commandData.breadcrumb),
                  Failure);
 
     Commands::SetRegulatoryConfigResponse::Type response;
-    response.errorCode = GeneralCommissioningError::kOk;
-    response.debugText = CharSpan("", 0);
+    response.errorCode = CommissioningError::kOk;
     CheckSuccess(commandObj->AddResponseData(commandPath, response), Failure);
 
     return true;

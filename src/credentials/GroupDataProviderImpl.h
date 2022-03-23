@@ -28,13 +28,19 @@ class GroupDataProviderImpl : public GroupDataProvider
 public:
     static constexpr size_t kIteratorsMax = CHIP_CONFIG_MAX_GROUP_CONCURRENT_ITERATORS;
 
-    GroupDataProviderImpl(chip::PersistentStorageDelegate & storage_delegate) : mStorage(storage_delegate) {}
-    GroupDataProviderImpl(chip::PersistentStorageDelegate & storage_delegate, uint16_t maxGroupsPerFabric,
-                          uint16_t maxGroupKeysPerFabric) :
-        GroupDataProvider(maxGroupsPerFabric, maxGroupKeysPerFabric),
-        mStorage(storage_delegate)
+    GroupDataProviderImpl() = default;
+    GroupDataProviderImpl(uint16_t maxGroupsPerFabric, uint16_t maxGroupKeysPerFabric) :
+        GroupDataProvider(maxGroupsPerFabric, maxGroupKeysPerFabric)
     {}
-    virtual ~GroupDataProviderImpl() {}
+    ~GroupDataProviderImpl() override {}
+
+    /**
+     * @brief Set the storage implementation used for non-volatile storage of configuration data.
+     *        This method MUST be called before Init().
+     *
+     * @param storage Pointer to storage instance to set. Cannot be nullptr, will assert.
+     */
+    void SetStorageDelegate(PersistentStorageDelegate * storage);
 
     CHIP_ERROR Init() override;
     void Finish() override;
@@ -74,7 +80,7 @@ public:
     // Key Sets
     //
 
-    CHIP_ERROR SetKeySet(FabricIndex fabric_index, const KeySet & keys) override;
+    CHIP_ERROR SetKeySet(FabricIndex fabric_index, const ByteSpan & compressed_fabric_id, const KeySet & keys) override;
     CHIP_ERROR GetKeySet(FabricIndex fabric_index, chip::KeysetId keyset_id, KeySet & keys) override;
     CHIP_ERROR RemoveKeySet(FabricIndex fabric_index, chip::KeysetId keyset_id) override;
     KeySetIterator * IterateKeySets(FabricIndex fabric_index) override;
@@ -83,6 +89,7 @@ public:
     CHIP_ERROR RemoveFabric(FabricIndex fabric_index) override;
 
     // Decryption
+    Crypto::SymmetricKeyContext * GetKeyContext(FabricIndex fabric_index, GroupId group_id) override;
     GroupSessionIterator * IterateGroupSessions(uint16_t session_id) override;
 
 protected:
@@ -142,21 +149,36 @@ protected:
     class GroupKeyContext : public Crypto::SymmetricKeyContext
     {
     public:
-        GroupKeyContext() = default;
-        CHIP_ERROR SetKey(const ByteSpan & value);
-        void Clear();
+        GroupKeyContext(GroupDataProviderImpl & provider) : mProvider(provider) {}
 
-        CHIP_ERROR EncryptMessage(MutableByteSpan & plaintext, const ByteSpan & aad, const ByteSpan & nonce,
-                                  MutableByteSpan & out_mic) const override;
-        CHIP_ERROR DecryptMessage(MutableByteSpan & ciphertext, const ByteSpan & aad, const ByteSpan & nonce,
-                                  const ByteSpan & mic) const override;
+        GroupKeyContext(GroupDataProviderImpl & provider, const ByteSpan & key, uint16_t hash) : mProvider(provider)
+        {
+            SetKey(key, hash);
+        }
+
+        void SetKey(const ByteSpan & key, uint16_t hash)
+        {
+            mKeyHash = hash;
+            memcpy(mKeyValue, key.data(), std::min(key.size(), sizeof(mKeyValue)));
+        }
+
+        uint16_t GetKeyHash() override { return mKeyHash; }
+
+        CHIP_ERROR EncryptMessage(const ByteSpan & plaintext, const ByteSpan & aad, const ByteSpan & nonce, MutableByteSpan & mic,
+                                  MutableByteSpan & ciphertext) const override;
+        CHIP_ERROR DecryptMessage(const ByteSpan & ciphertext, const ByteSpan & aad, const ByteSpan & nonce, const ByteSpan & mic,
+                                  MutableByteSpan & plaintext) const override;
         CHIP_ERROR EncryptPrivacy(MutableByteSpan & header, uint16_t session_id, const ByteSpan & payload,
                                   const ByteSpan & mic) const override;
         CHIP_ERROR DecryptPrivacy(MutableByteSpan & header, uint16_t session_id, const ByteSpan & payload,
                                   const ByteSpan & mic) const override;
 
+        void Release() override;
+
     protected:
-        uint8_t mKey[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES];
+        GroupDataProviderImpl & mProvider;
+        uint16_t mKeyHash                                                 = 0;
+        uint8_t mKeyValue[Crypto::CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES] = { 0 };
     };
 
     class KeySetIteratorImpl : public KeySetIterator
@@ -195,17 +217,18 @@ protected:
         uint16_t mKeyIndex       = 0;
         uint16_t mKeyCount       = 0;
         bool mFirstMap           = true;
-        GroupKeyContext mKey;
+        GroupKeyContext mKeyContext;
     };
+    bool IsInitialized() { return (mStorage != nullptr); }
     CHIP_ERROR RemoveEndpoints(FabricIndex fabric_index, GroupId group_id);
 
-    chip::PersistentStorageDelegate & mStorage;
-    bool mInitialized = false;
-    BitMapObjectPool<GroupInfoIteratorImpl, kIteratorsMax> mGroupInfoIterators;
-    BitMapObjectPool<GroupKeyIteratorImpl, kIteratorsMax> mGroupKeyIterators;
-    BitMapObjectPool<EndpointIteratorImpl, kIteratorsMax> mEndpointIterators;
-    BitMapObjectPool<KeySetIteratorImpl, kIteratorsMax> mKeySetIterators;
-    BitMapObjectPool<GroupSessionIteratorImpl, kIteratorsMax> mGroupSessionsIterator;
+    chip::PersistentStorageDelegate * mStorage = nullptr;
+    ObjectPool<GroupInfoIteratorImpl, kIteratorsMax> mGroupInfoIterators;
+    ObjectPool<GroupKeyIteratorImpl, kIteratorsMax> mGroupKeyIterators;
+    ObjectPool<EndpointIteratorImpl, kIteratorsMax> mEndpointIterators;
+    ObjectPool<KeySetIteratorImpl, kIteratorsMax> mKeySetIterators;
+    ObjectPool<GroupSessionIteratorImpl, kIteratorsMax> mGroupSessionsIterator;
+    ObjectPool<GroupKeyContext, kIteratorsMax> mKeyContexPool;
 };
 
 } // namespace Credentials

@@ -34,7 +34,6 @@
     MatterBindingPluginServerInitCallback();                                                                                       \
     MatterBooleanStatePluginServerInitCallback();                                                                                  \
     MatterBridgedActionsPluginServerInitCallback();                                                                                \
-    MatterBridgedDeviceBasicPluginServerInitCallback();                                                                            \
     MatterChannelPluginServerInitCallback();                                                                                       \
     MatterColorControlPluginServerInitCallback();                                                                                  \
     MatterContentLauncherPluginServerInitCallback();                                                                               \
@@ -81,6 +80,7 @@
     MatterThermostatUserInterfaceConfigurationPluginServerInitCallback();                                                          \
     MatterThreadNetworkDiagnosticsPluginServerInitCallback();                                                                      \
     MatterTimeFormatLocalizationPluginServerInitCallback();                                                                        \
+    MatterUnitLocalizationPluginServerInitCallback();                                                                              \
     MatterUserLabelPluginServerInitCallback();                                                                                     \
     MatterWakeOnLanPluginServerInitCallback();                                                                                     \
     MatterWiFiNetworkDiagnosticsPluginServerInitCallback();                                                                        \

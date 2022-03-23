@@ -139,6 +139,23 @@ public class ClusterWriteMapping {
     Map<String, InteractionInfo> writeBridgedActionsInteractionInfo = new LinkedHashMap<>();
     writeAttributeMap.put("bridgedActions", writeBridgedActionsInteractionInfo);
     Map<String, InteractionInfo> writeBridgedDeviceBasicInteractionInfo = new LinkedHashMap<>();
+    Map<String, CommandParameterInfo> writeBridgedDeviceBasicNodeLabelCommandParams =
+        new LinkedHashMap<String, CommandParameterInfo>();
+    CommandParameterInfo bridgedDeviceBasicnodeLabelCommandParameterInfo =
+        new CommandParameterInfo("value", String.class);
+    writeBridgedDeviceBasicNodeLabelCommandParams.put(
+        "value", bridgedDeviceBasicnodeLabelCommandParameterInfo);
+    InteractionInfo writeBridgedDeviceBasicNodeLabelAttributeInteractionInfo =
+        new InteractionInfo(
+            (cluster, callback, commandArguments) -> {
+              ((ChipClusters.BridgedDeviceBasicCluster) cluster)
+                  .writeNodeLabelAttribute(
+                      (DefaultClusterCallback) callback, (String) commandArguments.get("value"));
+            },
+            () -> new ClusterInfoMapping.DelegatedDefaultClusterCallback(),
+            writeBridgedDeviceBasicNodeLabelCommandParams);
+    writeBridgedDeviceBasicInteractionInfo.put(
+        "writeNodeLabelAttribute", writeBridgedDeviceBasicNodeLabelAttributeInteractionInfo);
     writeAttributeMap.put("bridgedDeviceBasic", writeBridgedDeviceBasicInteractionInfo);
     Map<String, InteractionInfo> writeChannelInteractionInfo = new LinkedHashMap<>();
     writeAttributeMap.put("channel", writeChannelInteractionInfo);
@@ -521,6 +538,41 @@ public class ClusterWriteMapping {
         new LinkedHashMap<>();
     writeAttributeMap.put(
         "ethernetNetworkDiagnostics", writeEthernetNetworkDiagnosticsInteractionInfo);
+    Map<String, InteractionInfo> writeFanControlInteractionInfo = new LinkedHashMap<>();
+    Map<String, CommandParameterInfo> writeFanControlFanModeCommandParams =
+        new LinkedHashMap<String, CommandParameterInfo>();
+    CommandParameterInfo fanControlfanModeCommandParameterInfo =
+        new CommandParameterInfo("value", Integer.class);
+    writeFanControlFanModeCommandParams.put("value", fanControlfanModeCommandParameterInfo);
+    InteractionInfo writeFanControlFanModeAttributeInteractionInfo =
+        new InteractionInfo(
+            (cluster, callback, commandArguments) -> {
+              ((ChipClusters.FanControlCluster) cluster)
+                  .writeFanModeAttribute(
+                      (DefaultClusterCallback) callback, (Integer) commandArguments.get("value"));
+            },
+            () -> new ClusterInfoMapping.DelegatedDefaultClusterCallback(),
+            writeFanControlFanModeCommandParams);
+    writeFanControlInteractionInfo.put(
+        "writeFanModeAttribute", writeFanControlFanModeAttributeInteractionInfo);
+    Map<String, CommandParameterInfo> writeFanControlFanModeSequenceCommandParams =
+        new LinkedHashMap<String, CommandParameterInfo>();
+    CommandParameterInfo fanControlfanModeSequenceCommandParameterInfo =
+        new CommandParameterInfo("value", Integer.class);
+    writeFanControlFanModeSequenceCommandParams.put(
+        "value", fanControlfanModeSequenceCommandParameterInfo);
+    InteractionInfo writeFanControlFanModeSequenceAttributeInteractionInfo =
+        new InteractionInfo(
+            (cluster, callback, commandArguments) -> {
+              ((ChipClusters.FanControlCluster) cluster)
+                  .writeFanModeSequenceAttribute(
+                      (DefaultClusterCallback) callback, (Integer) commandArguments.get("value"));
+            },
+            () -> new ClusterInfoMapping.DelegatedDefaultClusterCallback(),
+            writeFanControlFanModeSequenceCommandParams);
+    writeFanControlInteractionInfo.put(
+        "writeFanModeSequenceAttribute", writeFanControlFanModeSequenceAttributeInteractionInfo);
+    writeAttributeMap.put("fanControl", writeFanControlInteractionInfo);
     Map<String, InteractionInfo> writeFixedLabelInteractionInfo = new LinkedHashMap<>();
     writeAttributeMap.put("fixedLabel", writeFixedLabelInteractionInfo);
     Map<String, InteractionInfo> writeFlowMeasurementInteractionInfo = new LinkedHashMap<>();
@@ -2445,6 +2497,26 @@ public class ClusterWriteMapping {
         "writeActiveCalendarTypeAttribute",
         writeTimeFormatLocalizationActiveCalendarTypeAttributeInteractionInfo);
     writeAttributeMap.put("timeFormatLocalization", writeTimeFormatLocalizationInteractionInfo);
+    Map<String, InteractionInfo> writeUnitLocalizationInteractionInfo = new LinkedHashMap<>();
+    Map<String, CommandParameterInfo> writeUnitLocalizationTemperatureUnitCommandParams =
+        new LinkedHashMap<String, CommandParameterInfo>();
+    CommandParameterInfo unitLocalizationtemperatureUnitCommandParameterInfo =
+        new CommandParameterInfo("value", Integer.class);
+    writeUnitLocalizationTemperatureUnitCommandParams.put(
+        "value", unitLocalizationtemperatureUnitCommandParameterInfo);
+    InteractionInfo writeUnitLocalizationTemperatureUnitAttributeInteractionInfo =
+        new InteractionInfo(
+            (cluster, callback, commandArguments) -> {
+              ((ChipClusters.UnitLocalizationCluster) cluster)
+                  .writeTemperatureUnitAttribute(
+                      (DefaultClusterCallback) callback, (Integer) commandArguments.get("value"));
+            },
+            () -> new ClusterInfoMapping.DelegatedDefaultClusterCallback(),
+            writeUnitLocalizationTemperatureUnitCommandParams);
+    writeUnitLocalizationInteractionInfo.put(
+        "writeTemperatureUnitAttribute",
+        writeUnitLocalizationTemperatureUnitAttributeInteractionInfo);
+    writeAttributeMap.put("unitLocalization", writeUnitLocalizationInteractionInfo);
     Map<String, InteractionInfo> writeUserLabelInteractionInfo = new LinkedHashMap<>();
     writeAttributeMap.put("userLabel", writeUserLabelInteractionInfo);
     Map<String, InteractionInfo> writeWakeOnLanInteractionInfo = new LinkedHashMap<>();

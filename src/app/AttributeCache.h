@@ -24,6 +24,7 @@
 #include <app/AttributePathParams.h>
 #include <app/BufferedReadCallback.h>
 #include <app/ReadClient.h>
+#include <app/data-model/DecodableList.h>
 #include <app/data-model/Decode.h>
 #include <lib/support/Variant.h>
 #include <list>
@@ -279,6 +280,7 @@ public:
                 }
             }
         }
+        return CHIP_NO_ERROR;
     }
 
     /*
@@ -305,6 +307,7 @@ public:
                 ReturnErrorOnFailure(func(clusterIter.first));
             }
         }
+        return CHIP_NO_ERROR;
     }
 
 private:
@@ -339,19 +342,23 @@ private:
     //
     // ReadClient::Callback
     //
-    void OnReportBegin(const ReadClient * apReadClient) override;
-    void OnReportEnd(const ReadClient * apReadClient) override;
-    void OnAttributeData(const ReadClient * apReadClient, const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData,
-                         const StatusIB & aStatus) override;
-    void OnError(const ReadClient * apReadClient, CHIP_ERROR aError) override { return mCallback.OnError(apReadClient, aError); }
-    void OnEventData(const ReadClient * apReadClient, const EventHeader & aEventHeader, TLV::TLVReader * apData,
-                     const StatusIB * apStatus) override
+    void OnReportBegin() override;
+    void OnReportEnd() override;
+    void OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus) override;
+    void OnError(CHIP_ERROR aError) override { return mCallback.OnError(aError); }
+
+    void OnEventData(const EventHeader & aEventHeader, TLV::TLVReader * apData, const StatusIB * apStatus) override
     {
-        return mCallback.OnEventData(apReadClient, aEventHeader, apData, apStatus);
+        return mCallback.OnEventData(aEventHeader, apData, apStatus);
     }
 
-    void OnDone(ReadClient * apReadClient) override { return mCallback.OnDone(apReadClient); }
-    void OnSubscriptionEstablished(const ReadClient * apReadClient) override { mCallback.OnSubscriptionEstablished(apReadClient); }
+    void OnDone() override { return mCallback.OnDone(); }
+    void OnSubscriptionEstablished(uint64_t aSubscriptionId) override { mCallback.OnSubscriptionEstablished(aSubscriptionId); }
+
+    void OnDeallocatePaths(chip::app::ReadPrepareParams && aReadPrepareParams) override
+    {
+        return mCallback.OnDeallocatePaths(std::move(aReadPrepareParams));
+    }
 
 private:
     Callback & mCallback;

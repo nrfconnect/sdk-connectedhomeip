@@ -43,6 +43,7 @@
     MatterDoorLockPluginClientInitCallback();                                                                                      \
     MatterElectricalMeasurementPluginClientInitCallback();                                                                         \
     MatterEthernetNetworkDiagnosticsPluginClientInitCallback();                                                                    \
+    MatterFanControlPluginClientInitCallback();                                                                                    \
     MatterFixedLabelPluginClientInitCallback();                                                                                    \
     MatterFlowMeasurementPluginClientInitCallback();                                                                               \
     MatterGeneralCommissioningPluginClientInitCallback();                                                                          \
@@ -80,6 +81,7 @@
     MatterThermostatUserInterfaceConfigurationPluginClientInitCallback();                                                          \
     MatterThreadNetworkDiagnosticsPluginClientInitCallback();                                                                      \
     MatterTimeFormatLocalizationPluginClientInitCallback();                                                                        \
+    MatterUnitLocalizationPluginClientInitCallback();                                                                              \
     MatterUserLabelPluginClientInitCallback();                                                                                     \
     MatterWakeOnLanPluginClientInitCallback();                                                                                     \
     MatterWiFiNetworkDiagnosticsPluginClientInitCallback();                                                                        \

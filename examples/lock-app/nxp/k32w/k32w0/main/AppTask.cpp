@@ -141,7 +141,7 @@ CHIP_ERROR AppTask::Init()
     }
 
     // Print the current software version
-    char currentSoftwareVer[ConfigurationManager::kMaxSoftwareVersionLength + 1] = { 0 };
+    char currentSoftwareVer[ConfigurationManager::kMaxSoftwareVersionStringLength + 1] = { 0 };
     err = ConfigurationMgr().GetSoftwareVersionString(currentSoftwareVer, sizeof(currentSoftwareVer));
     if (err != CHIP_NO_ERROR)
     {
@@ -357,7 +357,7 @@ void AppTask::FunctionTimerEventHandler(void * aGenericEvent)
     K32W_LOG("Device will factory reset...");
 
     // Actually trigger Factory Reset
-    ConfigurationMgr().InitiateFactoryReset();
+    chip::Server::GetInstance().ScheduleFactoryReset();
 }
 
 void AppTask::ResetActionEventHandler(void * aGenericEvent)
@@ -709,6 +709,6 @@ void AppTask::UpdateClusterState(void)
                                                  (uint8_t *) &newValue, ZCL_BOOLEAN_ATTRIBUTE_TYPE);
     if (status != EMBER_ZCL_STATUS_SUCCESS)
     {
-        ChipLogError(NotSpecified, "ERR: updating on/off %" PRIx8, status);
+        ChipLogError(NotSpecified, "ERR: updating on/off %x", status);
     }
 }

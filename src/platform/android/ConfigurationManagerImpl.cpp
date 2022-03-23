@@ -35,7 +35,7 @@
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/ConfigurationManager.h>
 #include <platform/android/AndroidConfig.h>
-#include <platform/internal/GenericConfigurationManagerImpl.cpp>
+#include <platform/internal/GenericConfigurationManagerImpl.ipp>
 
 namespace chip {
 namespace DeviceLayer {
@@ -56,11 +56,6 @@ void ConfigurationManagerImpl::InitializeWithObject(jobject managerObject)
     VerifyOrReturn(configurationManagerClass != nullptr, ChipLogError(DeviceLayer, "Failed to get KVS Java class"));
 
     AndroidConfig::InitializeWithObject(managerObject);
-}
-
-CHIP_ERROR ConfigurationManagerImpl::Init()
-{
-    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR ConfigurationManagerImpl::GetPrimaryWiFiMACAddress(uint8_t * buf)
@@ -203,11 +198,11 @@ CHIP_ERROR ConfigurationManagerImpl::GetSoftwareVersion(uint32_t & softwareVer)
 
     if (err == CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND)
     {
-        softwareVer = static_cast<uint16_t>(CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION);
+        softwareVer = CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION;
     }
     else
     {
-        softwareVer = static_cast<uint16_t>(u32SoftwareVer);
+        softwareVer = u32SoftwareVer;
     }
 
     return CHIP_NO_ERROR;

@@ -24,19 +24,17 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <platform/ConfigurationManager.h>
-#include <platform/internal/GenericConfigurationManagerImpl.cpp>
+#include <platform/internal/GenericConfigurationManagerImpl.ipp>
 
 #include <lib/core/CHIPVendorIdentifiers.hpp>
 #include <platform/Zephyr/ZephyrConfig.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
-#include <platform/internal/FactoryProvisioning.cpp>
+#include <platform/internal/FactoryProvisioning.ipp>
 #endif // CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
 
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
-
-#include <power/reboot.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -204,9 +202,7 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     ThreadStackMgr().ErasePersistentInfo();
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
 
-#if CONFIG_REBOOT
-    sys_reboot(SYS_REBOOT_WARM);
-#endif
+    PlatformMgr().Shutdown();
 }
 
 } // namespace DeviceLayer

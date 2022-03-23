@@ -67,13 +67,13 @@ enum class OperationalState : uint8_t
 };
 static_assert(sizeof(OperationalState) == sizeof(uint8_t), "OperationalState Size is not correct");
 
+// Decoded components of the OperationalStatus attribute
 struct OperationalStatus
 {
-    OperationalState global : 2; // bit 0-1 M
-    OperationalState lift : 2;   // bit 2-3 LF
-    OperationalState tilt : 2;   // bit 4-5 TL
+    OperationalState global; // bit 0-1 M
+    OperationalState lift;   // bit 2-3 LF
+    OperationalState tilt;   // bit 4-5 TL
 };
-static_assert(sizeof(OperationalStatus) == sizeof(uint8_t), "OperationalStatus Size is not correct");
 
 struct SafetyStatus
 {
@@ -110,6 +110,8 @@ struct AbsoluteLimits
 };
 
 bool HasFeature(chip::EndpointId endpoint, WcFeature feature);
+bool HasFeaturePaLift(chip::EndpointId endpoint);
+bool HasFeaturePaTilt(chip::EndpointId endpoint);
 
 void TypeSet(chip::EndpointId endpoint, EmberAfWcType type);
 EmberAfWcType TypeGet(chip::EndpointId endpoint);

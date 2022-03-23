@@ -37,8 +37,8 @@ namespace chip {
 
 namespace {
 
-constexpr size_t kAESCCMIVLen = 13;
-constexpr size_t kMaxAADLen   = 128;
+constexpr size_t kAESCCMNonceLen = 13;
+constexpr size_t kMaxAADLen      = 128;
 
 /* Session Establish Key Info */
 constexpr uint8_t SEKeysInfo[] = { 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x4b, 0x65, 0x79, 0x73 };
@@ -64,6 +64,7 @@ CryptoContext::~CryptoContext()
     {
         ClearSecretData(key, sizeof(CryptoKey));
     }
+    mKeyContext = nullptr;
 }
 
 CHIP_ERROR CryptoContext::InitFromSecret(const ByteSpan & secret, const ByteSpan & salt, SessionInfoType infoType, SessionRole role)
@@ -130,12 +131,12 @@ CHIP_ERROR CryptoContext::InitFromKeyPair(const Crypto::P256Keypair & local_keyp
     return InitFromSecret(ByteSpan(secret, secret.Length()), salt, infoType, role);
 }
 
-CHIP_ERROR CryptoContext::GetIV(const PacketHeader & header, uint8_t * iv, size_t len)
+CHIP_ERROR CryptoContext::GetNonce(const PacketHeader & header, uint8_t * nonce, size_t len)
 {
 
-    VerifyOrReturnError(len == kAESCCMIVLen, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(len == kAESCCMNonceLen, CHIP_ERROR_INVALID_ARGUMENT);
 
-    Encoding::LittleEndian::BufferWriter bbuf(iv, len);
+    Encoding::LittleEndian::BufferWriter bbuf(nonce, len);
 
     bbuf.Put8(header.GetSecurityFlags());
     bbuf.Put32(header.GetMessageCounter());
@@ -168,31 +169,42 @@ CHIP_ERROR CryptoContext::Encrypt(const uint8_t * input, size_t input_length, ui
 
     VerifyOrDie(taglen <= kMaxTagLen);
 
-    VerifyOrReturnError(mKeyAvailable, CHIP_ERROR_INVALID_USE_OF_SESSION_KEY);
     VerifyOrReturnError(input != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(input_length > 0, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(output != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
 
     uint8_t AAD[kMaxAADLen];
-    uint8_t IV[kAESCCMIVLen];
+    uint8_t nonce[kAESCCMNonceLen];
     uint16_t aadLen = sizeof(AAD);
     uint8_t tag[kMaxTagLen];
 
-    ReturnErrorOnFailure(GetIV(header, IV, sizeof(IV)));
+    ReturnErrorOnFailure(GetNonce(header, nonce, sizeof(nonce)));
     ReturnErrorOnFailure(GetAdditionalAuthData(header, AAD, aadLen));
 
-    KeyUsage usage = kR2IKey;
-
-    // Message is encrypted before sending. If the secure session was created by session
-    // initiator, we'll use I2R key to encrypt the message that's being transmitted.
-    // Otherwise, we'll use R2I key, as the responder is sending the message.
-    if (mSessionRole == SessionRole::kInitiator)
+    if (mKeyContext)
     {
-        usage = kI2RKey;
-    }
+        ByteSpan plaintext(input, input_length);
+        MutableByteSpan ciphertext(output, input_length);
+        MutableByteSpan mic(tag, taglen);
 
-    ReturnErrorOnFailure(AES_CCM_encrypt(input, input_length, AAD, aadLen, mKeys[usage], Crypto::kAES_CCM128_Key_Length, IV,
-                                         sizeof(IV), output, tag, taglen));
+        ReturnErrorOnFailure(mKeyContext->EncryptMessage(plaintext, ByteSpan(AAD, aadLen), ByteSpan(nonce), mic, ciphertext));
+    }
+    else
+    {
+        VerifyOrReturnError(mKeyAvailable, CHIP_ERROR_INVALID_USE_OF_SESSION_KEY);
+        KeyUsage usage = kR2IKey;
+
+        // Message is encrypted before sending. If the secure session was created by session
+        // initiator, we'll use I2R key to encrypt the message that's being transmitted.
+        // Otherwise, we'll use R2I key, as the responder is sending the message.
+        if (mSessionRole == SessionRole::kInitiator)
+        {
+            usage = kI2RKey;
+        }
+
+        ReturnErrorOnFailure(AES_CCM_encrypt(input, input_length, AAD, aadLen, mKeys[usage], Crypto::kAES_CCM128_Key_Length, nonce,
+                                             sizeof(nonce), output, tag, taglen));
+    }
 
     mac.SetTag(&header, tag, taglen);
 
@@ -204,30 +216,43 @@ CHIP_ERROR CryptoContext::Decrypt(const uint8_t * input, size_t input_length, ui
 {
     const size_t taglen = header.MICTagLength();
     const uint8_t * tag = mac.GetTag();
-    uint8_t IV[kAESCCMIVLen];
+    uint8_t nonce[kAESCCMNonceLen];
     uint8_t AAD[kMaxAADLen];
     uint16_t aadLen = sizeof(AAD);
 
-    VerifyOrReturnError(mKeyAvailable, CHIP_ERROR_INVALID_USE_OF_SESSION_KEY);
     VerifyOrReturnError(input != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(input_length > 0, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(output != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
 
-    ReturnErrorOnFailure(GetIV(header, IV, sizeof(IV)));
+    ReturnErrorOnFailure(GetNonce(header, nonce, sizeof(nonce)));
     ReturnErrorOnFailure(GetAdditionalAuthData(header, AAD, aadLen));
 
-    KeyUsage usage = kI2RKey;
-
-    // Message is decrypted on receive. If the secure session was created by session
-    // initiator, we'll use R2I key to decrypt the message (as it was sent by responder).
-    // Otherwise, we'll use I2R key, as the responder is sending the message.
-    if (mSessionRole == SessionRole::kInitiator)
+    if (nullptr != mKeyContext)
     {
-        usage = kR2IKey;
-    }
+        ByteSpan ciphertext(input, input_length);
+        MutableByteSpan plaintext(output, input_length);
+        ByteSpan mic(tag, taglen);
 
-    return AES_CCM_decrypt(input, input_length, AAD, aadLen, tag, taglen, mKeys[usage], Crypto::kAES_CCM128_Key_Length, IV,
-                           sizeof(IV), output);
+        CHIP_ERROR err = mKeyContext->DecryptMessage(ciphertext, ByteSpan(AAD, aadLen), ByteSpan(nonce), mic, plaintext);
+        ReturnErrorOnFailure(err);
+    }
+    else
+    {
+        VerifyOrReturnError(mKeyAvailable, CHIP_ERROR_INVALID_USE_OF_SESSION_KEY);
+        KeyUsage usage = kI2RKey;
+
+        // Message is decrypted on receive. If the secure session was created by session
+        // initiator, we'll use R2I key to decrypt the message (as it was sent by responder).
+        // Otherwise, we'll use I2R key, as the responder is sending the message.
+        if (mSessionRole == SessionRole::kInitiator)
+        {
+            usage = kR2IKey;
+        }
+
+        ReturnErrorOnFailure(AES_CCM_decrypt(input, input_length, AAD, aadLen, tag, taglen, mKeys[usage],
+                                             Crypto::kAES_CCM128_Key_Length, nonce, sizeof(nonce), output));
+    }
+    return CHIP_NO_ERROR;
 }
 
 } // namespace chip

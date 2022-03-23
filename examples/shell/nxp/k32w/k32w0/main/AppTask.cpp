@@ -110,7 +110,7 @@ CHIP_ERROR AppTask::Init()
     }
 
     // Print the current software version
-    char softwareVersionString[ConfigurationManager::kMaxSoftwareVersionLength + 1] = { 0 };
+    char softwareVersionString[ConfigurationManager::kMaxSoftwareVersionStringLength + 1] = { 0 };
     err = ConfigurationMgr().GetSoftwareVersionString(softwareVersionString, sizeof(softwareVersionString));
     if (err != CHIP_NO_ERROR)
     {
@@ -286,7 +286,7 @@ void AppTask::FunctionTimerEventHandler(AppEvent * aEvent)
     K32W_LOG("Device will factory reset...");
 
     // Actually trigger Factory Reset
-    ConfigurationMgr().InitiateFactoryReset();
+    chip::Server::GetInstance().ScheduleFactoryReset();
 }
 
 void AppTask::ResetActionEventHandler(AppEvent * aEvent)

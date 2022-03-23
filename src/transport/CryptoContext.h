@@ -39,6 +39,7 @@ public:
     ~CryptoContext();
     CryptoContext(CryptoContext &&)      = default;
     CryptoContext(const CryptoContext &) = default;
+    CryptoContext(Crypto::SymmetricKeyContext * context) : mKeyContext(context){};
     CryptoContext & operator=(const CryptoContext &) = default;
     CryptoContext & operator=(CryptoContext &&) = default;
 
@@ -140,8 +141,9 @@ private:
 
     bool mKeyAvailable;
     CryptoKey mKeys[KeyUsage::kNumCryptoKeys];
+    Crypto::SymmetricKeyContext * mKeyContext = nullptr;
 
-    static CHIP_ERROR GetIV(const PacketHeader & header, uint8_t * iv, size_t len);
+    static CHIP_ERROR GetNonce(const PacketHeader & header, uint8_t * nonce, size_t len);
 
     // Use unencrypted header as additional authenticated data (AAD) during encryption and decryption.
     // The encryption operations includes AAD when message authentication tag is generated. This tag

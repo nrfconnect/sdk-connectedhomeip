@@ -171,6 +171,13 @@ public:
     ~EthernetNetworkDiagnosticsClusterTest() {}
 };
 
+class DLL_EXPORT FanControlClusterTest : public FanControlCluster
+{
+public:
+    FanControlClusterTest() : FanControlCluster() {}
+    ~FanControlClusterTest() {}
+};
+
 class DLL_EXPORT FixedLabelClusterTest : public FixedLabelCluster
 {
 public:
@@ -428,6 +435,13 @@ class DLL_EXPORT TimeFormatLocalizationClusterTest : public TimeFormatLocalizati
 public:
     TimeFormatLocalizationClusterTest() : TimeFormatLocalizationCluster() {}
     ~TimeFormatLocalizationClusterTest() {}
+};
+
+class DLL_EXPORT UnitLocalizationClusterTest : public UnitLocalizationCluster
+{
+public:
+    UnitLocalizationClusterTest() : UnitLocalizationCluster() {}
+    ~UnitLocalizationClusterTest() {}
 };
 
 class DLL_EXPORT UserLabelClusterTest : public UserLabelCluster

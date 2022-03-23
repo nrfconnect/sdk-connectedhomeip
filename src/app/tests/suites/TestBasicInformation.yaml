@@ -15,6 +15,7 @@
 name: Basic Information Cluster Tests
 
 config:
+    nodeId: 0x12344321
     cluster: "Basic"
     endpoint: 0
 
@@ -22,9 +23,12 @@ tests:
     - label: "Wait for the commissioned device to be retrieved"
       cluster: "DelayCommands"
       command: "WaitForCommissionee"
-    #Disabled due to issue-12983
+      arguments:
+          values:
+              - name: "nodeId"
+                value: nodeId
+
     - label: "Read location"
-      disabled: true
       command: "readAttribute"
       attribute: "location"
       response:
@@ -34,27 +38,25 @@ tests:
       command: "writeAttribute"
       attribute: "location"
       arguments:
-          value: "us"
-    #Disabled due to issue-12983
+          value: "US"
+
     - label: "Read back location"
-      disabled: true
       command: "readAttribute"
       attribute: "location"
       response:
-          value: "us"
+          value: "US"
 
     - label: "Restore initial location value"
       command: "writeAttribute"
       attribute: "location"
       arguments:
-          value: ""
+          value: "XX"
 
     - label: "Read AttributeList value"
       command: "readAttribute"
       attribute: "AttributeList"
       response:
-          value:
-              [
+          value: [
                   0,
                   1,
                   2,
@@ -74,6 +76,8 @@ tests:
                   16,
                   17,
                   18,
-                  0xFFFB,
-                  0xFFFD,
+                  0xFFF8, # GeneratedCommandList
+                  0xFFF9, # AcceptedCommandList
+                  0xFFFB, # AttributeList
+                  0xFFFD, # ClusterRevision
               ]

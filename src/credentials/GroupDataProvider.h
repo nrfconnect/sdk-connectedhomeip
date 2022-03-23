@@ -31,6 +31,8 @@ namespace Credentials {
 class GroupDataProvider
 {
 public:
+    using SecurityPolicy = app::Clusters::GroupKeyManagement::GroupKeySecurityPolicy;
+
     struct GroupInfo
     {
         static constexpr size_t kGroupNameMax = CHIP_CONFIG_MAX_GROUP_NAME_LENGTH;
@@ -85,7 +87,10 @@ public:
         GroupId group_id = kUndefinedGroupId;
         // Set of group keys that generate operational group keys for use with this group
         KeysetId keyset_id = 0;
-        bool operator==(const GroupKey & other) { return this->group_id == other.group_id && this->keyset_id == other.keyset_id; }
+        bool operator==(const GroupKey & other) const
+        {
+            return this->group_id == other.group_id && this->keyset_id == other.keyset_id;
+        }
     };
 
     struct GroupEndpoint
@@ -97,7 +102,7 @@ public:
         // Endpoint on the Node to which messages to this group may be forwarded
         EndpointId endpoint_id = kInvalidEndpointId;
 
-        bool operator==(const GroupEndpoint & other)
+        bool operator==(const GroupEndpoint & other) const
         {
             return this->group_id == other.group_id && this->endpoint_id == other.endpoint_id;
         }
@@ -108,6 +113,7 @@ public:
         GroupSession()   = default;
         GroupId group_id = kUndefinedGroupId;
         FabricIndex fabric_index;
+        SecurityPolicy security_policy;
         Crypto::SymmetricKeyContext * key = nullptr;
     };
 
@@ -126,7 +132,6 @@ public:
     struct KeySet
     {
         static constexpr size_t kEpochKeysMax = 3;
-        using SecurityPolicy                  = app::Clusters::GroupKeyManagement::GroupKeySecurityPolicy;
 
         KeySet() = default;
         KeySet(uint16_t id, SecurityPolicy policy_id, uint8_t num_keys) : keyset_id(id), policy(policy_id), num_keys_used(num_keys)
@@ -137,7 +142,7 @@ public:
         // Logical id provided by the Administrator that configured the entry
         uint16_t keyset_id = 0;
         // Security policy to use for groups that use this keyset
-        SecurityPolicy policy = SecurityPolicy::kStandard;
+        SecurityPolicy policy = SecurityPolicy::kCacheAndSync;
         // Number of keys present
         uint8_t num_keys_used = 0;
 
@@ -145,22 +150,6 @@ public:
         {
             VerifyOrReturnError(this->policy == other.policy && this->num_keys_used == other.num_keys_used, false);
             return !memcmp(this->epoch_keys, other.epoch_keys, this->num_keys_used * sizeof(EpochKey));
-        }
-
-        ByteSpan GetCurrentKey()
-        {
-            // An epoch key update SHALL order the keys from oldest to newest,
-            // the current epoch key having the second newest time
-            switch (this->num_keys_used)
-            {
-            case 1:
-            case 2:
-                return ByteSpan(epoch_keys[0].key, EpochKey::kLengthBytes);
-            case 3:
-                return ByteSpan(epoch_keys[1].key, EpochKey::kLengthBytes);
-            default:
-                return ByteSpan(nullptr, 0);
-            }
         }
     };
 
@@ -180,7 +169,7 @@ public:
         /**
          *  Callback invoked when an existing group is removed.
          *
-         *  @param[in] removed_state  GroupInfo structure of the removed group.
+         *  @param[in] old_group  GroupInfo structure of the removed group.
          */
         virtual void OnGroupRemoved(FabricIndex fabric_index, const GroupInfo & old_group) = 0;
     };
@@ -231,12 +220,13 @@ public:
     GroupDataProvider(const GroupDataProvider &) = delete;
     GroupDataProvider & operator=(const GroupDataProvider &) = delete;
 
-    uint16_t GetMaxGroupsPerFabric() { return mMaxGroupsPerFabric; }
-    uint16_t GetMaxGroupKeysPerFabric() { return mMaxGroupKeysPerFabric; }
+    uint16_t GetMaxGroupsPerFabric() const { return mMaxGroupsPerFabric; }
+    uint16_t GetMaxGroupKeysPerFabric() const { return mMaxGroupKeysPerFabric; }
 
     /**
-     *  Initialize the GroupDataProvider, including any persistent data store
-     *  initialization. Must be called once before any other API succeeds.
+     *  Initialize the GroupDataProvider, including possibly any persistent
+     *  data store initialization done by the implementation. Must be called once
+     *  before any other API succeeds.
      *
      *  @retval #CHIP_ERROR_INCORRECT_STATE if called when already initialized.
      *  @retval #CHIP_NO_ERROR on success
@@ -301,9 +291,9 @@ public:
     // Key Sets
     //
 
-    virtual CHIP_ERROR SetKeySet(FabricIndex fabric_index, const KeySet & keys)               = 0;
-    virtual CHIP_ERROR GetKeySet(FabricIndex fabric_index, KeysetId keyset_id, KeySet & keys) = 0;
-    virtual CHIP_ERROR RemoveKeySet(FabricIndex fabric_index, KeysetId keyset_id)             = 0;
+    virtual CHIP_ERROR SetKeySet(FabricIndex fabric_index, const ByteSpan & compressed_fabric_id, const KeySet & keys) = 0;
+    virtual CHIP_ERROR GetKeySet(FabricIndex fabric_index, KeysetId keyset_id, KeySet & keys)                          = 0;
+    virtual CHIP_ERROR RemoveKeySet(FabricIndex fabric_index, KeysetId keyset_id)                                      = 0;
     /**
      *  Creates an iterator that may be used to obtain the list of key sets associated with the given fabric.
      *  In order to release the allocated memory, the Release() method must be called after the iteration is finished.
@@ -317,7 +307,8 @@ public:
     virtual CHIP_ERROR RemoveFabric(FabricIndex fabric_index) = 0;
 
     // Decryption
-    virtual GroupSessionIterator * IterateGroupSessions(uint16_t session_id) = 0;
+    virtual GroupSessionIterator * IterateGroupSessions(uint16_t session_id)                        = 0;
+    virtual Crypto::SymmetricKeyContext * GetKeyContext(FabricIndex fabric_index, GroupId group_id) = 0;
 
     // Listener
     void SetListener(GroupListener * listener) { mListener = listener; };

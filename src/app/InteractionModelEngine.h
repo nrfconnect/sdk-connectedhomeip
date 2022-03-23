@@ -46,7 +46,6 @@
 #include <app/CommandSender.h>
 #include <app/ConcreteAttributePath.h>
 #include <app/ConcreteCommandPath.h>
-#include <app/InteractionModelDelegate.h>
 #include <app/ReadClient.h>
 #include <app/ReadHandler.h>
 #include <app/StatusResponse.h>
@@ -58,6 +57,7 @@
 
 namespace chip {
 namespace app {
+
 /**
  * @class InteractionModelEngine
  *
@@ -65,7 +65,7 @@ namespace app {
  * handlers
  *
  */
-class InteractionModelEngine : public Messaging::ExchangeDelegate, public CommandHandler::Callback
+class InteractionModelEngine : public Messaging::ExchangeDelegate, public CommandHandler::Callback, public ReadHandler::Callback
 {
 public:
     /**
@@ -82,14 +82,13 @@ public:
      *  Initialize the InteractionModel Engine.
      *
      *  @param[in]    apExchangeMgr    A pointer to the ExchangeManager object.
-     *  @param[in]    apDelegate       InteractionModelDelegate set by application.
      *
      *  @retval #CHIP_ERROR_INCORRECT_STATE If the state is not equal to
      *          kState_NotInitialized.
      *  @retval #CHIP_NO_ERROR On success.
      *
      */
-    CHIP_ERROR Init(Messaging::ExchangeManager * apExchangeMgr, InteractionModelDelegate * apDelegate);
+    CHIP_ERROR Init(Messaging::ExchangeManager * apExchangeMgr);
 
     void Shutdown();
 
@@ -111,15 +110,26 @@ public:
      */
     CHIP_ERROR ShutdownSubscriptions(FabricIndex aFabricIndex, NodeId aPeerNodeId);
 
+    /**
+     * Expire active transactions and release related objects for the given fabric index.
+     * This is used for releasing transactions that won't be closed when a fabric is removed.
+     */
+    void CloseTransactionsFromFabricIndex(FabricIndex aFabricIndex);
+
     uint32_t GetNumActiveReadHandlers() const;
+    uint32_t GetNumActiveReadHandlers(ReadHandler::InteractionType type) const;
 
     uint32_t GetNumActiveWriteHandlers() const;
 
-    uint16_t GetReadHandlerArrayIndex(const ReadHandler * const apReadHandler) const;
+    /**
+     * Returns the handler at a particular index within the active handler list.
+     */
+    ReadHandler * ActiveHandlerAt(unsigned int aIndex);
+
     /**
      * The Magic number of this InteractionModelEngine, the magic number is set during Init()
      */
-    uint32_t GetMagicNumber() { return mMagic; }
+    uint32_t GetMagicNumber() const { return mMagic; }
 
     reporting::Engine & GetReportingEngine() { return mReportingEngine; }
 
@@ -174,12 +184,58 @@ public:
      */
     size_t GetNumActiveReadClients();
 
+    /**
+     * Returns whether the write operation to the given path is conflict with another write operations. (i.e. another write
+     * transaction is in the middle of processing the chunked value of the given path.)
+     */
+    bool HasConflictWriteRequests(const WriteHandler * apWriteHandler, const ConcreteAttributePath & aPath);
+
+#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+    //
+    // Get direct access to the underlying read handler pool
+    //
+    auto & GetReadHandlerPool() { return mReadHandlers; }
+
+    //
+    // Override the maximal capacity of the underlying read handler pool to mimic
+    // out of memory scenarios in unit-tests.
+    //
+    // If -1 is passed in, no override is instituted and default behavior resumes.
+    //
+    void SetHandlerCapacity(int32_t sz) { mReadHandlerCapacityOverride = sz; }
+
+    //
+    // When testing subscriptions using the high-level APIs in src/controller/ReadInteraction.h,
+    // they don't provide for the ability to shut down those subscriptions after they've been established.
+    //
+    // So for the purposes of unit tests, add a helper here to shut down and clean-up all active handlers.
+    //
+    void ShutdownActiveReads()
+    {
+        for (auto * readClient = mpActiveReadClientList; readClient != nullptr;)
+        {
+            readClient->mpImEngine = nullptr;
+            auto * tmpClient       = readClient->GetNextClient();
+            readClient->SetNextClient(nullptr);
+            readClient = tmpClient;
+        }
+
+        //
+        // After that, we just null out our tracker.
+        //
+        mpActiveReadClientList = nullptr;
+
+        mReadHandlers.ReleaseAll();
+    }
+#endif
+
 private:
     friend class reporting::Engine;
     friend class TestCommandInteraction;
     using Status = Protocols::InteractionModel::Status;
 
     void OnDone(CommandHandler & apCommandObj) override;
+    void OnDone(ReadHandler & apReadObj) override;
 
     /**
      * Called when Interaction Model receives a Command Request message.  Errors processing
@@ -228,7 +284,7 @@ private:
 
     void DispatchCommand(CommandHandler & apCommandObj, const ConcreteCommandPath & aCommandPath,
                          TLV::TLVReader & apPayload) override;
-    bool CommandExists(const ConcreteCommandPath & aCommandPath) override;
+    Protocols::InteractionModel::Status CommandExists(const ConcreteCommandPath & aCommandPath) override;
 
     bool HasActiveRead();
 
@@ -236,18 +292,21 @@ private:
                                                      System::PacketBufferHandle && aPayload);
 
     Messaging::ExchangeManager * mpExchangeMgr = nullptr;
-    InteractionModelDelegate * mpDelegate      = nullptr;
 
     CommandHandlerInterface * mCommandHandlerList = nullptr;
 
-    BitMapObjectPool<CommandHandler, CHIP_IM_MAX_NUM_COMMAND_HANDLER> mCommandHandlerObjs;
-    BitMapObjectPool<TimedHandler, CHIP_IM_MAX_NUM_TIMED_HANDLER> mTimedHandlers;
-    ReadHandler mReadHandlers[CHIP_IM_MAX_NUM_READ_HANDLER];
+    ObjectPool<CommandHandler, CHIP_IM_MAX_NUM_COMMAND_HANDLER> mCommandHandlerObjs;
+    ObjectPool<TimedHandler, CHIP_IM_MAX_NUM_TIMED_HANDLER> mTimedHandlers;
+    ObjectPool<ReadHandler, CHIP_IM_MAX_NUM_READ_HANDLER> mReadHandlers;
     WriteHandler mWriteHandlers[CHIP_IM_MAX_NUM_WRITE_HANDLER];
     reporting::Engine mReportingEngine;
-    BitMapObjectPool<ClusterInfo, CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS> mClusterInfoPool;
+    ObjectPool<ClusterInfo, CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS> mClusterInfoPool;
 
     ReadClient * mpActiveReadClientList = nullptr;
+
+#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+    int mReadHandlerCapacityOverride = -1;
+#endif
 
     // A magic number for tracking values between stack Shutdown()-s and Init()-s.
     // An ObjectHandle is valid iff. its magic equals to this one.
@@ -256,20 +315,14 @@ private:
 
 void DispatchSingleClusterCommand(const ConcreteCommandPath & aCommandPath, chip::TLV::TLVReader & aReader,
                                   CommandHandler * apCommandObj);
-void DispatchSingleClusterResponseCommand(const ConcreteCommandPath & aCommandPath, chip::TLV::TLVReader & aReader,
-                                          CommandSender * apCommandObj);
 
 /**
- *  Check whether the given cluster exists on the given endpoint and supports the given command.
- *  TODO: The implementation lives in ember-compatibility-functions.cpp, this should be replaced by IM command catalog look up
- * function after we have a cluster catalog in interaction model engine.
- *  TODO: The endpoint id on response command (client side command) is unclear, so we don't have a ClientClusterCommandExists
- * function. (Spec#3258)
- *
- *  @retval  True if the endpoint contains the server side of the given cluster and that cluster implements the given command, false
- * otherwise.
+ *  Check whether the given cluster exists on the given endpoint and supports
+ *  the given command.  If it does, Success will be returned.  If it does not,
+ *  one of UnsupportedEndpoint, UnsupportedCluster, or UnsupportedCommand
+ *  will be returned, depending on how the command fails to exist.
  */
-bool ServerClusterCommandExists(const ConcreteCommandPath & aCommandPath);
+Protocols::InteractionModel::Status ServerClusterCommandExists(const ConcreteCommandPath & aCommandPath);
 
 /**
  *  Fetch attribute value and version info and write to the AttributeReport provided.
@@ -296,7 +349,13 @@ CHIP_ERROR ReadSingleClusterData(const Access::SubjectDescriptor & aSubjectDescr
 /**
  * TODO: Document.
  */
-CHIP_ERROR WriteSingleClusterData(const Access::SubjectDescriptor & aSubjectDescriptor, ClusterInfo & aClusterInfo,
-                                  TLV::TLVReader & aReader, WriteHandler * apWriteHandler);
+CHIP_ERROR WriteSingleClusterData(const Access::SubjectDescriptor & aSubjectDescriptor,
+                                  const ConcreteDataAttributePath & aAttributePath, TLV::TLVReader & aReader,
+                                  WriteHandler * apWriteHandler);
+
+/**
+ * Check if the given cluster has the given DataVersion.
+ */
+bool IsClusterDataVersionEqual(const ConcreteClusterPath & aConcreteClusterPath, DataVersion aRequiredVersion);
 } // namespace app
 } // namespace chip

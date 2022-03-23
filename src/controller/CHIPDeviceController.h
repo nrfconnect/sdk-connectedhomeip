@@ -534,9 +534,6 @@ public:
      */
     CHIP_ERROR Commission(NodeId remoteDeviceId, CommissioningParameters & params);
 
-    CHIP_ERROR
-    PairTestDeviceWithoutSecurity(NodeId remoteDeviceId, const Transport::PeerAddress & peerAddress);
-
     CHIP_ERROR GetDeviceBeingCommissioned(NodeId deviceId, CommissioneeDeviceProxy ** device);
 
     CHIP_ERROR GetConnectedDevice(NodeId deviceId, Callback::Callback<OnDeviceConnected> * onConnection,

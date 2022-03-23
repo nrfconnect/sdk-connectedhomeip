@@ -767,7 +767,7 @@ bool BLEManagerImpl::SendReadResponse(BLE_CONNECTION_OBJECT conId, BLE_READ_REQU
 
 void BLEManagerImpl::NotifyChipConnectionClosed(BLE_CONNECTION_OBJECT conId)
 {
-    CloseConnection(conId);
+    // Intentionally empty.
 }
 
 bool BLEManagerImpl::IsSubscribed(bt_conn * conn)

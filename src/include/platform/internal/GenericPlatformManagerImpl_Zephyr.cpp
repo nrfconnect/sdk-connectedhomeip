@@ -174,10 +174,7 @@ void GenericPlatformManagerImpl_Zephyr<ImplClass>::EventLoopTaskMain(void * this
 template <class ImplClass>
 CHIP_ERROR GenericPlatformManagerImpl_Zephyr<ImplClass>::_StartEventLoopTask(void)
 {
-    if (!mChipThreadStack)
-        return CHIP_ERROR_WELL_UNINITIALIZED;
-
-    const auto tid = k_thread_create(&mChipThread, mChipThreadStack, CHIP_DEVICE_CONFIG_CHIP_TASK_STACK_SIZE, EventLoopTaskMain,
+    const auto tid = k_thread_create(&mChipThread, mChipThreadStack, K_THREAD_STACK_SIZEOF(mChipThreadStack), EventLoopTaskMain,
                                      this, nullptr, nullptr, CHIP_DEVICE_CONFIG_CHIP_TASK_PRIORITY, 0, K_NO_WAIT);
 
 #ifdef CONFIG_THREAD_NAME

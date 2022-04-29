@@ -25,28 +25,41 @@
 namespace chip {
 namespace Transport {
 
+#ifndef NDEBUG
 class GroupSessionDeleter
 {
 public:
     static void Release(IncomingGroupSession * entry) {}
     static void Release(OutgoingGroupSession * entry) {}
 };
+#endif
 
-class IncomingGroupSession : public Session,
-                             // The group session is ephemeral, its lifespan is controlled by whoever is using it. To prevent the
-                             // object being destroyed while there are still SessionHandle or SessionHolder pointing to it, we
-                             // enforce a reference counter check at its destruction in debug build.
+class IncomingGroupSession : public Session
+#ifndef NDEBUG
+    // The group session is ephemeral, its lifespan is controlled by whoever is using it. To prevent the object being destroyed
+    // while there are still SessionHandle or SessionHolder pointing to it, we enforce a reference counter check at its destruction
+    // in debug build.
+    ,
                              public ReferenceCounted<IncomingGroupSession, GroupSessionDeleter, 0>
+#endif
 {
 public:
     IncomingGroupSession(GroupId group, FabricIndex fabricIndex, NodeId sourceNodeId) : mGroupId(group), mSourceNodeId(sourceNodeId)
     {
         SetFabricIndex(fabricIndex);
     }
-    ~IncomingGroupSession() override;
+    ~IncomingGroupSession() override
+    {
+        NotifySessionReleased();
+#ifndef NDEBUG
+        VerifyOrDie(GetReferenceCount() == 0);
+#endif
+    }
 
-    void Retain() override;
-    void Release() override;
+#ifndef NDEBUG
+    void Retain() override { ReferenceCounted<IncomingGroupSession, GroupSessionDeleter, 0>::Retain(); }
+    void Release() override { ReferenceCounted<IncomingGroupSession, GroupSessionDeleter, 0>::Release(); }
+#endif
 
     Session::SessionType GetSessionType() const override { return Session::SessionType::kGroupIncoming; }
 #if CHIP_PROGRESS_LOGGING
@@ -86,21 +99,32 @@ private:
     const NodeId mSourceNodeId;
 };
 
-class OutgoingGroupSession : public Session,
-                             // The group session is ephemeral, its lifespan is controlled by whoever is using it. To prevent the
-                             // object being destroyed while there are still SessionHandle or SessionHolder pointing to it, we
-                             // enforce a reference counter check at its destruction in debug build.
+class OutgoingGroupSession : public Session
+#ifndef NDEBUG
+    // The group session is ephemeral, its lifespan is controlled by whoever is using it. To prevent the object being destroyed
+    // while there are still SessionHandle or SessionHolder pointing to it, we enforce a reference counter check at its destruction
+    // in debug build.
+    ,
                              public ReferenceCounted<OutgoingGroupSession, GroupSessionDeleter, 0>
+#endif
 {
 public:
     OutgoingGroupSession(GroupId group, FabricIndex fabricIndex, NodeId sourceNodeId) : mGroupId(group), mSourceNodeId(sourceNodeId)
     {
         SetFabricIndex(fabricIndex);
     }
-    ~OutgoingGroupSession() override;
+    ~OutgoingGroupSession() override
+    {
+        NotifySessionReleased();
+#ifndef NDEBUG
+        VerifyOrDie(GetReferenceCount() == 0);
+#endif
+    }
 
-    void Retain() override;
-    void Release() override;
+#ifndef NDEBUG
+    void Retain() override { ReferenceCounted<OutgoingGroupSession, GroupSessionDeleter, 0>::Retain(); }
+    void Release() override { ReferenceCounted<OutgoingGroupSession, GroupSessionDeleter, 0>::Release(); }
+#endif
 
     Session::SessionType GetSessionType() const override { return Session::SessionType::kGroupOutgoing; }
 #if CHIP_PROGRESS_LOGGING

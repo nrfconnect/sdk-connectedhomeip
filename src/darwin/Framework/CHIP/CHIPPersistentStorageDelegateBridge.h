@@ -25,10 +25,8 @@ NS_ASSUME_NONNULL_BEGIN
 class CHIPPersistentStorageDelegateBridge : public chip::PersistentStorageDelegate
 {
 public:
-    CHIPPersistentStorageDelegateBridge();
+    CHIPPersistentStorageDelegateBridge(id<CHIPPersistentStorageDelegate> delegate);
     ~CHIPPersistentStorageDelegateBridge();
-
-    void setFrameworkDelegate(_Nullable id<CHIPPersistentStorageDelegate> delegate);
 
     CHIP_ERROR SyncGetKeyValue(const char * key, void * buffer, uint16_t & size) override;
 
@@ -37,10 +35,8 @@ public:
     CHIP_ERROR SyncDeleteKeyValue(const char * key) override;
 
 private:
-    id<CHIPPersistentStorageDelegate> mDelegate;
-
-    NSUserDefaults * mDefaultPersistentStorage;
-    dispatch_queue_t mWorkQueue;
+    _Nullable id<CHIPPersistentStorageDelegate> mDelegate;
+    _Nullable dispatch_queue_t mWorkQueue;
 };
 
 NS_ASSUME_NONNULL_END

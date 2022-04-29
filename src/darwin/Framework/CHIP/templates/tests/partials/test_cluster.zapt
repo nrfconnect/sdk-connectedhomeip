@@ -1,4 +1,4 @@
-{{#chip_tests tests}}
+{{#chip_tests tests useSynthesizeWaitForReport=true}}
 {{#chip_tests_items}}
 {{#if async}}
 bool testSendCluster{{parent.filename}}_{{asTestIndex index}}_{{asUpperCamelCase command}}_Fulfilled = false;
@@ -24,7 +24,12 @@ ResponseHandler {{> subscribeDataCallback}} = nil;
 
 {{#if (isTestOnlyCluster cluster)}}
     dispatch_queue_t queue = dispatch_get_main_queue();
-    {{command}}(expectation, queue{{#chip_tests_item_parameters}}, {{#if (isString type)}}@"{{/if}}{{> defined_value}}{{#if (isString type)}}"{{/if}}{{/chip_tests_item_parameters}}{{additionalArguments}});
+    {{#if (isStrEqual command "UserPrompt")}}
+      {{! We only support the first arg, and our impl is a no-op anyway. }}
+      {{command}}(expectation, queue{{#chip_tests_item_parameters}}{{#first}}, {{#if (isString type)}}@"{{/if}}{{> defined_value}}{{#if (isString type)}}"{{/if}}{{/first}}{{/chip_tests_item_parameters}});
+    {{else}}
+      {{command}}(expectation, queue{{#chip_tests_item_parameters}}, {{#if (isString type)}}@"{{/if}}{{> defined_value}}{{#if (isString type)}}"{{/if}}{{/chip_tests_item_parameters}});
+    {{/if}}
 {{else}}
     CHIPDevice * device = GetConnectedDevice();
     dispatch_queue_t queue = dispatch_get_main_queue();

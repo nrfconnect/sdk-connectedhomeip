@@ -65,13 +65,13 @@ jobs:
               run: |
                   scripts/run_in_build_env.sh "gn gen out/chiptool_x64_debug --args='chip_mdns=\"platform\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_debug chip-tool"
-                  mv out/chiptool_x64_debug/chip-tool out/chiptool_x64_debug/chip-tool-debug
+                  mv out/chiptool_x64_debug/chip-tool out/chiptool_x64_debug/chip-tool-x64-debug
             - name: Build x64 CHIP Tool with debug logs disabled
               timeout-minutes: 10
               run: |
                   scripts/run_in_build_env.sh "gn gen out/chiptool_x64_release --args='chip_mdns=\"platform\" chip_detail_logging=false'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_release chip-tool"
-                  mv out/chiptool_x64_release/chip-tool out/chiptool_x64_release/chip-tool-release
+                  mv out/chiptool_x64_release/chip-tool out/chiptool_x64_release/chip-tool-x64-release
             - name: Build arm64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |
@@ -82,7 +82,7 @@ jobs:
                       target_ar=\"aarch64-linux-gnu-ar\"
                       target_cpu=\"arm64\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_debug chip-tool"
-                  mv out/chiptool_arm64_debug/chip-tool out/chiptool_arm64_debug/chip-tool-debug
+                  mv out/chiptool_arm64_debug/chip-tool out/chiptool_arm64_debug/chip-tool-arm64-debug
             - name: Build arm64 CHIP Tool with debug logs disabled
               timeout-minutes: 10
               run: |
@@ -94,12 +94,12 @@ jobs:
                       target_ar=\"aarch64-linux-gnu-ar\"
                       target_cpu=\"arm64\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_release chip-tool"
-                  mv out/chiptool_arm64_release/chip-tool out/chiptool_arm64_release/chip-tool-release
+                  mv out/chiptool_arm64_release/chip-tool out/chiptool_arm64_release/chip-tool-arm64-release
             - name: Create zip files for CHIP Tool debug and release packages
               timeout-minutes: 10
               run: |
-                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-linux_x64.zip out/chiptool_x64_debug/chip-tool-debug out/chiptool_x64_release/chip-tool-release
-                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-linux_aarch64.zip out/chiptool_arm64_debug/chip-tool-debug out/chiptool_arm64_release/chip-tool-release
+                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_debug.zip out/chiptool_x64_debug/chip-tool-x64-debug out/chiptool_arm64_debug/chip-tool-arm64-debug
+                  python3 -m zipfile -c /tmp/output_binaries/chip-tool-python_linux_release.zip out/chiptool_x64_release/chip-tool-x64-release out/chiptool_arm64_release/chip-tool-arm64-release
             - name: Build arm Android CHIPTool
               timeout-minutes: 30
               env:

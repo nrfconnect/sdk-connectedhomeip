@@ -43,7 +43,8 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
     mContentHeaderParser.Init();
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_mcuboot_set_buf(mBuffer, sizeof(mBuffer))));
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_reset()));
-    return System::MapErrorZephyr(dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, 0, /* size */ 0, nullptr));
+
+    return System::MapErrorZephyr(dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, /* size */ 0, nullptr));
 }
 
 CHIP_ERROR OTAImageProcessorImpl::Finalize()
@@ -58,12 +59,7 @@ CHIP_ERROR OTAImageProcessorImpl::Abort()
 
 CHIP_ERROR OTAImageProcessorImpl::Apply()
 {
-    int err = dfu_target_done(true);
-    if (err == 0)
-    {
-        err = dfu_target_schedule_update(0);
-    }
-    return System::MapErrorZephyr(err);
+    ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_done(true)));
 
 #ifdef CONFIG_CHIP_OTA_REQUESTOR_REBOOT_ON_APPLY
     return SystemLayer().StartTimer(

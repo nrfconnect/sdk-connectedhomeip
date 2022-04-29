@@ -56,9 +56,7 @@ apk
 AppConfig
 AppImpl
 ApplianceControl
-applianceeventsandalert
 ApplianceIdentification
-appliancestatistics
 ApplicationBasic
 ApplicationId
 ApplicationIdentifier
@@ -249,7 +247,6 @@ ColorControl
 Comcast
 Commandline
 Commissionable
-commissionables
 CommissioningFlow
 commondatastorage
 CONF
@@ -482,7 +479,6 @@ fb
 fbb
 fbd
 FC
-FCJ
 FDDE
 fddead
 fde
@@ -616,7 +612,6 @@ InetLayer
 Infineon
 ini
 init
-InitArgs
 inlined
 InputLoop
 installDebug
@@ -1177,7 +1172,6 @@ subtype
 sudo
 SulfateConcentrationMeasurement
 SulfurDioxideConcentrationMeasurement
-suppressResponse
 svg
 SVR
 SWD

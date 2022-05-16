@@ -83,6 +83,8 @@ namespace chip {
 namespace DeviceLayer {
 namespace Internal {
 
+constexpr uint16_t kMaxConnectRetries = 4;
+
 static BluezConnection * GetBluezConnectionViaDevice(BluezEndpoint * apEndpoint);
 
 namespace {
@@ -625,6 +627,18 @@ static gboolean BluezCharacteristicStopNotify(BluezGattCharacteristic1 * aChar, 
 
 exit:
     return isSuccess ? TRUE : FALSE;
+}
+
+static gboolean BluezCharacteristicConfirm(BluezGattCharacteristic1 * aChar, GDBusMethodInvocation * aInvocation,
+                                           gpointer apClosure)
+{
+    BluezEndpoint * endpoint = static_cast<BluezEndpoint *>(apClosure);
+    BluezConnection * conn   = GetBluezConnectionViaDevice(endpoint);
+
+    ChipLogDetail(Ble, "Indication confirmation, %p", conn);
+    BLEManagerImpl::HandleTXComplete(conn);
+
+    return TRUE;
 }
 
 static gboolean BluezCharacteristicStopNotifyError(BluezGattCharacteristic1 * aChar, GDBusMethodInvocation * aInvocation)
@@ -1223,7 +1237,7 @@ static void BluezPeripheralObjectsSetup(gpointer apClosure)
 {
 
     static const char * const c1_flags[] = { "write", nullptr };
-    static const char * const c2_flags[] = { "read", "notify", nullptr };
+    static const char * const c2_flags[] = { "read", "indicate", nullptr };
     static const char * const c3_flags[] = { "read", nullptr };
 
     BluezEndpoint * endpoint = static_cast<BluezEndpoint *>(apClosure);
@@ -1252,7 +1266,7 @@ static void BluezPeripheralObjectsSetup(gpointer apClosure)
     g_signal_connect(endpoint->mpC2, "handle-acquire-notify", G_CALLBACK(BluezCharacteristicAcquireNotify), apClosure);
     g_signal_connect(endpoint->mpC2, "handle-start-notify", G_CALLBACK(BluezCharacteristicStartNotify), apClosure);
     g_signal_connect(endpoint->mpC2, "handle-stop-notify", G_CALLBACK(BluezCharacteristicStopNotify), apClosure);
-    g_signal_connect(endpoint->mpC2, "handle-confirm", G_CALLBACK(BluezCharacteristicConfirmError), apClosure);
+    g_signal_connect(endpoint->mpC2, "handle-confirm", G_CALLBACK(BluezCharacteristicConfirm), apClosure);
 
     ChipLogDetail(DeviceLayer, "CHIP BTP C1 %s", bluez_gatt_characteristic1_get_service(endpoint->mpC1));
     ChipLogDetail(DeviceLayer, "CHIP BTP C2 %s", bluez_gatt_characteristic1_get_service(endpoint->mpC2));
@@ -1269,7 +1283,7 @@ static void BluezPeripheralObjectsSetup(gpointer apClosure)
     g_signal_connect(endpoint->mpC3, "handle-acquire-notify", G_CALLBACK(BluezCharacteristicAcquireNotify), apClosure);
     g_signal_connect(endpoint->mpC3, "handle-start-notify", G_CALLBACK(BluezCharacteristicStartNotify), apClosure);
     g_signal_connect(endpoint->mpC3, "handle-stop-notify", G_CALLBACK(BluezCharacteristicStopNotify), apClosure);
-    g_signal_connect(endpoint->mpC3, "handle-confirm", G_CALLBACK(BluezCharacteristicConfirmError), apClosure);
+    g_signal_connect(endpoint->mpC3, "handle-confirm", G_CALLBACK(BluezCharacteristicConfirm), apClosure);
     // update the characteristic value
     UpdateAdditionalDataCharacteristic(endpoint->mpC3);
     ChipLogDetail(DeviceLayer, "CHIP BTP C3 %s", bluez_gatt_characteristic1_get_service(endpoint->mpC3));
@@ -1357,7 +1371,7 @@ exit:
     return 0;
 }
 
-static gboolean BluezC2Notify(ConnectionDataBundle * closure)
+static gboolean BluezC2Indicate(ConnectionDataBundle * closure)
 {
     BluezConnection * conn = nullptr;
     GError * error         = nullptr;
@@ -1369,7 +1383,7 @@ static gboolean BluezC2Notify(ConnectionDataBundle * closure)
 
     conn = closure->mpConn;
     VerifyOrExit(conn != nullptr, ChipLogError(DeviceLayer, "BluezConnection is NULL in %s", __func__));
-    VerifyOrExit(conn->mpC2 != nullptr, ChipLogError(DeviceLayer, "FAIL: C2 Notify: %s", "NULL C2"));
+    VerifyOrExit(conn->mpC2 != nullptr, ChipLogError(DeviceLayer, "FAIL: C2 Indicate: %s", "NULL C2"));
 
     if (bluez_gatt_characteristic1_get_notify_acquired(conn->mpC2) == TRUE)
     {
@@ -1380,15 +1394,13 @@ static gboolean BluezC2Notify(ConnectionDataBundle * closure)
         g_variant_unref(closure->mpVal);
         closure->mpVal = nullptr;
 
-        VerifyOrExit(status == G_IO_STATUS_NORMAL, ChipLogError(DeviceLayer, "FAIL: C2 Notify: %s", error->message));
+        VerifyOrExit(status == G_IO_STATUS_NORMAL, ChipLogError(DeviceLayer, "FAIL: C2 Indicate: %s", error->message));
     }
     else
     {
         bluez_gatt_characteristic1_set_value(conn->mpC2, closure->mpVal);
         closure->mpVal = nullptr;
     }
-
-    BLEManagerImpl::HandleTXComplete(conn);
 
 exit:
     if (closure != nullptr)
@@ -1420,7 +1432,7 @@ bool SendBluezIndication(BLE_CONNECTION_OBJECT apConn, chip::System::PacketBuffe
 
     VerifyOrExit(!apBuf.IsNull(), ChipLogError(DeviceLayer, "apBuf is NULL in %s", __func__));
 
-    success = MainLoop::Instance().Schedule(BluezC2Notify, MakeConnectionDataBundle(apConn, apBuf));
+    success = MainLoop::Instance().Schedule(BluezC2Indicate, MakeConnectionDataBundle(apConn, apBuf));
 
 exit:
     return success;
@@ -1673,7 +1685,7 @@ static gboolean SubscribeCharacteristicImpl(BluezConnection * connection)
     VerifyOrExit(connection->mpC2 != nullptr, ChipLogError(DeviceLayer, "C2 is NULL in %s", __func__));
     c2 = BLUEZ_GATT_CHARACTERISTIC1(connection->mpC2);
 
-    // Get notifications on the TX characteristic change (e.g. notification is received)
+    // Get notifications on the TX characteristic change (e.g. indication is received)
     g_signal_connect(c2, "g-properties-changed", G_CALLBACK(OnCharacteristicChanged), connection);
     bluez_gatt_characteristic1_call_start_notify(connection->mpC2, nullptr, SubscribeCharacteristicDone, connection);
 
@@ -1725,25 +1737,48 @@ bool BluezUnsubscribeCharacteristic(BLE_CONNECTION_OBJECT apConn)
 
 struct ConnectParams
 {
-    ConnectParams(BluezDevice1 * device, BluezEndpoint * endpoint) : mDevice(device), mEndpoint(endpoint) {}
+    ConnectParams(BluezDevice1 * device, BluezEndpoint * endpoint) : mDevice(device), mEndpoint(endpoint), mNumRetries(0) {}
     BluezDevice1 * mDevice;
     BluezEndpoint * mEndpoint;
+    uint16_t mNumRetries;
 };
 
-static void ConnectDeviceDone(GObject * aObject, GAsyncResult * aResult, gpointer)
+static void ConnectDeviceDone(GObject * aObject, GAsyncResult * aResult, gpointer apParams)
 {
-    BluezDevice1 * device = BLUEZ_DEVICE1(aObject);
-    GError * error        = nullptr;
-    gboolean success      = bluez_device1_call_connect_finish(device, aResult, &error);
+    BluezDevice1 * device  = BLUEZ_DEVICE1(aObject);
+    GError * error         = nullptr;
+    gboolean success       = bluez_device1_call_connect_finish(device, aResult, &error);
+    ConnectParams * params = static_cast<ConnectParams *>(apParams);
+
+    assert(params != nullptr);
 
     if (!success)
     {
-        ChipLogError(DeviceLayer, "FAIL: ConnectDevice : %s", error->message);
+        ChipLogError(DeviceLayer, "FAIL: ConnectDevice : %s (%d)", error->message, error->code);
+
+        // Due to radio interferences or Wi-Fi coexistence, sometimes the BLE connection may not be
+        // established (e.g. Connection Indication Packet is missed by BLE peripheral). In such case,
+        // BlueZ returns "Software caused connection abort error", and we should make a connection retry.
+        // It's important to make sure that the connection is correctly ceased, by calling `Disconnect()`
+        // D-Bus method, or else `Connect()` returns immediately without any effect.
+        if (g_error_matches(error, G_IO_ERROR, G_IO_ERROR_DBUS_ERROR) && params->mNumRetries++ < kMaxConnectRetries)
+        {
+            // Clear the error before usage in subsequent call.
+            g_clear_error(&error);
+
+            bluez_device1_call_disconnect_sync(device, nullptr, &error);
+            bluez_device1_call_connect(device, params->mEndpoint->mpConnectCancellable, ConnectDeviceDone, params);
+            ExitNow();
+        }
+
         BLEManagerImpl::HandleConnectFailed(CHIP_ERROR_INTERNAL);
-        ExitNow();
+    }
+    else
+    {
+        ChipLogDetail(DeviceLayer, "ConnectDevice complete");
     }
 
-    ChipLogDetail(DeviceLayer, "ConnectDevice complete");
+    chip::Platform::Delete(params);
 
 exit:
     if (error != nullptr)
@@ -1759,9 +1794,8 @@ static gboolean ConnectDeviceImpl(ConnectParams * apParams)
     assert(endpoint != nullptr);
 
     g_cancellable_reset(endpoint->mpConnectCancellable);
-    bluez_device1_call_connect(device, endpoint->mpConnectCancellable, ConnectDeviceDone, nullptr);
+    bluez_device1_call_connect(device, endpoint->mpConnectCancellable, ConnectDeviceDone, apParams);
     g_object_unref(device);
-    chip::Platform::Delete(apParams);
 
     return G_SOURCE_REMOVE;
 }

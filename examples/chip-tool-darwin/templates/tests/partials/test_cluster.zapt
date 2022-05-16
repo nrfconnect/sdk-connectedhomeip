@@ -70,6 +70,30 @@ class {{filename}}: public TestCommandBridge
       }
     }
 
+    void OnStatusUpdate(const chip::app::StatusIB & status) override
+    {
+      switch (mTestIndex - 1)
+      {
+        {{#chip_tests_items}}
+        case {{index}}:
+          {{! No support for expectMultipleResponses yet }}
+          {{#chip_tests_item_responses}}
+          VerifyOrReturn(CheckValue("status", chip::to_underlying(status.mStatus), {{error}}));
+          {{#if error}}
+            {{#if clusterError}}
+              VerifyOrReturn(CheckValue("clusterStatus present", status.mClusterStatus.HasValue(), true));
+              VerifyOrReturn(CheckValue("clusterStatus value", status.mClusterStatus.Value(), {{clusterError}}));
+            {{/if}}
+          {{/if}}
+          {{/chip_tests_item_responses}}
+          break;
+        {{/chip_tests_items}}
+      }
+
+      // Go on to the next test.
+      ContinueOnChipMainThread(CHIP_NO_ERROR);
+    }
+
   chip::System::Clock::Timeout GetWaitDuration() const override { return chip::System::Clock::Seconds16(mTimeout.ValueOr({{chip_tests_config_get_default_value "timeout"}})); }
 
   private:
@@ -82,13 +106,15 @@ class {{filename}}: public TestCommandBridge
 
     {{#chip_tests_items}}
     {{#if async}}
-    bool testSendCluster{{parent.filename}}_{{asTestIndex index}}_{{asUpperCamelCase command}}_Fulfilled = false;
+    bool testSendCluster{{parent.filename}}_{{index}}_{{asUpperCamelCase command}}_Fulfilled = false;
     {{/if}}
+    {{#chip_tests_item_responses}}
     {{#chip_tests_item_response_parameters}}
     {{#if saveAs}}
     {{asObjectiveCType type ../cluster}} {{saveAs}};
     {{/if}}
     {{/chip_tests_item_response_parameters}}
+    {{/chip_tests_item_responses}}
 
     {{~#*inline "subscribeDataCallback"}}
     test_{{parent.filename}}_{{attribute}}_Reported
@@ -101,18 +127,14 @@ class {{filename}}: public TestCommandBridge
     CHIP_ERROR {{>testCommand}}()
     {
         {{#if (isTestOnlyCluster cluster)}}
-        {{command}}(
+        {{#if (chip_tests_item_has_list)}}ListFreer listFreer;{{/if~}}
+        {{asEncodableType}} value;
         {{#chip_tests_item_parameters}}
-        {{~#not_first}}, {{/not_first~}}
-        {{#*inline "defaultValue"}}{{asTypedLiteral (chip_tests_config_get_default_value definedValue) (chip_tests_config_get_type definedValue)}}{{/inline}}
-          {{~#if (chip_tests_config_has definedValue)~}}
-              m{{asUpperCamelCase definedValue}}.HasValue() ? m{{asUpperCamelCase definedValue}}.Value() : {{>defaultValue}}
-          {{else}}
-          {{#if (isString type)}}@"{{/if}}{{definedValue}}{{#if (isString type)}}"{{/if}}
-          {{~/if~}}
-        {{/chip_tests_item_parameters}});
+          {{>commandValue ns=parent.cluster container=(asPropertyValue dontUnwrapValue=true) definedValue=definedValue depth=0}}
+        {{/chip_tests_item_parameters}}
+        return {{command}}("{{identity}}", value);
         {{else}}
-        CHIPDevice * device = GetConnectedDevice();
+        CHIPDevice * device = GetDevice("{{identity}}");
         CHIPTest{{asUpperCamelCase cluster}} * cluster = [[CHIPTest{{asUpperCamelCase cluster}} alloc] initWithDevice:device endpoint:{{endpoint}} queue:mCallbackQueue];
         VerifyOrReturnError(cluster != nil, CHIP_ERROR_INCORRECT_STATE);
 
@@ -138,7 +160,7 @@ class {{filename}}: public TestCommandBridge
                                                                    maxInterval:[NSNumber numberWithUnsignedInt:maxIntervalArgument] 
                                                                    params:params
                                                                    subscriptionEstablished:^{
-              VerifyOrReturn(testSendCluster{{parent.filename}}_{{asTestIndex waitForReport.index}}_{{asUpperCamelCase waitForReport.command}}_Fulfilled, SetCommandExitStatus(CHIP_ERROR_INCORRECT_STATE));
+              VerifyOrReturn(testSendCluster{{parent.filename}}_{{waitForReport.index}}_{{asUpperCamelCase waitForReport.command}}_Fulfilled, SetCommandExitStatus(CHIP_ERROR_INCORRECT_STATE));
               NextTest();
           }
           reportHandler:^({{asObjectiveCClass attributeObject.type cluster forceList=attributeObject.isArray}} * _Nullable value, NSError * _Nullable err) {
@@ -147,7 +169,7 @@ class {{filename}}: public TestCommandBridge
         {{else if isReadAttribute}}
         {{#if_is_fabric_scoped_struct attributeObject.type}}
         CHIPReadParams * params = [[CHIPReadParams alloc] init];
-        params.fabricFiltered = [NSNumber numberWithBool:true];
+        params.fabricFiltered = [NSNumber numberWithBool:{{fabricFiltered}}];
         {{/if_is_fabric_scoped_struct}}
         [cluster readAttribute{{asUpperCamelCase attribute}}With
         {{~#if_is_fabric_scoped_struct attributeObject.type~}}
@@ -172,14 +194,12 @@ class {{filename}}: public TestCommandBridge
             }
             {{/if}}
 
-            {{#if response.error}}
-              VerifyOrReturn(CheckValue("status", err, {{response.error}}));
-              NextTest();
-            {{else if response.errorWrongValue}}
-              VerifyOrReturn(CheckConstraintNotValue("status", err, 0));
+            {{#chip_tests_item_responses}}
+            {{#if error}}
+              VerifyOrReturn(CheckValue("status", err ? err.code : 0, {{error}}));
               NextTest();
             {{else}}
-              VerifyOrReturn(CheckValue("status", err, 0));
+              VerifyOrReturn(CheckValue("status", err ? err.code : 0, 0));
             {{#unless isSubscribeAttribute}}
 
             {{#chip_tests_item_response_parameters}}
@@ -235,7 +255,7 @@ class {{filename}}: public TestCommandBridge
         {{#unless async}}
         NextTest();
         {{else}}
-        testSendCluster{{parent.filename}}_{{asTestIndex index}}_{{asUpperCamelCase command}}_Fulfilled = true;
+        testSendCluster{{parent.filename}}_{{../index}}_{{asUpperCamelCase command}}_Fulfilled = true;
         {{/unless}}
         {{else}}
           {{! We're a subscription }}
@@ -246,21 +266,14 @@ class {{filename}}: public TestCommandBridge
           }
         {{/unless}}
         {{/if}}
+        {{/chip_tests_item_responses}}
     }{{#unless isWaitForReport}}]{{/unless}};
 
-    {{/if}}
     {{#if async}}
     NextTest();
-    {{else}}
-    {{#*inline "minCommandTimeout"~}}
-      {{#if (isTestOnlyCluster cluster)~}}
-        {{#if (isStrEqual command "WaitForMs")~}}
-          {{#chip_tests_item_parameters}}{{#if (isStrEqual name "ms")}}({{definedValue}} / 1000) + {{/if}}{{/chip_tests_item_parameters}}
-        {{~/if}}
-      {{~/if}}
-    {{~/inline}}
     {{/if}}
     return CHIP_NO_ERROR;
+    {{/if}}
   }
 {{/chip_tests_items}}
 

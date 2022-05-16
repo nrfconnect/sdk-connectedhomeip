@@ -287,6 +287,12 @@ chip::Controller::DeviceCommissioner & CHIPCommand::CurrentCommissioner()
     return *item->second;
 }
 
+chip::Controller::DeviceCommissioner & CHIPCommand::GetCommissioner(const char * identity)
+{
+    auto item = mCommissioners.find(identity);
+    return *item->second;
+}
+
 CHIP_ERROR CHIPCommand::ShutdownCommissioner(std::string key)
 {
     return mCommissioners[key].get()->Shutdown();
@@ -326,7 +332,6 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(std::string key, chip::FabricId f
 
         ReturnLogErrorOnFailure(ephemeralKey.Initialize());
         chip::NodeId nodeId = mCommissionerNodeId.ValueOr(mCommissionerStorage.GetLocalNodeId());
-        fabricId            = mCommissionerFabricId.ValueOr(fabricId);
 
         ReturnLogErrorOnFailure(mCredIssuerCmds->GenerateControllerNOCChain(
             nodeId, fabricId, mCommissionerStorage.GetCommissionerCATs(), ephemeralKey, rcacSpan, icacSpan, nocSpan));

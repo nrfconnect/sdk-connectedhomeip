@@ -24,6 +24,8 @@ shared_library("jni") {
 
   sources = [
     "${chip_root}/examples/tv-casting-app/tv-casting-common/include/CHIPProjectAppConfig.h",
+    "App/app/src/main/jni/cpp/CallbackHelper.cpp",
+    "App/app/src/main/jni/cpp/CallbackHelper.h",
     "App/app/src/main/jni/cpp/JNIDACProvider.cpp",
     "App/app/src/main/jni/cpp/JNIDACProvider.h",
     "App/app/src/main/jni/cpp/TvCastingApp-JNI.cpp",
@@ -79,7 +81,6 @@ group("default") {
     ":java",
     ":jni",
     "${chip_root}/src/app/server/java",
-    "${chip_root}/src/controller/java",
     "${chip_root}/src/platform/android:java",
   ]
 }

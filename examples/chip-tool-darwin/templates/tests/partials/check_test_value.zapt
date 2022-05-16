@@ -40,7 +40,8 @@
       {{~#if (chip_tests_variables_has expected)}}{{expected}}
       {{~else if (isOctetString type)}}[[NSData alloc] initWithBytes:"{{octetStringEscapedForCLiteral expected}}" length:{{expected.length}}]
       {{~else if (isCharString type)}}@"{{expected}}"
-      {{~else}}{{asTypedLiteral expected type}}
+      {{else if (chip_tests_config_has expected)}}m{{asUpperCamelCase expected}}.HasValue() ? m{{asUpperCamelCase expected}}.Value() : {{asTypedLiteral (chip_tests_config_get_default_value expected) (chip_tests_config_get_type expected)}}
+      {{~else}}{{asTypedExpressionFromObjectiveC expected type}}
       {{~/if}}));
   {{/if_is_struct}}
 {{/if}}

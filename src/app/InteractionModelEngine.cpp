@@ -24,9 +24,12 @@
  */
 
 #include "InteractionModelEngine.h"
+
 #include <cinttypes>
 
 #include <lib/core/CHIPTLVUtilities.hpp>
+
+extern bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId);
 
 namespace chip {
 namespace app {
@@ -141,6 +144,22 @@ uint32_t InteractionModelEngine::GetNumActiveReadHandlers(ReadHandler::Interacti
     return count;
 }
 
+uint32_t InteractionModelEngine::GetNumActiveReadHandlers(ReadHandler::InteractionType aType, FabricIndex aFabricIndex) const
+{
+    uint32_t count = 0;
+
+    mReadHandlers.ForEachActiveObject([aType, aFabricIndex, &count](const ReadHandler * handler) {
+        if (handler->IsType(aType) && handler->GetAccessingFabricIndex() == aFabricIndex)
+        {
+            count++;
+        }
+
+        return Loop::Continue;
+    });
+
+    return count;
+}
+
 ReadHandler * InteractionModelEngine::ActiveHandlerAt(unsigned int aIndex)
 {
     if (aIndex >= mReadHandlers.Allocated())
@@ -198,7 +217,7 @@ void InteractionModelEngine::CloseTransactionsFromFabricIndex(FabricIndex aFabri
     });
 }
 
-CHIP_ERROR InteractionModelEngine::ShutdownSubscription(uint64_t aSubscriptionId)
+CHIP_ERROR InteractionModelEngine::ShutdownSubscription(SubscriptionId aSubscriptionId)
 {
     for (auto * readClient = mpActiveReadClientList; readClient != nullptr; readClient = readClient->GetNextClient())
     {
@@ -312,8 +331,8 @@ CHIP_ERROR InteractionModelEngine::OnReadInitialRequest(Messaging::ExchangeConte
             if (err == CHIP_NO_ERROR)
             {
                 TLV::TLVReader pathReader;
-                attributePathListParser.GetReader(&pathReader);
-                TLV::Utilities::Count(pathReader, requestedAttributePathCount, false);
+                eventpathListParser.GetReader(&pathReader);
+                TLV::Utilities::Count(pathReader, requestedEventPathCount, false);
             }
             else if (err != CHIP_ERROR_END_OF_TLV)
             {
@@ -451,7 +470,7 @@ CHIP_ERROR InteractionModelEngine::OnUnsolicitedReportData(Messaging::ExchangeCo
     ReportDataMessage::Parser report;
     ReturnErrorOnFailure(report.Init(reader));
 
-    uint64_t subscriptionId = 0;
+    SubscriptionId subscriptionId = 0;
     ReturnErrorOnFailure(report.GetSubscriptionId(&subscriptionId));
     ReturnErrorOnFailure(report.ExitContainer());
 
@@ -850,6 +869,61 @@ CHIP_ERROR InteractionModelEngine::PushFrontAttributePathList(ObjectList<Attribu
         return CHIP_IM_GLOBAL_STATUS(PathsExhausted);
     }
     return err;
+}
+
+void InteractionModelEngine::RemoveDuplicateConcreteAttributePath(ObjectList<AttributePathParams> *& aAttributePaths)
+{
+    ObjectList<AttributePathParams> * prev = nullptr;
+    auto * path1                           = aAttributePaths;
+
+    while (path1 != nullptr)
+    {
+        bool duplicate = false;
+        // skip all wildcard paths and invalid concrete attribute
+        if (path1->mValue.IsWildcardPath() ||
+            !emberAfContainsAttribute(path1->mValue.mEndpointId, path1->mValue.mClusterId, path1->mValue.mAttributeId))
+        {
+            prev  = path1;
+            path1 = path1->mpNext;
+            continue;
+        }
+
+        // Check whether a wildcard path expands to something that includes this concrete path.
+        for (auto * path2 = aAttributePaths; path2 != nullptr; path2 = path2->mpNext)
+        {
+            if (path2 == path1)
+            {
+                continue;
+            }
+
+            if (path2->mValue.IsWildcardPath() && path2->mValue.IsAttributePathSupersetOf(path1->mValue))
+            {
+                duplicate = true;
+                break;
+            }
+        }
+
+        // if path1 duplicates something from wildcard expansion, discard path1
+        if (!duplicate)
+        {
+            prev  = path1;
+            path1 = path1->mpNext;
+            continue;
+        }
+
+        if (path1 == aAttributePaths)
+        {
+            aAttributePaths = path1->mpNext;
+            mAttributePathPool.ReleaseObject(path1);
+            path1 = aAttributePaths;
+        }
+        else
+        {
+            prev->mpNext = path1->mpNext;
+            mAttributePathPool.ReleaseObject(path1);
+            path1 = prev->mpNext;
+        }
+    }
 }
 
 void InteractionModelEngine::ReleaseEventPathList(ObjectList<EventPathParams> *& aEventPathList)

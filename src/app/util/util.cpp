@@ -213,9 +213,6 @@ void emberAfInit(chip::Messaging::ExchangeManager * exchangeMgr)
     // Set up client API buffer.
     emberAfSetExternalBuffer(appResponseData, EMBER_AF_RESPONSE_BUFFER_LEN, &appResponseLength, &emberAfResponseApsFrame);
 
-    // initialize event management system
-    emAfInitEvents();
-
     MATTER_PLUGINS_INIT
 
     emAfCallInits();
@@ -769,17 +766,14 @@ uint8_t emberAfMake8bitEncodedChanPg(uint8_t page, uint8_t channel)
     }
 }
 
-bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId, bool asServer)
+bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId)
 {
-    uint8_t mask = asServer ? CLUSTER_MASK_SERVER : CLUSTER_MASK_CLIENT;
-    return (emberAfLocateAttributeMetadata(endpoint, clusterId, attributeId, mask) != nullptr);
+    return (emberAfGetServerAttributeIndexByAttributeId(endpoint, clusterId, attributeId) != UINT16_MAX);
 }
 
-bool emberAfIsNonVolatileAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId,
-                                   bool asServer)
+bool emberAfIsNonVolatileAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId)
 {
-    uint8_t mask                              = asServer ? CLUSTER_MASK_SERVER : CLUSTER_MASK_CLIENT;
-    const EmberAfAttributeMetadata * metadata = emberAfLocateAttributeMetadata(endpoint, clusterId, attributeId, mask);
+    const EmberAfAttributeMetadata * metadata = emberAfLocateAttributeMetadata(endpoint, clusterId, attributeId);
 
     if (metadata == nullptr)
     {

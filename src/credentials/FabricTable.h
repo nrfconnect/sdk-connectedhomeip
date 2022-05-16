@@ -168,8 +168,14 @@ public:
         return Credentials::ExtractPublicKeyFromChipCert(mRootCert, publicKey);
     }
 
+    // Verifies credentials, using this fabric info's root certificate.
     CHIP_ERROR VerifyCredentials(const ByteSpan & noc, const ByteSpan & icac, Credentials::ValidationContext & context,
                                  PeerId & nocPeerId, FabricId & fabricId, Crypto::P256PublicKey & nocPubkey) const;
+
+    // Verifies credentials, using the provided root certificate.
+    static CHIP_ERROR VerifyCredentials(const ByteSpan & noc, const ByteSpan & icac, const ByteSpan & rcac,
+                                        Credentials::ValidationContext & context, PeerId & nocPeerId, FabricId & fabricId,
+                                        Crypto::P256PublicKey & nocPubkey);
 
     /**
      *  Reset the state to a completely uninitialized status.
@@ -192,15 +198,14 @@ public:
     CHIP_ERROR SetFabricInfo(FabricInfo & fabric);
 
     /* Generate a compressed peer ID (containing compressed fabric ID) using provided fabric ID, node ID and
-       root public key of the fabric. The generated compressed ID is returned via compressedPeerId
+       root public key of the provided root certificate. The generated compressed ID is returned via compressedPeerId
        output parameter */
-    CHIP_ERROR GeneratePeerId(FabricId fabricId, NodeId nodeId, PeerId * compressedPeerId) const;
+    static CHIP_ERROR GeneratePeerId(const ByteSpan & rcac, FabricId fabricId, NodeId nodeId, PeerId * compressedPeerId);
 
     friend class FabricTable;
 
     // Test-only, build a fabric using given root cert and NOC
-    CHIP_ERROR TestOnlyBuildFabric(ByteSpan rootCert, ByteSpan icacCert, ByteSpan nocCert, ByteSpan nodePubKey,
-                                   ByteSpan nodePrivateKey);
+    CHIP_ERROR TestOnlyBuildFabric(ByteSpan rootCert, ByteSpan icacCert, ByteSpan nocCert, ByteSpan nocKey);
 
 private:
     static constexpr size_t MetadataTLVMaxSize()
@@ -244,22 +249,6 @@ private:
     }
 
     CHIP_ERROR SetCert(MutableByteSpan & dstCert, const ByteSpan & srcCert);
-
-    struct StorableFabricInfo
-    {
-        uint8_t mFabricIndex;
-        uint16_t mVendorId; /* This field is serialized in LittleEndian byte order */
-
-        uint16_t mRootCertLen; /* This field is serialized in LittleEndian byte order */
-        uint16_t mICACertLen;  /* This field is serialized in LittleEndian byte order */
-        uint16_t mNOCCertLen;  /* This field is serialized in LittleEndian byte order */
-
-        Crypto::P256SerializedKeypair mOperationalKey;
-        uint8_t mRootCert[Credentials::kMaxCHIPCertLength];
-        uint8_t mICACert[Credentials::kMaxCHIPCertLength];
-        uint8_t mNOCCert[Credentials::kMaxCHIPCertLength];
-        char mFabricLabel[kFabricLabelMaxLengthInBytes + 1] = { '\0' };
-    };
 };
 
 // Once attribute store has persistence implemented, FabricTable shoud be backed using
@@ -384,6 +373,10 @@ public:
      */
     CHIP_ERROR AddNewFabric(FabricInfo & fabric, FabricIndex * assignedIndex);
 
+    // This is same as AddNewFabric, but skip duplicate fabric check, because we have multiple nodes belongs to the same fabric in
+    // test-cases
+    CHIP_ERROR AddNewFabricForTest(FabricInfo & newFabric, FabricIndex * outputIndex);
+
     FabricInfo * FindFabric(Credentials::P256PublicKeySpan rootPubKey, FabricId fabricId);
     FabricInfo * FindFabricWithIndex(FabricIndex fabricIndex);
     FabricInfo * FindFabricWithCompressedId(CompressedFabricId fabricId);
@@ -428,6 +421,8 @@ private:
      * fabric table accordingly.
      */
     CHIP_ERROR ReadFabricInfo(TLV::ContiguousBufferTLVReader & reader);
+
+    CHIP_ERROR AddNewFabricInner(FabricInfo & fabric, FabricIndex * assignedIndex);
 
     FabricInfo mStates[CHIP_CONFIG_MAX_FABRICS];
     PersistentStorageDelegate * mStorage = nullptr;

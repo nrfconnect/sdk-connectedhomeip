@@ -119,7 +119,7 @@ public:
      * @retval #CHIP_ERROR_KEY_NOT_FOUND If the subscription is not found.
      * @retval #CHIP_NO_ERROR On success.
      */
-    CHIP_ERROR ShutdownSubscription(uint64_t aSubscriptionId);
+    CHIP_ERROR ShutdownSubscription(SubscriptionId aSubscriptionId);
 
     /**
      * Tears down active subscriptions for a given peer node ID.
@@ -137,6 +137,11 @@ public:
 
     uint32_t GetNumActiveReadHandlers() const;
     uint32_t GetNumActiveReadHandlers(ReadHandler::InteractionType type) const;
+
+    /**
+     * Returns the number of active readhandlers with a specific type on a specific fabric.
+     */
+    uint32_t GetNumActiveReadHandlers(ReadHandler::InteractionType type, FabricIndex fabricIndex) const;
 
     uint32_t GetNumActiveWriteHandlers() const;
 
@@ -156,6 +161,10 @@ public:
 
     CHIP_ERROR PushFrontAttributePathList(ObjectList<AttributePathParams> *& aAttributePathList,
                                           AttributePathParams & aAttributePath);
+
+    // If a concrete path indicates an attribute that is also referenced by a wildcard path in the request,
+    // the path SHALL be removed from the list.
+    void RemoveDuplicateConcreteAttributePath(ObjectList<AttributePathParams> *& aAttributePaths);
 
     void ReleaseEventPathList(ObjectList<EventPathParams> *& aEventPathList);
 

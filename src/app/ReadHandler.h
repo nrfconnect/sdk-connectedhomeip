@@ -240,7 +240,7 @@ private:
     bool IsActiveSubscription() const { return mActiveSubscription; }
     bool IsFabricFiltered() const { return mIsFabricFiltered; }
     CHIP_ERROR OnSubscribeRequest(Messaging::ExchangeContext * apExchangeContext, System::PacketBufferHandle && aPayload);
-    void GetSubscriptionId(uint64_t & aSubscriptionId) const { aSubscriptionId = mSubscriptionId; }
+    void GetSubscriptionId(SubscriptionId & aSubscriptionId) const { aSubscriptionId = mSubscriptionId; }
     AttributePathExpandIterator * GetAttributePathExpandIterator() { return &mAttributePathExpandIterator; }
 
     /**
@@ -288,8 +288,8 @@ private:
     enum class HandlerState
     {
         Idle,                   ///< The handler has been initialized and is ready
-        GeneratingReports,      ///< The handler has received either a Read or Subscribe request and is the process of generating a
-                                ///< report.
+        GeneratingReports,      ///< The handler has is now capable of generating reports and may generate one immediately
+                                ///< or later when other criteria are satisfied (e.g hold-off for min reporting interval).
         AwaitingReportResponse, ///< The handler has sent the report to the client and is awaiting a status response.
         AwaitingDestruction,    ///< The object has completed its work and is awaiting destruction by the application.
     };
@@ -356,7 +356,7 @@ private:
     // prior to receiving a subscribe response.
     bool mIsPrimingReports              = true;
     InteractionType mInteractionType    = InteractionType::Read;
-    uint64_t mSubscriptionId            = 0;
+    SubscriptionId mSubscriptionId      = 0;
     uint16_t mMinIntervalFloorSeconds   = 0;
     uint16_t mMaxIntervalCeilingSeconds = 0;
     SessionHolder mSessionHandle;

@@ -108,7 +108,7 @@ struct ControllerInitParams
     //
     bool enableServerInteractions = false;
 
-    uint16_t controllerVendorId;
+    chip::VendorId controllerVendorId;
 };
 
 struct CommissionerInitParams : public ControllerInitParams
@@ -262,7 +262,7 @@ protected:
 
     OperationalCredentialsDelegate * mOperationalCredentialsDelegate;
 
-    uint16_t mVendorId;
+    chip::VendorId mVendorId;
 
     /// Fetches the session to use for the current device. Allows overriding
     /// in case subclasses want to create the session if it does not yet exist
@@ -730,7 +730,6 @@ private:
 
     void HandleAttestationResult(CHIP_ERROR err);
 
-    CommissioneeDeviceProxy * FindCommissioneeDevice(const SessionHandle & session);
     CommissioneeDeviceProxy * FindCommissioneeDevice(NodeId id);
     CommissioneeDeviceProxy * FindCommissioneeDevice(const Transport::PeerAddress & peerAddress);
     void ReleaseCommissioneeDevice(CommissioneeDeviceProxy * device);

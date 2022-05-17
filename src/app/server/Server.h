@@ -314,21 +314,6 @@ private:
             {
                 groupDataProvider->RemoveFabric(fabricIndex);
             }
-
-            {
-                // Remove access control entries in reverse order. (It could be
-                // any order, but reverse order will cause less churn in
-                // persistent storage.)
-                size_t count = 0;
-                if (Access::GetAccessControl().GetEntryCount(fabricIndex, count) == CHIP_NO_ERROR)
-                {
-                    while (count)
-                    {
-                        Access::GetAccessControl().DeleteEntry(nullptr, fabricIndex, --count);
-                    }
-                }
-            }
-            app::EventManagement::GetInstance().FabricRemoved(fabricIndex);
         };
         void OnFabricRetrievedFromStorage(FabricInfo * fabricInfo) override { (void) fabricInfo; }
 

@@ -207,7 +207,8 @@ permanently, you need to make the following changes:
 
 ## Installing ZAP tool
 
-For platforms defined in [`scripts/setup/zap.json`](/scripts/setup/zap.json),
+For platforms defined in
+[`scripts/setup/zap.json`](https://github.com/project-chip/connectedhomeip/blob/master/scripts/setup/zap.json),
 `bootstrap.sh` will download a compatible ZAP tool version from CIPD and set it
 up in `$PATH`.
 
@@ -224,7 +225,8 @@ build it from source.
 
 The file `scripts/setup/zap.json` contains the version that CIPD would download,
 so you can refer to it to find a compatible version. The version is also
-maintained at [`scripts/setup/zap.version`](/scripts/setup/zap.version).
+maintained at
+[`scripts/setup/zap.version`](https://github.com/project-chip/connectedhomeip/blob/master/scripts/setup/zap.version).
 
 To check out as source code, the corresponding tag should exist in the
 [ZAP repository tags](https://github.com/project-chip/zap/tags) list.

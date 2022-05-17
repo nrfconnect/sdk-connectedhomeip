@@ -54,8 +54,9 @@ it on Raspberry Pi, you must use a 64-bit OS.
 To build the CHIP Tool:
 
 1. Install all required packages for Matter and prepare the source code and the
-   build system. Read the [Building Matter](../../guides/BUILDING.md) guide for
-   instructions.
+   build system. Read the
+   [Building Matter](https://github.com/project-chip/connectedhomeip/blob/master/docs/guides/BUILDING.md)
+   guide for instructions.
 2. Open a command prompt in the `connectedhomeip` directory.
 3. Run the following command:
 
@@ -664,7 +665,7 @@ command.
 To choose the Bluetooth adapter used by the CHIP Tool, use the
 `--ble-controller <selector>` switch where selector syntax is platform-specific.
 For Linux it's documented in
-[Linux BLE Settings](/platforms/linux/ble_settings.md).
+[Linux BLE Settings](https://github.com/project-chip/connectedhomeip/blob/master/docs/platforms/linux/ble_settings.md).
 
 **Example of usage:**
 
@@ -814,7 +815,8 @@ against a paired Matter device.
 See the [Examples](#running-testclusters-test) section for an example of how to
 run a test from the test suite.
 
-<hr>
+Developer details on how the test suite is structured can be found
+[here](https://github.com/project-chip/connectedhomeip/blob/master/src/app/tests/suites/README.md).
 
 ### Parsing the setup payload
 

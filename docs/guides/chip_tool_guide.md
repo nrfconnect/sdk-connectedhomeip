@@ -677,7 +677,7 @@ rm -fr /tmp/chip_*
 ```
 
 Developer details on how the test suite is structured can be found
-[here](../../src/app/tests/suites/README.md).
+[here](https://github.com/project-chip/connectedhomeip/blob/master/src/app/tests/suites/README.md).
 
 ### Parsing the setup payload
 

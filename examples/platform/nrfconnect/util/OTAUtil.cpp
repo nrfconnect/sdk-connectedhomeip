@@ -48,6 +48,8 @@ OTAImageProcessorImpl & GetOTAImageProcessor()
 
 void InitBasicOTARequestor()
 {
+    VerifyOrReturn(GetRequestorInstance() == nullptr);
+
     OTAImageProcessorImpl & imageProcessor = GetOTAImageProcessor();
     imageProcessor.SetOTADownloader(&sBDXDownloader);
     sBDXDownloader.SetImageProcessorDelegate(&imageProcessor);

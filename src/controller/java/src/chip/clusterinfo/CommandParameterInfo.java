@@ -4,11 +4,13 @@ package chip.clusterinfo;
 public class CommandParameterInfo {
   public CommandParameterInfo() {}
 
-  public CommandParameterInfo(String name, Class<?> type) {
+  public CommandParameterInfo(String name, Class<?> type, Class<?> underlyingType) {
     this.name = name;
     this.type = type;
+    this.underlyingType = underlyingType;
   }
 
   public String name;
   public Class<?> type;
+  public Class<?> underlyingType;
 }

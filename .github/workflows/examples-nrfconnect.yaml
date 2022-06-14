@@ -82,7 +82,11 @@ jobs:
                       .environment/pigweed-venv/*.log
             - name: Update nRF Connect SDK revision to the currently recommended.
               timeout-minutes: 10
-              run: scripts/run_in_build_env.sh "python3 scripts/setup/nrfconnect/update_ncs.py --update --shallow"
+              run: |
+                  scripts/run_in_build_env.sh "python3 scripts/setup/nrfconnect/update_ncs.py --update --shallow"
+                  python3 -m pip install --no-cache-dir -r ${ZEPHYR_BASE}/../nrf/scripts/requirements.txt
+                  python3 -m pip install --no-cache-dir -r ${ZEPHYR_BASE}/scripts/requirements.txt
+                  python3 -m pip install --no-cache-dir -r ${ZEPHYR_BASE}/../bootloader/mcuboot/scripts/requirements.txt
             - name: Build example nRF Connect SDK Lock App on nRF52840 DK
               if: github.event_name == 'push' || steps.changed_paths.outputs.nrfconnect == 'true'
               timeout-minutes: 10

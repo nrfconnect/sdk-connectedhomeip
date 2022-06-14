@@ -23,7 +23,7 @@ bitstring==3.1.7
     # via -r requirements.esp32.txt
 brotli==1.0.9
     # via flask-compress
-cbor==1.0.0
+cbor2==5.4.0
     # via -r requirements.txt
 certifi==2021.5.30
     # via requests

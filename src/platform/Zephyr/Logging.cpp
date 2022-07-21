@@ -49,8 +49,6 @@ void ENFORCE_FORMAT(3, 0) LogV(const char * module, uint8_t category, const char
     const size_t prefixLen = strlen(formattedMsg);
     vsnprintfcb(formattedMsg + prefixLen, sizeof(formattedMsg) - prefixLen, msg, v);
 
-    const char * allocatedMsg = log_strdup(formattedMsg);
-
     // Invoke the Zephyr logging library to log the message.
     //
     // Unfortunately the Zephyr logging macros end up assigning uint16_t
@@ -62,14 +60,14 @@ void ENFORCE_FORMAT(3, 0) LogV(const char * module, uint8_t category, const char
     switch (category)
     {
     case kLogCategory_Error:
-        LOG_ERR(LOG_FORMAT, LOG_MESSAGE(allocatedMsg));
+        LOG_ERR(LOG_FORMAT, LOG_MESSAGE(formattedMsg));
         break;
     case kLogCategory_Progress:
     default:
-        LOG_INF(LOG_FORMAT, LOG_MESSAGE(allocatedMsg));
+        LOG_INF(LOG_FORMAT, LOG_MESSAGE(formattedMsg));
         break;
     case kLogCategory_Detail:
-        LOG_DBG(LOG_FORMAT, LOG_MESSAGE(allocatedMsg));
+        LOG_DBG(LOG_FORMAT, LOG_MESSAGE(formattedMsg));
         break;
     }
 #pragma GCC diagnostic pop

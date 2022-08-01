@@ -40,10 +40,6 @@ config LOG_DEFAULT_LEVEL
 
 endif
 
-config NVS_LOOKUP_CACHE
-    bool
-    default y
-
 config PRINTK_SYNC
     bool
     default y

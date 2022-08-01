@@ -31,7 +31,6 @@ config CHIP_NFC_COMMISSIONING
 # See config/zephyr/Kconfig for full definition
 config CHIP_OTA_REQUESTOR
 	bool
-	imply DFU_MULTI_IMAGE
 	imply DFU_TARGET
 	imply BOOTLOADER_MCUBOOT
 	imply IMG_MANAGER
@@ -61,7 +60,6 @@ config CHIP_OTA_IMAGE_BUILD
 	bool
 	default y if CHIP_OTA_REQUESTOR
 	depends on SIGN_IMAGES
-	select DFU_MULTI_IMAGE_PACKAGE_BUILD
 
 config CHIP_DEBUG_SYMBOLS
 	bool "Generate debug symbols"

@@ -25,6 +25,9 @@ const path              = require('path');
 
 // Import helpers from zap core
 const templateUtil = require(zapPath + 'dist/src-electron/generator/template-util.js')
+const zclHelper    = require(zapPath + 'dist/src-electron/generator/helper-zcl.js');
+const queryEnum    = require(zapPath + 'dist/src-electron/db/query-enum');
+const queryBitmap  = require(zapPath + 'dist/src-electron/db/query-bitmap');
 
 const { getClusters, getCommands, getAttributes, getEvents, isTestOnlyCluster }
 = require('./simulated-clusters/SimulatedClusters.js');
@@ -47,6 +50,8 @@ const kResponseErrorName = 'error';
 const kPICSName          = 'PICS';
 const kSaveAsName        = 'saveAs';
 const kFabricFiltered    = 'fabricFiltered';
+
+const kHexPrefix = 'hex:';
 
 class NullObject {
   toString()
@@ -257,7 +262,9 @@ function setDefaultResponse(test, useSynthesizeWaitForReport)
     return;
   }
 
-  const defaultResponse = {};
+  test.expectMultipleResponses = test.isEvent;
+
+  const defaultResponse = test.expectMultipleResponses ? [] : {};
   setDefault(test, kResponseName, defaultResponse);
 
   // There is different syntax for expressing the expected response, but in the
@@ -363,8 +370,6 @@ function setDefaultResponse(test, useSynthesizeWaitForReport)
 
       setDefault(expectedValue, 'name', defaultName);
     });
-
-    test.expectMultipleResponses = test[kResponseName].length > 1;
 
     setDefault(response, kCommandName, test.command);
     setDefault(response, responseType, test[responseType]);
@@ -826,6 +831,33 @@ function isLiteralNull(value, options)
   return (value === null) || (value instanceof NullObject);
 }
 
+function isHexString(value)
+{
+  return value && value.startsWith(kHexPrefix);
+}
+
+function octetStringFromHexString(value)
+{
+  const hexString = value.substring(kHexPrefix.length);
+
+  if (hexString.length % 2) {
+    throw new Error("The provided hexadecimal string contains an even number of characters");
+  }
+
+  if (!(/^[0-9a-fA-F]+$/.test(hexString))) {
+    throw new Error("The provided hexadecimal string contains invalid hexadecimal character.");
+  }
+
+  const bytes = hexString.match(/(..)/g);
+  return bytes.map(byte => '\\x' + byte).join('');
+}
+
+function octetStringLengthFromHexString(value)
+{
+  const hexString = value.substring(kHexPrefix.length);
+  return (hexString.length / 2);
+}
+
 function octetStringEscapedForCLiteral(value)
 {
   // Escape control characters, things outside the ASCII range, and single
@@ -859,32 +891,6 @@ function ensureIsArray(value, options)
   if (!(value instanceof Array)) {
     printErrorAndExit(this, `Expected array but instead got ${typeof value}: ${JSON.stringify(value)}\n`);
   }
-}
-
-function chip_tests_item_has_list(options)
-{
-  function hasList(args)
-  {
-    for (let i = 0; i < args.length; i++) {
-      if (args[i].isArray) {
-        return true;
-      }
-
-      if (args[i].isStruct && hasList(args[i].items)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  return assertCommandOrAttributeOrEvent(this).then(item => {
-    if (this.isWriteAttribute || this.isCommand) {
-      return hasList(item.arguments);
-    }
-
-    return false;
-  });
 }
 
 function checkIsInsideTestOnlyClusterBlock(conditions, name)
@@ -995,12 +1001,62 @@ async function chip_tests_only_cluster_response_parameters(options)
   return asBlocks.call(this, Promise.resolve(this.arguments), options);
 }
 
+function chip_tests_iterate_expected_list(values, options)
+{
+  let context = options.hash.context || this;
+  values      = values.map(value => {
+    return {
+      global: context.global, parent: context.parent, name: context.name, type: context.type, isArray: false, isNullable: false,
+          value: value,
+    }
+  });
+
+  return asBlocks.call(this, Promise.resolve(values), options);
+}
+
+function chip_tests_iterate_constraints(constraints, options)
+{
+  let values = [];
+  for (let key of Object.keys(constraints)) {
+    // Skip "global", because that's not an actual constraint.
+    if (key == "global") {
+      continue;
+    }
+    values.push({ global : this.global, constraint : key, value : constraints[key] })
+  }
+
+  return asBlocks.call(this, Promise.resolve(values), options)
+}
+
+async function asTestType(type, isList)
+{
+  if (isList) {
+    return 'list';
+  }
+
+  const pkgId = await templateUtil.ensureZclPackageId(this);
+  const db    = this.global.db;
+
+  const isEnum = await zclHelper.isEnum(db, type, pkgId);
+  if (isEnum != 'unknown') {
+    const enumObj = await queryEnum.selectEnumByName(db, type, pkgId);
+    return 'enum' + (8 * enumObj.size);
+  }
+
+  const isBitmap = await zclHelper.isBitmap(db, type, pkgId);
+  if (isBitmap != 'unknown') {
+    const bitmapObj = await queryBitmap.selectBitmapByName(db, pkgId, type);
+    return 'bitmap' + (8 * bitmapObj.size);
+  }
+
+  return type;
+}
+
 //
 // Module exports
 //
 exports.chip_tests                                  = chip_tests;
 exports.chip_tests_items                            = chip_tests_items;
-exports.chip_tests_item_has_list                    = chip_tests_item_has_list;
 exports.chip_tests_item_parameters                  = chip_tests_item_parameters;
 exports.chip_tests_item_responses                   = chip_tests_item_responses;
 exports.chip_tests_item_response_parameters         = chip_tests_item_response_parameters;
@@ -1023,3 +1079,9 @@ exports.chip_tests_only_cluster_commands            = chip_tests_only_cluster_co
 exports.chip_tests_only_cluster_command_parameters  = chip_tests_only_cluster_command_parameters;
 exports.chip_tests_only_cluster_responses           = chip_tests_only_cluster_responses;
 exports.chip_tests_only_cluster_response_parameters = chip_tests_only_cluster_response_parameters;
+exports.isHexString                                 = isHexString;
+exports.octetStringLengthFromHexString              = octetStringLengthFromHexString;
+exports.octetStringFromHexString                    = octetStringFromHexString;
+exports.chip_tests_iterate_expected_list            = chip_tests_iterate_expected_list;
+exports.chip_tests_iterate_constraints              = chip_tests_iterate_constraints;
+exports.asTestType                                  = asTestType;

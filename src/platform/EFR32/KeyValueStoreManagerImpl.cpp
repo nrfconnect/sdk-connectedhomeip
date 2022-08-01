@@ -105,6 +105,11 @@ CHIP_ERROR KeyValueStoreManagerImpl::MapKvsKeyToNvm3(const char * key, uint32_t 
     return err;
 }
 
+void KeyValueStoreManagerImpl::ForceKeyMapSave()
+{
+    OnScheduledKeyMapSave(nullptr, nullptr);
+}
+
 void KeyValueStoreManagerImpl::OnScheduledKeyMapSave(System::Layer * systemLayer, void * appState)
 {
     EFR32Config::WriteConfigValueBin(EFR32Config::kConfigKey_KvsStringKeyMap,
@@ -117,16 +122,15 @@ void KeyValueStoreManagerImpl::ScheduleKeyMapSave(void)
         During commissioning, the key map will be modified multiples times subsequently.
         Commit the key map in nvm once it as stabilized.
     */
-    SystemLayer().StartTimer(std::chrono::duration_cast<System::Clock::Timeout>(System::Clock::Seconds32(5)),
-                             KeyValueStoreManagerImpl::OnScheduledKeyMapSave, NULL);
+    SystemLayer().StartTimer(
+        std::chrono::duration_cast<System::Clock::Timeout>(System::Clock::Seconds32(EFR32_KVS_SAVE_DELAY_SECONDS)),
+        KeyValueStoreManagerImpl::OnScheduledKeyMapSave, NULL);
 }
 
 CHIP_ERROR KeyValueStoreManagerImpl::_Get(const char * key, void * value, size_t value_size, size_t * read_bytes_size,
                                           size_t offset_bytes) const
 {
     VerifyOrReturnError(key != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(value != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(value != 0, CHIP_ERROR_INVALID_ARGUMENT);
 
     uint32_t nvm3Key;
     CHIP_ERROR err = MapKvsKeyToNvm3(key, nvm3Key);
@@ -145,7 +149,6 @@ CHIP_ERROR KeyValueStoreManagerImpl::_Get(const char * key, void * value, size_t
 CHIP_ERROR KeyValueStoreManagerImpl::_Put(const char * key, const void * value, size_t value_size)
 {
     VerifyOrReturnError(key != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(value != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
 
     uint32_t nvm3Key;
     CHIP_ERROR err = MapKvsKeyToNvm3(key, nvm3Key, /* isSlotNeeded */ true);

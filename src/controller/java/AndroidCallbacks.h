@@ -34,7 +34,7 @@ struct GetConnectedDeviceCallback
     ~GetConnectedDeviceCallback();
 
     static void OnDeviceConnectedFn(void * context, OperationalDeviceProxy * device);
-    static void OnDeviceConnectionFailureFn(void * context, PeerId peerId, CHIP_ERROR error);
+    static void OnDeviceConnectionFailureFn(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
 
     Callback::Callback<OnDeviceConnected> mOnSuccess;
     Callback::Callback<OnDeviceConnectionFailure> mOnFailure;
@@ -57,7 +57,7 @@ struct ReportCallback : public app::ReadClient::Callback
 
     void OnError(CHIP_ERROR aError) override;
 
-    void OnDone() override;
+    void OnDone(app::ReadClient *) override;
 
     void OnSubscriptionEstablished(SubscriptionId aSubscriptionId) override;
 
@@ -73,6 +73,46 @@ struct ReportCallback : public app::ReadClient::Callback
     app::BufferedReadCallback mBufferedReadAdapter;
     jobject mWrapperCallbackRef                 = nullptr;
     jobject mSubscriptionEstablishedCallbackRef = nullptr;
+    jobject mReportCallbackRef                  = nullptr;
+    // NodeState Java object that will be returned to the application.
+    jobject mNodeStateObj = nullptr;
+    jclass mNodeStateCls  = nullptr;
+};
+
+struct ReportEventCallback : public app::ReadClient::Callback
+{
+    /** Subscription established callback can be nullptr. */
+    ReportEventCallback(jobject wrapperCallback, jobject subscriptionEstablishedCallback, jobject reportCallback,
+                        jobject resubscriptionAttemptCallback);
+    ~ReportEventCallback();
+
+    void OnReportBegin() override;
+
+    void OnReportEnd() override;
+
+    void OnEventData(const app::EventHeader & aEventHeader, TLV::TLVReader * apData, const app::StatusIB * apStatus) override;
+
+    void OnError(CHIP_ERROR aError) override;
+
+    void OnDone(app::ReadClient *) override;
+
+    void OnSubscriptionEstablished(SubscriptionId aSubscriptionId) override;
+
+    CHIP_ERROR OnResubscriptionNeeded(app::ReadClient * apReadClient, CHIP_ERROR aTerminationCause) override;
+
+    /** Report errors back to Java layer. attributePath may be nullptr for general errors. */
+    void ReportError(jobject eventPath, CHIP_ERROR err);
+    void ReportError(jobject eventPath, Protocols::InteractionModel::Status status);
+    void ReportError(jobject eventPath, const char * message, ChipError::StorageType errorCode);
+
+    CHIP_ERROR CreateChipEventPath(const app::ConcreteEventPath & aPath, jobject & outObj);
+
+    app::ReadClient * mReadClient = nullptr;
+
+    app::BufferedReadCallback mBufferedReadAdapter;
+    jobject mWrapperCallbackRef                 = nullptr;
+    jobject mSubscriptionEstablishedCallbackRef = nullptr;
+    jobject mResubscriptionAttemptCallbackRef   = nullptr;
     jobject mReportCallbackRef                  = nullptr;
     // NodeState Java object that will be returned to the application.
     jobject mNodeStateObj = nullptr;

@@ -84,6 +84,9 @@ public:
 protected:
     static void PeriodicQueryTimerHandler(System::Layer * systemLayer, void * appState);
     static void WatchdogTimerHandler(System::Layer * systemLayer, void * appState);
+    static void DownloadUpdateTimerHandler(System::Layer * systemLayer, void * appState);
+    static void ApplyUpdateTimerHandler(System::Layer * systemLayer, void * appState);
+    static void ApplyTimerHandler(System::Layer * systemLayer, void * appState);
 
     void StartPeriodicQueryTimer();
     void StopPeriodicQueryTimer();
@@ -94,7 +97,7 @@ protected:
     void CancelDelayedAction(System::TimerCompleteCallback action, void * aAppState);
     bool ProviderLocationsEqual(const ProviderLocationType & a, const ProviderLocationType & b);
     // Return value of CHIP_NO_ERROR indicates a query retry has been successfully scheduled.
-    CHIP_ERROR ScheduleQueryRetry(bool trySameProvider);
+    CHIP_ERROR ScheduleQueryRetry(bool trySameProvider, System::Clock::Seconds32 delay);
 
     OTARequestorInterface * mRequestor           = nullptr;
     OTAImageProcessorInterface * mImageProcessor = nullptr;
@@ -106,7 +109,10 @@ protected:
     uint16_t maxDownloadBlockSize  = 1024;
     // Maximum number of times to retry a BUSY OTA provider before moving to the next available one
     static constexpr uint8_t kMaxBusyProviderRetryCount = 3;
-    uint8_t mProviderRetryCount; // Track retry count for the current provider
+    // Track retry count for the current provider
+    uint8_t mProviderRetryCount = 0;
+    // Track query image retry count on invalid session error
+    uint8_t mInvalidSessionRetryCount = 0;
 };
 
 } // namespace DeviceLayer

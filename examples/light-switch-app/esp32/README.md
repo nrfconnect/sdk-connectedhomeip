@@ -65,6 +65,14 @@ make sure the IDF_PATH has been exported(See the manual setup steps above).
 
         $ source ./scripts/activate.sh
 
+-   Enable Ccache for faster IDF builds
+
+    It is recommended to have Ccache installed for faster builds
+
+    ```
+    $ export IDF_CCACHE_ENABLE=1
+    ```
+
 -   Target Set
 
         $ idf.py set-target esp32
@@ -118,13 +126,16 @@ make sure the IDF_PATH has been exported(See the manual setup steps above).
 
         $ ./out/debug/chip-tool accesscontrol write acl '[{"fabricIndex": 1, "privilege": 5, "authMode": 2, "subjects": [112233], "targets": null },{"fabricIndex": 1, "privilege": 3, "authMode": 2, "subjects": [12344320], "targets": null }]' 12344321 0
 
--   we use matter shell to bind and test.
+-   After successful commissioning, use the chip-tool for binding in
+    Lighting-switch.
 
-    binding:
+        $ ./out/debug/chip-tool binding write binding '[{"fabricIndex": 1, "node":20836, "endpoint":1, "cluster":6}]' 12344320 1
 
-        matter switch binding unicast 1 12344321 1
+-   Test toggle:
 
-    on:
+    Press `boot` button to toggle LED.
+
+    Using matter shell on:
 
         matter switch onoff on
 

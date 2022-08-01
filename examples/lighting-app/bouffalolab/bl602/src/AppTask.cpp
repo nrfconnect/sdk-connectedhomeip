@@ -25,6 +25,10 @@
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/cluster-id.h>
 #include <app/clusters/network-commissioning/network-commissioning.h>
+#include <app/clusters/ota-requestor/BDXDownloader.h>
+#include <app/clusters/ota-requestor/DefaultOTARequestor.h>
+#include <app/clusters/ota-requestor/DefaultOTARequestorDriver.h>
+#include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/af-enums.h>
@@ -34,10 +38,19 @@
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/bouffalolab/BL602/NetworkCommissioningDriver.h>
+#include <platform/bouffalolab/BL602/OTAImageProcessorImpl.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#include <InitPlatform.h>
+#include <async_log.h>
 #include <bl_sys_ota.h>
+#include <easyflash.h>
+#include <hal_sys.h>
 #include <lib/support/ErrorStr.h>
+
+#if PW_RPC_ENABLED
+#include "Rpc.h"
+#endif
 
 #define FACTORY_RESET_TRIGGER_TIMEOUT 3000
 #define FACTORY_RESET_CANCEL_WINDOW_TIMEOUT 3000
@@ -48,7 +61,7 @@
 
 static const char * const TAG = "lighting-app";
 static xTaskHandle OTA_TASK_HANDLE;
-
+static LEDWidget statusLED;
 namespace {
 TimerHandle_t sFunctionTimer; // FreeRTOS app sw timer.
 
@@ -71,6 +84,12 @@ chip::app::Clusters::NetworkCommissioning::Instance
 } // namespace
 
 using namespace ::chip::System;
+
+DefaultOTARequestor gRequestorCore;
+DefaultOTARequestorStorage gRequestorStorage;
+DefaultOTARequestorDriver gRequestorUser;
+BDXDownloader gDownloader;
+OTAImageProcessorImpl gImageProcessor;
 
 AppTask AppTask::sAppTask;
 static DeviceCallbacks EchoCallbacks;
@@ -121,11 +140,23 @@ CHIP_ERROR AppTask::Init()
 
     LightMgr().SetCallbacks(ActionInitiated, ActionCompleted);
 
-    UpdateClusterState();
+    SetRequestorInstance(&gRequestorCore);
+    gRequestorStorage.Init(chip::Server::GetInstance().GetPersistentStorage());
+    gRequestorCore.Init(chip::Server::GetInstance(), gRequestorStorage, gRequestorUser, gDownloader);
+    gImageProcessor.SetOTADownloader(&gDownloader);
+    gDownloader.SetImageProcessorDelegate(&gImageProcessor);
+    gRequestorUser.Init(&gRequestorCore, &gImageProcessor);
 
     ConfigurationMgr().LogDeviceConfig();
 
     PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE));
+
+    InitButtons();
+
+#if PW_RPC_ENABLED
+    chip::rpc::Init();
+#endif
+
     return err;
 }
 
@@ -136,9 +167,28 @@ void AppTask::AppTaskMain(void * pvParameter)
     CHIP_ERROR err;
 
     log_info("App Task entered\r\n");
+    enable_async_log();
 
-    sWiFiNetworkCommissioningInstance.Init();
-    chip::Server::GetInstance().Init();
+    err = sWiFiNetworkCommissioningInstance.Init();
+    if (CHIP_NO_ERROR != err)
+    {
+        log_error("Network commissioning failed, err:%d \r\n", err);
+    }
+
+    chip::CommonCaseDeviceServerInitParams initParams;
+    err = initParams.InitializeStaticResourcesBeforeServerInit();
+    if (CHIP_NO_ERROR != err)
+    {
+        log_error("Resources Init failed, err:%d \r\n", err);
+        return;
+    }
+
+    err = chip::Server::GetInstance().Init(initParams);
+    if (CHIP_NO_ERROR != err)
+    {
+        log_error("Server Init failed, err:%d \r\n", err);
+        return;
+    }
 
     // Initialize device attestation config
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
@@ -315,55 +365,24 @@ void AppTask::FunctionTimerEventHandler(AppEvent * aEvent)
 
 void AppTask::FunctionHandler(AppEvent * aEvent)
 {
-    // To trigger software update: press the APP_FUNCTION_BUTTON button briefly (<
-    // FACTORY_RESET_TRIGGER_TIMEOUT) To initiate factory reset: press the
-    // APP_FUNCTION_BUTTON for FACTORY_RESET_TRIGGER_TIMEOUT +
-    // FACTORY_RESET_CANCEL_WINDOW_TIMEOUT All LEDs start blinking after
-    // FACTORY_RESET_TRIGGER_TIMEOUT to signal factory reset has been initiated.
-    // To cancel factory reset: release the APP_FUNCTION_BUTTON once all LEDs
-    // start blinking within the FACTORY_RESET_CANCEL_WINDOW_TIMEOUT
-    if (aEvent->ButtonEvent.Action == APP_BUTTON_PRESSED)
+
+    if (aEvent->ButtonEvent.Action == APP_BUTTON_LONGPRESSED)
     {
-        if (!sAppTask.mFunctionTimerActive && sAppTask.mFunction == kFunction_NoneSelected)
-        {
-            sAppTask.StartTimer(FACTORY_RESET_TRIGGER_TIMEOUT);
-            sAppTask.mFunction = kFunction_StartBleAdv;
-        }
+        log_info("FactoryReset! please release boutton!!!\r\n");
+        statusLED.Toggle();
+        vTaskDelay(1000);
+        statusLED.Toggle();
+        vTaskDelay(1000);
+        statusLED.Toggle();
+        vTaskDelay(3000);
+        chip::Server::GetInstance().ScheduleFactoryReset();
     }
-    else
+    else if (aEvent->ButtonEvent.Action == APP_BUTTON_PRESSED)
     {
-        // If the button was released before factory reset got initiated, start BLE advertissement in fast mode
-        if (sAppTask.mFunctionTimerActive && sAppTask.mFunction == kFunction_StartBleAdv)
-        {
-            sAppTask.CancelTimer();
-            sAppTask.mFunction = kFunction_NoneSelected;
-
-            if (!ConnectivityMgr().IsThreadProvisioned())
-            {
-                // Enable BLE advertisements
-                ConnectivityMgr().SetBLEAdvertisingEnabled(true);
-                ConnectivityMgr().SetBLEAdvertisingMode(ConnectivityMgr().kFastAdvertising);
-            }
-            else
-            {
-                log_warn("Network is already provisioned, Ble advertissement not enabled\r\n");
-            }
-        }
-        else if (sAppTask.mFunctionTimerActive && sAppTask.mFunction == kFunction_FactoryReset)
-        {
-#if 0 // TODO: 3R
-      // Set lock status LED back to show state of lock.
-            sLockLED.Set(!BoltLockMgr().IsUnlocked());
-#endif
-
-            sAppTask.CancelTimer();
-
-            // Change the function to none selected since factory reset has been
-            // canceled.
-            sAppTask.mFunction = kFunction_NoneSelected;
-
-            log_info("Factory Reset has been Canceled\r\n");
-        }
+        AppEvent Lightevent = {};
+        Lightevent.Type     = AppEvent::kEventType_Button;
+        Lightevent.Handler  = LightActionEventHandler;
+        sAppTask.PostEvent(&Lightevent);
     }
 }
 
@@ -499,8 +518,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
 void AppTask::UpdateClusterState(void)
 {
     uint8_t newValue = LightMgr().IsLightOn();
-
-    // write the new on/off value
+    log_info("updating on/off = %x\r\n", newValue);
     EmberAfStatus status =
         emberAfWriteAttribute(1, ZCL_ON_OFF_CLUSTER_ID, ZCL_ON_OFF_ATTRIBUTE_ID, (uint8_t *) &newValue, ZCL_BOOLEAN_ATTRIBUTE_TYPE);
     if (status != EMBER_ZCL_STATUS_SUCCESS)
@@ -520,4 +538,60 @@ void AppTask::OtaTask(void)
         printf("unable to start task client task");
         return;
     }
+}
+
+void AppTask::FactoryResetButtonEventHandler(void)
+{
+    AppEvent button_event           = {};
+    button_event.Type               = AppEvent::kEventType_Button;
+    button_event.ButtonEvent.Action = APP_BUTTON_LONGPRESSED;
+
+    button_event.Handler = FunctionHandler;
+    log_info("FactoryResetButtonEventHandler\r\n");
+    sAppTask.PostEvent(&button_event);
+}
+
+void AppTask::LightingActionButtonEventHandler(void)
+{
+    AppEvent button_event           = {};
+    button_event.Type               = AppEvent::kEventType_Button;
+    button_event.ButtonEvent.Action = APP_BUTTON_PRESSED;
+
+    button_event.Handler = FunctionHandler;
+    log_info("LightingActionButtonEventHandler\r\n");
+    sAppTask.PostEvent(&button_event);
+}
+
+void AppTask::InitButtons(void)
+{
+    Button_Configure_FactoryResetEventHandler(&FactoryResetButtonEventHandler);
+    Button_Configure_LightingActionEventHandler(&LightingActionButtonEventHandler);
+}
+
+void AppTask::LightStateUpdateEventHandler(void)
+{
+    uint8_t onoff, level;
+    do
+    {
+        if (EMBER_ZCL_STATUS_SUCCESS !=
+            emberAfReadAttribute(1, ZCL_ON_OFF_CLUSTER_ID, ZCL_ON_OFF_ATTRIBUTE_ID, (uint8_t *) &onoff, sizeof(uint8_t)))
+        {
+            break;
+        }
+        if (EMBER_ZCL_STATUS_SUCCESS !=
+            emberAfReadAttribute(1, ZCL_LEVEL_CONTROL_CLUSTER_ID, ZCL_CURRENT_LEVEL_ATTRIBUTE_ID, (uint8_t *) &level,
+                                 sizeof(uint8_t)))
+        {
+            break;
+        }
+        if (0 == onoff)
+        {
+            statusLED.SetBrightness(0);
+            statusLED.Set(0);
+        }
+        else
+        {
+            statusLED.SetBrightness(level);
+        }
+    } while (0);
 }

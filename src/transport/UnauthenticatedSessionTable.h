@@ -20,11 +20,8 @@
 #include <lib/core/ReferenceCounted.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/Pool.h>
-#include <lib/support/ReferenceCountedHandle.h>
-#include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ReliableMessageProtocolConfig.h>
 #include <system/TimeSource.h>
-#include <transport/MessageCounter.h>
 #include <transport/PeerMessageCounter.h>
 #include <transport/Session.h>
 #include <transport/raw/PeerAddress.h>
@@ -32,18 +29,12 @@
 namespace chip {
 namespace Transport {
 
-class UnauthenticatedSessionDeleter
-{
-public:
-    // This is a no-op because life-cycle of UnauthenticatedSessionTable is rotated by LRU
-    static void Release(UnauthenticatedSession * entry) {}
-};
-
 /**
  * @brief
  *   An UnauthenticatedSession stores the binding of TransportAddress, and message counters.
  */
-class UnauthenticatedSession : public Session, public ReferenceCounted<UnauthenticatedSession, UnauthenticatedSessionDeleter, 0>
+class UnauthenticatedSession : public Session,
+                               public ReferenceCounted<UnauthenticatedSession, NoopDeletor<UnauthenticatedSession>, 0>
 {
 public:
     enum class SessionRole
@@ -56,9 +47,9 @@ public:
         mEphemeralInitiatorNodeId(ephemeralInitiatorNodeID), mSessionRole(sessionRole),
         mLastActivityTime(System::SystemClock().GetMonotonicTimestamp()),
         mLastPeerActivityTime(System::Clock::kZero), // Start at zero to default to IDLE state
-        mMRPConfig(config)
+        mRemoteMRPConfig(config)
     {}
-    ~UnauthenticatedSession() override { NotifySessionReleased(); }
+    ~UnauthenticatedSession() override { VerifyOrDie(GetReferenceCount() == 0); }
 
     UnauthenticatedSession(const UnauthenticatedSession &) = delete;
     UnauthenticatedSession & operator=(const UnauthenticatedSession &) = delete;
@@ -79,8 +70,10 @@ public:
     const char * GetSessionTypeString() const override { return "unauthenticated"; };
 #endif
 
-    void Retain() override { ReferenceCounted<UnauthenticatedSession, UnauthenticatedSessionDeleter, 0>::Retain(); }
-    void Release() override { ReferenceCounted<UnauthenticatedSession, UnauthenticatedSessionDeleter, 0>::Release(); }
+    void Retain() override { ReferenceCounted<UnauthenticatedSession, NoopDeletor<UnauthenticatedSession>, 0>::Retain(); }
+    void Release() override { ReferenceCounted<UnauthenticatedSession, NoopDeletor<UnauthenticatedSession>, 0>::Release(); }
+
+    bool IsActiveSession() const override { return true; }
 
     ScopedNodeId GetPeer() const override { return ScopedNodeId(GetPeerNodeId(), kUndefinedFabricIndex); }
     ScopedNodeId GetLocalScopedNodeId() const override { return ScopedNodeId(kUndefinedNodeId, kUndefinedFabricIndex); }
@@ -97,7 +90,7 @@ public:
         switch (mPeerAddress.GetTransportType())
         {
         case Transport::Type::kUdp:
-            return GetMRPConfig().mIdleRetransTimeout * (CHIP_CONFIG_RMP_DEFAULT_MAX_RETRANS + 1);
+            return GetRemoteMRPConfig().mIdleRetransTimeout * (CHIP_CONFIG_RMP_DEFAULT_MAX_RETRANS + 1);
         case Transport::Type::kTcp:
             return System::Clock::Seconds16(30);
         default:
@@ -125,12 +118,12 @@ public:
 
     System::Clock::Timestamp GetMRPBaseTimeout() override
     {
-        return IsPeerActive() ? GetMRPConfig().mActiveRetransTimeout : GetMRPConfig().mIdleRetransTimeout;
+        return IsPeerActive() ? GetRemoteMRPConfig().mActiveRetransTimeout : GetRemoteMRPConfig().mIdleRetransTimeout;
     }
 
-    void SetMRPConfig(const ReliableMessageProtocolConfig & config) { mMRPConfig = config; }
+    void SetRemoteMRPConfig(const ReliableMessageProtocolConfig & config) { mRemoteMRPConfig = config; }
 
-    const ReliableMessageProtocolConfig & GetMRPConfig() const override { return mMRPConfig; }
+    const ReliableMessageProtocolConfig & GetRemoteMRPConfig() const override { return mRemoteMRPConfig; }
 
     PeerMessageCounter & GetPeerMessageCounter() { return mPeerMessageCounter; }
 
@@ -140,7 +133,7 @@ private:
     PeerAddress mPeerAddress;
     System::Clock::Timestamp mLastActivityTime;     ///< Timestamp of last tx or rx
     System::Clock::Timestamp mLastPeerActivityTime; ///< Timestamp of last rx
-    ReliableMessageProtocolConfig mMRPConfig;
+    ReliableMessageProtocolConfig mRemoteMRPConfig;
     PeerMessageCounter mPeerMessageCounter;
 };
 

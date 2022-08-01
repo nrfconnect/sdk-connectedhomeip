@@ -19,6 +19,7 @@
 #pragma once
 
 #include <app/clusters/content-launch-server/content-launch-server.h>
+#include <vector>
 
 using chip::CharSpan;
 using chip::EndpointId;
@@ -28,6 +29,13 @@ using ContentLauncherDelegate = chip::app::Clusters::ContentLauncher::Delegate;
 using LaunchResponseType      = chip::app::Clusters::ContentLauncher::Commands::LaunchResponse::Type;
 using ParameterType           = chip::app::Clusters::ContentLauncher::Structs::Parameter::DecodableType;
 using BrandingInformationType = chip::app::Clusters::ContentLauncher::Structs::BrandingInformation::Type;
+
+class ContentEntry
+{
+public:
+    std::string mName;
+    std::vector<ParameterType> mSearchFields;
+};
 
 class ContentLauncherManager : public ContentLauncherDelegate
 {
@@ -43,10 +51,15 @@ public:
     CHIP_ERROR HandleGetAcceptHeaderList(AttributeValueEncoder & aEncoder) override;
     uint32_t HandleGetSupportedStreamingProtocols() override;
 
+    uint32_t GetFeatureMap(chip::EndpointId endpoint) override;
+
 protected:
     std::list<std::string> mAcceptHeaderList;
     uint32_t mSupportedStreamingProtocols;
+    std::vector<ContentEntry> mContentList;
 
 private:
     EndpointId mEndpointId;
+    // TODO: set this based upon meta data from app
+    uint32_t mDynamicEndpointFeatureMap = 3;
 };

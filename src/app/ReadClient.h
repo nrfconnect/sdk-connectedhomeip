@@ -23,6 +23,7 @@
  */
 
 #pragma once
+#include "system/SystemClock.h"
 #include <app/AttributePathParams.h>
 #include <app/ConcreteAttributePath.h>
 #include <app/EventHeader.h>
@@ -32,14 +33,17 @@
 #include <app/MessageDef/StatusResponseMessage.h>
 #include <app/MessageDef/SubscribeRequestMessage.h>
 #include <app/MessageDef/SubscribeResponseMessage.h>
+#include <app/OperationalDeviceProxy.h>
 #include <app/ReadPrepareParams.h>
 #include <app/data-model/Decode.h>
+#include <lib/core/CHIPCallback.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/core/CHIPTLVDebug.hpp>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/DLLUtil.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
+#include <messaging/ExchangeHolder.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
@@ -53,8 +57,12 @@ class InteractionModelEngine;
 /**
  *  @class ReadClient
  *
- *  @brief The read client represents the initiator side of a Read Interaction, and is responsible
- *  for generating one Read Request for a particular set of attributes and/or events, and handling the Report Data response.
+ *  @brief The read client represents the initiator side of a Read Or Subscribe Interaction (depending on the APIs invoked).
+ *
+ *         When used to manage subscriptions, the client provides functionality to automatically re-subscribe as needed,
+ *         including re-establishing CASE under certain conditions (see Callback::OnResubscriptionNeeded for more info).
+ *         This is the default behavior. A consumer can completely opt-out of this behavior by over-riding
+ *         Callback::OnResubscriptionNeeded and providing an alternative implementation.
  *
  */
 class ReadClient : public Messaging::ExchangeDelegate
@@ -66,16 +74,18 @@ public:
         virtual ~Callback() = default;
 
         /**
-         * Used to signal the commencement of processing of the first attribute report received in a given exchange.
+         * Used to signal the commencement of processing of the first attribute or event report received in a given exchange.
          *
          * This object MUST continue to exist after this call is completed. The application shall wait until it
          * receives an OnDone call to destroy the object.
+         *
+         * Once OnReportBegin has been called, either OnReportEnd or OnError will be called before OnDone.
          *
          */
         virtual void OnReportBegin() {}
 
         /**
-         * Used to signal the completion of processing of the last attribute report in a given exchange.
+         * Used to signal the completion of processing of the last attribute or event report in a given exchange.
          *
          * This object MUST continue to exist after this call is completed. The application shall wait until it
          * receives an OnDone call to destroy the object.
@@ -118,6 +128,7 @@ public:
 
         /**
          * OnSubscriptionEstablished will be called when a subscription is established for the given subscription transaction.
+         * If using auto resubscription, OnSubscriptionEstablished will be called whenever resubscription is established.
          *
          * This object MUST continue to exist after this call is completed. The application shall wait until it
          * receives an OnDone call to destroy the object.
@@ -125,6 +136,32 @@ public:
          * @param[in] aSubscriptionId The identifier of the subscription that was established.
          */
         virtual void OnSubscriptionEstablished(SubscriptionId aSubscriptionId) {}
+
+        /**
+         * OnResubscriptionNeeded will be called when a subscription that was started with SendAutoResubscribeRequest has terminated
+         * and re-subscription is needed. The termination cause is provided to help inform subsequent re-subscription logic.
+         *
+         * The base implementation automatically re-subscribes at appropriate intervals taking the termination cause into account
+         * (see ReadClient::DefaultResubscribePolicy for more details). If the default implementation doesn't suffice, the logic of
+         * ReadClient::DefaultResubscribePolicy is broken down into its constituent methods that are publicly available for
+         * applications to call and sequence.
+         *
+         * If the method is over-ridden, it's the application's responsibility to take the appropriate steps needed to eventually
+         * call-back into the ReadClient object to schedule a re-subscription (by invoking ReadClient::ScheduleResubscription).
+         *
+         * If the application DOES NOT want re-subscription to happen on a particular invocation of this method, returning anything
+         * other than CHIP_NO_ERROR will terminate the interaction and result in OnError, OnDeallocatePaths and OnDone being called
+         * in that sequence.
+         *
+         * This object MUST continue to exist after this call is completed. The
+         * application shall wait until it receives an OnDone call to destroy the object.
+         *
+         * @param[in] aTerminationCause The cause of failure of the subscription that just terminated.
+         */
+        virtual CHIP_ERROR OnResubscriptionNeeded(ReadClient * apReadClient, CHIP_ERROR aTerminationCause)
+        {
+            return apReadClient->DefaultResubscribePolicy(aTerminationCause);
+        }
 
         /**
          * OnError will be called when an error occurs *after* a successful call to SendRequest(). The following
@@ -145,8 +182,9 @@ public:
         virtual void OnError(CHIP_ERROR aError) {}
 
         /**
-         * OnDone will be called when ReadClient has finished all work and is safe to destroy and free the
-         * allocated CommandSender object.
+         * OnDone will be called when ReadClient has finished all work and it is
+         * safe to destroy and free the allocated ReadClient object and any
+         * other objects associated with the Read or Subscribe interaction.
          *
          * This function will:
          *      - Always be called exactly *once* for a given ReadClient instance.
@@ -154,8 +192,9 @@ public:
          *      - Only be called after a successful call to SendRequest has been
          *        made, when the read completes or the subscription is shut down.
          *
+         * @param[in] apReadClient the ReadClient for the completed interaction.
          */
-        virtual void OnDone() = 0;
+        virtual void OnDone(ReadClient * apReadClient) = 0;
 
         /**
          * This function is invoked when using SendAutoResubscribeRequest, where the ReadClient was configured to auto re-subscribe
@@ -262,8 +301,8 @@ public:
         return mInteractionType == InteractionType::Subscribe ? returnType(mSubscriptionId) : returnType::Missing();
     }
 
-    FabricIndex GetFabricIndex() const { return mFabricIndex; }
-    NodeId GetPeerNodeId() const { return mPeerNodeId; }
+    FabricIndex GetFabricIndex() const { return mPeer.GetFabricIndex(); }
+    NodeId GetPeerNodeId() const { return mPeer.GetNodeId(); }
     bool IsReadType() { return mInteractionType == InteractionType::Read; }
     bool IsSubscriptionType() const { return mInteractionType == InteractionType::Subscribe; };
 
@@ -274,10 +313,10 @@ public:
     CHIP_ERROR GetReportingIntervals(uint16_t & aMinIntervalFloorSeconds, uint16_t & aMaxIntervalCeilingSeconds) const
     {
         VerifyOrReturnError(IsSubscriptionType(), CHIP_ERROR_INCORRECT_STATE);
-        VerifyOrReturnError(IsSubscriptionIdle(), CHIP_ERROR_INCORRECT_STATE);
+        VerifyOrReturnError(IsSubscriptionActive(), CHIP_ERROR_INCORRECT_STATE);
 
         aMinIntervalFloorSeconds   = mMinIntervalFloorSeconds;
-        aMaxIntervalCeilingSeconds = mMaxIntervalCeilingSeconds;
+        aMaxIntervalCeilingSeconds = mMaxInterval;
 
         return CHIP_NO_ERROR;
     }
@@ -285,20 +324,80 @@ public:
     ReadClient * GetNextClient() { return mpNext; }
     void SetNextClient(ReadClient * apClient) { mpNext = apClient; }
 
-    // Like SendSubscribeRequest, but the ReadClient will automatically attempt to re-establish the subscription if
-    // we decide that the subscription has dropped.  The exact behavior of the re-establishment can be controlled
-    // by setting mResubscribePolicy in the ReadPrepareParams.  If not set, a default behavior with exponential backoff will be
-    // used.
-    //
-    // The application has to know to
-    // a) allocate a ReadPrepareParams object that will have fields mpEventPathParamsList and mpAttributePathParamsList and
-    // mpDataVersionFilterList with lifetimes as long as the ReadClient itself and b) free those up later in the call to
-    // OnDeallocatePaths. Note: At a given time in the system, you can either have a single subscription with re-sub enabled that
-    // that has mKeepSubscriptions = false, OR, multiple subs with re-sub enabled with mKeepSubscriptions = true. You shall not have
-    // a mix of both simultaneously. If SendAutoResubscribeRequest is called at all, it guarantees that it will call
-    // OnDeallocatePaths when OnDone is called. SendAutoResubscribeRequest is the only case that calls OnDeallocatePaths, since
-    // that's the only case when the consumer moved a ReadParams into the client.
+    /**
+     *  Like SendSubscribeRequest, but the ReadClient will automatically attempt to re-establish the subscription if
+     *  we decide that the subscription has dropped.  The exact behavior of the re-establishment can be controlled
+     *  by setting mResubscribePolicy in the ReadPrepareParams.  If not set, a default behavior with exponential backoff will be
+     *  used.
+     *
+     *  The application has to know to
+     *  a) allocate a ReadPrepareParams object that will have fields mpEventPathParamsList and mpAttributePathParamsList and
+     *  mpDataVersionFilterList with lifetimes as long as the ReadClient itself and b) free those up later in the call to
+     *  OnDeallocatePaths. Note: At a given time in the system, you can either have a single subscription with re-sub enabled that
+     *  has mKeepSubscriptions = false, OR, multiple subs with re-sub enabled with mKeepSubscriptions = true. You shall not
+     *  have a mix of both simultaneously. If SendAutoResubscribeRequest is called at all, it guarantees that it will call
+     *  OnDeallocatePaths when OnDone is called. SendAutoResubscribeRequest is the only case that calls OnDeallocatePaths, since
+     *  that's the only case when the consumer moved a ReadParams into the client.
+     *
+     */
     CHIP_ERROR SendAutoResubscribeRequest(ReadPrepareParams && aReadPrepareParams);
+
+    /**
+     *   This provides a standard re-subscription policy implementation that given a termination cause, does the following:
+     *   - Calculates the time till next subscription with fibonacci back-off (implemented by ComputeTimeTillNextSubscription()).
+     *   - Schedules the next subscription attempt at the computed interval from the previous step. Operational discovery and
+     *     CASE establishment will be attempted if aTerminationCause was CHIP_ERROR_TIMEOUT. In all other cases, it will attempt
+     *     to re-use a previously established session.
+     */
+    CHIP_ERROR DefaultResubscribePolicy(CHIP_ERROR aTerminationCause);
+
+    /**
+     * Computes the time, in milliseconds, until the next re-subscription over
+     * an ever increasing window following a fibonacci sequence with the current retry count
+     * used as input to the fibonacci algorithm.
+     *
+     * CHIP_RESUBSCRIBE_MAX_FIBONACCI_STEP_INDEX is the maximum value the retry count can tick up to.
+     *
+     */
+    uint32_t ComputeTimeTillNextSubscription();
+
+    /**
+     * Schedules a re-subscription aTimeTillNextResubscriptionMs into the future.
+     *
+     * If an application wants to set up CASE on their own, they should call ComputeTimeTillNextSubscription() to compute the next
+     * interval at which they should attempt CASE and attempt CASE at that time. On successful CASE establishment, this method
+     * should be called with the new SessionHandle provided through 'aNewSessionHandle', 'aTimeTillNextResubscriptionMs' set to 0
+     * (i.e async, but as soon as possible) and 'aReestablishCASE' set to false.
+     *
+     * Otherwise, if aReestablishCASE is true, operational discovery and CASE will be attempted at that time before
+     * the actual IM interaction is initiated.
+     *
+     * aReestablishCASE SHALL NOT be set to true if a valid SessionHandle is provided through newSessionHandle.
+     */
+    CHIP_ERROR ScheduleResubscription(uint32_t aTimeTillNextResubscriptionMs, Optional<SessionHandle> aNewSessionHandle,
+                                      bool aReestablishCASE);
+
+    // Like SendSubscribeRequest, but allows sending certain forms of invalid
+    // subscribe requests that servers are expected to reject, for testing
+    // purposes.  Should only be called from tests.
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    CHIP_ERROR SendSubscribeRequestWithoutValidation(const ReadPrepareParams & aReadPrepareParams)
+    {
+        return SendSubscribeRequestImpl(aReadPrepareParams);
+    }
+#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
+
+    /**
+     * Override the interval at which liveness of the subscription is assessed.
+     * By default, this is set set to the max interval of the subscription + ACK timeout of the underlying session.
+     *
+     * This can be only be called once a subscription has been established and is active. Once called, this will cancel any existing
+     * liveness timers and schedule a new one.
+     *
+     * This can be called from the Callback::OnSubscriptionEstablished callback.
+     *
+     */
+    void OverrideLivenessTimeout(System::Clock::Timeout aLivenessTimeout);
 
 private:
     friend class TestReadInteraction;
@@ -326,7 +425,7 @@ private:
      *
      */
     bool IsIdle() const { return mState == ClientState::Idle; }
-    bool IsSubscriptionIdle() const { return mState == ClientState::SubscriptionActive; }
+    bool IsSubscriptionActive() const { return mState == ClientState::SubscriptionActive; }
     bool IsAwaitingInitialReport() const { return mState == ClientState::AwaitingInitialReport; }
     bool IsAwaitingSubscribeResponse() const { return mState == ClientState::AwaitingSubscribeResponse; }
 
@@ -343,7 +442,6 @@ private:
     CHIP_ERROR ProcessAttributeReportIBs(TLV::TLVReader & aAttributeDataIBsReader);
     CHIP_ERROR ProcessEventReportIBs(TLV::TLVReader & aEventReportIBsReader);
 
-    void ClearExchangeContext() { mpExchangeCtx = nullptr; }
     static void OnLivenessTimeoutCallback(System::Layer * apSystemLayer, void * apAppState);
     CHIP_ERROR ProcessSubscribeResponse(System::PacketBufferHandle && aPayload);
     CHIP_ERROR RefreshLivenessCheckTimer();
@@ -353,47 +451,74 @@ private:
     CHIP_ERROR ProcessAttributePath(AttributePathIB::Parser & aAttributePath, ConcreteDataAttributePath & aClusterInfo);
     CHIP_ERROR ProcessReportData(System::PacketBufferHandle && aPayload);
     const char * GetStateStr() const;
-    bool ResubscribeIfNeeded();
+
+    /*
+     * Checks if we should re-subscribe based on the specified re-subscription policy. If we should, re-subscription is scheduled
+     * aNextResubscribeIntervalMsec is updated accordingly, and true is returned.
+     *
+     * If we should not resubscribe, false is returned.
+     *
+     *  @param[out]    aNextResubscribeIntervalMsec    How long we will wait before trying to auto-resubscribe.
+     */
+    bool ResubscribeIfNeeded(uint32_t & aNextResubscribeIntervalMsec);
+
     // Specialized request-sending functions.
     CHIP_ERROR SendReadRequest(ReadPrepareParams & aReadPrepareParams);
-    CHIP_ERROR SendSubscribeRequest(ReadPrepareParams & aSubscribePrepareParams);
+    // SendSubscribeRequest performs som validation on aSubscribePrepareParams
+    // and then calls SendSubscribeRequestImpl.
+    CHIP_ERROR SendSubscribeRequest(const ReadPrepareParams & aSubscribePrepareParams);
+    CHIP_ERROR SendSubscribeRequestImpl(const ReadPrepareParams & aSubscribePrepareParams);
     void UpdateDataVersionFilters(const ConcreteDataAttributePath & aPath);
     static void OnResubscribeTimerCallback(System::Layer * apSystemLayer, void * apAppState);
+    // Called to ensure OnReportBegin is called before calling OnEventData or OnAttributeData
+    void NoteReportingData();
 
     /*
      * Called internally to signal the completion of all work on this object, gracefully close the
      * exchange and finally, signal to the application that it's
      * safe to release this object.
      *
-     * If aError != CHIP_NO_ERROR, it is delivered to the application through the OnError callback first.
+     * If aError != CHIP_NO_ERROR, this will trigger re-subscriptions if allowResubscription is true
+     * AND if this ReadClient instance is tracking a subscription AND the applications decides to do so
+     * in their implementation of Callback::OnResubscriptionNeeded().
      *
      */
-    void Close(CHIP_ERROR aError);
+    void Close(CHIP_ERROR aError, bool allowResubscription = true);
 
     void StopResubscription();
     void ClearActiveSubscriptionState();
+
+    static void HandleDeviceConnected(void * context, OperationalDeviceProxy * device);
+    static void HandleDeviceConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
+
     CHIP_ERROR GetMinEventNumber(const ReadPrepareParams & aReadPrepareParams, Optional<EventNumber> & aEventMin);
 
     Messaging::ExchangeManager * mpExchangeMgr = nullptr;
-    Messaging::ExchangeContext * mpExchangeCtx = nullptr;
+    Messaging::ExchangeHolder mExchange;
     Callback & mpCallback;
-    ClientState mState                  = ClientState::Idle;
-    bool mIsInitialReport               = true;
-    bool mIsPrimingReports              = true;
-    bool mPendingMoreChunks             = false;
-    uint16_t mMinIntervalFloorSeconds   = 0;
-    uint16_t mMaxIntervalCeilingSeconds = 0;
-    SubscriptionId mSubscriptionId      = 0;
-    NodeId mPeerNodeId                  = kUndefinedNodeId;
-    FabricIndex mFabricIndex            = kUndefinedFabricIndex;
-    InteractionType mInteractionType    = InteractionType::Read;
+    ClientState mState                = ClientState::Idle;
+    bool mIsReporting                 = false;
+    bool mIsInitialReport             = true;
+    bool mIsPrimingReports            = true;
+    bool mPendingMoreChunks           = false;
+    uint16_t mMinIntervalFloorSeconds = 0;
+    uint16_t mMaxInterval             = 0;
+    SubscriptionId mSubscriptionId    = 0;
+    ScopedNodeId mPeer;
+    InteractionType mInteractionType = InteractionType::Read;
     Timestamp mEventTimestamp;
-    bool mSawAttributeReportsInCurrentReport = false;
+
+    bool mDoCaseOnNextResub = true;
+
+    chip::Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
+    chip::Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;
 
     ReadClient * mpNext                 = nullptr;
     InteractionModelEngine * mpImEngine = nullptr;
     ReadPrepareParams mReadPrepareParams;
     uint32_t mNumRetries = 0;
+
+    System::Clock::Timeout mLivenessTimeoutOverride = System::Clock::kZero;
 
     // End Of Container (0x18) uses one byte.
     static constexpr uint16_t kReservedSizeForEndOfContainer = 1;

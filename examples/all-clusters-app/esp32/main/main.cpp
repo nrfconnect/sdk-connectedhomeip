@@ -18,7 +18,6 @@
 
 #include "AppTask.h"
 #include "BluetoothWidget.h"
-#include "CHIPDeviceManager.h"
 #include "DeviceCallbacks.h"
 #include "Globals.h"
 #include "LEDWidget.h"
@@ -35,14 +34,14 @@
 #include "nvs_flash.h"
 #include "platform/PlatformManager.h"
 #include "shell_extension/launch.h"
+#include <common/CHIPDeviceManager.h>
+#include <credentials/DeviceAttestationCredsProvider.h>
+#include <credentials/examples/DeviceAttestationCredsExample.h>
 
-#include <app/clusters/network-commissioning/network-commissioning.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/util/af.h>
 #include <binding-handler.h>
-#include <credentials/DeviceAttestationCredsProvider.h>
-#include <credentials/examples/DeviceAttestationCredsExample.h>
-#include <platform/ESP32/NetworkCommissioningDriver.h>
+#include <common/Esp32AppServer.h>
 
 #if CONFIG_HAVE_DISPLAY
 #include "DeviceWithDisplay.h"
@@ -56,23 +55,23 @@
 #include <platform/ThreadStackManager.h>
 #endif
 
+#if CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+#include <platform/ESP32/ESP32FactoryDataProvider.h>
+#endif // CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+
 using namespace ::chip;
 using namespace ::chip::Shell;
-using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;
-using namespace ::chip::DeviceLayer;
+using namespace ::chip::Credentials;
 
 // Used to indicate that an IP address has been added to the QRCode
 #define EXAMPLE_VENDOR_TAG_IP 1
 
 const char * TAG = "all-clusters-app";
 
-static DeviceCallbacks EchoCallbacks;
-
+static AppDeviceCallbacks EchoCallbacks;
+static AppDeviceCallbacksDelegate sAppDeviceCallbacksDelegate;
 namespace {
-
-app::Clusters::NetworkCommissioning::Instance
-    sWiFiNetworkCommissioningInstance(0 /* Endpoint Id */, &(NetworkCommissioning::ESPWiFiDriver::GetInstance()));
 
 class AppCallbacks : public AppDelegate
 {
@@ -91,22 +90,19 @@ AppCallbacks sCallbacks;
 
 constexpr EndpointId kNetworkCommissioningEndpointSecondary = 0xFFFE;
 
+#if CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+chip::DeviceLayer::ESP32FactoryDataProvider sFactoryDataProvider;
+#endif // CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+
 } // namespace
 
 static void InitServer(intptr_t context)
 {
-    // Init ZCL Data Model and CHIP App Server
-    static chip::CommonCaseDeviceServerInitParams initParams;
-    (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    initParams.appDelegate = &sCallbacks;
-    chip::Server::GetInstance().Init(initParams);
+    Esp32AppServer::Init(&sCallbacks); // Init ZCL Data Model and CHIP App Server AND Initialize device attestation config
 
     // We only have network commissioning on endpoint 0.
     emberAfEndpointEnableDisable(kNetworkCommissioningEndpointSecondary, false);
 
-    // Initialize device attestation config
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-    sWiFiNetworkCommissioningInstance.Init();
     InitBindingHandlers();
 #if CONFIG_DEVICE_TYPE_M5STACK
     SetupPretendDevices();
@@ -143,11 +139,22 @@ extern "C" void app_main()
 
     CHIPDeviceManager & deviceMgr = CHIPDeviceManager::GetInstance();
     CHIP_ERROR error              = deviceMgr.Init(&EchoCallbacks);
+    DeviceCallbacksDelegate::Instance().SetAppDelegate(&sAppDeviceCallbacksDelegate);
     if (error != CHIP_NO_ERROR)
     {
         ESP_LOGE(TAG, "device.Init() failed: %s", ErrorStr(error));
         return;
     }
+
+#if CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+    SetCommissionableDataProvider(&sFactoryDataProvider);
+    SetDeviceAttestationCredentialsProvider(&sFactoryDataProvider);
+#if CONFIG_ENABLE_ESP32_DEVICE_INSTANCE_INFO_PROVIDER
+    SetDeviceInstanceInfoProvider(&sFactoryDataProvider);
+#endif
+#else
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+#endif // CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
 
     ESP_LOGI(TAG, "------------------------Starting App Task---------------------------");
     error = GetAppTask().StartAppTask();

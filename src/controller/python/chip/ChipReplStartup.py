@@ -12,6 +12,9 @@ import chip.logging
 import argparse
 import builtins
 import chip.FabricAdmin
+import chip.native
+from chip.utils import CommissioningBuildingBlocks
+import atexit
 
 _fabricAdmins = None
 
@@ -36,7 +39,11 @@ def LoadFabricAdmins():
     except KeyError:
         console.print(
             "\n[purple]No previous fabric admins discovered in persistent storage - creating a new one...")
-        _fabricAdmins.append(chip.FabricAdmin.FabricAdmin())
+
+        #
+        # Initialite a FabricAdmin with a VendorID of TestVendor1 (0xfff1)
+        #
+        _fabricAdmins.append(chip.FabricAdmin.FabricAdmin(0XFFF1))
         return _fabricAdmins
 
     console.print('\n')
@@ -44,8 +51,8 @@ def LoadFabricAdmins():
     for k in adminList:
         console.print(
             f"[purple]Restoring FabricAdmin from storage to manage FabricId {adminList[k]['fabricId']}, FabricIndex {k}...")
-        _fabricAdmins.append(chip.FabricAdmin.FabricAdmin(
-            fabricId=adminList[k]['fabricId'], fabricIndex=int(k)))
+        _fabricAdmins.append(chip.FabricAdmin.FabricAdmin(vendorId=int(adminList[k]['vendorId']),
+                                                          fabricId=adminList[k]['fabricId'], fabricIndex=int(k)))
 
     console.print(
         '\n[blue]Fabric Admins have been loaded and are available at [red]fabricAdmins')
@@ -66,7 +73,7 @@ def CreateDefaultDeviceController():
     return _fabricAdmins[0].NewController()
 
 
-def ReplInit():
+def ReplInit(debug):
     #
     # Install the pretty printer that rich provides to replace the existing
     # printer.
@@ -92,8 +99,16 @@ def ReplInit():
     coloredlogs.install(level='DEBUG')
     chip.logging.RedirectToPythonLogging()
 
-    # logging.getLogger().setLevel(logging.DEBUG)
-    logging.getLogger().setLevel(logging.WARN)
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.WARN)
+
+
+def StackShutdown():
+    chip.FabricAdmin.FabricAdmin.ShutdownAll()
+    ChipDeviceCtrl.ChipDeviceController.ShutdownAll()
+    builtins.chipStack.Shutdown()
 
 
 def matterhelp(classOrObj=None):
@@ -122,13 +137,20 @@ console = Console()
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "-p", "--storagepath", help="Path to persistent storage configuration file (default: /tmp/repl-storage.json)", action="store", default="/tmp/repl-storage.json")
+parser.add_argument(
+    "-d", "--debug", help="Set default logging level to debug.", action="store_true")
 args = parser.parse_args()
-ReplInit()
+
+chip.native.Init()
+
+ReplInit(args.debug)
 chipStack = ChipStack(persistentStoragePath=args.storagepath)
 fabricAdmins = LoadFabricAdmins()
 devCtrl = CreateDefaultDeviceController()
 
 builtins.devCtrl = devCtrl
+
+atexit.register(StackShutdown)
 
 console.print(
     '\n\n[blue]Default CHIP Device Controller has been initialized to manage [bold red]fabricAdmins[0][blue], and is available as [bold red]devCtrl')

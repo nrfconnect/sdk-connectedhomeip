@@ -37,6 +37,8 @@
 #include <platform/Linux/PosixConfig.h>
 #include <platform/internal/GenericConfigurationManagerImpl.ipp>
 
+#include <algorithm>
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -130,13 +132,18 @@ CHIP_ERROR ConfigurationManagerImpl::GetPrimaryWiFiMACAddress(uint8_t * buf)
     CHIP_ERROR error           = CHIP_NO_ERROR;
     bool found                 = false;
 
+    // TODO: ideally the buffer size should have been passed as a span, however
+    //       for now use the size that is validated in GenericConfigurationManagerImpl.ipp
+    constexpr size_t kExpectedBufMinSize = ConfigurationManager::kPrimaryMACAddressLength;
+    memset(buf, 0, kExpectedBufMinSize);
+
     VerifyOrExit(getifaddrs(&addresses) == 0, error = CHIP_ERROR_INTERNAL);
     for (auto addr = addresses; addr != nullptr; addr = addr->ifa_next)
     {
         if ((addr->ifa_addr) && (addr->ifa_addr->sa_family == AF_PACKET) && strncmp(addr->ifa_name, "lo", IFNAMSIZ) != 0)
         {
             struct sockaddr_ll * mac = (struct sockaddr_ll *) addr->ifa_addr;
-            memcpy(buf, mac->sll_addr, mac->sll_halen);
+            memcpy(buf, mac->sll_addr, std::min<size_t>(mac->sll_halen, kExpectedBufMinSize));
             found = true;
             break;
         }
@@ -320,16 +327,6 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     // TODO(#742): restart CHIP exe
 }
 
-CHIP_ERROR ConfigurationManagerImpl::GetVendorId(uint16_t & vendorId)
-{
-    return ReadConfigValue(PosixConfig::kConfigKey_VendorId, vendorId);
-}
-
-CHIP_ERROR ConfigurationManagerImpl::GetProductId(uint16_t & productId)
-{
-    return ReadConfigValue(PosixConfig::kConfigKey_ProductId, productId);
-}
-
 CHIP_ERROR ConfigurationManagerImpl::StoreVendorId(uint16_t vendorId)
 {
     return WriteConfigValue(PosixConfig::kConfigKey_VendorId, vendorId);
@@ -398,6 +395,11 @@ CHIP_ERROR ConfigurationManagerImpl::GetLocationCapability(uint8_t & location)
     }
 
     return err;
+}
+
+ConfigurationManager & ConfigurationMgrImpl()
+{
+    return ConfigurationManagerImpl::GetDefaultInstance();
 }
 
 } // namespace DeviceLayer

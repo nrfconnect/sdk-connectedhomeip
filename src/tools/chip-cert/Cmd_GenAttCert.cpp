@@ -58,8 +58,8 @@ OptionDef gCmdOptionDefs[] =
     { "valid-from",       kArgumentRequired, 'f' },
     { "lifetime",         kArgumentRequired, 'l' },
 #if CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
-    { "ignore-error",     kNoArgument,       'i' },
-    { "error-type",       kArgumentRequired, 'e' },
+    { "ignore-error",     kNoArgument,       'I' },
+    { "error-type",       kArgumentRequired, 'E' },
 #endif
     { }
 };
@@ -124,14 +124,14 @@ const char * const gCmdOptionHelp =
     "       expiration date\n"
     "\n"
 #if CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
-    "   -i, --ignore-error\n"
+    "   -I, --ignore-error\n"
     "\n"
     "       Ignore some input parameters error.\n"
     "       WARNING: This option makes it possible to circumvent attestation certificate\n"
     "       structure requirement. This is required for negative testing of the attestation flow.\n"
     "       Because of this it SHOULD NEVER BE ENABLED IN PRODUCTION BUILDS.\n"
     "\n"
-    "   -e, --error-type <error-type>\n"
+    "   -E, --error-type <error-type>\n"
     "\n"
     "       When specified injects specific error into the structure of generated attestation certificate.\n"
     "       Note that 'ignore-error' option MUST be specified for this error injection to take effect.\n"
@@ -173,7 +173,7 @@ const char * const gCmdOptionHelp =
     "           ext-authority-info-access        - Certificate will include optional Authority Information Access extension.\n"
     "           ext-subject-alt-name             - Certificate will include optional Subject Alternative Name extension.\n"
     "\n"
-#endif
+#endif // CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
     ;
 
 OptionSet gCmdOptions =
@@ -211,7 +211,7 @@ const char * gOutCertFileName = nullptr;
 const char * gOutKeyFileName  = nullptr;
 uint32_t gValidDays           = kCertValidDays_Undefined;
 struct tm gValidFrom;
-AttCertStructConfig gCertConfig;
+CertStructConfig gCertConfig;
 
 bool HandleOption(const char * progName, OptionSet * optSet, int id, const char * name, const char * arg)
 {
@@ -290,10 +290,10 @@ bool HandleOption(const char * progName, OptionSet * optSet, int id, const char 
         }
         break;
 #if CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
-    case 'i':
+    case 'I':
         gCertConfig.EnableErrorTestCase();
         break;
-    case 'e':
+    case 'E':
         if (strcmp(arg, "cert-version") == 0)
         {
             gCertConfig.SetCertVersionWrong();
@@ -400,7 +400,7 @@ bool HandleOption(const char * progName, OptionSet * optSet, int id, const char 
             return false;
         }
         break;
-#endif
+#endif // CHIP_CONFIG_INTERNAL_FLAG_GENERATE_DA_TEST_CASES
     default:
         PrintArgError("%s: Unhandled option: %s\n", progName, name);
         return false;
@@ -437,7 +437,8 @@ bool Cmd_GenAttCert(int argc, char * argv[])
     if (gCertConfig.IsErrorTestCaseEnabled())
     {
         fprintf(stderr,
-                "WARNING: The ignor-error option is set. This option makes it possible to generate invalid certificates.\n");
+                "WARNING get-att-cert: The ignor-error option is set. This option makes it possible to generate invalid "
+                "certificates.\n");
     }
 
     if (gAttCertType == kAttCertType_NotSpecified)
@@ -576,7 +577,7 @@ bool Cmd_GenAttCert(int argc, char * argv[])
 
     if (gOutKeyFileName != nullptr)
     {
-        res = WritePrivateKey(gOutKeyFileName, newKey.get(), kKeyFormat_X509_PEM);
+        res = WriteKey(gOutKeyFileName, newKey.get(), kKeyFormat_X509_PEM);
         VerifyTrueOrExit(res);
     }
 

@@ -219,9 +219,6 @@ int main(int argc, char * argv[])
 
     InitializeChip();
 
-    err = gFabricTable.Init(&gStorage);
-    SuccessOrExit(err);
-
     if (gUseTCP)
     {
         err = gTCPManager.Init(chip::Transport::TcpListenParameters(chip::DeviceLayer::TCPEndPointManager())
@@ -255,7 +252,7 @@ int main(int argc, char * argv[])
     err = EstablishSecureSession();
     SuccessOrExit(err);
 
-    err = gEchoClient.Init(&gExchangeManager, gSession.Get());
+    err = gEchoClient.Init(&gExchangeManager, gSession.Get().Value());
     SuccessOrExit(err);
 
     // Arrange to get a callback whenever an Echo Response is received.

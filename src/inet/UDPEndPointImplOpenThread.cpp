@@ -32,11 +32,21 @@ namespace Inet {
 
 otInstance * globalOtInstance;
 
+namespace {
+// We want to reserve space for an IPPacketInfo in our buffer, but it needs to
+// be 4-byte aligned.  We ensure the alignment by masking off the low bits of
+// the pointer that we get by doing `Start() - sizeof(IPPacketInfo)`.  That
+// might move it backward by up to kPacketInfoAlignmentBytes, so we need to make
+// sure we allocate enough reserved space that this will still be within our
+// buffer.
+constexpr uint16_t kPacketInfoAlignmentBytes = sizeof(uint32_t) - 1;
+constexpr uint16_t kPacketInfoReservedSize   = sizeof(IPPacketInfo) + kPacketInfoAlignmentBytes;
+} // namespace
+
 void UDPEndPointImplOT::handleUdpReceive(void * aContext, otMessage * aMessage, const otMessageInfo * aMessageInfo)
 {
     UDPEndPointImplOT * ep = static_cast<UDPEndPointImplOT *>(aContext);
-    IPPacketInfo pktInfo;
-    uint16_t msgLen = otMessageGetLength(aMessage);
+    uint16_t msgLen        = otMessageGetLength(aMessage);
     System::PacketBufferHandle payload;
 #if CHIP_DETAIL_LOGGING
     static uint16_t msgReceivedCount = 0;
@@ -44,18 +54,16 @@ void UDPEndPointImplOT::handleUdpReceive(void * aContext, otMessage * aMessage, 
     char destStr[Inet::IPAddress::kMaxStringLength];
 #endif
 
+    if (ep->mState == State::kClosed)
+        return;
+
     if (msgLen > System::PacketBuffer::kMaxSizeWithoutReserve)
     {
         ChipLogError(Inet, "UDP message too long, discarding. Size received %d", msgLen);
         return;
     }
 
-    pktInfo.SrcAddress  = IPAddress::FromOtAddr(aMessageInfo->mPeerAddr);
-    pktInfo.DestAddress = IPAddress::FromOtAddr(aMessageInfo->mSockAddr);
-    pktInfo.SrcPort     = aMessageInfo->mPeerPort;
-    pktInfo.DestPort    = aMessageInfo->mSockPort;
-
-    payload = System::PacketBufferHandle::New(msgLen, 0);
+    payload = System::PacketBufferHandle::New(msgLen, kPacketInfoReservedSize);
 
     if (payload.IsNull())
     {
@@ -63,38 +71,45 @@ void UDPEndPointImplOT::handleUdpReceive(void * aContext, otMessage * aMessage, 
         return;
     }
 
+    IPPacketInfo * pktInfo = GetPacketInfo(payload);
+    if (pktInfo == nullptr)
+    {
+        ChipLogError(Inet, "Failed to pre-allocate reserved space for an IPPacketInfo for UDP Message reception.");
+        return;
+    }
+
+    pktInfo->SrcAddress  = IPAddress::FromOtAddr(aMessageInfo->mPeerAddr);
+    pktInfo->DestAddress = IPAddress::FromOtAddr(aMessageInfo->mSockAddr);
+    pktInfo->SrcPort     = aMessageInfo->mPeerPort;
+    pktInfo->DestPort    = aMessageInfo->mSockPort;
+
 #if CHIP_DETAIL_LOGGING
-    pktInfo.SrcAddress.ToString(sourceStr, Inet::IPAddress::kMaxStringLength);
-    pktInfo.DestAddress.ToString(destStr, Inet::IPAddress::kMaxStringLength);
+    pktInfo->SrcAddress.ToString(sourceStr, Inet::IPAddress::kMaxStringLength);
+    pktInfo->DestAddress.ToString(destStr, Inet::IPAddress::kMaxStringLength);
 
     ChipLogDetail(Inet,
                   "UDP Message Received packet nb : %d SrcAddr : %s[%d] DestAddr "
                   ": %s[%d] Payload Length %d",
-                  ++msgReceivedCount, sourceStr, pktInfo.SrcPort, destStr, pktInfo.DestPort, msgLen);
+                  ++msgReceivedCount, sourceStr, pktInfo->SrcPort, destStr, pktInfo->DestPort, msgLen);
 
 #endif
 
-    memcpy(payload->Start(), &pktInfo, sizeof(IPPacketInfo));
-
-    if (otMessageRead(aMessage, 0, payload->Start() + sizeof(IPPacketInfo), msgLen) != msgLen)
+    if (otMessageRead(aMessage, 0, payload->Start(), msgLen) != msgLen)
     {
         ChipLogError(Inet, "Failed to copy OpenThread buffer into System Packet buffer");
         return;
     }
-    payload->SetDataLength(static_cast<uint16_t>(msgLen + sizeof(IPPacketInfo)));
+    payload->SetDataLength(static_cast<uint16_t>(msgLen));
 
-    ep->Retain();
-    auto * buf     = std::move(payload).UnsafeRelease();
-    CHIP_ERROR err = ep->GetSystemLayer().ScheduleLambda([ep, buf] {
-        ep->HandleDataReceived(System::PacketBufferHandle::Adopt(buf));
-        ep->Release();
-    });
+    // TODO: add thread-safe reference counting for UDP endpoints
+    auto * buf = std::move(payload).UnsafeRelease();
+    CHIP_ERROR err =
+        ep->GetSystemLayer().ScheduleLambda([ep, buf] { ep->HandleDataReceived(System::PacketBufferHandle::Adopt(buf)); });
     if (err != CHIP_NO_ERROR)
     {
         // Make sure we properly clean up buf and ep, since our lambda will not
         // run.
         payload = System::PacketBufferHandle::Adopt(buf);
-        ep->Release();
     }
 }
 
@@ -160,7 +175,6 @@ void UDPEndPointImplOT::HandleDataReceived(System::PacketBufferHandle && msg)
             const IPPacketInfo pktInfoCopy = *pktInfo; // copy the address info so that the app can free the
                                                        // PacketBuffer without affecting access to address info.
 
-            msg->ConsumeHead(sizeof(IPPacketInfo));
             OnMessageReceived(this, std::move(msg), &pktInfoCopy);
         }
         else
@@ -247,6 +261,19 @@ void UDPEndPointImplOT::CloseImpl()
     if (otUdpIsOpen(mOTInstance, &mSocket))
     {
         otUdpClose(mOTInstance, &mSocket);
+
+        // In case that there is a UDPEndPointImplOT::handleUdpReceive event
+        // pending in the event queue (SystemLayer::ScheduleLambda), we
+        // schedule a release call to the end of the queue, to ensure that the
+        // queued pointer to UDPEndPointImplOT is not dangling.
+        Retain();
+        CHIP_ERROR err = GetSystemLayer().ScheduleLambda([this] { Release(); });
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(Inet, "Unable scedule lambda: %" CHIP_ERROR_FORMAT, err.Format());
+            // There is nothing we can do here, accept the chance of racing
+            Release();
+        }
     }
     UnlockOpenThread();
 }
@@ -279,7 +306,7 @@ CHIP_ERROR UDPEndPointImplOT::IPv6JoinLeaveMulticastGroupImpl(InterfaceId aInter
 
 IPPacketInfo * UDPEndPointImplOT::GetPacketInfo(const System::PacketBufferHandle & aBuffer)
 {
-    if (!aBuffer->EnsureReservedSize(sizeof(IPPacketInfo)))
+    if (!aBuffer->EnsureReservedSize(kPacketInfoReservedSize))
     {
         return nullptr;
     }
@@ -288,7 +315,7 @@ IPPacketInfo * UDPEndPointImplOT::GetPacketInfo(const System::PacketBufferHandle
     uintptr_t lPacketInfoStart = lStart - sizeof(IPPacketInfo);
 
     // Align to a 4-byte boundary
-    return reinterpret_cast<IPPacketInfo *>(lPacketInfoStart & ~(sizeof(uint32_t) - 1));
+    return reinterpret_cast<IPPacketInfo *>(lPacketInfoStart & ~kPacketInfoAlignmentBytes);
 }
 
 } // namespace Inet

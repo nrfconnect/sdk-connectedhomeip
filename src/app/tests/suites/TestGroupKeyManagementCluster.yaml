@@ -41,40 +41,6 @@ tests:
       response:
           value: 2
 
-    - label: "Add Group 1"
-      cluster: "Groups"
-      endpoint: 1
-      command: "AddGroup"
-      arguments:
-          values:
-              - name: "GroupId"
-                value: 0x0101
-              - name: "GroupName"
-                value: "Group #1"
-      response:
-          values:
-              - name: "status"
-                value: 0
-              - name: "GroupId"
-                value: 0x0101
-
-    - label: "Add Group 2"
-      cluster: "Groups"
-      endpoint: 1
-      command: "AddGroup"
-      arguments:
-          values:
-              - name: "GroupId"
-                value: 0x0102
-              - name: "GroupName"
-                value: "Group #2"
-      response:
-          values:
-              - name: "status"
-                value: 0
-              - name: "GroupId"
-                value: 0x0102
-
     - label: "KeySet Write 1"
       command: "KeySetWrite"
       arguments:
@@ -166,6 +132,40 @@ tests:
                   { FabricIndex: 1, GroupId: 0x0102, GroupKeySetID: 0x01a2 },
               ]
 
+    - label: "Add Group 1"
+      cluster: "Groups"
+      endpoint: 1
+      command: "AddGroup"
+      arguments:
+          values:
+              - name: "GroupId"
+                value: 0x0101
+              - name: "GroupName"
+                value: "Group #1"
+      response:
+          values:
+              - name: "status"
+                value: 0
+              - name: "GroupId"
+                value: 0x0101
+
+    - label: "Add Group 2"
+      cluster: "Groups"
+      endpoint: 1
+      command: "AddGroup"
+      arguments:
+          values:
+              - name: "GroupId"
+                value: 0x0102
+              - name: "GroupName"
+                value: "Group #2"
+      response:
+          values:
+              - name: "status"
+                value: 0
+              - name: "GroupId"
+                value: 0x0102
+
     - label: "Read GroupTable"
       command: "readAttribute"
       attribute: "GroupTable"
@@ -223,10 +223,45 @@ tests:
                         EpochStartTime2: 2110002,
                     }
 
+    - label: "Remove Group 1"
+      cluster: "Groups"
+      endpoint: 1
+      command: "RemoveGroup"
+      arguments:
+          values:
+              - name: "groupId"
+                value: 0x0101
+      response:
+          values:
+              - name: "status"
+                value: 0
+              - name: "groupId"
+                value: 0x0101
+
+    - label: "Read GroupTable 2"
+      command: "readAttribute"
+      attribute: "GroupTable"
+      response:
+          value:
+              [
+                  {
+                      FabricIndex: 1,
+                      GroupId: 0x0102,
+                      endpoints: [1],
+                      GroupName: "Group #2",
+                  },
+              ]
+
     - label: "Remove All"
       cluster: "Groups"
       endpoint: 1
       command: "RemoveAllGroups"
+
+    - label: "Read GroupTable 3"
+      command: "readAttribute"
+      attribute: "GroupTable"
+      response:
+          value: []
 
     - label: "KeySet Remove 2"
       command: "KeySetRemove"

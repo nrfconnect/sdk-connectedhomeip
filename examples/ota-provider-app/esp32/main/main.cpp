@@ -15,19 +15,18 @@
  *    limitations under the License.
  */
 
-#include "CHIPDeviceManager.h"
 #include "DeviceCallbacks.h"
 #include "esp_log.h"
 #include "esp_spi_flash.h"
 #include "esp_spiffs.h"
 #include "nvs_flash.h"
-#include <app/clusters/network-commissioning/network-commissioning.h>
 #include <app/server/Server.h>
+#include <common/CHIPDeviceManager.h>
+#include <common/Esp32AppServer.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/logging/CHIPLogging.h>
-#include <platform/ESP32/NetworkCommissioningDriver.h>
 
 #include <OTAProviderCommands.h>
 #include <app/clusters/ota-provider/ota-provider.h>
@@ -35,14 +34,17 @@
 #include <ota-provider-common/OTAProviderExample.h>
 #include <shell_extension/launch.h>
 
+#if CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+#include <platform/ESP32/ESP32FactoryDataProvider.h>
+#endif // CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+
 using chip::Callback::Callback;
 using namespace chip;
 using namespace chip::Shell;
 using namespace chip::System;
-using namespace chip::Credentials;
 using namespace chip::DeviceManager;
-using namespace chip::DeviceLayer;
 using namespace chip::app::Clusters::OtaSoftwareUpdateProvider;
+using namespace ::chip::Credentials;
 
 CHIP_ERROR OnBlockQuery(void * context, chip::System::PacketBufferHandle & blockBuf, size_t & size, bool & isEof, uint32_t offset);
 void OnTransferComplete(void * context);
@@ -51,7 +53,7 @@ void OnTransferFailed(void * context, BdxSenderErrorTypes status);
 namespace {
 const char * TAG               = "ota-provider-app";
 const uint8_t kMaxImagePathlen = 35;
-static DeviceCallbacks EchoCallbacks;
+static AppDeviceCallbacks EchoCallbacks;
 
 // TODO: this should probably be done dynamically
 constexpr chip::EndpointId kOtaProviderEndpoint = 0;
@@ -65,19 +67,9 @@ chip::Callback::Callback<OnBdxBlockQuery> onBlockQueryCallback(OnBlockQuery, nul
 chip::Callback::Callback<OnBdxTransferComplete> onTransferCompleteCallback(OnTransferComplete, nullptr);
 chip::Callback::Callback<OnBdxTransferFailed> onTransferFailedCallback(OnTransferFailed, nullptr);
 
-app::Clusters::NetworkCommissioning::Instance
-    sWiFiNetworkCommissioningInstance(0 /* Endpoint Id */, &(NetworkCommissioning::ESPWiFiDriver::GetInstance()));
-
 static void InitServer(intptr_t context)
 {
-    static chip::CommonCaseDeviceServerInitParams initParams;
-    (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    chip::Server::GetInstance().Init(initParams);
-
-    // Initialize device attestation config
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-
-    sWiFiNetworkCommissioningInstance.Init();
+    Esp32AppServer::Init(); // Init ZCL Data Model and CHIP App Server AND Initialize device attestation config
 
     BdxOtaSender * bdxOtaSender = otaProvider.GetBdxOtaSender();
     VerifyOrReturn(bdxOtaSender != nullptr, ESP_LOGE(TAG, "bdxOtaSender is nullptr"));
@@ -98,7 +90,7 @@ static void InitServer(intptr_t context)
     bdxOtaSender->SetCallbacks(callbacks);
 
     esp_vfs_spiffs_conf_t spiffs_conf = {
-        .base_path              = "/spiffs",
+        .base_path              = "/fs",
         .partition_label        = NULL,
         .max_files              = 3,
         .format_if_mount_failed = false,
@@ -114,13 +106,16 @@ static void InitServer(intptr_t context)
     err = esp_spiffs_info(NULL, &total, &used);
     ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
     char otaImagePath[kMaxImagePathlen];
-    sprintf(otaImagePath, "/spiffs/%s", otaFilename);
+    memset(otaImagePath, 0, sizeof(otaImagePath));
+    snprintf(otaImagePath, sizeof(otaImagePath), "/fs/%s", otaFilename);
+
     otaImageFile = fopen(otaImagePath, "r");
     if (otaImageFile == NULL)
     {
         ESP_LOGE(TAG, "Failed to open %s", otaFilename);
         return;
     }
+
     fseek(otaImageFile, 0, SEEK_END);
     otaImageLen = ftell(otaImageFile);
     rewind(otaImageFile);
@@ -130,6 +125,8 @@ static void InitServer(intptr_t context)
         otaProvider.SetQueryImageStatus(OTAQueryStatus::kUpdateAvailable);
         otaProvider.SetOTAFilePath(otaImagePath);
     }
+    fclose(otaImageFile);
+    otaImageFile = NULL;
 
     chip::app::Clusters::OTAProvider::SetDelegate(kOtaProviderEndpoint, &otaProvider);
 
@@ -140,22 +137,40 @@ static void InitServer(intptr_t context)
     otaProviderCommands.Register();
 }
 
+#if CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+chip::DeviceLayer::ESP32FactoryDataProvider sFactoryDataProvider;
+#endif // CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+
 } // namespace
 
 CHIP_ERROR OnBlockQuery(void * context, chip::System::PacketBufferHandle & blockBuf, size_t & size, bool & isEof, uint32_t offset)
 {
+    BdxOtaSender * bdxOtaSender = otaProvider.GetBdxOtaSender();
+    VerifyOrReturnError(bdxOtaSender != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
     if (otaTransferInProgress == false)
     {
-        if (otaImageFile == NULL || otaImageLen == 0)
+        const char * fileDesignator = bdxOtaSender->GetFileDesignator();
+        if (fileDesignator == nullptr || fileDesignator[0] == 0)
+        {
+            ESP_LOGE(TAG, "File designator is null");
+            return CHIP_ERROR_INCORRECT_STATE;
+        }
+
+        char otaImagePath[kMaxImagePathlen];
+        memset(otaImagePath, 0, sizeof(otaImagePath));
+        snprintf(otaImagePath, sizeof(otaImagePath), "%s", fileDesignator);
+        ESP_LOGI(TAG, "File designator: %s", otaImagePath);
+
+        otaImageFile = fopen(otaImagePath, "r");
+        if (otaImageFile == NULL)
+
         {
             ESP_LOGE(TAG, "Failed to open the OTA image file");
             return CHIP_ERROR_OPEN_FAILED;
         }
         otaTransferInProgress = true;
     }
-
-    BdxOtaSender * bdxOtaSender = otaProvider.GetBdxOtaSender();
-    VerifyOrReturnError(bdxOtaSender != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     uint16_t blockBufAvailableLength = blockBuf->AvailableDataLength();
     uint16_t transferBlockSize       = bdxOtaSender->GetTransferBlockSize();
@@ -186,12 +201,22 @@ void OnTransferComplete(void * context)
 {
     ESP_LOGI(TAG, "OTA Image Transfer Complete");
     otaTransferInProgress = false;
+    if (otaImageFile)
+    {
+        fclose(otaImageFile);
+        otaImageFile = NULL;
+    }
 }
 
 void OnTransferFailed(void * context, BdxSenderErrorTypes status)
 {
     ESP_LOGI(TAG, "OTA Image Transfer Failed, status:%x", status);
     otaTransferInProgress = false;
+    if (otaImageFile)
+    {
+        fclose(otaImageFile);
+        otaImageFile = NULL;
+    }
 }
 
 extern "C" void app_main()
@@ -214,6 +239,16 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "device.Init() failed: %s", ErrorStr(error));
         return;
     }
+
+#if CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
+    SetCommissionableDataProvider(&sFactoryDataProvider);
+    SetDeviceAttestationCredentialsProvider(&sFactoryDataProvider);
+#if CONFIG_ENABLE_ESP32_DEVICE_INSTANCE_INFO_PROVIDER
+    SetDeviceInstanceInfoProvider(&sFactoryDataProvider);
+#endif
+#else
+    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+#endif // CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER
 
     chip::DeviceLayer::PlatformMgr().ScheduleWork(InitServer, reinterpret_cast<intptr_t>(nullptr));
 }

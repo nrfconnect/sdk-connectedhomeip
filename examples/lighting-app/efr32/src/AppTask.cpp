@@ -23,7 +23,9 @@
 #include "LEDWidget.h"
 #ifdef DISPLAY_ENABLED
 #include "lcd.h"
+#ifdef QR_CODE_ENABLED
 #include "qrcodegen.h"
+#endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
 #include "sl_simple_led_instances.h"
 #include <app-common/zap-generated/attribute-id.h>
@@ -36,9 +38,6 @@
 #include <app/util/attribute-storage.h>
 
 #include <assert.h>
-
-#include <credentials/DeviceAttestationCredsProvider.h>
-#include <credentials/examples/DeviceAttestationCredsExample.h>
 
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
@@ -158,56 +157,9 @@ Identify gIdentify = {
     OnTriggerIdentifyEffect,
 };
 
-/**********************************************************
- * OffWithEffect Callbacks
- *********************************************************/
-
-void OnTriggerOffWithEffect(OnOffEffect * effect)
-{
-    chip::app::Clusters::OnOff::OnOffEffectIdentifier effectId = effect->mEffectIdentifier;
-    uint8_t effectVariant                                      = effect->mEffectVariant;
-
-    // Uses print outs until we can support the effects
-    if (effectId == EMBER_ZCL_ON_OFF_EFFECT_IDENTIFIER_DELAYED_ALL_OFF)
-    {
-        if (effectVariant == EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_FADE_TO_OFF_IN_0P8_SECONDS)
-        {
-            ChipLogProgress(Zcl, "EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_FADE_TO_OFF_IN_0P8_SECONDS");
-        }
-        else if (effectVariant == EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_NO_FADE)
-        {
-            ChipLogProgress(Zcl, "EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_NO_FADE");
-        }
-        else if (effectVariant ==
-                 EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_50_PERCENT_DIM_DOWN_IN_0P8_SECONDS_THEN_FADE_TO_OFF_IN_12_SECONDS)
-        {
-            ChipLogProgress(Zcl,
-                            "EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_50_PERCENT_DIM_DOWN_IN_0P8_SECONDS_THEN_FADE_TO_OFF_"
-                            "IN_12_SECONDS");
-        }
-    }
-    else if (effectId == EMBER_ZCL_ON_OFF_EFFECT_IDENTIFIER_DYING_LIGHT)
-    {
-        if (effectVariant ==
-            EMBER_ZCL_ON_OFF_DYING_LIGHT_EFFECT_VARIANT_20_PERCENTER_DIM_UP_IN_0P5_SECONDS_THEN_FADE_TO_OFF_IN_1_SECOND)
-        {
-            ChipLogProgress(
-                Zcl, "EMBER_ZCL_ON_OFF_DYING_LIGHT_EFFECT_VARIANT_20_PERCENTER_DIM_UP_IN_0P5_SECONDS_THEN_FADE_TO_OFF_IN_1_SECOND");
-        }
-    }
-}
-
-OnOffEffect gEffect = {
-    chip::EndpointId{ 1 },
-    OnTriggerOffWithEffect,
-    EMBER_ZCL_ON_OFF_EFFECT_IDENTIFIER_DELAYED_ALL_OFF,
-    static_cast<uint8_t>(EMBER_ZCL_ON_OFF_DELAYED_ALL_OFF_EFFECT_VARIANT_FADE_TO_OFF_IN_0P8_SECONDS),
-};
-
 } // namespace
 
 using namespace chip::TLV;
-using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
 
 AppTask AppTask::sAppTask;
@@ -245,11 +197,6 @@ CHIP_ERROR AppTask::Init()
     sWiFiNetworkCommissioningInstance.Init();
 #endif
 
-    chip::DeviceLayer::PlatformMgr().LockChipStack();
-    // Initialize device attestation config
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
-
     // Create FreeRTOS sw timer for Function Selection.
     sFunctionTimer = xTimerCreate("FnTmr",          // Just a text name, not used by the RTOS kernel
                                   1,                // == default timer period (mS)
@@ -282,12 +229,14 @@ CHIP_ERROR AppTask::Init()
     ConfigurationMgr().LogDeviceConfig();
 
 // Print setup info on LCD if available
-#ifdef DISPLAY_ENABLED
-    std::string QRCode;
+#if QR_CODE_ENABLED
+    // Create buffer for QR code that can fit max size and null terminator.
+    char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    chip::MutableCharSpan QRCode(qrCodeBuffer);
 
     if (GetQRCode(QRCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)) == CHIP_NO_ERROR)
     {
-        LCDWriteQRCode((uint8_t *) QRCode.c_str());
+        LCDWriteQRCode((uint8_t *) QRCode.data());
     }
     else
     {
@@ -295,7 +244,7 @@ CHIP_ERROR AppTask::Init()
     }
 #else
     PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE));
-#endif
+#endif // QR_CODE_ENABLED
 
     return err;
 }

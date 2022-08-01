@@ -25,6 +25,8 @@
  */
 
 #include <credentials/CHIPCert.h>
+#include <credentials/examples/LastKnownGoodTimeCertificateValidityPolicyExample.h>
+#include <credentials/examples/StrictCertificateValidityPolicyExample.h>
 #include <crypto/CHIPCryptoPAL.h>
 #include <lib/core/CHIPTLV.h>
 #include <lib/core/PeerId.h>
@@ -35,6 +37,7 @@
 
 #include <nlunit-test.h>
 
+#include "CHIPCert_error_test_vectors.h"
 #include "CHIPCert_test_vectors.h"
 
 using namespace chip;
@@ -48,9 +51,6 @@ enum
 {
     kStandardCertsCount = 3,
 };
-
-static const BitFlags<CertValidateFlags> sIgnoreNotBeforeFlag(CertValidateFlags::kIgnoreNotBefore);
-static const BitFlags<CertValidateFlags> sIgnoreNotAfterFlag(CertValidateFlags::kIgnoreNotAfter);
 
 static const BitFlags<CertDecodeFlags> sNullDecodeFlag;
 static const BitFlags<CertDecodeFlags> sGenTBSHashFlag(CertDecodeFlags::kGenerateTBSHash);
@@ -119,19 +119,39 @@ exit:
     return err;
 }
 
-static CHIP_ERROR SetEffectiveTime(ValidationContext & validContext, uint16_t year, uint8_t mon, uint8_t day, uint8_t hour = 0,
-                                   uint8_t min = 0, uint8_t sec = 0)
+static CHIP_ERROR SetCurrentTime(ValidationContext & validContext, uint16_t year, uint8_t mon, uint8_t day, uint8_t hour = 0,
+                                 uint8_t min = 0, uint8_t sec = 0)
 {
-    ASN1UniversalTime effectiveTime;
+    ASN1UniversalTime currentTime;
 
-    effectiveTime.Year   = year;
-    effectiveTime.Month  = mon;
-    effectiveTime.Day    = day;
-    effectiveTime.Hour   = hour;
-    effectiveTime.Minute = min;
-    effectiveTime.Second = sec;
+    currentTime.Year   = year;
+    currentTime.Month  = mon;
+    currentTime.Day    = day;
+    currentTime.Hour   = hour;
+    currentTime.Minute = min;
+    currentTime.Second = sec;
 
-    return ASN1ToChipEpochTime(effectiveTime, validContext.mEffectiveTime);
+    return validContext.SetEffectiveTimeFromAsn1Time<CurrentChipEpochTime>(currentTime);
+}
+
+static CHIP_ERROR SetLastKnownGoodTime(ValidationContext & validContext, uint16_t year, uint8_t mon, uint8_t day, uint8_t hour = 0,
+                                       uint8_t min = 0, uint8_t sec = 0)
+{
+    ASN1UniversalTime lastKnownGoodTime;
+
+    lastKnownGoodTime.Year   = year;
+    lastKnownGoodTime.Month  = mon;
+    lastKnownGoodTime.Day    = day;
+    lastKnownGoodTime.Hour   = hour;
+    lastKnownGoodTime.Minute = min;
+    lastKnownGoodTime.Second = sec;
+
+    return validContext.SetEffectiveTimeFromAsn1Time<LastKnownGoodChipEpochTime>(lastKnownGoodTime);
+}
+
+static void ClearTimeSource(ValidationContext & validContext)
+{
+    validContext.mEffectiveTime = EffectiveTime{};
 }
 
 static void TestChipCert_ChipToX509(nlTestSuite * inSuite, void * inContext)
@@ -421,12 +441,11 @@ static void TestChipCert_CertValidation(nlTestSuite * inSuite, void * inContext)
 
         // Initialize the validation context.
         validContext.Reset();
-        err = SetEffectiveTime(validContext, 2021, 1, 1);
+        err = SetCurrentTime(validContext, 2021, 1, 1);
         NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
         validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
         validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
         validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
-        validContext.mValidateFlags.SetRaw(testCase.mValidateFlags);
         validContext.mRequiredCertType = testCase.mRequiredCertType;
 
         // Locate the subject DN and key id that will be used as input the FindValidCert() method.
@@ -469,63 +488,495 @@ static void TestChipCert_CertValidTime(nlTestSuite * inSuite, void * inContext)
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
 
-    // Before certificate validity period.
-    err = SetEffectiveTime(validContext, 2020, 1, 3);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    // TODO - enable check for certificate validity dates
-    // err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    // NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    Credentials::StrictCertificateValidityPolicyExample strictCertificateValidityPolicy;
+    Credentials::LastKnownGoodTimeCertificateValidityPolicyExample lastKnownGoodTimeValidityPolicy;
 
-    // 1 second before validity period.
-    err = SetEffectiveTime(validContext, 2020, 10, 15, 14, 23, 42);
+    // No time source available.
+    ClearTimeSource(validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    // TODO - enable check for certificate validity dates
-    // err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
-    // NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
-
-    // 1st second of validity period.
-    err = SetEffectiveTime(validContext, 2020, 10, 15, 14, 23, 43);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    // Validity period.
-    err = SetEffectiveTime(validContext, 2022, 02, 23, 12, 30, 01);
+    // Current time before certificate validity period.
+    err = SetCurrentTime(validContext, 2020, 1, 3);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+
+    // Current time 1 second before validity period.
+    err = SetCurrentTime(validContext, 2020, 10, 15, 14, 23, 42);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+
+    // Current time 1st second of validity period.
+    err = SetCurrentTime(validContext, 2020, 10, 15, 14, 23, 43);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    // Last second of validity period.
-    err = SetEffectiveTime(validContext, 2040, 10, 15, 14, 23, 42);
+    // Current time within validity period.
+    err = SetCurrentTime(validContext, 2022, 02, 23, 12, 30, 01);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    // 1 second after end of certificate validity period.
-    err = SetEffectiveTime(validContext, 2040, 10, 15, 14, 23, 43);
+    // Current time at last second of validity period.
+    err = SetCurrentTime(validContext, 2040, 10, 15, 14, 23, 42);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Current time at 1 second after end of certificate validity period.
+    err = SetCurrentTime(validContext, 2040, 10, 15, 14, 23, 43);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
 
-    // After end of certificate validity period.
-    err = SetEffectiveTime(validContext, 2042, 4, 25, 0, 0, 0);
+    // Current time after end of certificate validity period.
+    err = SetCurrentTime(validContext, 2042, 4, 25, 0, 0, 0);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
 
-    // Ignore 'not before' time.
-    validContext.mValidateFlags.Set(sIgnoreNotBeforeFlag);
-    err = SetEffectiveTime(validContext, 2020, 4, 23, 23, 59, 59);
+    // Last known good time before certificate validity period.
+    // We can't invalidate based on NotBefore with Last Known Good Time.
+    // Hence, we expect CHIP_NO_ERROR.
+    err = SetLastKnownGoodTime(validContext, 2020, 1, 3);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
-    // Ignore 'not after' time.
-    validContext.mValidateFlags.Set(sIgnoreNotAfterFlag);
-    err = SetEffectiveTime(validContext, 2042, 5, 25, 0, 0, 0);
+    // Last known good time 1 second before certificate validity period.
+    // We can't invalidate based on NotBefore with Last Known Good Time.
+    // Hence, we expect CHIP_NO_ERROR.
+    err = SetLastKnownGoodTime(validContext, 2020, 10, 15, 14, 23, 42);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    err = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
     NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Last Known Good Time 1st second of validity period.
+    err = SetLastKnownGoodTime(validContext, 2020, 10, 15, 14, 23, 43);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Last Known Good Time within validity period.
+    err = SetLastKnownGoodTime(validContext, 2022, 02, 23, 12, 30, 01);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Last Known Good Time at last second of validity period.
+    err = SetLastKnownGoodTime(validContext, 2040, 10, 15, 14, 23, 42);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Last Known Good Time at 1 second after end of certificate validity period.
+    err = SetLastKnownGoodTime(validContext, 2040, 10, 15, 14, 23, 43);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+
+    // Last Known Good Time after end of certificate validity period.
+    err = SetLastKnownGoodTime(validContext, 2042, 4, 25, 0, 0, 0);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictCertificateValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimeValidityPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+
+    certSet.Release();
+}
+
+static void TestChipCert_ValidateChipRCAC(nlTestSuite * inSuite, void * inContext)
+{
+    struct RCACTestCase
+    {
+        uint8_t Cert;
+        CHIP_ERROR mExpectedResult;
+    };
+
+    // clang-format off
+    static RCACTestCase sRCACTestCases[] = {
+        // Cert                    Expected Result
+        // ====================================================
+        {  TestCert::kRoot01,      CHIP_NO_ERROR              },
+        {  TestCert::kRoot02,      CHIP_NO_ERROR              },
+        {  TestCert::kICA01,       CHIP_ERROR_WRONG_CERT_TYPE },
+        {  TestCert::kICA02,       CHIP_ERROR_WRONG_CERT_TYPE },
+        {  TestCert::kICA01_1,     CHIP_ERROR_WRONG_CERT_TYPE },
+        {  TestCert::kFWSign01,    CHIP_ERROR_WRONG_CERT_TYPE },
+        {  TestCert::kNode01_01,   CHIP_ERROR_WRONG_CERT_TYPE },
+        {  TestCert::kNode02_08,   CHIP_ERROR_WRONG_CERT_TYPE },
+    };
+    // clang-format on
+
+    for (auto & testCase : sRCACTestCases)
+    {
+        ByteSpan cert;
+        NL_TEST_ASSERT(inSuite, GetTestCert(testCase.Cert, sNullLoadFlag, cert) == CHIP_NO_ERROR);
+        NL_TEST_ASSERT(inSuite, ValidateChipRCAC(cert) == testCase.mExpectedResult);
+    }
+}
+
+class AlwaysAcceptValidityPolicy : public CertificateValidityPolicy
+{
+public:
+    ~AlwaysAcceptValidityPolicy() {}
+
+    CHIP_ERROR ApplyCertificateValidityPolicy(const ChipCertificateData * cert, uint8_t depth,
+                                              CertificateValidityResult result) override
+    {
+        return CHIP_NO_ERROR;
+    }
+};
+
+class AlwaysRejectValidityPolicy : public CertificateValidityPolicy
+{
+public:
+    ~AlwaysRejectValidityPolicy() {}
+
+    CHIP_ERROR ApplyCertificateValidityPolicy(const ChipCertificateData * cert, uint8_t depth,
+                                              CertificateValidityResult result) override
+    {
+        return CHIP_ERROR_CERT_EXPIRED;
+    }
+};
+
+static void TestChipCert_CertValidityPolicyInjection(nlTestSuite * inSuite, void * inContext)
+{
+    CHIP_ERROR err;
+    ChipCertificateSet certSet;
+    ValidationContext validContext;
+    StrictCertificateValidityPolicyExample strictPolicy;
+    LastKnownGoodTimeCertificateValidityPolicyExample lastKnownGoodTimePolicy;
+    AlwaysAcceptValidityPolicy alwaysAcceptPolicy;
+    AlwaysRejectValidityPolicy alwaysRejectPolicy;
+
+    err = certSet.Init(kStandardCertsCount);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    err = LoadTestCertSet01(certSet);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    validContext.Reset();
+    validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
+    validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
+    validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
+
+    // Current time unknown.
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+
+    // Curent time before certificate validity period.
+    err = SetCurrentTime(validContext, 2020, 1, 3);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_NOT_VALID_YET);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+
+    // Last known good time before certificate validity period.
+    err = SetLastKnownGoodTime(validContext, 2020, 1, 3);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+
+    // Current time during validity period
+    err = SetCurrentTime(validContext, 2022, 02, 23, 12, 30, 01);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+
+    // Last Known Good Time during validity period
+    err = SetLastKnownGoodTime(validContext, 2022, 02, 23, 12, 30, 01);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+
+    // Current time after end of certificate validity period.
+    err = SetCurrentTime(validContext, 2042, 4, 25, 0, 0, 0);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+
+    // Last Known Good Time after end of certificate validity period.
+    err = SetLastKnownGoodTime(validContext, 2042, 4, 25, 0, 0, 0);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+
+    // Default policy
+    validContext.mValidityPolicy = nullptr;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Strict policy
+    validContext.mValidityPolicy = &strictPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Last Known Good Time policy
+    validContext.mValidityPolicy = &lastKnownGoodTimePolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_CERT_EXPIRED);
+    // Always accept policy
+    validContext.mValidityPolicy = &alwaysAcceptPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Always reject policy
+    validContext.mValidityPolicy = &alwaysRejectPolicy;
+    err                          = certSet.ValidateCert(certSet.GetLastCert(), validContext);
+    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
 
     certSet.Release();
 }
@@ -632,7 +1083,7 @@ static void TestChipCert_CertUsage(nlTestSuite * inSuite, void * inContext)
         validContext.mRequiredKeyUsages   = sUsageTestCases[i].mRequiredKeyUsages;
         validContext.mRequiredKeyPurposes = sUsageTestCases[i].mRequiredKeyPurposes;
 
-        err = SetEffectiveTime(validContext, 2020, 10, 16);
+        err = SetCurrentTime(validContext, 2020, 10, 16);
         NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
 
         err = certSet.ValidateCert(&certSet.GetCertSet()[sUsageTestCases[i].mCertIndex], validContext);
@@ -1064,7 +1515,7 @@ static void TestChipCert_VerifyGeneratedCerts(nlTestSuite * inSuite, void * inCo
     ValidationContext validContext;
 
     validContext.Reset();
-    NL_TEST_ASSERT(inSuite, SetEffectiveTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, SetCurrentTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
     validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
@@ -1130,7 +1581,7 @@ static void TestChipCert_VerifyGeneratedCertsNoICA(nlTestSuite * inSuite, void *
     ValidationContext validContext;
 
     validContext.Reset();
-    NL_TEST_ASSERT(inSuite, SetEffectiveTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, SetCurrentTime(validContext, 2022, 1, 1) == CHIP_NO_ERROR);
     validContext.mRequiredKeyUsages.Set(KeyUsageFlags::kDigitalSignature);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kServerAuth);
     validContext.mRequiredKeyPurposes.Set(KeyPurposeFlags::kClientAuth);
@@ -1315,7 +1766,7 @@ static void TestChipCert_ExtractOperationalDiscoveryId(nlTestSuite * inSuite, vo
     }
 }
 
-static void TestChipCert_ExtractCATsFromOpCert(nlTestSuite * inSuite, void * inContext)
+static void TestChipCert_ExtractAndValidateCATsFromOpCert(nlTestSuite * inSuite, void * inContext)
 {
     struct TestCase
     {
@@ -1384,6 +1835,20 @@ static void TestChipCert_ExtractCATsFromOpCert(nlTestSuite * inSuite, void * inC
         NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
 
         certSet.Release();
+    }
+
+    // Error case: NOC with invalid CAT version.
+    {
+        CATValues cats;
+        CHIP_ERROR err = ExtractCATsFromOpCert(kTestErrorCert_NOC_0001_InvCATVerZero_Cert, cats);
+        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_INVALID_ARGUMENT);
+    }
+
+    // Error case: NOC with multiple versions of the same CAT tag.
+    {
+        CATValues cats;
+        CHIP_ERROR err = ExtractCATsFromOpCert(kTestErrorCert_NOC_0002_InvCATMulVers_Cert, cats);
+        NL_TEST_ASSERT(inSuite, err == CHIP_ERROR_WRONG_CERT_DN);
     }
 }
 
@@ -1542,6 +2007,8 @@ static const nlTest sTests[] = {
     NL_TEST_DEF("Test CHIP Certificate Distinguish Name", TestChipCert_ChipDN),
     NL_TEST_DEF("Test CHIP Certificate Validation", TestChipCert_CertValidation),
     NL_TEST_DEF("Test CHIP Certificate Validation time", TestChipCert_CertValidTime),
+    NL_TEST_DEF("Test CHIP Root Certificate Validation", TestChipCert_ValidateChipRCAC),
+    NL_TEST_DEF("Test CHIP Certificate Validity Policy injection", TestChipCert_CertValidityPolicyInjection),
     NL_TEST_DEF("Test CHIP Certificate Usage", TestChipCert_CertUsage),
     NL_TEST_DEF("Test CHIP Certificate Type", TestChipCert_CertType),
     NL_TEST_DEF("Test CHIP Certificate ID", TestChipCert_CertId),
@@ -1555,7 +2022,7 @@ static const nlTest sTests[] = {
     NL_TEST_DEF("Test CHIP Verify Generated Cert Chain No ICA", TestChipCert_VerifyGeneratedCertsNoICA),
     NL_TEST_DEF("Test extracting Node ID and Fabric ID from node certificate", TestChipCert_ExtractNodeIdFabricId),
     NL_TEST_DEF("Test extracting Operational Discovery ID from node and root certificate", TestChipCert_ExtractOperationalDiscoveryId),
-    NL_TEST_DEF("Test extracting CASE Authenticated Tags from node certificate", TestChipCert_ExtractCATsFromOpCert),
+    NL_TEST_DEF("Test extracting and validating CASE Authenticated Tags from NOC", TestChipCert_ExtractAndValidateCATsFromOpCert),
     NL_TEST_DEF("Test extracting Subject DN from chip certificate", TestChipCert_ExtractSubjectDNFromChipCert),
     NL_TEST_DEF("Test extracting PublicKey and SKID from chip certificate", TestChipCert_ExtractPublicKeyAndSKID),
     NL_TEST_SENTINEL()

@@ -17,6 +17,8 @@
  */
 
 #include "DeviceWithDisplay.h"
+#include <app-common/zap-generated/cluster-enums.h>
+#include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #if CONFIG_HAVE_DISPLAY
 using namespace ::chip;
@@ -133,6 +135,39 @@ public:
         return i == 0 ? "+" : "-";
     }
 
+    // We support system modes - Off, Auto, Heat and Cool currently. This API returns true for all these modes,
+    // false otherwise.
+    bool isValidThermostatSystemMode(uint8_t systemMode)
+    {
+        chip::app::Clusters::Thermostat::ThermostatSystemMode mode =
+            static_cast<chip::app::Clusters::Thermostat::ThermostatSystemMode>(systemMode);
+        switch (mode)
+        {
+        case chip::app::Clusters::Thermostat::ThermostatSystemMode::kOff:
+        case chip::app::Clusters::Thermostat::ThermostatSystemMode::kAuto:
+        case chip::app::Clusters::Thermostat::ThermostatSystemMode::kCool:
+        case chip::app::Clusters::Thermostat::ThermostatSystemMode::kHeat:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool isValidThermostatRunningMode(uint8_t runningMode)
+    {
+        chip::app::Clusters::Thermostat::ThermostatRunningMode mode =
+            static_cast<chip::app::Clusters::Thermostat::ThermostatRunningMode>(runningMode);
+        switch (mode)
+        {
+        case chip::app::Clusters::Thermostat::ThermostatRunningMode::kOff:
+        case chip::app::Clusters::Thermostat::ThermostatRunningMode::kCool:
+        case chip::app::Clusters::Thermostat::ThermostatRunningMode::kHeat:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     void DoAction(int i) override
     {
         auto & attribute = this->attribute();
@@ -181,20 +216,74 @@ public:
                 ESP_LOGI(TAG, "Humidity changed to : %d", n);
                 app::Clusters::RelativeHumidityMeasurement::Attributes::MeasuredValue::Set(1, static_cast<int16_t>(n * 100));
             }
-            else if (name == "OccupiedCoolingSetpoint")
+            else if (name == "CoolSetpoint")
             {
-                ESP_LOGI(TAG, "OccupiedCoolingSetpoint changed to : %d", n);
+                // update the occupied cooling setpoint for hardcoded endpoint 1
+                ESP_LOGI(TAG, "Occupied Cooling Setpoint changed to : %d", n);
                 app::Clusters::Thermostat::Attributes::OccupiedCoolingSetpoint::Set(1, static_cast<int16_t>(n * 100));
             }
-            else if (name == "OccupiedHeatingSetpoint")
+            else if (name == "HeatSetpoint")
             {
-                ESP_LOGI(TAG, "OccupiedHeatingSetpoint changed to : %d", n);
+                // update the occupied heating setpoint for hardcoded endpoint 1
+                ESP_LOGI(TAG, "Occupied Heating Setpoint changed to : %d", n);
                 app::Clusters::Thermostat::Attributes::OccupiedHeatingSetpoint::Set(1, static_cast<int16_t>(n * 100));
             }
             else if (name == "SystemMode")
             {
-                ESP_LOGI(TAG, "SystemMode changed to : %d", n);
-                app::Clusters::Thermostat::Attributes::OccupiedHeatingSetpoint::Set(1, n);
+                // System modes - Off, Auto, Cool and Heat are currently supported.
+                uint8_t mode = n;
+                // Update the system mode here for hardcoded endpoint 1
+                if (isValidThermostatSystemMode(mode))
+                {
+                    ESP_LOGI(TAG, "System Mode changed to : %d", mode);
+                    app::Clusters::Thermostat::Attributes::SystemMode::Set(1, static_cast<uint8_t>(mode));
+                    // If system mode is auto set running mode to off otherwise set it to what the system mode is set to
+                    if (mode == static_cast<uint8_t>(chip::app::Clusters::Thermostat::ThermostatSystemMode::kAuto))
+                    {
+                        app::Clusters::Thermostat::Attributes::ThermostatRunningMode::Set(
+                            1, static_cast<uint8_t>(chip::app::Clusters::Thermostat::ThermostatRunningMode::kOff));
+                    }
+                    else
+                    {
+                        if (isValidThermostatRunningMode(mode))
+                        {
+                            ESP_LOGI(TAG, "Running Mode changed to : %d", mode);
+                            app::Clusters::Thermostat::Attributes::ThermostatRunningMode::Set(1, static_cast<uint8_t>(mode));
+                        }
+                        else
+                        {
+                            ESP_LOGI(TAG, "Running Mode %d is not valid", mode);
+                        }
+                    }
+                }
+                else
+                {
+                    ESP_LOGI(TAG, "System Mode %d is not valid", mode);
+                }
+            }
+            else if (name == "RunningMode")
+            {
+                // Get the system mode
+                uint8_t systemMode = static_cast<uint8_t>(chip::app::Clusters::Thermostat::ThermostatRunningMode::kOff);
+                app::Clusters::Thermostat::Attributes::SystemMode::Get(1, static_cast<uint8_t *>(&systemMode));
+                if (systemMode != static_cast<uint8_t>(chip::app::Clusters::Thermostat::ThermostatSystemMode::kAuto))
+                {
+                    ESP_LOGI(TAG, "Running mode can be changed only for system mode auto. Current system mode %d", systemMode);
+                }
+                else
+                {
+                    uint8_t mode = n;
+                    // update the running mode here for hardcoded endpoint 1
+                    if (isValidThermostatRunningMode(mode))
+                    {
+                        ESP_LOGI(TAG, "Running Mode changed to : %d", mode);
+                        app::Clusters::Thermostat::Attributes::ThermostatRunningMode::Set(1, static_cast<uint8_t>(mode));
+                    }
+                    else
+                    {
+                        ESP_LOGI(TAG, "Running Mode %d is not valid", mode);
+                    }
+                }
             }
             else if (name == "Current Lift")
             {
@@ -212,13 +301,15 @@ public:
             {
                 // update the operational status here for hardcoded endpoint 1
                 ESP_LOGI(TAG, "Operational status changed to : %d", n);
-                app::Clusters::WindowCovering::Attributes::OperationalStatus::Set(1, static_cast<uint8_t>(n));
+                chip::BitFlags<app::Clusters::WindowCovering::OperationalStatus> opStatus =
+                    static_cast<chip::BitFlags<app::Clusters::WindowCovering::OperationalStatus>>(n);
+                app::Clusters::WindowCovering::Attributes::OperationalStatus::Set(1, opStatus);
             }
             else if (name == "Bat remaining")
             {
                 // update the battery percent remaining here for hardcoded endpoint 1
                 ESP_LOGI(TAG, "Battery percent remaining changed to : %d", n);
-                app::Clusters::PowerSource::Attributes::BatteryPercentRemaining::Set(1, static_cast<uint8_t>(n * 2));
+                app::Clusters::PowerSource::Attributes::BatPercentRemaining::Set(1, static_cast<uint8_t>(n * 2));
             }
             value = buffer;
         }
@@ -282,7 +373,7 @@ public:
 
                 // update the battery charge level here for hardcoded endpoint 1
                 ESP_LOGI(TAG, "Battery charge level changed to : %u", static_cast<uint8_t>(attributeValue));
-                app::Clusters::PowerSource::Attributes::BatteryChargeLevel::Set(1, static_cast<uint8_t>(attributeValue));
+                app::Clusters::PowerSource::Attributes::BatChargeLevel::Set(1, attributeValue);
             }
             else
             {
@@ -542,11 +633,15 @@ void SetupPretendDevices()
     app::Clusters::TemperatureMeasurement::Attributes::MeasuredValue::Set(1, static_cast<int16_t>(21 * 100));
     app::Clusters::Thermostat::Attributes::LocalTemperature::Set(1, static_cast<int16_t>(21 * 100));
     AddAttribute("SystemMode", "4");
-    app::Clusters::Thermostat::Attributes::SystemMode::Set(1, 4);
-    AddAttribute("OccupiedCoolingSetpoint", "19");
+    app::Clusters::Thermostat::Attributes::SystemMode::Set(
+        1, static_cast<uint8_t>(chip::app::Clusters::Thermostat::ThermostatSystemMode::kHeat));
+    AddAttribute("CoolSetpoint", "19");
     app::Clusters::Thermostat::Attributes::OccupiedCoolingSetpoint::Set(1, static_cast<int16_t>(19 * 100));
-    AddAttribute("OccupiedHeatingSetpoint", "25");
+    AddAttribute("HeatSetpoint", "25");
     app::Clusters::Thermostat::Attributes::OccupiedHeatingSetpoint::Set(1, static_cast<int16_t>(25 * 100));
+    AddAttribute("RunningMode", "4");
+    app::Clusters::Thermostat::Attributes::ThermostatRunningMode::Set(
+        1, static_cast<uint8_t>(chip::app::Clusters::Thermostat::ThermostatRunningMode::kHeat));
 
     AddDevice("Humidity Sensor");
     AddEndpoint("External");
@@ -583,15 +678,17 @@ void SetupPretendDevices()
     AddAttribute("Current Tilt", "5");
     app::Clusters::WindowCovering::Attributes::CurrentPositionTiltPercent100ths::Set(1, static_cast<uint16_t>(5 * 100));
     AddAttribute("Opr Status", "0");
-    app::Clusters::WindowCovering::Attributes::OperationalStatus::Set(1, static_cast<uint8_t>(0));
+    chip::BitFlags<app::Clusters::WindowCovering::OperationalStatus> opStatus =
+        static_cast<chip::BitFlags<app::Clusters::WindowCovering::OperationalStatus>>(0);
+    app::Clusters::WindowCovering::Attributes::OperationalStatus::Set(1, opStatus);
 
     AddDevice("Battery");
     AddEndpoint("1");
     AddCluster("Power Source");
     AddAttribute("Bat remaining", "70");
-    app::Clusters::PowerSource::Attributes::BatteryPercentRemaining::Set(1, static_cast<uint8_t>(70 * 2));
+    app::Clusters::PowerSource::Attributes::BatPercentRemaining::Set(1, static_cast<uint8_t>(70 * 2));
     AddAttribute("Charge level", "0");
-    app::Clusters::PowerSource::Attributes::BatteryChargeLevel::Set(1, static_cast<uint8_t>(0));
+    app::Clusters::PowerSource::Attributes::BatChargeLevel::Set(1, app::Clusters::PowerSource::BatChargeLevel::kOk);
 }
 
 esp_err_t InitM5Stack(std::string qrCodeText)
@@ -651,8 +748,11 @@ esp_err_t InitM5Stack(std::string qrCodeText)
 
 void InitDeviceDisplay()
 {
-    std::string qrCodeText;
+    // Create buffer for QR code that can fit max size and null terminator.
+    char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    chip::MutableCharSpan qrCodeText(qrCodeBuffer);
 
+    // Get QR Code and emulate its content using NFC tag
     GetQRCode(qrCodeText, chip::RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE));
 
     // Initialize the display device.
@@ -681,12 +781,12 @@ void InitDeviceDisplay()
 
 #if CONFIG_DEVICE_TYPE_M5STACK
 
-    InitM5Stack(qrCodeText);
+    InitM5Stack(qrCodeText.data());
 
 #elif CONFIG_DEVICE_TYPE_ESP32_WROVER_KIT
 
     // Display the QR Code
-    QRCodeScreen qrCodeScreen(qrCodeText);
+    QRCodeScreen qrCodeScreen(qrCodeText.data());
     qrCodeScreen.Display();
 
 #endif

@@ -27,6 +27,7 @@
 #include <app/data-model/DecodableList.h>
 #include <app/data-model/Decode.h>
 #include <app/tests/AppTestContext.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <nlunit-test.h>
 #include <string.h>
@@ -176,9 +177,6 @@ private:
 
 void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallbackValidator)
 {
-    System::PacketBufferHandle handle;
-    System::PacketBufferTLVWriter writer;
-    System::PacketBufferTLVReader reader;
     ReadClient::Callback * callback = mReadCallback;
     StatusIB status;
     callback->OnReportBegin();
@@ -187,8 +185,10 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
     for (auto & instruction : mInstructionList)
     {
         ConcreteDataAttributePath path(instruction.mEndpointId, Clusters::TestCluster::Id, 0);
-        handle = System::PacketBufferHandle::New(1000);
-        writer.Init(std::move(handle), true);
+        Platform::ScopedMemoryBufferWithSize<uint8_t> handle;
+        handle.Calloc(3000);
+        TLV::ScopedBufferTLVWriter writer(std::move(handle), 3000);
+
         status            = StatusIB();
         path.mAttributeId = instruction.GetAttributeId();
         path.mDataVersion.SetValue(1);
@@ -231,11 +231,12 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
             case AttributeInstruction::kAttributeD: {
                 ChipLogProgress(DataManagement, "\t -- Generating D");
 
-                Clusters::TestCluster::Structs::TestListStructOctet::Type buf[4];
+                // buf[200] is 1.6k
+                Clusters::TestCluster::Structs::TestListStructOctet::Type buf[200];
 
                 for (auto & i : buf)
                 {
-                    i.fabricIndex = instruction.mInstructionId;
+                    i.member1 = instruction.mInstructionId;
                 }
 
                 Clusters::TestCluster::Attributes::ListStructOctetString::TypeInfo::Type value;
@@ -250,8 +251,10 @@ void DataSeriesGenerator::Generate(ForwardedDataCallbackValidator & dataCallback
                 break;
             }
 
-            writer.Finalize(&handle);
-            reader.Init(std::move(handle));
+            uint32_t writtenLength = writer.GetLengthWritten();
+            writer.Finalize(handle);
+            TLV::ScopedBufferTLVReader reader;
+            reader.Init(std::move(handle), writtenLength);
             NL_TEST_ASSERT(gSuite, reader.Next() == CHIP_NO_ERROR);
             dataCallbackValidator.SetExpectation(reader, instruction.mEndpointId, instruction.mAttributeType);
             callback->OnAttributeData(path, &reader, status);
@@ -278,7 +281,7 @@ public:
     Clusters::TestCluster::Attributes::TypeInfo::DecodableType clusterValue;
 
 private:
-    void OnDone() override {}
+    void OnDone(ReadClient *) override {}
     void OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus) override
     {
         ChipLogProgress(DataManagement, "\t\t -- Validating OnAttributeData callback");
@@ -382,7 +385,7 @@ private:
                 auto listIter = v.begin();
                 while (listIter.Next())
                 {
-                    NL_TEST_ASSERT(gSuite, listIter.GetValue().fabricIndex == instruction.mInstructionId);
+                    NL_TEST_ASSERT(gSuite, listIter.GetValue().member1 == instruction.mInstructionId);
                 }
 
                 NL_TEST_ASSERT(gSuite, listIter.GetStatus() == CHIP_NO_ERROR);
@@ -436,7 +439,7 @@ private:
                 auto listIter = clusterValue.listStructOctetString.begin();
                 while (listIter.Next())
                 {
-                    NL_TEST_ASSERT(gSuite, listIter.GetValue().fabricIndex == instruction.mInstructionId);
+                    NL_TEST_ASSERT(gSuite, listIter.GetValue().member1 == instruction.mInstructionId);
                 }
 
                 NL_TEST_ASSERT(gSuite, listIter.GetStatus() == CHIP_NO_ERROR);
@@ -634,10 +637,8 @@ nlTestSuite theSuite =
 
 int TestClusterStateCache()
 {
-    TestContext gContext;
     gSuite = &theSuite;
-    nlTestRunner(&theSuite, &gContext);
-    return (nlTestRunnerStats(&theSuite));
+    return chip::ExecuteTestsWithContext<TestContext>(&theSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestClusterStateCache)

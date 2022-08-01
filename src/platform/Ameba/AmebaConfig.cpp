@@ -42,20 +42,25 @@ namespace Internal {
 // *** CAUTION ***: Changing the names or namespaces of these values will *break* existing devices.
 
 // NVS namespaces used to store device configuration information.
-const char AmebaConfig::kConfigNamespace_ChipFactory[]      = "chip-factory";
-const char AmebaConfig::kConfigNamespace_ChipConfig[]       = "chip-config";
-const char AmebaConfig::kConfigNamespace_ChipCounters[]     = "chip-counters";
-const char AmebaConfig::kConfigNamespace_ChipFabric1[]      = "chip-fabric-1";
-const char AmebaConfig::kConfigNamespace_ChipFabric2[]      = "chip-fabric-2";
-const char AmebaConfig::kConfigNamespace_ChipFabric3[]      = "chip-fabric-3";
-const char AmebaConfig::kConfigNamespace_ChipFabric4[]      = "chip-fabric-4";
-const char AmebaConfig::kConfigNamespace_ChipFabric5[]      = "chip-fabric-5";
-const char AmebaConfig::kConfigNamespace_ChipACL[]          = "chip-acl";
-const char AmebaConfig::kConfigNamespace_ChipAttributes[]   = "chip-attributes";
-const char AmebaConfig::kConfigNamespace_ChipBindingTable[] = "chip-bindingtable";
-const char AmebaConfig::kConfigNamespace_ChipOTA[]          = "chip-ota";
-const char AmebaConfig::kConfigNamespace_ChipDNS[]          = "chip-dns";
-const char AmebaConfig::kConfigNamespace_ChipOthers[]       = "chip-others";
+const char AmebaConfig::kConfigNamespace_ChipFactory[]              = "chip-factory";
+const char AmebaConfig::kConfigNamespace_ChipConfig[]               = "chip-config";
+const char AmebaConfig::kConfigNamespace_ChipCounters[]             = "chip-counters";
+const char AmebaConfig::kConfigNamespace_ChipFabric1[]              = "chip-fabric-1";
+const char AmebaConfig::kConfigNamespace_ChipFabric2[]              = "chip-fabric-2";
+const char AmebaConfig::kConfigNamespace_ChipFabric3[]              = "chip-fabric-3";
+const char AmebaConfig::kConfigNamespace_ChipFabric4[]              = "chip-fabric-4";
+const char AmebaConfig::kConfigNamespace_ChipFabric5[]              = "chip-fabric-5";
+const char AmebaConfig::kConfigNamespace_ChipACL[]                  = "chip-acl";
+const char AmebaConfig::kConfigNamespace_ChipGroupMessageCounters[] = "chip-groupmsgcounters";
+const char AmebaConfig::kConfigNamespace_ChipAttributes[]           = "chip-attributes";
+const char AmebaConfig::kConfigNamespace_ChipBindingTable[]         = "chip-bindingtable";
+const char AmebaConfig::kConfigNamespace_ChipOTA[]                  = "chip-ota";
+const char AmebaConfig::kConfigNamespace_ChipFailSafe[]             = "chip-failsafe";
+const char AmebaConfig::kConfigNamespace_ChipSessionResumption[]    = "chip-sessionresumption";
+const char AmebaConfig::kConfigNamespace_ChipDeviceInfoProvider[]   = "chip-deviceinfoprovider";
+const char AmebaConfig::kConfigNamespace_ChipGroupDataProvider[]    = "chip-groupdataprovider";
+const char AmebaConfig::kConfigNamespace_ChipOthers[]               = "chip-others";
+const char AmebaConfig::kConfigNamespace_ChipOthers2[]              = "chip-others2";
 
 // Keys stored in the chip-factory namespace
 const AmebaConfig::Key AmebaConfig::kConfigKey_SerialNum             = { kConfigNamespace_ChipFactory, "serial-num" };
@@ -98,12 +103,12 @@ CHIP_ERROR AmebaConfig::ReadConfigValue(Key key, bool & val)
     int32_t success = 0;
 
     success = getPref_bool_new(key.Namespace, key.Name, &intVal);
-    if (!success)
+    if (success != 0)
         ChipLogProgress(DeviceLayer, "getPref_bool_new: %s/%s failed\n", key.Namespace, key.Name);
 
     val = (intVal != 0);
 
-    if (success == 1)
+    if (success == 0)
         return CHIP_NO_ERROR;
     else
         return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
@@ -114,10 +119,10 @@ CHIP_ERROR AmebaConfig::ReadConfigValue(Key key, uint32_t & val)
     int32_t success = 0;
 
     success = getPref_u32_new(key.Namespace, key.Name, &val);
-    if (!success)
+    if (success != 0)
         ChipLogProgress(DeviceLayer, "getPref_u32_new: %s/%s failed\n", key.Namespace, key.Name);
 
-    if (success == 1)
+    if (success == 0)
         return CHIP_NO_ERROR;
     else
         return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
@@ -128,10 +133,10 @@ CHIP_ERROR AmebaConfig::ReadConfigValue(Key key, uint64_t & val)
     int32_t success = 0;
 
     success = getPref_u64_new(key.Namespace, key.Name, &val);
-    if (!success)
+    if (success != 0)
         ChipLogProgress(DeviceLayer, "getPref_u32_new: %s/%s failed\n", key.Namespace, key.Name);
 
-    if (success == 1)
+    if (success == 0)
         return CHIP_NO_ERROR;
     else
         return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
@@ -142,10 +147,10 @@ CHIP_ERROR AmebaConfig::ReadConfigValueStr(Key key, char * buf, size_t bufSize, 
     int32_t success = 0;
 
     success = getPref_str_new(key.Namespace, key.Name, buf, bufSize, &outLen);
-    if (!success)
+    if (success != 0)
         ChipLogProgress(DeviceLayer, "getPref_str_new: %s/%s failed\n", key.Namespace, key.Name);
 
-    if (success == 1)
+    if (success == 0)
     {
         return CHIP_NO_ERROR;
     }
@@ -161,10 +166,10 @@ CHIP_ERROR AmebaConfig::ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSiz
     int32_t success = 0;
 
     success = getPref_bin_new(key.Namespace, key.Name, buf, bufSize, &outLen);
-    if (!success)
+    if (success != 0)
         ChipLogProgress(DeviceLayer, "getPref_bin_new: %s/%s failed\n", key.Namespace, key.Name);
 
-    if (success == 1)
+    if (success == 0)
     {
         return CHIP_NO_ERROR;
     }

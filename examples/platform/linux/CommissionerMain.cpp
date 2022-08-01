@@ -42,6 +42,7 @@
 #include <setup_payload/SetupPayload.h>
 
 #include <platform/CommissionableDataProvider.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 #include <platform/DiagnosticDataProvider.h>
 #include <platform/TestOnlyCommissionableDataProvider.h>
 
@@ -116,6 +117,7 @@ MyServerStorageDelegate gServerStorage;
 ExampleOperationalCredentialsIssuer gOpCredsIssuer;
 NodeId gLocalId = kMaxOperationalNodeId;
 Credentials::GroupDataProviderImpl gGroupDataProvider;
+AutoCommissioner gAutoCommissioner;
 
 CHIP_ERROR InitCommissioner(uint16_t commissionerPort, uint16_t udcListenPort)
 {
@@ -132,10 +134,15 @@ CHIP_ERROR InitCommissioner(uint16_t commissionerPort, uint16_t udcListenPort)
     factoryParams.groupDataProvider = &gGroupDataProvider;
 
     params.operationalCredentialsDelegate = &gOpCredsIssuer;
+    uint16_t vendorId;
+    DeviceLayer::GetDeviceInstanceInfoProvider()->GetVendorId(vendorId);
+    ChipLogProgress(Support, " ----- Commissioner using vendorId 0x%04X", vendorId);
+    params.controllerVendorId = static_cast<VendorId>(vendorId);
 
     ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gServerStorage));
 
     // No need to explicitly set the UDC port since we will use default
+    ChipLogProgress(Support, " ----- UDC listening on port %d", udcListenPort);
     ReturnErrorOnFailure(gCommissioner.SetUdcListenPort(udcListenPort));
 
     // Initialize device attestation verifier
@@ -166,25 +173,27 @@ CHIP_ERROR InitCommissioner(uint16_t commissionerPort, uint16_t udcListenPort)
     params.controllerICAC     = icacSpan;
     params.controllerNOC      = nocSpan;
 
+    params.defaultCommissioner = &gAutoCommissioner;
+
     auto & factory = Controller::DeviceControllerFactory::GetInstance();
     ReturnErrorOnFailure(factory.Init(factoryParams));
     ReturnErrorOnFailure(factory.SetupCommissioner(params, gCommissioner));
 
-    chip::FabricInfo * fabricInfo = gCommissioner.GetFabricInfo();
-    VerifyOrReturnError(fabricInfo != nullptr, CHIP_ERROR_INTERNAL);
+    FabricIndex fabricIndex = gCommissioner.GetFabricIndex();
+    VerifyOrReturnError(fabricIndex != kUndefinedFabricIndex, CHIP_ERROR_INTERNAL);
 
     uint8_t compressedFabricId[sizeof(uint64_t)] = { 0 };
     MutableByteSpan compressedFabricIdSpan(compressedFabricId);
-    ReturnErrorOnFailure(fabricInfo->GetCompressedId(compressedFabricIdSpan));
-    ChipLogProgress(Support, "Setting up group data for Fabric Index %u with Compressed Fabric ID:",
-                    static_cast<unsigned>(fabricInfo->GetFabricIndex()));
+    ReturnErrorOnFailure(gCommissioner.GetCompressedFabricIdBytes(compressedFabricIdSpan));
+    ChipLogProgress(Support,
+                    "Setting up group data for Fabric Index %u with Compressed Fabric ID:", static_cast<unsigned>(fabricIndex));
     ChipLogByteSpan(Support, compressedFabricIdSpan);
 
     // TODO: Once ExampleOperationalCredentialsIssuer has support, set default IPK on it as well so
     // that commissioned devices get the IPK set from real values rather than "test-only" internal hookups.
     ByteSpan defaultIpk = chip::GroupTesting::DefaultIpkValue::GetDefaultIpk();
-    ReturnLogErrorOnFailure(chip::Credentials::SetSingleIpkEpochKey(&gGroupDataProvider, fabricInfo->GetFabricIndex(), defaultIpk,
-                                                                    compressedFabricIdSpan));
+    ReturnLogErrorOnFailure(
+        chip::Credentials::SetSingleIpkEpochKey(&gGroupDataProvider, fabricIndex, defaultIpk, compressedFabricIdSpan));
 
     gCommissionerDiscoveryController.SetUserDirectedCommissioningServer(gCommissioner.GetUserDirectedCommissioningServer());
     gCommissionerDiscoveryController.SetCommissionerCallback(&gCommissionerCallback);
@@ -192,13 +201,13 @@ CHIP_ERROR InitCommissioner(uint16_t commissionerPort, uint16_t udcListenPort)
     // advertise operational since we are an admin
     app::DnssdServer::Instance().AdvertiseOperational();
 
-    ChipLogProgress(Support, "InitCommissioner nodeId=0x" ChipLogFormatX64 " fabricIndex=%d",
-                    ChipLogValueX64(gCommissioner.GetNodeId()), fabricInfo->GetFabricIndex());
+    ChipLogProgress(Support, "InitCommissioner nodeId=0x" ChipLogFormatX64 " fabricIndex=0x%x",
+                    ChipLogValueX64(gCommissioner.GetNodeId()), static_cast<unsigned>(fabricIndex));
 
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR ShutdownCommissioner()
+void ShutdownCommissioner()
 {
     UserDirectedCommissioningServer * udcServer = gCommissioner.GetUserDirectedCommissioningServer();
     if (udcServer != nullptr)
@@ -207,7 +216,6 @@ CHIP_ERROR ShutdownCommissioner()
     }
 
     gCommissioner.Shutdown();
-    return CHIP_NO_ERROR;
 }
 
 class PairingCommand : public Controller::DevicePairingDelegate
@@ -223,12 +231,10 @@ public:
     void OnPairingDeleted(CHIP_ERROR error) override;
     void OnCommissioningComplete(NodeId deviceId, CHIP_ERROR error) override;
 
-    CHIP_ERROR UpdateNetworkAddress();
-
 private:
 #if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
     static void OnDeviceConnectedFn(void * context, chip::OperationalDeviceProxy * device);
-    static void OnDeviceConnectionFailureFn(void * context, PeerId peerId, CHIP_ERROR error);
+    static void OnDeviceConnectionFailureFn(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
 
     chip::Callback::Callback<chip::OnDeviceConnected> mOnDeviceConnectedCallback;
     chip::Callback::Callback<chip::OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
@@ -237,12 +243,6 @@ private:
 
 PairingCommand gPairingCommand;
 NodeId gRemoteId = kTestDeviceNodeId;
-
-CHIP_ERROR PairingCommand::UpdateNetworkAddress()
-{
-    ChipLogProgress(AppServer, "Mdns: Updating NodeId: %" PRIx64 " ...", gRemoteId);
-    return gCommissioner.UpdateDevice(gRemoteId);
-}
 
 void PairingCommand::OnStatusUpdate(DevicePairingDelegate::Status status)
 {
@@ -266,11 +266,6 @@ void PairingCommand::OnPairingComplete(CHIP_ERROR err)
     else
     {
         ChipLogProgress(AppServer, "Pairing Failure: %s", ErrorStr(err));
-        // For some devices, it may take more time to appear on the network and become discoverable
-        // over DNS-SD, so don't give up on failure and restart the address update. Note that this
-        // will not be repeated endlessly as each chip-tool command has a timeout (in the case of
-        // the `pairing` command it equals 120s).
-        // UpdateNetworkAddress();
     }
 }
 
@@ -330,15 +325,15 @@ void PairingCommand::OnDeviceConnectedFn(void * context, chip::OperationalDevice
 
     if (cdc != nullptr)
     {
-        // TODO: get from DAC!
-        UDCClientState * udc = cdc->GetUDCClientState();
-        uint16_t vendorId    = (udc == nullptr ? 0 : udc->GetVendorId());
-        uint16_t productId   = (udc == nullptr ? 0 : udc->GetProductId());
+        uint16_t vendorId  = gAutoCommissioner.GetCommissioningParameters().GetRemoteVendorId().Value();
+        uint16_t productId = gAutoCommissioner.GetCommissioningParameters().GetRemoteProductId().Value();
+        ChipLogProgress(Support, " ----- AutoCommissioner -- Commissionee vendorId=0x%04X productId=0x%04X", vendorId, productId);
+
         cdc->CommissioningSucceeded(vendorId, productId, gRemoteId, device);
     }
 }
 
-void PairingCommand::OnDeviceConnectionFailureFn(void * context, PeerId peerId, CHIP_ERROR err)
+void PairingCommand::OnDeviceConnectionFailureFn(void * context, const ScopedNodeId & peerId, CHIP_ERROR err)
 {
     ChipLogProgress(Controller, "OnDeviceConnectionFailureFn - attempt to get OperationalDeviceProxy failed");
     CommissionerDiscoveryController * cdc = GetCommissionerDiscoveryController();
@@ -353,6 +348,7 @@ CHIP_ERROR CommissionerPairOnNetwork(uint32_t pincode, uint16_t disc, Transport:
 {
     RendezvousParameters params = RendezvousParameters().SetSetupPINCode(pincode).SetDiscriminator(disc).SetPeerAddress(address);
 
+    gOpCredsIssuer.GetRandomOperationalNodeId(&gRemoteId);
     gCommissioner.RegisterPairingDelegate(&gPairingCommand);
     gCommissioner.PairDevice(gRemoteId, params);
 

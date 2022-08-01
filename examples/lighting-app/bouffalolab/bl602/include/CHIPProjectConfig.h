@@ -42,7 +42,7 @@
 #ifndef CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE
 #define CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE 20202021
 #endif
-#define CHIP_DEVICE_CONFIG_USE_TEST_SETUP_DISCRIMINATOR 0xF40
+#define CHIP_DEVICE_CONFIG_USE_TEST_SETUP_DISCRIMINATOR 0xF00
 
 // For convenience, Chip Security Test Mode can be enabled and the
 // requirement for authentication in various protocols can be disabled.
@@ -68,7 +68,38 @@
  * TODO: 3R
  */
 //#define CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_ID 0xF001
-#define CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_ID 0x8005
+#define CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_ID 0x8001
+
+/**
+ * CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION
+ *
+ * The hardware version number assigned to device or product by the device vendor.  This
+ * number is scoped to the device product id, and typically corresponds to a revision of the
+ * physical device, a change to its packaging, and/or a change to its marketing presentation.
+ * This value is generally *not* incremented for device software versions.
+ */
+#define CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION 1
+
+/**
+ * CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING
+ *
+ * A string identifying the software version running on the device.
+ * CHIP service currently expects the software version to be in the format
+ * {MAJOR_VERSION}.0d{MINOR_VERSION}
+ */
+#ifndef CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING
+#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING "0.1ALPHA"
+
+/**
+ * CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION
+ *
+ * A uint32_t identifying the software version running on the device.
+ */
+/* The SoftwareVersion attribute of the Basic cluster. */
+#ifndef CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION
+#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION 0x0001
+#endif
+#endif
 
 /**
  * CHIP_DEVICE_CONFIG_DEVICE_PRODUCT_REVISION
@@ -112,13 +143,6 @@
  * is found in Chip NV storage.
  */
 #define CHIP_DEVICE_CONFIG_TEST_SERIAL_NUMBER "TEST_SN"
-
-/**
- * CHIP_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS
- *
- * Enable recording UTC timestamps.
- */
-#define CHIP_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS 1
 
 /**
  * CHIP_DEVICE_CONFIG_EVENT_LOGGING_DEBUG_BUFFER_SIZE

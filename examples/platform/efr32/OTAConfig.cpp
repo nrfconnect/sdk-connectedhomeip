@@ -58,6 +58,12 @@ __attribute__((used)) ApplicationProperties_t sl_app_properties = {
       /// Unique ID (e.g. UUID/GUID) for the product this application is built for
       .productId = APP_PROPERTIES_ID,
     },
+
+    /// Pointer to information about the certificate
+    .cert = NULL,
+
+    /// Pointer to Long Token Data Section
+    .longTokenSectionAddress = NULL,
 };
 
 // Global OTA objects

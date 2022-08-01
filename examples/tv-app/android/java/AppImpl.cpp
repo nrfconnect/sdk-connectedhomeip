@@ -21,16 +21,19 @@
 
 #include "AppImpl.h"
 
+#include "ContentAppCommandDelegate.h"
 #include <app-common/zap-generated/attribute-id.h>
 #include <app-common/zap-generated/cluster-id.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/CommandHandler.h>
+#include <app/InteractionModelEngine.h>
 #include <app/server/Dnssd.h>
 #include <app/server/Server.h>
 #include <app/util/af.h>
 #include <cstdio>
 #include <inttypes.h>
+#include <jni.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/core/DataModelTypes.h>
 #include <lib/shell/Commands.h>
@@ -44,60 +47,6 @@
 
 using namespace chip;
 using namespace chip::AppPlatform;
-
-#if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
-class MyUserPrompter : public UserPrompter
-{
-    // tv should override this with a dialog prompt
-    inline void PromptForCommissionOKPermission(uint16_t vendorId, uint16_t productId, const char * commissioneeName) override
-    {
-        /*
-         *   Called to prompt the user for consent to allow the given commissioneeName/vendorId/productId to be commissioned.
-         * For example "[commissioneeName] is requesting permission to cast to this TV, approve?"
-         *
-         * If user responds with OK then implementor should call CommissionerRespondOk();
-         * If user responds with Cancel then implementor should call CommissionerRespondCancel();
-         *
-         */
-        GetCommissionerDiscoveryController()->Ok();
-
-        /**
-         * For Demo: Launch Prime Video App
-         */
-        return;
-    }
-
-    // tv should override this with a dialog prompt
-    inline void PromptForCommissionPincode(uint16_t vendorId, uint16_t productId, const char * commissioneeName) override
-    {
-        /*
-         *   Called to prompt the user to enter the setup pincode displayed by the given commissioneeName/vendorId/productId to be
-         * commissioned. For example "Please enter pin displayed in casting app."
-         *
-         * If user enters with pin then implementor should call CommissionerRespondPincode(uint32_t pincode);
-         * If user responds with Cancel then implementor should call CommissionerRespondCancel();
-         */
-
-        GetCommissionerDiscoveryController()->CommissionWithPincode(20202021); // dummy pin code
-
-        /**
-         * For Demo: Launch Prime Video App
-         */
-        return;
-    }
-
-    // tv should override this with a dialog prompt
-    inline void PromptCommissioningSucceeded(uint16_t vendorId, uint16_t productId, const char * commissioneeName) override
-    {
-        return;
-    }
-
-    // tv should override this with a dialog prompt
-    inline void PromptCommissioningFailed(const char * commissioneeName, CHIP_ERROR error) override { return; }
-};
-
-MyUserPrompter gMyUserPrompter;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
 
 #if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 class MyPincodeService : public PincodeService
@@ -144,6 +93,11 @@ class MyPostCommissioningListener : public PostCommissioningListener
 MyPostCommissioningListener gMyPostCommissioningListener;
 ContentAppFactoryImpl gFactory;
 
+ContentAppFactoryImpl * GetContentAppFactoryImpl()
+{
+    return &gFactory;
+}
+
 namespace chip {
 namespace AppPlatform {
 
@@ -164,6 +118,12 @@ static const int kDescriptorAttributeArraySize = 254;
 // CONTENT APP ENDPOINT: contains the following clusters:
 //   - Descriptor
 //   - Application Basic
+//   - Keypad Input
+//   - Application Launcher
+//   - Account Login
+//   - Content Launcher
+//   - Target Navigator
+//   - Channel
 
 // Declare Descriptor cluster attributes
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(descriptorAttrs)
@@ -174,23 +134,27 @@ DECLARE_DYNAMIC_ATTRIBUTE(ZCL_DEVICE_LIST_ATTRIBUTE_ID, ARRAY, kDescriptorAttrib
     DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 // Declare Application Basic information cluster attributes
-// TODO: add missing attributes once schema is updated
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(applicationBasicAttrs)
 DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_VENDOR_NAME_ATTRIBUTE_ID, CHAR_STRING, kNameSize, 0), /* VendorName */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_VENDOR_ID_ATTRIBUTE_ID, INT16U, 1, 0),            /* VendorID */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_NAME_ATTRIBUTE_ID, CHAR_STRING, kNameSize, 0),    /* ApplicationName */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_PRODUCT_ID_ATTRIBUTE_ID, INT16U, 1, 0),           /* ProductID */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_STATUS_ATTRIBUTE_ID, INT8U, 1, 0),                /* ApplicationStatus */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_VERSION_ATTRIBUTE_ID, CHAR_STRING, kNameSize, 0), /* ApplicationVersion */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_ALLOWED_VENDOR_LIST_ATTRIBUTE_ID, ARRAY, kDescriptorAttributeArraySize,
+                              0), /* AllowedVendorList */
     DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 // Declare Keypad Input cluster attributes
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(keypadInputAttrs)
-DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
+DECLARE_DYNAMIC_ATTRIBUTE(ZCL_FEATURE_MAP_SERVER_ATTRIBUTE_ID, BITMAP32, 4, 0), /* FeatureMap */
+    DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 // Declare Application Launcher cluster attributes
-// TODO: add missing attributes once schema is updated
+// NOTE: Does not make sense for content app to be able to set the AP feature flag
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(applicationLauncherAttrs)
 DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_LAUNCHER_LIST_ATTRIBUTE_ID, ARRAY, kDescriptorAttributeArraySize, 0), /* catalog list */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_APPLICATION_LAUNCHER_CURRENT_APP_ATTRIBUTE_ID, STRUCT, 1, 0),                 /* current app */
     DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 // Declare Account Login cluster attributes
@@ -202,18 +166,20 @@ DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(contentLauncherAttrs)
 DECLARE_DYNAMIC_ATTRIBUTE(ZCL_CONTENT_LAUNCHER_ACCEPT_HEADER_ATTRIBUTE_ID, ARRAY, kDescriptorAttributeArraySize,
                           0), /* accept header list */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_CONTENT_LAUNCHER_SUPPORTED_STREAMING_PROTOCOLS_ATTRIBUTE_ID, BITMAP32, 1,
-                              0), /* streaming protocols */
+                              0),                                                   /* streaming protocols */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_FEATURE_MAP_SERVER_ATTRIBUTE_ID, BITMAP32, 4, 0), /* FeatureMap */
     DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 // Declare Media Playback cluster attributes
-// TODO: add missing attributes once schema is updated
 DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(mediaPlaybackAttrs)
 DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_STATE_ATTRIBUTE_ID, ENUM8, 1, 0),                          /* current state */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_START_TIME_ATTRIBUTE_ID, EPOCH_US, 1, 0),              /* start time */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_DURATION_ATTRIBUTE_ID, INT64U, 1, 0),                  /* duration */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_PLAYBACK_POSITION_ATTRIBUTE_ID, STRUCT, 1, 0),         /* playback speed */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_PLAYBACK_SPEED_ATTRIBUTE_ID, SINGLE, 1, 0),            /* playback speed */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_PLAYBACK_SEEK_RANGE_END_ATTRIBUTE_ID, INT64U, 1, 0),   /* seek range end */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_MEDIA_PLAYBACK_PLAYBACK_SEEK_RANGE_START_ATTRIBUTE_ID, INT64U, 1, 0), /* seek range start */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_FEATURE_MAP_SERVER_ATTRIBUTE_ID, BITMAP32, 4, 0),                     /* FeatureMap */
     DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 // Declare Target Navigator cluster attributes
@@ -227,6 +193,7 @@ DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(channelAttrs)
 DECLARE_DYNAMIC_ATTRIBUTE(ZCL_CHANNEL_LIST_ATTRIBUTE_ID, ARRAY, kDescriptorAttributeArraySize, 0), /* channel list */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_CHANNEL_LINEUP_ATTRIBUTE_ID, STRUCT, 1, 0),                      /* lineup */
     DECLARE_DYNAMIC_ATTRIBUTE(ZCL_CHANNEL_CURRENT_CHANNEL_ATTRIBUTE_ID, STRUCT, 1, 0),             /* current channel */
+    DECLARE_DYNAMIC_ATTRIBUTE(ZCL_FEATURE_MAP_SERVER_ATTRIBUTE_ID, BITMAP32, 4, 0),                /* FeatureMap */
     DECLARE_DYNAMIC_ATTRIBUTE_LIST_END();
 
 constexpr CommandId keypadInputIncomingCommands[] = {
@@ -377,16 +344,16 @@ ContentApp * ContentAppFactoryImpl::LoadContentApp(const CatalogVendorApp & vend
     ChipLogProgress(DeviceLayer, "ContentAppFactoryImpl: LoadContentAppByAppId catalogVendorId=%d applicationId=%s ",
                     vendorApp.catalogVendorId, vendorApp.applicationId);
 
-    for (size_t i = 0; i < ArraySize(mContentApps); ++i)
+    for (size_t i = 0; i < mContentApps.size(); ++i)
     {
-        auto & app = mContentApps[i];
+        auto & app = mContentApps.at(i);
 
-        ChipLogProgress(DeviceLayer, " Looking next=%s ", app.GetApplicationBasicDelegate()->GetCatalogVendorApp()->applicationId);
-        if (app.GetApplicationBasicDelegate()->GetCatalogVendorApp()->Matches(vendorApp))
+        ChipLogProgress(DeviceLayer, " Looking next=%s ", app->GetApplicationBasicDelegate()->GetCatalogVendorApp()->applicationId);
+        if (app->GetApplicationBasicDelegate()->GetCatalogVendorApp()->Matches(vendorApp))
         {
-            ContentAppPlatform::GetInstance().AddContentApp(&app, &contentAppEndpoint, Span<DataVersion>(gDataVersions[i]),
+            ContentAppPlatform::GetInstance().AddContentApp(app, &contentAppEndpoint, Span<DataVersion>(gDataVersions[i]),
                                                             Span<const EmberAfDeviceType>(gContentAppDeviceType));
-            return &app;
+            return app;
         }
     }
     ChipLogProgress(DeviceLayer, "LoadContentAppByAppId NOT FOUND catalogVendorId=%d applicationId=%s ", vendorApp.catalogVendorId,
@@ -395,24 +362,107 @@ ContentApp * ContentAppFactoryImpl::LoadContentApp(const CatalogVendorApp & vend
     return nullptr;
 }
 
+EndpointId ContentAppFactoryImpl::AddContentApp(ContentAppImpl * app, jobject contentAppEndpointManager)
+{
+    DataVersion dataVersionBuf[ArraySize(contentAppClusters)];
+    EndpointId epId = ContentAppPlatform::GetInstance().AddContentApp(app, &contentAppEndpoint, Span<DataVersion>(dataVersionBuf),
+                                                                      Span<const EmberAfDeviceType>(gContentAppDeviceType));
+    ChipLogProgress(DeviceLayer, "ContentAppFactoryImpl AddContentApp endpoint returned %d. Endpoint set %d", epId,
+                    app->GetEndpointId());
+    mContentApps.push_back(app);
+    return epId;
+}
+
+/**
+ * @brief Code for testing the message flow path.
+ *
+ */
+class TestCommandHandlerCallback : public app::CommandHandler::Callback
+{
+    void OnDone(app::CommandHandler & apCommandObj) {}
+
+    void DispatchCommand(app::CommandHandler & apCommandObj, const app::ConcreteCommandPath & aCommandPath,
+                         TLV::TLVReader & apPayload)
+    {}
+
+    Protocols::InteractionModel::Status CommandExists(const app::ConcreteCommandPath & aCommandPath)
+    {
+        return Protocols::InteractionModel::Status::Success;
+    }
+};
+
+/**
+ * @brief Code for testing the message flow path.
+ *
+ */
+void ContentAppFactoryImpl::SendTestMessage(EndpointId epId, const char * message)
+{
+    ChipLogProgress(DeviceLayer, "ContentAppFactoryImpl SendTestMessage called with message %s & endpointId %d", message, epId);
+    for (size_t i = 0; i < mContentApps.size(); ++i)
+    {
+        ContentAppImpl * app = mContentApps.at(i);
+        ChipLogProgress(DeviceLayer, "ContentAppFactoryImpl checking app with endpointId %d", app->GetEndpointId());
+        if (app->GetEndpointId() == epId)
+        {
+            ChipLogProgress(DeviceLayer, "ContentAppFactoryImpl SendTestMessage endpoint found");
+            app::ConcreteCommandPath commandPath(epId, app::Clusters::ContentLauncher::Id,
+                                                 app::Clusters::ContentLauncher::Commands::LaunchURL::Id);
+            chip::AppPlatform::TestCommandHandlerCallback callback;
+            app::CommandHandler commandHandler(&callback);
+            CommandResponseHelper<LaunchResponseType> helper(&commandHandler, commandPath);
+            chip::app::Clusters::ContentLauncher::Structs::BrandingInformation::Type branding;
+            app->GetContentLauncherDelegate()->HandleLaunchUrl(helper, CharSpan::fromCharString(message),
+                                                               CharSpan::fromCharString("Temp Display"), branding);
+        }
+    }
+}
+
+void ContentAppFactoryImpl::AddAdminVendorId(uint16_t vendorId)
+{
+    mAdminVendorIds.push_back(vendorId);
+}
+
+Access::Privilege ContentAppFactoryImpl::GetVendorPrivilege(uint16_t vendorId)
+{
+    for (size_t i = 0; i < mAdminVendorIds.size(); ++i)
+    {
+        auto & vendor = mAdminVendorIds.at(i);
+        if (vendorId == vendor)
+        {
+            return Access::Privilege::kAdminister;
+        }
+    }
+    return Access::Privilege::kOperate;
+}
+
 } // namespace AppPlatform
 } // namespace chip
 
 #endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 
-CHIP_ERROR InitVideoPlayerPlatform()
+CHIP_ERROR InitVideoPlayerPlatform(JNIMyUserPrompter * userPrompter, jobject contentAppEndpointManager)
 {
 #if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
     ContentAppPlatform::GetInstance().SetupAppPlatform();
     ContentAppPlatform::GetInstance().SetContentAppFactory(&gFactory);
+
+    ChipLogProgress(AppServer, "Starting registration of command handler delegates");
+    for (size_t i = 0; i < ArraySize(contentAppClusters); i++)
+    {
+        ContentAppCommandDelegate * delegate =
+            new ContentAppCommandDelegate(contentAppEndpointManager, contentAppClusters[i].clusterId);
+        chip::app::InteractionModelEngine::GetInstance()->RegisterCommandHandler(delegate);
+        ChipLogProgress(AppServer, "Registered command handler delegate for cluster %d", contentAppClusters[i].clusterId);
+    }
+
 #endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 
 #if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
     CommissionerDiscoveryController * cdc = GetCommissionerDiscoveryController();
-    if (cdc != nullptr)
+    if (cdc != nullptr && userPrompter != nullptr)
     {
         cdc->SetPincodeService(&gMyPincodeService);
-        cdc->SetUserPrompter(&gMyUserPrompter);
+        cdc->SetUserPrompter(userPrompter);
         cdc->SetPostCommissioningListener(&gMyPostCommissioningListener);
     }
 
@@ -421,6 +471,11 @@ CHIP_ERROR InitVideoPlayerPlatform()
     ChipLogProgress(AppServer, "Started commissioner");
 
 #endif // CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
+
+    // Disable last fixed endpoint, which is used as a placeholder for all of the
+    // supported clusters so that ZAP will generated the requisite code.
+    ChipLogDetail(DeviceLayer, "TV App: Disabling Fixed Content App Endpoints");
+    emberAfEndpointEnableDisable(3, false);
     return CHIP_NO_ERROR;
 }
 
@@ -435,4 +490,23 @@ CHIP_ERROR PreServerInit()
      */
 
     return CHIP_NO_ERROR;
+}
+
+EndpointId AddContentApp(const char * szVendorName, uint16_t vendorId, const char * szApplicationName, uint16_t productId,
+                         const char * szApplicationVersion, jobject manager)
+{
+#if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
+    ContentAppImpl * app =
+        new ContentAppImpl(szVendorName, vendorId, szApplicationName, productId, szApplicationVersion, "20202021", manager);
+    ChipLogProgress(DeviceLayer, "AppImpl: AddContentApp vendorId=%d applicationName=%s ", vendorId, szApplicationName);
+    return gFactory.AddContentApp(app, manager);
+#endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
+    return 0;
+}
+
+void SendTestMessage(EndpointId epID, const char * message)
+{
+#if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
+    gFactory.SendTestMessage(epID, message);
+#endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 }

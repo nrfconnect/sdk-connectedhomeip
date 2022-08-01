@@ -66,6 +66,16 @@ class ZAPGenerateTarget:
         cmd = self.build_cmd()
         logging.info("Generating target: %s" % " ".join(cmd))
         subprocess.check_call(cmd)
+        if "chef" in self.zap_config:
+            af_gen_event = os.path.join(self.output_dir, "af-gen-event.h")
+            with open(af_gen_event, "w+"):  # Empty file needed for linux
+                pass
+            idl_path = self.zap_config.replace(".zap", ".matter")
+            target_path = os.path.join("examples",
+                                       "chef",
+                                       "devices",
+                                       os.path.basename(idl_path))
+            os.rename(idl_path, target_path)
 
 
 def checkPythonVersion():
@@ -80,7 +90,7 @@ def setupArgumentsParser():
         description='Generate content from ZAP files')
     parser.add_argument('--type', default='all', choices=['all', 'tests'],
                         help='Choose which content type to generate (default: all)')
-    parser.add_argument('--tests', default='all', choices=['all', 'chip-tool', 'chip-tool-darwin', 'app1', 'app2'],
+    parser.add_argument('--tests', default='all', choices=['all', 'chip-tool', 'darwin-framework-tool', 'app1', 'app2'],
                         help='When generating tests only target, Choose which tests to generate (default: all)')
     parser.add_argument('--dry-run', default=False, action='store_true',
                         help="Don't do any generationl just log what targets would be generated (default: False)")
@@ -116,7 +126,9 @@ def getGlobalTemplatesTargets():
             continue
 
         if example_name == "chef":
-            continue
+            if os.path.join("chef", "devices") not in str(filepath):
+                continue
+            example_name = "chef-"+os.path.basename(filepath)[:-len(".zap")]
 
         logging.info("Found example %s (via %s)" %
                      (example_name, str(filepath)))
@@ -141,10 +153,10 @@ def getTestsTemplatesTargets(test_target):
             'template': 'examples/chip-tool/templates/tests/templates.json',
             'output_dir': 'zzz_generated/chip-tool/zap-generated'
         },
-        'chip-tool-darwin': {
+        'darwin-framework-tool': {
             'zap': 'src/controller/data_model/controller-clusters.zap',
-            'template': 'examples/chip-tool-darwin/templates/tests/templates.json',
-            'output_dir': 'zzz_generated/chip-tool-darwin/zap-generated'
+            'template': 'examples/darwin-framework-tool/templates/tests/templates.json',
+            'output_dir': 'zzz_generated/darwin-framework-tool/zap-generated'
         }
     }
 
@@ -180,7 +192,7 @@ def getSpecificTemplatesTargets():
         'src/app/common/templates/templates.json': 'zzz_generated/app-common/app-common/zap-generated',
         'src/app/tests/suites/templates/templates.json': 'zzz_generated/app-common/app-common/zap-generated',
         'examples/chip-tool/templates/templates.json': 'zzz_generated/chip-tool/zap-generated',
-        'examples/chip-tool-darwin/templates/templates.json': 'zzz_generated/chip-tool-darwin/zap-generated',
+        'examples/darwin-framework-tool/templates/templates.json': 'zzz_generated/darwin-framework-tool/zap-generated',
         'src/controller/python/templates/templates.json': None,
         'src/darwin/Framework/CHIP/templates/templates.json': None,
         'src/controller/java/templates/templates.json': None,

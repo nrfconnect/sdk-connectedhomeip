@@ -30,452 +30,605 @@
 namespace chip {
 namespace Controller {
 
-class DLL_EXPORT AccessControlCluster : public ClusterBase
+class DLL_EXPORT IdentifyCluster : public ClusterBase
 {
 public:
-    AccessControlCluster() : ClusterBase(app::Clusters::AccessControl::Id) {}
-    ~AccessControlCluster() {}
-};
-
-class DLL_EXPORT AccountLoginCluster : public ClusterBase
-{
-public:
-    AccountLoginCluster() : ClusterBase(app::Clusters::AccountLogin::Id) {}
-    ~AccountLoginCluster() {}
-};
-
-class DLL_EXPORT AdministratorCommissioningCluster : public ClusterBase
-{
-public:
-    AdministratorCommissioningCluster() : ClusterBase(app::Clusters::AdministratorCommissioning::Id) {}
-    ~AdministratorCommissioningCluster() {}
-};
-
-class DLL_EXPORT ApplicationBasicCluster : public ClusterBase
-{
-public:
-    ApplicationBasicCluster() : ClusterBase(app::Clusters::ApplicationBasic::Id) {}
-    ~ApplicationBasicCluster() {}
-};
-
-class DLL_EXPORT ApplicationLauncherCluster : public ClusterBase
-{
-public:
-    ApplicationLauncherCluster() : ClusterBase(app::Clusters::ApplicationLauncher::Id) {}
-    ~ApplicationLauncherCluster() {}
-};
-
-class DLL_EXPORT AudioOutputCluster : public ClusterBase
-{
-public:
-    AudioOutputCluster() : ClusterBase(app::Clusters::AudioOutput::Id) {}
-    ~AudioOutputCluster() {}
-};
-
-class DLL_EXPORT BarrierControlCluster : public ClusterBase
-{
-public:
-    BarrierControlCluster() : ClusterBase(app::Clusters::BarrierControl::Id) {}
-    ~BarrierControlCluster() {}
-};
-
-class DLL_EXPORT BasicCluster : public ClusterBase
-{
-public:
-    BasicCluster() : ClusterBase(app::Clusters::Basic::Id) {}
-    ~BasicCluster() {}
-};
-
-class DLL_EXPORT BinaryInputBasicCluster : public ClusterBase
-{
-public:
-    BinaryInputBasicCluster() : ClusterBase(app::Clusters::BinaryInputBasic::Id) {}
-    ~BinaryInputBasicCluster() {}
-};
-
-class DLL_EXPORT BindingCluster : public ClusterBase
-{
-public:
-    BindingCluster() : ClusterBase(app::Clusters::Binding::Id) {}
-    ~BindingCluster() {}
-};
-
-class DLL_EXPORT BooleanStateCluster : public ClusterBase
-{
-public:
-    BooleanStateCluster() : ClusterBase(app::Clusters::BooleanState::Id) {}
-    ~BooleanStateCluster() {}
-};
-
-class DLL_EXPORT BridgedActionsCluster : public ClusterBase
-{
-public:
-    BridgedActionsCluster() : ClusterBase(app::Clusters::BridgedActions::Id) {}
-    ~BridgedActionsCluster() {}
-};
-
-class DLL_EXPORT BridgedDeviceBasicCluster : public ClusterBase
-{
-public:
-    BridgedDeviceBasicCluster() : ClusterBase(app::Clusters::BridgedDeviceBasic::Id) {}
-    ~BridgedDeviceBasicCluster() {}
-};
-
-class DLL_EXPORT ChannelCluster : public ClusterBase
-{
-public:
-    ChannelCluster() : ClusterBase(app::Clusters::Channel::Id) {}
-    ~ChannelCluster() {}
-};
-
-class DLL_EXPORT ColorControlCluster : public ClusterBase
-{
-public:
-    ColorControlCluster() : ClusterBase(app::Clusters::ColorControl::Id) {}
-    ~ColorControlCluster() {}
-};
-
-class DLL_EXPORT ContentLauncherCluster : public ClusterBase
-{
-public:
-    ContentLauncherCluster() : ClusterBase(app::Clusters::ContentLauncher::Id) {}
-    ~ContentLauncherCluster() {}
-};
-
-class DLL_EXPORT DescriptorCluster : public ClusterBase
-{
-public:
-    DescriptorCluster() : ClusterBase(app::Clusters::Descriptor::Id) {}
-    ~DescriptorCluster() {}
-};
-
-class DLL_EXPORT DiagnosticLogsCluster : public ClusterBase
-{
-public:
-    DiagnosticLogsCluster() : ClusterBase(app::Clusters::DiagnosticLogs::Id) {}
-    ~DiagnosticLogsCluster() {}
-};
-
-class DLL_EXPORT DoorLockCluster : public ClusterBase
-{
-public:
-    DoorLockCluster() : ClusterBase(app::Clusters::DoorLock::Id) {}
-    ~DoorLockCluster() {}
-};
-
-class DLL_EXPORT ElectricalMeasurementCluster : public ClusterBase
-{
-public:
-    ElectricalMeasurementCluster() : ClusterBase(app::Clusters::ElectricalMeasurement::Id) {}
-    ~ElectricalMeasurementCluster() {}
-};
-
-class DLL_EXPORT EthernetNetworkDiagnosticsCluster : public ClusterBase
-{
-public:
-    EthernetNetworkDiagnosticsCluster() : ClusterBase(app::Clusters::EthernetNetworkDiagnostics::Id) {}
-    ~EthernetNetworkDiagnosticsCluster() {}
-};
-
-class DLL_EXPORT FanControlCluster : public ClusterBase
-{
-public:
-    FanControlCluster() : ClusterBase(app::Clusters::FanControl::Id) {}
-    ~FanControlCluster() {}
-};
-
-class DLL_EXPORT FixedLabelCluster : public ClusterBase
-{
-public:
-    FixedLabelCluster() : ClusterBase(app::Clusters::FixedLabel::Id) {}
-    ~FixedLabelCluster() {}
-};
-
-class DLL_EXPORT FlowMeasurementCluster : public ClusterBase
-{
-public:
-    FlowMeasurementCluster() : ClusterBase(app::Clusters::FlowMeasurement::Id) {}
-    ~FlowMeasurementCluster() {}
-};
-
-class DLL_EXPORT GeneralCommissioningCluster : public ClusterBase
-{
-public:
-    GeneralCommissioningCluster() : ClusterBase(app::Clusters::GeneralCommissioning::Id) {}
-    ~GeneralCommissioningCluster() {}
-};
-
-class DLL_EXPORT GeneralDiagnosticsCluster : public ClusterBase
-{
-public:
-    GeneralDiagnosticsCluster() : ClusterBase(app::Clusters::GeneralDiagnostics::Id) {}
-    ~GeneralDiagnosticsCluster() {}
-};
-
-class DLL_EXPORT GroupKeyManagementCluster : public ClusterBase
-{
-public:
-    GroupKeyManagementCluster() : ClusterBase(app::Clusters::GroupKeyManagement::Id) {}
-    ~GroupKeyManagementCluster() {}
+    IdentifyCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Identify::Id, endpoint)
+    {}
+    ~IdentifyCluster() {}
 };
 
 class DLL_EXPORT GroupsCluster : public ClusterBase
 {
 public:
-    GroupsCluster() : ClusterBase(app::Clusters::Groups::Id) {}
+    GroupsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Groups::Id, endpoint)
+    {}
     ~GroupsCluster() {}
 };
 
-class DLL_EXPORT IdentifyCluster : public ClusterBase
+class DLL_EXPORT ScenesCluster : public ClusterBase
 {
 public:
-    IdentifyCluster() : ClusterBase(app::Clusters::Identify::Id) {}
-    ~IdentifyCluster() {}
-};
-
-class DLL_EXPORT IlluminanceMeasurementCluster : public ClusterBase
-{
-public:
-    IlluminanceMeasurementCluster() : ClusterBase(app::Clusters::IlluminanceMeasurement::Id) {}
-    ~IlluminanceMeasurementCluster() {}
-};
-
-class DLL_EXPORT KeypadInputCluster : public ClusterBase
-{
-public:
-    KeypadInputCluster() : ClusterBase(app::Clusters::KeypadInput::Id) {}
-    ~KeypadInputCluster() {}
-};
-
-class DLL_EXPORT LevelControlCluster : public ClusterBase
-{
-public:
-    LevelControlCluster() : ClusterBase(app::Clusters::LevelControl::Id) {}
-    ~LevelControlCluster() {}
-};
-
-class DLL_EXPORT LocalizationConfigurationCluster : public ClusterBase
-{
-public:
-    LocalizationConfigurationCluster() : ClusterBase(app::Clusters::LocalizationConfiguration::Id) {}
-    ~LocalizationConfigurationCluster() {}
-};
-
-class DLL_EXPORT LowPowerCluster : public ClusterBase
-{
-public:
-    LowPowerCluster() : ClusterBase(app::Clusters::LowPower::Id) {}
-    ~LowPowerCluster() {}
-};
-
-class DLL_EXPORT MediaInputCluster : public ClusterBase
-{
-public:
-    MediaInputCluster() : ClusterBase(app::Clusters::MediaInput::Id) {}
-    ~MediaInputCluster() {}
-};
-
-class DLL_EXPORT MediaPlaybackCluster : public ClusterBase
-{
-public:
-    MediaPlaybackCluster() : ClusterBase(app::Clusters::MediaPlayback::Id) {}
-    ~MediaPlaybackCluster() {}
-};
-
-class DLL_EXPORT ModeSelectCluster : public ClusterBase
-{
-public:
-    ModeSelectCluster() : ClusterBase(app::Clusters::ModeSelect::Id) {}
-    ~ModeSelectCluster() {}
-};
-
-class DLL_EXPORT NetworkCommissioningCluster : public ClusterBase
-{
-public:
-    NetworkCommissioningCluster() : ClusterBase(app::Clusters::NetworkCommissioning::Id) {}
-    ~NetworkCommissioningCluster() {}
-};
-
-class DLL_EXPORT OtaSoftwareUpdateProviderCluster : public ClusterBase
-{
-public:
-    OtaSoftwareUpdateProviderCluster() : ClusterBase(app::Clusters::OtaSoftwareUpdateProvider::Id) {}
-    ~OtaSoftwareUpdateProviderCluster() {}
-};
-
-class DLL_EXPORT OtaSoftwareUpdateRequestorCluster : public ClusterBase
-{
-public:
-    OtaSoftwareUpdateRequestorCluster() : ClusterBase(app::Clusters::OtaSoftwareUpdateRequestor::Id) {}
-    ~OtaSoftwareUpdateRequestorCluster() {}
-};
-
-class DLL_EXPORT OccupancySensingCluster : public ClusterBase
-{
-public:
-    OccupancySensingCluster() : ClusterBase(app::Clusters::OccupancySensing::Id) {}
-    ~OccupancySensingCluster() {}
+    ScenesCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Scenes::Id, endpoint)
+    {}
+    ~ScenesCluster() {}
 };
 
 class DLL_EXPORT OnOffCluster : public ClusterBase
 {
 public:
-    OnOffCluster() : ClusterBase(app::Clusters::OnOff::Id) {}
+    OnOffCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OnOff::Id, endpoint)
+    {}
     ~OnOffCluster() {}
 };
 
 class DLL_EXPORT OnOffSwitchConfigurationCluster : public ClusterBase
 {
 public:
-    OnOffSwitchConfigurationCluster() : ClusterBase(app::Clusters::OnOffSwitchConfiguration::Id) {}
+    OnOffSwitchConfigurationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                    EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OnOffSwitchConfiguration::Id, endpoint)
+    {}
     ~OnOffSwitchConfigurationCluster() {}
 };
 
-class DLL_EXPORT OperationalCredentialsCluster : public ClusterBase
+class DLL_EXPORT LevelControlCluster : public ClusterBase
 {
 public:
-    OperationalCredentialsCluster() : ClusterBase(app::Clusters::OperationalCredentials::Id) {}
-    ~OperationalCredentialsCluster() {}
+    LevelControlCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::LevelControl::Id, endpoint)
+    {}
+    ~LevelControlCluster() {}
 };
 
-class DLL_EXPORT PowerSourceCluster : public ClusterBase
+class DLL_EXPORT BinaryInputBasicCluster : public ClusterBase
 {
 public:
-    PowerSourceCluster() : ClusterBase(app::Clusters::PowerSource::Id) {}
-    ~PowerSourceCluster() {}
+    BinaryInputBasicCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::BinaryInputBasic::Id, endpoint)
+    {}
+    ~BinaryInputBasicCluster() {}
 };
 
-class DLL_EXPORT PowerSourceConfigurationCluster : public ClusterBase
+class DLL_EXPORT DescriptorCluster : public ClusterBase
 {
 public:
-    PowerSourceConfigurationCluster() : ClusterBase(app::Clusters::PowerSourceConfiguration::Id) {}
-    ~PowerSourceConfigurationCluster() {}
+    DescriptorCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Descriptor::Id, endpoint)
+    {}
+    ~DescriptorCluster() {}
 };
 
-class DLL_EXPORT PressureMeasurementCluster : public ClusterBase
+class DLL_EXPORT BindingCluster : public ClusterBase
 {
 public:
-    PressureMeasurementCluster() : ClusterBase(app::Clusters::PressureMeasurement::Id) {}
-    ~PressureMeasurementCluster() {}
+    BindingCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Binding::Id, endpoint)
+    {}
+    ~BindingCluster() {}
 };
 
-class DLL_EXPORT PumpConfigurationAndControlCluster : public ClusterBase
+class DLL_EXPORT AccessControlCluster : public ClusterBase
 {
 public:
-    PumpConfigurationAndControlCluster() : ClusterBase(app::Clusters::PumpConfigurationAndControl::Id) {}
-    ~PumpConfigurationAndControlCluster() {}
+    AccessControlCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::AccessControl::Id, endpoint)
+    {}
+    ~AccessControlCluster() {}
 };
 
-class DLL_EXPORT RelativeHumidityMeasurementCluster : public ClusterBase
+class DLL_EXPORT BridgedActionsCluster : public ClusterBase
 {
 public:
-    RelativeHumidityMeasurementCluster() : ClusterBase(app::Clusters::RelativeHumidityMeasurement::Id) {}
-    ~RelativeHumidityMeasurementCluster() {}
+    BridgedActionsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::BridgedActions::Id, endpoint)
+    {}
+    ~BridgedActionsCluster() {}
 };
 
-class DLL_EXPORT ScenesCluster : public ClusterBase
+class DLL_EXPORT BasicCluster : public ClusterBase
 {
 public:
-    ScenesCluster() : ClusterBase(app::Clusters::Scenes::Id) {}
-    ~ScenesCluster() {}
+    BasicCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Basic::Id, endpoint)
+    {}
+    ~BasicCluster() {}
 };
 
-class DLL_EXPORT SoftwareDiagnosticsCluster : public ClusterBase
+class DLL_EXPORT OtaSoftwareUpdateProviderCluster : public ClusterBase
 {
 public:
-    SoftwareDiagnosticsCluster() : ClusterBase(app::Clusters::SoftwareDiagnostics::Id) {}
-    ~SoftwareDiagnosticsCluster() {}
+    OtaSoftwareUpdateProviderCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                     EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OtaSoftwareUpdateProvider::Id, endpoint)
+    {}
+    ~OtaSoftwareUpdateProviderCluster() {}
 };
 
-class DLL_EXPORT SwitchCluster : public ClusterBase
+class DLL_EXPORT OtaSoftwareUpdateRequestorCluster : public ClusterBase
 {
 public:
-    SwitchCluster() : ClusterBase(app::Clusters::Switch::Id) {}
-    ~SwitchCluster() {}
+    OtaSoftwareUpdateRequestorCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                      EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OtaSoftwareUpdateRequestor::Id, endpoint)
+    {}
+    ~OtaSoftwareUpdateRequestorCluster() {}
 };
 
-class DLL_EXPORT TargetNavigatorCluster : public ClusterBase
+class DLL_EXPORT LocalizationConfigurationCluster : public ClusterBase
 {
 public:
-    TargetNavigatorCluster() : ClusterBase(app::Clusters::TargetNavigator::Id) {}
-    ~TargetNavigatorCluster() {}
-};
-
-class DLL_EXPORT TemperatureMeasurementCluster : public ClusterBase
-{
-public:
-    TemperatureMeasurementCluster() : ClusterBase(app::Clusters::TemperatureMeasurement::Id) {}
-    ~TemperatureMeasurementCluster() {}
-};
-
-class DLL_EXPORT TestClusterCluster : public ClusterBase
-{
-public:
-    TestClusterCluster() : ClusterBase(app::Clusters::TestCluster::Id) {}
-    ~TestClusterCluster() {}
-};
-
-class DLL_EXPORT ThermostatCluster : public ClusterBase
-{
-public:
-    ThermostatCluster() : ClusterBase(app::Clusters::Thermostat::Id) {}
-    ~ThermostatCluster() {}
-};
-
-class DLL_EXPORT ThermostatUserInterfaceConfigurationCluster : public ClusterBase
-{
-public:
-    ThermostatUserInterfaceConfigurationCluster() : ClusterBase(app::Clusters::ThermostatUserInterfaceConfiguration::Id) {}
-    ~ThermostatUserInterfaceConfigurationCluster() {}
-};
-
-class DLL_EXPORT ThreadNetworkDiagnosticsCluster : public ClusterBase
-{
-public:
-    ThreadNetworkDiagnosticsCluster() : ClusterBase(app::Clusters::ThreadNetworkDiagnostics::Id) {}
-    ~ThreadNetworkDiagnosticsCluster() {}
+    LocalizationConfigurationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                     EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::LocalizationConfiguration::Id, endpoint)
+    {}
+    ~LocalizationConfigurationCluster() {}
 };
 
 class DLL_EXPORT TimeFormatLocalizationCluster : public ClusterBase
 {
 public:
-    TimeFormatLocalizationCluster() : ClusterBase(app::Clusters::TimeFormatLocalization::Id) {}
+    TimeFormatLocalizationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::TimeFormatLocalization::Id, endpoint)
+    {}
     ~TimeFormatLocalizationCluster() {}
 };
 
 class DLL_EXPORT UnitLocalizationCluster : public ClusterBase
 {
 public:
-    UnitLocalizationCluster() : ClusterBase(app::Clusters::UnitLocalization::Id) {}
+    UnitLocalizationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::UnitLocalization::Id, endpoint)
+    {}
     ~UnitLocalizationCluster() {}
 };
 
-class DLL_EXPORT UserLabelCluster : public ClusterBase
+class DLL_EXPORT PowerSourceConfigurationCluster : public ClusterBase
 {
 public:
-    UserLabelCluster() : ClusterBase(app::Clusters::UserLabel::Id) {}
-    ~UserLabelCluster() {}
+    PowerSourceConfigurationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                    EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::PowerSourceConfiguration::Id, endpoint)
+    {}
+    ~PowerSourceConfigurationCluster() {}
 };
 
-class DLL_EXPORT WakeOnLanCluster : public ClusterBase
+class DLL_EXPORT PowerSourceCluster : public ClusterBase
 {
 public:
-    WakeOnLanCluster() : ClusterBase(app::Clusters::WakeOnLan::Id) {}
-    ~WakeOnLanCluster() {}
+    PowerSourceCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::PowerSource::Id, endpoint)
+    {}
+    ~PowerSourceCluster() {}
+};
+
+class DLL_EXPORT GeneralCommissioningCluster : public ClusterBase
+{
+public:
+    GeneralCommissioningCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::GeneralCommissioning::Id, endpoint)
+    {}
+    ~GeneralCommissioningCluster() {}
+};
+
+class DLL_EXPORT NetworkCommissioningCluster : public ClusterBase
+{
+public:
+    NetworkCommissioningCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::NetworkCommissioning::Id, endpoint)
+    {}
+    ~NetworkCommissioningCluster() {}
+};
+
+class DLL_EXPORT DiagnosticLogsCluster : public ClusterBase
+{
+public:
+    DiagnosticLogsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::DiagnosticLogs::Id, endpoint)
+    {}
+    ~DiagnosticLogsCluster() {}
+};
+
+class DLL_EXPORT GeneralDiagnosticsCluster : public ClusterBase
+{
+public:
+    GeneralDiagnosticsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::GeneralDiagnostics::Id, endpoint)
+    {}
+    ~GeneralDiagnosticsCluster() {}
+};
+
+class DLL_EXPORT SoftwareDiagnosticsCluster : public ClusterBase
+{
+public:
+    SoftwareDiagnosticsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::SoftwareDiagnostics::Id, endpoint)
+    {}
+    ~SoftwareDiagnosticsCluster() {}
+};
+
+class DLL_EXPORT ThreadNetworkDiagnosticsCluster : public ClusterBase
+{
+public:
+    ThreadNetworkDiagnosticsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                    EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ThreadNetworkDiagnostics::Id, endpoint)
+    {}
+    ~ThreadNetworkDiagnosticsCluster() {}
 };
 
 class DLL_EXPORT WiFiNetworkDiagnosticsCluster : public ClusterBase
 {
 public:
-    WiFiNetworkDiagnosticsCluster() : ClusterBase(app::Clusters::WiFiNetworkDiagnostics::Id) {}
+    WiFiNetworkDiagnosticsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::WiFiNetworkDiagnostics::Id, endpoint)
+    {}
     ~WiFiNetworkDiagnosticsCluster() {}
+};
+
+class DLL_EXPORT EthernetNetworkDiagnosticsCluster : public ClusterBase
+{
+public:
+    EthernetNetworkDiagnosticsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                      EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::EthernetNetworkDiagnostics::Id, endpoint)
+    {}
+    ~EthernetNetworkDiagnosticsCluster() {}
+};
+
+class DLL_EXPORT BridgedDeviceBasicCluster : public ClusterBase
+{
+public:
+    BridgedDeviceBasicCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::BridgedDeviceBasic::Id, endpoint)
+    {}
+    ~BridgedDeviceBasicCluster() {}
+};
+
+class DLL_EXPORT SwitchCluster : public ClusterBase
+{
+public:
+    SwitchCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Switch::Id, endpoint)
+    {}
+    ~SwitchCluster() {}
+};
+
+class DLL_EXPORT AdministratorCommissioningCluster : public ClusterBase
+{
+public:
+    AdministratorCommissioningCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                      EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::AdministratorCommissioning::Id, endpoint)
+    {}
+    ~AdministratorCommissioningCluster() {}
+};
+
+class DLL_EXPORT OperationalCredentialsCluster : public ClusterBase
+{
+public:
+    OperationalCredentialsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OperationalCredentials::Id, endpoint)
+    {}
+    ~OperationalCredentialsCluster() {}
+};
+
+class DLL_EXPORT GroupKeyManagementCluster : public ClusterBase
+{
+public:
+    GroupKeyManagementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::GroupKeyManagement::Id, endpoint)
+    {}
+    ~GroupKeyManagementCluster() {}
+};
+
+class DLL_EXPORT FixedLabelCluster : public ClusterBase
+{
+public:
+    FixedLabelCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::FixedLabel::Id, endpoint)
+    {}
+    ~FixedLabelCluster() {}
+};
+
+class DLL_EXPORT UserLabelCluster : public ClusterBase
+{
+public:
+    UserLabelCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::UserLabel::Id, endpoint)
+    {}
+    ~UserLabelCluster() {}
+};
+
+class DLL_EXPORT BooleanStateCluster : public ClusterBase
+{
+public:
+    BooleanStateCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::BooleanState::Id, endpoint)
+    {}
+    ~BooleanStateCluster() {}
+};
+
+class DLL_EXPORT ModeSelectCluster : public ClusterBase
+{
+public:
+    ModeSelectCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ModeSelect::Id, endpoint)
+    {}
+    ~ModeSelectCluster() {}
+};
+
+class DLL_EXPORT DoorLockCluster : public ClusterBase
+{
+public:
+    DoorLockCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::DoorLock::Id, endpoint)
+    {}
+    ~DoorLockCluster() {}
 };
 
 class DLL_EXPORT WindowCoveringCluster : public ClusterBase
 {
 public:
-    WindowCoveringCluster() : ClusterBase(app::Clusters::WindowCovering::Id) {}
+    WindowCoveringCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::WindowCovering::Id, endpoint)
+    {}
     ~WindowCoveringCluster() {}
+};
+
+class DLL_EXPORT BarrierControlCluster : public ClusterBase
+{
+public:
+    BarrierControlCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::BarrierControl::Id, endpoint)
+    {}
+    ~BarrierControlCluster() {}
+};
+
+class DLL_EXPORT PumpConfigurationAndControlCluster : public ClusterBase
+{
+public:
+    PumpConfigurationAndControlCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                       EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::PumpConfigurationAndControl::Id, endpoint)
+    {}
+    ~PumpConfigurationAndControlCluster() {}
+};
+
+class DLL_EXPORT ThermostatCluster : public ClusterBase
+{
+public:
+    ThermostatCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Thermostat::Id, endpoint)
+    {}
+    ~ThermostatCluster() {}
+};
+
+class DLL_EXPORT FanControlCluster : public ClusterBase
+{
+public:
+    FanControlCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::FanControl::Id, endpoint)
+    {}
+    ~FanControlCluster() {}
+};
+
+class DLL_EXPORT ThermostatUserInterfaceConfigurationCluster : public ClusterBase
+{
+public:
+    ThermostatUserInterfaceConfigurationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                                EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ThermostatUserInterfaceConfiguration::Id, endpoint)
+    {}
+    ~ThermostatUserInterfaceConfigurationCluster() {}
+};
+
+class DLL_EXPORT ColorControlCluster : public ClusterBase
+{
+public:
+    ColorControlCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ColorControl::Id, endpoint)
+    {}
+    ~ColorControlCluster() {}
+};
+
+class DLL_EXPORT BallastConfigurationCluster : public ClusterBase
+{
+public:
+    BallastConfigurationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::BallastConfiguration::Id, endpoint)
+    {}
+    ~BallastConfigurationCluster() {}
+};
+
+class DLL_EXPORT IlluminanceMeasurementCluster : public ClusterBase
+{
+public:
+    IlluminanceMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::IlluminanceMeasurement::Id, endpoint)
+    {}
+    ~IlluminanceMeasurementCluster() {}
+};
+
+class DLL_EXPORT TemperatureMeasurementCluster : public ClusterBase
+{
+public:
+    TemperatureMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::TemperatureMeasurement::Id, endpoint)
+    {}
+    ~TemperatureMeasurementCluster() {}
+};
+
+class DLL_EXPORT PressureMeasurementCluster : public ClusterBase
+{
+public:
+    PressureMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::PressureMeasurement::Id, endpoint)
+    {}
+    ~PressureMeasurementCluster() {}
+};
+
+class DLL_EXPORT FlowMeasurementCluster : public ClusterBase
+{
+public:
+    FlowMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::FlowMeasurement::Id, endpoint)
+    {}
+    ~FlowMeasurementCluster() {}
+};
+
+class DLL_EXPORT RelativeHumidityMeasurementCluster : public ClusterBase
+{
+public:
+    RelativeHumidityMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                       EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::RelativeHumidityMeasurement::Id, endpoint)
+    {}
+    ~RelativeHumidityMeasurementCluster() {}
+};
+
+class DLL_EXPORT OccupancySensingCluster : public ClusterBase
+{
+public:
+    OccupancySensingCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OccupancySensing::Id, endpoint)
+    {}
+    ~OccupancySensingCluster() {}
+};
+
+class DLL_EXPORT WakeOnLanCluster : public ClusterBase
+{
+public:
+    WakeOnLanCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::WakeOnLan::Id, endpoint)
+    {}
+    ~WakeOnLanCluster() {}
+};
+
+class DLL_EXPORT ChannelCluster : public ClusterBase
+{
+public:
+    ChannelCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Channel::Id, endpoint)
+    {}
+    ~ChannelCluster() {}
+};
+
+class DLL_EXPORT TargetNavigatorCluster : public ClusterBase
+{
+public:
+    TargetNavigatorCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::TargetNavigator::Id, endpoint)
+    {}
+    ~TargetNavigatorCluster() {}
+};
+
+class DLL_EXPORT MediaPlaybackCluster : public ClusterBase
+{
+public:
+    MediaPlaybackCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::MediaPlayback::Id, endpoint)
+    {}
+    ~MediaPlaybackCluster() {}
+};
+
+class DLL_EXPORT MediaInputCluster : public ClusterBase
+{
+public:
+    MediaInputCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::MediaInput::Id, endpoint)
+    {}
+    ~MediaInputCluster() {}
+};
+
+class DLL_EXPORT LowPowerCluster : public ClusterBase
+{
+public:
+    LowPowerCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::LowPower::Id, endpoint)
+    {}
+    ~LowPowerCluster() {}
+};
+
+class DLL_EXPORT KeypadInputCluster : public ClusterBase
+{
+public:
+    KeypadInputCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::KeypadInput::Id, endpoint)
+    {}
+    ~KeypadInputCluster() {}
+};
+
+class DLL_EXPORT ContentLauncherCluster : public ClusterBase
+{
+public:
+    ContentLauncherCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ContentLauncher::Id, endpoint)
+    {}
+    ~ContentLauncherCluster() {}
+};
+
+class DLL_EXPORT AudioOutputCluster : public ClusterBase
+{
+public:
+    AudioOutputCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::AudioOutput::Id, endpoint)
+    {}
+    ~AudioOutputCluster() {}
+};
+
+class DLL_EXPORT ApplicationLauncherCluster : public ClusterBase
+{
+public:
+    ApplicationLauncherCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ApplicationLauncher::Id, endpoint)
+    {}
+    ~ApplicationLauncherCluster() {}
+};
+
+class DLL_EXPORT ApplicationBasicCluster : public ClusterBase
+{
+public:
+    ApplicationBasicCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ApplicationBasic::Id, endpoint)
+    {}
+    ~ApplicationBasicCluster() {}
+};
+
+class DLL_EXPORT AccountLoginCluster : public ClusterBase
+{
+public:
+    AccountLoginCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::AccountLogin::Id, endpoint)
+    {}
+    ~AccountLoginCluster() {}
+};
+
+class DLL_EXPORT ElectricalMeasurementCluster : public ClusterBase
+{
+public:
+    ElectricalMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ElectricalMeasurement::Id, endpoint)
+    {}
+    ~ElectricalMeasurementCluster() {}
+};
+
+class DLL_EXPORT TestClusterCluster : public ClusterBase
+{
+public:
+    TestClusterCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::TestCluster::Id, endpoint)
+    {}
+    ~TestClusterCluster() {}
 };
 
 } // namespace Controller

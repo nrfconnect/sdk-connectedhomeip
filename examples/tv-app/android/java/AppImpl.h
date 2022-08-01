@@ -27,6 +27,8 @@
 #include <app/app-platform/ContentAppPlatform.h>
 #include <app/util/attribute-storage.h>
 #include <functional>
+#include <jni.h>
+#include <lib/support/JniReferences.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -37,8 +39,10 @@
 #include "../include/target-navigator/TargetNavigatorManager.h"
 #include "ChannelManager.h"
 #include "CommissionerMain.h"
+#include "ContentAppAttributeDelegate.h"
 #include "KeypadInputManager.h"
 #include "MediaPlaybackManager.h"
+#include "MyUserPrompter-JNI.h"
 #include <app/clusters/account-login-server/account-login-delegate.h>
 #include <app/clusters/application-basic-server/application-basic-delegate.h>
 #include <app/clusters/application-launcher-server/application-launcher-delegate.h>
@@ -48,8 +52,11 @@
 #include <app/clusters/media-playback-server/media-playback-delegate.h>
 #include <app/clusters/target-navigator-server/target-navigator-delegate.h>
 
-CHIP_ERROR InitVideoPlayerPlatform();
+CHIP_ERROR InitVideoPlayerPlatform(JNIMyUserPrompter * userPrompter, jobject contentAppEndpointManager);
 CHIP_ERROR PreServerInit();
+EndpointId AddContentApp(const char * szVendorName, uint16_t vendorId, const char * szApplicationName, uint16_t productId,
+                         const char * szApplicationVersion, jobject manager);
+void SendTestMessage(EndpointId epID, const char * message);
 
 #if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 
@@ -65,6 +72,7 @@ using KeypadInputDelegate         = app::Clusters::KeypadInput::Delegate;
 using MediaPlaybackDelegate       = app::Clusters::MediaPlayback::Delegate;
 using TargetNavigatorDelegate     = app::Clusters::TargetNavigator::Delegate;
 using SupportedStreamingProtocol  = app::Clusters::ContentLauncher::SupportedStreamingProtocol;
+using ContentAppAttributeDelegate = chip::AppPlatform::ContentAppAttributeDelegate;
 
 static const int kCatalogVendorId = CHIP_DEVICE_CONFIG_DEVICE_VENDOR_ID;
 
@@ -75,10 +83,10 @@ class DLL_EXPORT ContentAppImpl : public ContentApp
 {
 public:
     ContentAppImpl(const char * szVendorName, uint16_t vendorId, const char * szApplicationName, uint16_t productId,
-                   const char * szApplicationVersion, const char * setupPIN) :
+                   const char * szApplicationVersion, const char * setupPIN, jobject manager) :
         mApplicationBasicDelegate(kCatalogVendorId, BuildAppId(vendorId), szVendorName, vendorId, szApplicationName, productId,
                                   szApplicationVersion),
-        mAccountLoginDelegate(setupPIN), mContentLauncherDelegate({ "image/*", "video/*" },
+        mAccountLoginDelegate(setupPIN), mContentLauncherDelegate(ContentAppAttributeDelegate(manager), { "image/*", "video/*" },
                                                                   to_underlying(SupportedStreamingProtocol::kDash) |
                                                                       to_underlying(SupportedStreamingProtocol::kHls)),
         mTargetNavigatorDelegate({ "home", "search", "info", "guide", "menu" }, 0){};
@@ -88,7 +96,11 @@ public:
     ApplicationBasicDelegate * GetApplicationBasicDelegate() override { return &mApplicationBasicDelegate; };
     ApplicationLauncherDelegate * GetApplicationLauncherDelegate() override { return &mApplicationLauncherDelegate; };
     ChannelDelegate * GetChannelDelegate() override { return &mChannelDelegate; };
-    ContentLauncherDelegate * GetContentLauncherDelegate() override { return &mContentLauncherDelegate; };
+    ContentLauncherDelegate * GetContentLauncherDelegate() override
+    {
+        mContentLauncherDelegate.SetEndpointId(GetEndpointId());
+        return &mContentLauncherDelegate;
+    };
     KeypadInputDelegate * GetKeypadInputDelegate() override { return &mKeypadInputDelegate; };
     MediaPlaybackDelegate * GetMediaPlaybackDelegate() override { return &mMediaPlaybackDelegate; };
     TargetNavigatorDelegate * GetTargetNavigatorDelegate() override { return &mTargetNavigatorDelegate; };
@@ -119,6 +131,10 @@ public:
     // Lookup ContentApp for this catalog id / app id and load it
     ContentApp * LoadContentApp(const CatalogVendorApp & vendorApp) override;
 
+    EndpointId AddContentApp(ContentAppImpl * app, jobject contentAppEndpointManager);
+
+    void SendTestMessage(EndpointId epID, const char * message);
+
     // Gets the catalog vendor ID used by this platform
     uint16_t GetPlatformCatalogVendorId() override;
 
@@ -126,16 +142,28 @@ public:
     // and then writes it to destinationApp
     CHIP_ERROR ConvertToPlatformCatalogVendorApp(const CatalogVendorApp & sourceApp, CatalogVendorApp * destinationApp) override;
 
+    // Get the privilege this vendorId should have on endpoints 1, 2, and content app endpoints
+    // In the case of casting video clients, this should usually be Access::Privilege::kOperate
+    // and for voice agents, this may be Access::Privilege::kAdminister
+    // When a vendor has admin privileges, it will get access to all clusters on ep1
+    Access::Privilege GetVendorPrivilege(uint16_t vendorId) override;
+
+    void AddAdminVendorId(uint16_t vendorId);
+
 protected:
-    ContentAppImpl mContentApps[APP_LIBRARY_SIZE] = {
-        ContentAppImpl("Vendor1", 1, "exampleid", 11, "Version1", "34567890"),
-        ContentAppImpl("Vendor2", 65521, "exampleString", 32768, "Version2", "20202021"),
-        ContentAppImpl("Vendor3", 9050, "App3", 22, "Version3", "20202021"),
-        ContentAppImpl("TestSuiteVendor", 1111, "applicationId", 22, "v2", "20202021")
+    std::vector<ContentAppImpl *> mContentApps{
+        new ContentAppImpl("Vendor1", 1, "exampleid", 11, "Version1", "20202021", nullptr),
+        new ContentAppImpl("Vendor2", 65521, "exampleString", 32768, "Version2", "20202021", nullptr),
+        new ContentAppImpl("Vendor3", 9050, "App3", 22, "Version3", "20202021", nullptr),
+        new ContentAppImpl("TestSuiteVendor", 1111, "applicationId", 22, "v2", "20202021", nullptr)
     };
+
+    std::vector<uint16_t> mAdminVendorIds{};
 };
 
 } // namespace AppPlatform
 } // namespace chip
+
+chip::AppPlatform::ContentAppFactoryImpl * GetContentAppFactoryImpl();
 
 #endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED

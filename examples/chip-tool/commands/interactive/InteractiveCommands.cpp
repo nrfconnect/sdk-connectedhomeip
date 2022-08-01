@@ -18,8 +18,9 @@
 
 #include "InteractiveCommands.h"
 
-#include <readline/history.h>
-#include <readline/readline.h>
+#include <editline.h>
+#include <iomanip>
+#include <sstream>
 
 char kInteractiveModeName[]                            = "";
 constexpr const char * kInteractiveModePrompt          = ">>> ";
@@ -28,8 +29,6 @@ constexpr const char * kInteractiveModeHistoryFilePath = "/tmp/chip_tool_history
 constexpr const char * kInteractiveModeStopCommand     = "quit()";
 
 namespace {
-
-bool gIsCommandRunning = false;
 
 void ClearLine()
 {
@@ -41,11 +40,6 @@ void ENFORCE_FORMAT(3, 0) LoggingCallback(const char * module, uint8_t category,
     ClearLine();
     chip::Logging::Platform::LogV(module, category, msg, args);
     ClearLine();
-
-    if (gIsCommandRunning == false)
-    {
-        rl_forced_update_display();
-    }
 }
 } // namespace
 
@@ -95,32 +89,35 @@ bool InteractiveStartCommand::ParseCommand(char * command)
 {
     if (strcmp(command, kInteractiveModeStopCommand) == 0)
     {
+        ExecuteDeferredCleanups();
         return false;
     }
 
     char * args[kInteractiveModeArgumentsMaxLength];
     args[0]       = kInteractiveModeName;
     int argsCount = 1;
+    std::string arg;
 
-    char * token = strtok(command, " ");
-    while (token != nullptr)
+    std::stringstream ss(command);
+    while (ss >> std::quoted(arg, '\''))
     {
         if (argsCount == kInteractiveModeArgumentsMaxLength)
         {
-            gIsCommandRunning = true;
             ChipLogError(chipTool, "Too many arguments. Ignoring.");
-            gIsCommandRunning = false;
             return true;
         }
 
-        args[argsCount++] = token;
-        token             = strtok(nullptr, " ");
+        char * carg = new char[arg.size() + 1];
+        strcpy(carg, arg.c_str());
+        args[argsCount++] = carg;
     }
 
     ClearLine();
-    gIsCommandRunning = true;
     mHandler->RunInteractive(argsCount, args);
-    gIsCommandRunning = false;
+
+    // Do not delete arg[0]
+    while (--argsCount)
+        delete[] args[argsCount];
 
     return true;
 }

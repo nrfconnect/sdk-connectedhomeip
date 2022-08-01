@@ -29,6 +29,9 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include "PDM.h"
+#include "fsl_os_abstraction.h"
+#include "pdm_ram_storage_glue.h"
+#include "ram_storage.h"
 
 namespace chip {
 namespace DeviceLayer {
@@ -59,7 +62,9 @@ public:
                                                          *   Cleared during factory reset. */
     static constexpr uint8_t kPDMId_ChipCounter = 0x03; /**< PDM id for settings containing dynamic counter values set at runtime.
                                                          *   Retained during factory reset. */
-    static constexpr uint8_t kPDMId_KVS = 0x04;         /**< PDM id for settings containing KVS set at runtime.
+    static constexpr uint8_t kPDMId_KVSKey = 0x04;      /**< PDM id for settings containing KVS keys set at runtime.
+                                                         *   Cleared during factory reset. */
+    static constexpr uint8_t kPDMId_KVSValue = 0x05;    /**< PDM id for settings containing KVS values set at runtime.
                                                          *   Cleared during factory reset. */
 
     using Key = uint32_t;
@@ -104,8 +109,10 @@ public:
     static constexpr Key kMaxConfigKey_ChipConfig  = K32WConfigKey(kPDMId_ChipConfig, 0xFF);
     static constexpr Key kMinConfigKey_ChipCounter = K32WConfigKey(kPDMId_ChipCounter, 0x00);
     static constexpr Key kMaxConfigKey_ChipCounter = K32WConfigKey(kPDMId_ChipCounter, 0xFF); // Allows 32 Counters to be created.
-    static constexpr Key kMinConfigKey_KVS         = K32WConfigKey(kPDMId_KVS, 0x00);
-    static constexpr Key kMaxConfigKey_KVS         = K32WConfigKey(kPDMId_KVS, 0xFF);
+    static constexpr Key kMinConfigKey_KVSKey      = K32WConfigKey(kPDMId_KVSKey, 0x00);
+    static constexpr Key kMaxConfigKey_KVSKey      = K32WConfigKey(kPDMId_KVSKey, 0xFF);
+    static constexpr Key kMinConfigKey_KVSValue    = K32WConfigKey(kPDMId_KVSValue, 0x00);
+    static constexpr Key kMaxConfigKey_KVSValue    = K32WConfigKey(kPDMId_KVSValue, 0xFF);
 
     static CHIP_ERROR Init(void);
 
@@ -117,6 +124,7 @@ public:
     static CHIP_ERROR ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSize, size_t & outLen);
     static CHIP_ERROR ReadConfigValueCounter(uint8_t counterIdx, uint32_t & val);
     static CHIP_ERROR WriteConfigValue(Key key, bool val);
+    static CHIP_ERROR WriteConfigValueSync(Key key, bool val);
     static CHIP_ERROR WriteConfigValue(Key key, uint32_t val);
     static CHIP_ERROR WriteConfigValue(Key key, uint64_t val);
     static CHIP_ERROR WriteConfigValueStr(Key key, const char * str);
@@ -130,16 +138,21 @@ public:
 
     static void RunConfigUnitTest(void);
 
+    // Log error wrappers for OSA mutex lock/unlock.
+    static void MutexLock(osaMutexId_t mutexId, uint32_t millisec);
+    static void MutexUnlock(osaMutexId_t mutexId);
+
+    static osaMutexId_t pdmMutexHandle;
+
 protected:
-    using ForEachRecordFunct = std::function<CHIP_ERROR(const Key & PDMIdKey, const size_t & length)>;
-    static CHIP_ERROR ForEachRecord(Key firstKey, Key lastKey, bool addNewRecord, ForEachRecordFunct funct);
     static constexpr uint8_t GetPDMId(uint32_t key);
     static constexpr uint8_t GetRecordKey(uint32_t key);
 
 private:
     static CHIP_ERROR MapPdmStatus(PDM_teStatus pdmStatus);
+    static CHIP_ERROR MapRamStorageStatus(rsError rsStatus);
     static CHIP_ERROR MapPdmInitStatus(int pdmStatus);
-    static CHIP_ERROR FactoryResetConfigInternal(Key firstKey, Key lastKey);
+    static void FactoryResetConfigInternal(Key firstKey, Key lastKey);
 };
 
 /**

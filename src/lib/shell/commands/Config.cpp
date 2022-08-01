@@ -25,6 +25,7 @@
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/CommissionableDataProvider.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 
 using chip::DeviceLayer::ConfigurationMgr;
 
@@ -44,7 +45,7 @@ static CHIP_ERROR ConfigGetVendorId(bool printHeader)
     streamer_t * sout = streamer_get();
     uint16_t value16;
 
-    ReturnErrorOnFailure(ConfigurationMgr().GetVendorId(value16));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetVendorId(value16));
     if (printHeader)
     {
         streamer_printf(sout, "VendorId:        ");
@@ -63,7 +64,7 @@ static CHIP_ERROR ConfigGetProductId(bool printHeader)
     streamer_t * sout = streamer_get();
     uint16_t value16;
 
-    ReturnErrorOnFailure(ConfigurationMgr().GetProductId(value16));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(value16));
     if (printHeader)
     {
         streamer_printf(sout, "ProductId:       ");
@@ -82,7 +83,7 @@ static CHIP_ERROR ConfigGetHardwareVersion(bool printHeader)
     streamer_t * sout = streamer_get();
     uint16_t value16;
 
-    ReturnErrorOnFailure(ConfigurationMgr().GetHardwareVersion(value16));
+    ReturnErrorOnFailure(DeviceLayer::GetDeviceInstanceInfoProvider()->GetHardwareVersion(value16));
     if (printHeader)
     {
         streamer_printf(sout, "HardwareVersion: ");

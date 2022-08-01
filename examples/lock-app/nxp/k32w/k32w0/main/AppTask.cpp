@@ -28,6 +28,8 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 
+#include <inet/EndPointStateOpenThread.h>
+
 #include <app-common/zap-generated/attribute-id.h>
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/cluster-id.h>
@@ -162,12 +164,29 @@ CHIP_ERROR AppTask::Init()
     return err;
 }
 
+void LockOpenThreadTask(void)
+{
+    PWR_DisallowDeviceToSleep();
+    chip::DeviceLayer::ThreadStackMgr().LockThreadStack();
+}
+
+void UnlockOpenThreadTask(void)
+{
+    chip::DeviceLayer::ThreadStackMgr().UnlockThreadStack();
+    PWR_AllowDeviceToSleep();
+}
+
 void AppTask::InitServer(intptr_t arg)
 {
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
 
     // Init ZCL Data Model and start server
+    chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;
+    nativeParams.lockCb                = LockOpenThreadTask;
+    nativeParams.unlockCb              = UnlockOpenThreadTask;
+    nativeParams.openThreadInstancePtr = chip::DeviceLayer::ThreadStackMgrImpl().OTInstance();
+    initParams.endpointNativeParams    = static_cast<void *>(&nativeParams);
     VerifyOrDie((chip::Server::GetInstance().Init(initParams)) == CHIP_NO_ERROR);
 }
 
@@ -711,9 +730,10 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     {
         aEvent->Handler(aEvent->param);
     }
+    else
 #endif
 
-    if (aEvent->Handler)
+        if (aEvent->Handler)
     {
         aEvent->Handler(aEvent);
     }
@@ -739,3 +759,5 @@ void AppTask::UpdateClusterStateInternal(intptr_t arg)
         ChipLogError(NotSpecified, "ERR: updating on/off %x", status);
     }
 }
+
+extern "C" void OTAIdleActivities(void) {}

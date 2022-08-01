@@ -26,16 +26,13 @@ namespace chip {
 class OperationalDeviceProxyPoolDelegate
 {
 public:
-    virtual OperationalDeviceProxy * Allocate(DeviceProxyInitParams & params, PeerId peerId) = 0;
-
-    virtual OperationalDeviceProxy * Allocate(DeviceProxyInitParams & params, PeerId peerId,
-                                              const Dnssd::ResolvedNodeData & nodeResolutionData) = 0;
+    virtual OperationalDeviceProxy * Allocate(DeviceProxyInitParams & params, ScopedNodeId peerId) = 0;
 
     virtual void Release(OperationalDeviceProxy * device) = 0;
 
-    virtual OperationalDeviceProxy * FindDevice(PeerId peerId) = 0;
+    virtual OperationalDeviceProxy * FindDevice(ScopedNodeId peerId) = 0;
 
-    virtual void ReleaseDevicesForFabric(CompressedFabricId compressedFabricId) = 0;
+    virtual void ReleaseDevicesForFabric(FabricIndex fabricIndex) = 0;
 
     virtual void ReleaseAllDevices() = 0;
 
@@ -48,20 +45,14 @@ class OperationalDeviceProxyPool : public OperationalDeviceProxyPoolDelegate
 public:
     ~OperationalDeviceProxyPool() override { mDevicePool.ReleaseAll(); }
 
-    OperationalDeviceProxy * Allocate(DeviceProxyInitParams & params, PeerId peerId) override
+    OperationalDeviceProxy * Allocate(DeviceProxyInitParams & params, ScopedNodeId peerId) override
     {
         return mDevicePool.CreateObject(params, peerId);
     }
 
-    OperationalDeviceProxy * Allocate(DeviceProxyInitParams & params, PeerId peerId,
-                                      const Dnssd::ResolvedNodeData & nodeResolutionData) override
-    {
-        return mDevicePool.CreateObject(params, peerId, nodeResolutionData);
-    }
-
     void Release(OperationalDeviceProxy * device) override { mDevicePool.ReleaseObject(device); }
 
-    OperationalDeviceProxy * FindDevice(PeerId peerId) override
+    OperationalDeviceProxy * FindDevice(ScopedNodeId peerId) override
     {
         OperationalDeviceProxy * foundDevice = nullptr;
         mDevicePool.ForEachActiveObject([&](auto * activeDevice) {
@@ -76,10 +67,10 @@ public:
         return foundDevice;
     }
 
-    void ReleaseDevicesForFabric(CompressedFabricId compressedFabricId) override
+    void ReleaseDevicesForFabric(FabricIndex fabricIndex) override
     {
         mDevicePool.ForEachActiveObject([&](auto * activeDevice) {
-            if (activeDevice->GetPeerId().GetCompressedFabricId() == compressedFabricId)
+            if (activeDevice->GetFabricIndex() == fabricIndex)
             {
                 Release(activeDevice);
             }

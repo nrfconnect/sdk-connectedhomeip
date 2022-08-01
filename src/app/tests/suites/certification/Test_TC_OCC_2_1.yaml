@@ -28,45 +28,18 @@ tests:
               - name: "nodeId"
                 value: nodeId
 
-    - label: "Reads mandatory attribute: Occupancy"
-      disabled: true
-      command: "readAttribute"
-      attribute: "occupancy"
-      response:
-          value: 0
-
     - label: "Reads mandatory attribute constrains: Occupancy"
+      PICS: OCC.S.A0000
       command: "readAttribute"
       attribute: "occupancy"
       response:
           constraints:
-              type: map8
+              type: bitmap8
               minValue: 0
               maxValue: 1
 
-    - label:
-          "Writes the respective default value to mandatory attribute: Occupancy"
-      command: "writeAttribute"
-      attribute: "occupancy"
-      arguments:
-          value: 0
-      response:
-          error: UNSUPPORTED_WRITE
-
-    - label: "Reads back mandatory attribute: Occupancy"
-      command: "readAttribute"
-      attribute: "occupancy"
-      response:
-          value: 0
-
-    - label: "Reads mandatory attribute: OccupancySensorType"
-      disabled: true
-      command: "readAttribute"
-      attribute: "occupancy sensor type"
-      response:
-          value: 0
-
     - label: "Reads mandatory attribute constrains: OccupancySensorType"
+      PICS: OCC.S.A0001
       command: "readAttribute"
       attribute: "occupancy sensor type"
       response:
@@ -75,258 +48,118 @@ tests:
               minValue: 0
               maxValue: 3
 
-    - label:
-          "Writes the respective default value to mandatory attribute:
-          OccupancySensorType"
-      command: "writeAttribute"
-      attribute: "occupancy sensor type"
-      arguments:
-          value: 0
-      response:
-          error: UNSUPPORTED_WRITE
-
-    - label: "Reads back mandatory attribute: OccupancySensorType"
-      command: "readAttribute"
-      attribute: "occupancy sensor type"
-      response:
-          value: 0
-
-    - label: "Reads mandatory attribute: OccupancySensorTypeBitmap"
-      disabled: true
-      command: "readAttribute"
-      attribute: "occupancy sensor type bitmap"
-      response:
-          value: 0
-
     - label: "Reads mandatory attribute constrains: OccupancySensorTypeBitmap"
+      PICS: OCC.S.A0002
       command: "readAttribute"
       attribute: "occupancy sensor type bitmap"
       response:
           constraints:
-              type: map8
+              type: bitmap8
               minValue: 1
-              maxValue: 7
+              maxValue: 273
 
-    - label:
-          "Writes the respective default value to mandatory attribute:
-          OccupancySensorTypeBitmap"
-      command: "writeAttribute"
-      attribute: "occupancy sensor type bitmap"
-      arguments:
-          value: 1
-      response:
-          error: UNSUPPORTED_WRITE
-
-    - label: "Reads back mandatory attribute: OccupancySensorTypeBitmap"
-      command: "readAttribute"
-      attribute: "occupancy sensor type bitmap"
-      response:
-          value: 1
-
-    #disabled due to issue #15377
     - label: "Reads optional attribute: PIROccupiedToUnoccupiedDelay"
-      disabled: true
+      PICS: OCC.S.A0010
       command: "readAttribute"
-      attribute: "PIROccupiedToUnoccupiedDelay"
+      attribute: "PIR occupied to unoccupied delay"
       response:
           value: 0
-
-    - label: "Reads optional attribute constrains: PIROccupiedToUnoccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PIROccupiedToUnoccupiedDelay"
-      response:
           constraints:
-              type: uint16
-
-    - label:
-          "Writes the respective default value to optional attribute:
-          PIROccupiedToUnoccupiedDelay"
-      disabled: true
-      command: "writeAttribute"
-      attribute: "PIROccupiedToUnoccupiedDelay"
-      arguments:
-          value: 0
-
-    - label: "Reads back optional attribute: PIROccupiedToUnoccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PIROccupiedToUnoccupiedDelay"
-      response:
-          value: 0
-
-    - label: "Reads optional attribute: PIRUnoccupiedToOccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PIRUnoccupiedToOccupiedDelay"
-      response:
-          value: 0
+              type: int16u
+              minValue: 0
+              maxValue: 65535
 
     - label: "Reads optional attribute constrains: PIRUnoccupiedToOccupiedDelay"
-      disabled: true
+      PICS: OCC.S.A0011
       command: "readAttribute"
-      attribute: "PIRUnoccupiedToOccupiedDelay"
+      attribute: "PIR unoccupied to occupied delay"
       response:
+          value: 0
           constraints:
-              type: uint16
-
-    - label:
-          "Writes the respective default value to optional attribute:
-          PIRUnoccupiedToOccupiedDelay"
-      disabled: true
-      command: "writeAttribute"
-      attribute: "PIRUnoccupiedToOccupiedDelay"
-      arguments:
-          value: 0
-
-    - label: "Reads back optional attribute: PIRUnoccupiedToOccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PIRUnoccupiedToOccupiedDelay"
-      response:
-          value: 0
-
-    - label: "Reads optional attribute: PIRUnoccupiedToOccupiedThreshold"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PIRUnoccupiedToOccupiedThreshold"
-      response:
-          value: 1
+              type: int16u
+              minValue: 0
+              maxValue: 65535
 
     - label:
           "Reads optional attribute constrains: PIRUnoccupiedToOccupiedThreshold"
-      disabled: true
+      PICS: OCC.S.A0012
       command: "readAttribute"
-      attribute: "PIRUnoccupiedToOccupiedThreshold"
+      attribute: "PIR unoccupied to occupied threshold"
       response:
+          value: 1
           constraints:
-              type: uint8
+              type: int8u
+              minValue: 1
+              maxValue: 254
+
+    - label: "Read optional attribute: UltrasonicOccupiedToUnoccupiedDelay"
+      PICS: OCC.S.A0020
+      command: "readAttribute"
+      attribute: "ultrasonic occupied to unoccupied delay"
+      response:
+          value: 0
+          constraints:
+              type: int16u
+              minValue: 0
+              maxValue: 65535
+
+    - label: "Read attribute: UltrasonicUnoccupiedToOccupiedDelay"
+      PICS: OCC.S.A0021
+      command: "readAttribute"
+      attribute: "ultrasonic unoccupied to occupied delay"
+      response:
+          value: 0
+          constraints:
+              type: int16u
+              minValue: 0
+              maxValue: 65535
+
+    - label: "Read attribute: UltrasonicUnoccupiedToOccupiedThreshold"
+      PICS: OCC.S.A0022
+      command: "readAttribute"
+      attribute: "ultrasonic unoccupied to occupied threshold"
+      response:
+          value: 1
+          constraints:
+              type: int8u
               minValue: 1
               maxValue: 254
 
     - label:
-          "Writes the respective default value to optional attribute:
-          PIRUnoccupiedToOccupiedThreshold"
-      disabled: true
-      command: "writeAttribute"
-      attribute: "PIRUnoccupiedToOccupiedThreshold"
-      arguments:
-          value: 1
-
-    - label: "Reads back optional attribute: PIRUnoccupiedToOccupiedThreshold"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PIRUnoccupiedToOccupiedThreshold"
-      response:
-          value: 1
-
-    - label:
-          "Reads optional attribute: PhysicalContactOccupiedToUnoccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PhysicalContactOccupiedToUnoccupiedDelay"
-      response:
-          value: 0
-
-    - label:
           "Reads optional attribute constrains:
           PhysicalContactOccupiedToUnoccupiedDelay"
-      disabled: true
+      PICS: OCC.S.A0030
       command: "readAttribute"
-      attribute: "PhysicalContactOccupiedToUnoccupiedDelay"
+      attribute: "physical contact occupied to unoccupied delay"
       response:
+          value: 0
           constraints:
-              type: uint16
-
-    - label:
-          "Writes the respective default value to optional attribute:
-          PhysicalContactOccupiedToUnoccupiedDelay"
-      disabled: true
-      command: "writeAttribute"
-      attribute: "PhysicalContactOccupiedToUnoccupiedDelay"
-      arguments:
-          value: 0
-
-    - label:
-          "Reads back optional attribute:
-          PhysicalContactOccupiedToUnoccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PhysicalContactOccupiedToUnoccupiedDelay"
-      response:
-          value: 0
-
-    - label:
-          "Reads optional attribute: PhysicalContactUnoccupiedToOccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedDelay"
-      response:
-          value: 0
+              type: int16u
+              minValue: 0
+              maxValue: 65535
 
     - label:
           "Reads optional attribute constrains:
           PhysicalContactUnoccupiedToOccupiedDelay"
-      disabled: true
+      PICS: OCC.S.A0031
       command: "readAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedDelay"
+      attribute: "physical contact unoccupied to occupied delay"
       response:
+          value: 0
           constraints:
-              type: uint16
-
-    - label:
-          "Writes the respective default value to optional attribute:
-          PhysicalContactUnoccupiedToOccupiedDelay"
-      disabled: true
-      command: "writeAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedDelay"
-      arguments:
-          value: 0
-
-    - label:
-          "Reads back optional attribute:
-          PhysicalContactUnoccupiedToOccupiedDelay"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedDelay"
-      response:
-          value: 0
-
-    - label:
-          "Reads optional attribute:
-          PhysicalContactUnoccupiedToOccupiedThreshold"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedThreshold"
-      response:
-          value: 1
+              type: int16u
+              minValue: 0
+              maxValue: 65535
 
     - label:
           "Reads optional attribute constrains:
           PhysicalContactUnoccupiedToOccupiedThreshold"
-      disabled: true
+      PICS: OCC.S.A0032
       command: "readAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedThreshold"
+      attribute: "physical contact unoccupied to occupied threshold"
       response:
+          value: 1
           constraints:
-              type: uint8
+              type: int8u
               minValue: 1
               maxValue: 254
-
-    - label:
-          "Writes the respective default value to optional attribute:
-          PhysicalContactUnoccupiedToOccupiedThreshold"
-      disabled: true
-      command: "writeAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedThreshold"
-      arguments:
-          value: 1
-
-    - label:
-          "Reads back optional attribute:
-          PhysicalContactUnoccupiedToOccupiedThreshold"
-      disabled: true
-      command: "readAttribute"
-      attribute: "PhysicalContactUnoccupiedToOccupiedThreshold"
-      response:
-          value: 1

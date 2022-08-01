@@ -30,7 +30,7 @@ if (CONFIG_CHIP)
 include(ExternalProject)
 include(../../zephyr/ota-image.cmake)
 include(../../zephyr/zephyr-util.cmake)
-include(ota-content-header.cmake)
+include(generate_factory_data.cmake)
 
 # ==============================================================================
 # Declare configuration variables and define constants
@@ -100,7 +100,7 @@ endif()
 if (CONFIG_POSIX_API)
     list(APPEND CHIP_CFLAGS
         -D_SYS__PTHREADTYPES_H_
-        -isystem${ZEPHYR_BASE}/include/posix
+        -isystem${ZEPHYR_BASE}/include/zephyr/posix
     )
 endif()
 
@@ -220,6 +220,13 @@ chip_gn_arg_bool  ("chip_detail_logging"                    CONFIG_MATTER_LOG_LE
 chip_gn_arg_bool  ("chip_automation_logging"                "false")
 chip_gn_arg_bool  ("chip_malloc_sys_heap"                   CONFIG_CHIP_MALLOC_SYS_HEAP)
 
+if (CONFIG_CHIP_FACTORY_DATA)
+    chip_gn_arg_bool  ("chip_use_transitional_commissionable_data_provider"  "false")
+    chip_gn_arg_bool  ("chip_enable_factory_data"                            "true")
+elseif (CONFIG_CHIP_FACTORY_DATA_CUSTOM_BACKEND)
+    chip_gn_arg_bool  ("chip_use_transitional_commissionable_data_provider"  "false")
+endif()
+
 if (CONFIG_CHIP_ROTATING_DEVICE_ID)
     chip_gn_arg_bool("chip_enable_rotating_device_id"          "true")
     chip_gn_arg_bool("chip_enable_additional_data_advertising" "true")
@@ -227,11 +234,6 @@ endif()
 
 if (CONFIG_CHIP_ENABLE_DNSSD_SRP)
     chip_gn_arg_string("chip_mdns" "platform")
-endif()
-
-if (CONFIG_CHIP_FIRMWARE_BUILD_UNIX_TIME)
-    string(TIMESTAMP CHIP_FIRMWARE_BUILD_UNIX_TIME "%s")
-    chip_gn_arg_string("chip_device_config_firmware_build_unix_time" ${CHIP_FIRMWARE_BUILD_UNIX_TIME})
 endif()
 
 if (CHIP_PROJECT_CONFIG)
@@ -257,9 +259,14 @@ if (CONFIG_CHIP_PW_RPC)
     set(PIGWEED_DIR "//third_party/pigweed/repo")
     chip_gn_arg_bool("chip_build_pw_trace_lib" "true")
     chip_gn_arg_string("pw_trace_BACKEND" ${PIGWEED_DIR}/pw_trace_tokenized)
-    chip_gn_arg_string("pw_assert_BACKEND" ${PIGWEED_DIR}/pw_assert_log)
+    chip_gn_arg_string("pw_assert_BACKEND" ${PIGWEED_DIR}/pw_assert_log:check_backend)
     chip_gn_arg_string("pw_log_BACKEND" ${PIGWEED_DIR}/pw_log_basic)
     chip_gn_arg("pw_build_LINK_DEPS" [\"${PIGWEED_DIR}/pw_assert:impl\",\ \"${PIGWEED_DIR}/pw_log:impl\"])
+endif()
+
+if (CONFIG_CHIP_EXAMPLE_DEVICE_INFO_PROVIDER)
+    chip_gn_arg_bool("chip_build_example_providers" "true")
+    list(APPEND CHIP_LIBRARIES -lMatterDeviceInfoProviderExample)
 endif()
 
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/args.tmp" CONTENT ${CHIP_GN_ARGS})
@@ -311,6 +318,10 @@ if (CONFIG_CHIP_LIB_SHELL)
     target_link_options(chip INTERFACE -Wl,--whole-archive -lCHIPShell -Wl,--no-whole-archive)
 endif()
 
+if (CONFIG_CHIP_EXAMPLE_DEVICE_INFO_PROVIDER)
+    target_include_directories(chip INTERFACE ${CHIP_ROOT}/examples/providers)
+endif()
+
 if (CONFIG_CHIP_MALLOC_SYS_HEAP_OVERRIDE)
     target_link_options(chip INTERFACE
         -Wl,--wrap=malloc
@@ -333,32 +344,21 @@ add_dependencies(chip chip-gn)
 # ==============================================================================
 
 if (CONFIG_CHIP_OTA_IMAGE_BUILD)
-    if (CONFIG_CHIP_OTA_IMAGE_INCLUDE_MCUBOOT)
-        list(APPEND CHIP_IMAGE_TYPES "mcuboot")
-        list(APPEND CHIP_IMAGE_PATHS "${APPLICATION_BINARY_DIR}/mcuboot/zephyr/zephyr.bin")
-    endif()
-
-    list(APPEND CHIP_IMAGE_TYPES "app_mcuboot")
-    list(APPEND CHIP_IMAGE_PATHS "${PROJECT_BINARY_DIR}/app_update.bin")
-
-    if (CONFIG_NRF53_UPGRADE_NETWORK_CORE)
-        list(APPEND CHIP_IMAGE_TYPES "net_mcuboot")
-        list(APPEND CHIP_IMAGE_PATHS "${PROJECT_BINARY_DIR}/net_core_app_update.bin")
-    endif()
-
-    chip_ota_content_header(chip-ota-content-header
-        FILE_TYPES ${CHIP_IMAGE_TYPES}
-        FILE_PATHS ${CHIP_IMAGE_PATHS}
-        OUTPUT_FILE ${PROJECT_BINARY_DIR}/${CONFIG_CHIP_OTA_IMAGE_FILE_NAME}.content
-    )
 
     chip_ota_image(chip-ota-image
-        INPUT_FILES ${PROJECT_BINARY_DIR}/${CONFIG_CHIP_OTA_IMAGE_FILE_NAME}.content ${CHIP_IMAGE_PATHS}
+        INPUT_FILES ${PROJECT_BINARY_DIR}/dfu_multi_image.bin
         OUTPUT_FILE ${PROJECT_BINARY_DIR}/${CONFIG_CHIP_OTA_IMAGE_FILE_NAME}
     )
 
-    add_dependencies(chip-ota-content-header mcuboot_sign_target)
-    add_dependencies(chip-ota-image chip-ota-content-header)
+    add_dependencies(chip-ota-image dfu_multi_image_pkg)
+endif()
+
+# ==============================================================================
+# Define 'factory_data' target for generating a factory data partition
+# ==============================================================================
+
+if(CONFIG_CHIP_FACTORY_DATA_BUILD)
+    nrfconnect_generate_factory_data()
 endif()
 
 endif() # CONFIG_CHIP

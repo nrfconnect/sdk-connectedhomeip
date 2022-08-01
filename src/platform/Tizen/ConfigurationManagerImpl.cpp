@@ -31,6 +31,7 @@
 #include <platform/CHIPDeviceConfig.h>
 #include <platform/ConfigurationManager.h>
 #include <platform/Tizen/PosixConfig.h>
+#include <platform/Tizen/WiFiManager.h>
 #include <platform/internal/GenericConfigurationManagerImpl.ipp>
 
 namespace chip {
@@ -69,16 +70,6 @@ exit:
     return error;
 }
 
-CHIP_ERROR ConfigurationManagerImpl::GetVendorId(uint16_t & vendorId)
-{
-    return ReadConfigValue(PosixConfig::kConfigKey_VendorId, vendorId);
-}
-
-CHIP_ERROR ConfigurationManagerImpl::GetProductId(uint16_t & productId)
-{
-    return ReadConfigValue(PosixConfig::kConfigKey_ProductId, productId);
-}
-
 CHIP_ERROR ConfigurationManagerImpl::StoreVendorId(uint16_t vendorId)
 {
     return WriteConfigValue(PosixConfig::kConfigKey_VendorId, vendorId);
@@ -91,7 +82,12 @@ CHIP_ERROR ConfigurationManagerImpl::StoreProductId(uint16_t productId)
 
 CHIP_ERROR ConfigurationManagerImpl::GetPrimaryWiFiMACAddress(uint8_t * buf)
 {
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+    constexpr size_t kExpectedBufSize = ConfigurationManager::kPrimaryMACAddressLength;
+    return WiFiMgr().GetDeviceMACAddress(buf, kExpectedBufSize);
+#else
     return CHIP_ERROR_NOT_IMPLEMENTED;
+#endif
 }
 
 bool ConfigurationManagerImpl::CanFactoryReset(void)
@@ -179,6 +175,11 @@ CHIP_ERROR ConfigurationManagerImpl::WriteConfigValueBin(Key key, const uint8_t 
 void ConfigurationManagerImpl::RunConfigUnitTest(void)
 {
     PosixConfig::RunConfigUnitTest();
+}
+
+ConfigurationManager & ConfigurationMgrImpl()
+{
+    return ConfigurationManagerImpl::GetDefaultInstance();
 }
 
 } // namespace DeviceLayer

@@ -145,14 +145,20 @@ public:
             }
         }
     }
+
     void OnAttributeData(const chip::app::ConcreteDataAttributePath & aPath, chip::TLV::TLVReader * aData,
                          const chip::app::StatusIB & status) override
     {}
 
     void OnError(CHIP_ERROR aError) override { printf("ReadError with err %" CHIP_ERROR_FORMAT, aError.Format()); }
 
-    void OnDone() override
+    void OnDone(chip::app::ReadClient * apReadClient) override
     {
+        if (apReadClient != mReadClient.get())
+        {
+            printf("Unexpected read client.");
+        }
+
         if (!mReadClient->IsSubscriptionType())
         {
             HandleReadComplete();
@@ -266,7 +272,7 @@ CHIP_ERROR SendCommandRequest(std::unique_ptr<chip::app::CommandSender> && comma
     err = commandSender->FinishCommand();
     SuccessOrExit(err);
 
-    err = commandSender->SendCommandRequest(gSession.Get(), chip::MakeOptional(gMessageTimeout));
+    err = commandSender->SendCommandRequest(gSession.Get().Value(), chip::MakeOptional(gMessageTimeout));
     SuccessOrExit(err);
 
     gCommandCount++;
@@ -302,7 +308,7 @@ CHIP_ERROR SendBadCommandRequest(std::unique_ptr<chip::app::CommandSender> && co
     err = commandSender->FinishCommand();
     SuccessOrExit(err);
 
-    err = commandSender->SendCommandRequest(gSession.Get(), chip::MakeOptional(gMessageTimeout));
+    err = commandSender->SendCommandRequest(gSession.Get().Value(), chip::MakeOptional(gMessageTimeout));
     SuccessOrExit(err);
     gCommandCount++;
     commandSender.release();
@@ -330,7 +336,7 @@ CHIP_ERROR SendReadRequest()
 
     printf("\nSend read request message to Node: %" PRIu64 "\n", chip::kTestDeviceNodeId);
 
-    chip::app::ReadPrepareParams readPrepareParams(gSession.Get());
+    chip::app::ReadPrepareParams readPrepareParams(gSession.Get().Value());
     readPrepareParams.mTimeout                     = gMessageTimeout;
     readPrepareParams.mpAttributePathParamsList    = &attributePathParams;
     readPrepareParams.mAttributePathParamsListSize = 1;
@@ -367,7 +373,7 @@ CHIP_ERROR SendWriteRequest(chip::app::WriteClient & apWriteClient)
 
     SuccessOrExit(err = apWriteClient.EncodeAttribute(
                       chip::app::AttributePathParams(2 /* endpoint */, 3 /* cluster */, 4 /* attribute */), true));
-    SuccessOrExit(err = apWriteClient.SendWriteRequest(gSession.Get(), gMessageTimeout));
+    SuccessOrExit(err = apWriteClient.SendWriteRequest(gSession.Get().Value(), gMessageTimeout));
 
     gWriteCount++;
 
@@ -384,7 +390,7 @@ CHIP_ERROR SendSubscribeRequest()
     CHIP_ERROR err   = CHIP_NO_ERROR;
     gLastMessageTime = chip::System::SystemClock().GetMonotonicTimestamp();
 
-    chip::app::ReadPrepareParams readPrepareParams(gSession.Get());
+    chip::app::ReadPrepareParams readPrepareParams(gSession.Get().Value());
     chip::app::EventPathParams * eventPathParams           = new chip::app::EventPathParams[2];
     chip::app::AttributePathParams * attributePathParams   = new chip::app::AttributePathParams[1];
     readPrepareParams.mpEventPathParamsList                = eventPathParams;
@@ -644,7 +650,7 @@ CHIP_ERROR ReadSingleClusterData(const Access::SubjectDescriptor & aSubjectDescr
 const EmberAfAttributeMetadata * GetAttributeMetadata(const ConcreteAttributePath & aConcreteClusterPath)
 {
     // Note: This test does not make use of the real attribute metadata.
-    static EmberAfAttributeMetadata stub = { .defaultValue = EmberAfDefaultOrMinMaxAttributeValue(uint16_t(0)) };
+    static EmberAfAttributeMetadata stub = { .defaultValue = EmberAfDefaultOrMinMaxAttributeValue(uint32_t(0)) };
     return &stub;
 }
 
@@ -698,9 +704,6 @@ int main(int argc, char * argv[])
     static_assert(gMessageInterval > gMessageTimeout, "Interval period too small");
 
     InitializeChip();
-
-    err = gFabricTable.Init(&gStorage);
-    SuccessOrExit(err);
 
     err = gTransportManager.Init(chip::Transport::UdpListenParameters(chip::DeviceLayer::UDPEndPointManager())
                                      .SetAddressType(chip::Inet::IPAddressType::kIPv6)

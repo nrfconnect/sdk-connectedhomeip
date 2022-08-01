@@ -234,24 +234,6 @@ void ConfigurationManagerImpl::InitiateFactoryReset()
     ChipLogError(DeviceLayer, "InitiateFactoryReset not implemented");
 }
 
-CHIP_ERROR ConfigurationManagerImpl::GetVendorId(uint16_t & vendorId)
-{
-#if CHIP_DISABLE_PLATFORM_KVS
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
-#else  // CHIP_DISABLE_PLATFORM_KVS
-    return ReadConfigValue(PosixConfig::kConfigKey_VendorId, vendorId);
-#endif // CHIP_DISABLE_PLATFORM_KVS
-}
-
-CHIP_ERROR ConfigurationManagerImpl::GetProductId(uint16_t & productId)
-{
-#if CHIP_DISABLE_PLATFORM_KVS
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
-#else  // CHIP_DISABLE_PLATFORM_KVS
-    return ReadConfigValue(PosixConfig::kConfigKey_ProductId, productId);
-#endif // CHIP_DISABLE_PLATFORM_KVS
-}
-
 CHIP_ERROR ConfigurationManagerImpl::StoreVendorId(uint16_t vendorId)
 {
 #if CHIP_DISABLE_PLATFORM_KVS
@@ -512,6 +494,11 @@ void ConfigurationManagerImpl::RunConfigUnitTest(void)
 #else  // CHIP_DISABLE_PLATFORM_KVS
     PosixConfig::RunConfigUnitTest();
 #endif // CHIP_DISABLE_PLATFORM_KVS
+}
+
+ConfigurationManager & ConfigurationMgrImpl()
+{
+    return ConfigurationManagerImpl::GetDefaultInstance();
 }
 
 } // namespace DeviceLayer

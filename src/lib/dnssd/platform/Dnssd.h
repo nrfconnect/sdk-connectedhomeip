@@ -87,13 +87,13 @@ struct DnssdService
  * any pointer inside this structure.
  *
  * @param[in] context     The context passed to ChipDnssdBrowse or ChipDnssdResolve.
- * @param[in] result      The mdns resolve result, can be nullptr if error happens.
- * @param[in] extraIPs    IP addresses, in addition to the one in "result", for
- *                        the same hostname.  Can be empty.
+ * @param[in] result      The mdns resolve result, can be nullptr if error
+ *                        happens.  The mAddress of this object will be ignored.
+ * @param[in] addresses   IP addresses that we resolved.
  * @param[in] error       The error code.
  *
  */
-using DnssdResolveCallback = void (*)(void * context, DnssdService * result, const Span<Inet::IPAddress> & extraIPs,
+using DnssdResolveCallback = void (*)(void * context, DnssdService * result, const Span<Inet::IPAddress> & addresses,
                                       CHIP_ERROR error);
 
 /**
@@ -142,12 +142,8 @@ CHIP_ERROR ChipDnssdInit(DnssdAsyncReturnCallback initCallback, DnssdAsyncReturn
 
 /**
  * This function shuts down the mdns module
- *
- * @retval CHIP_NO_ERROR  The shutdown succeeds.
- * @retval Error code     The shutdown fails
- *
  */
-CHIP_ERROR ChipDnssdShutdown();
+void ChipDnssdShutdown();
 
 /**
  * Removes or marks all services being advertised for removal.

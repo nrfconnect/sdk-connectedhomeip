@@ -29,7 +29,7 @@ import unittest
 
 
 def parseText(txt):
-    return CreateParser().parse(txt)
+    return CreateParser(skip_meta=True).parse(txt)
 
 
 class TestParser(unittest.TestCase):
@@ -96,6 +96,7 @@ class TestParser(unittest.TestCase):
                 attribute int32u rwAttr[] = 123;
                 readonly nosubscribe attribute int8s nosub[] = 0xaa;
                 readonly attribute nullable int8s isNullable = 0xab;
+                fabric readonly attribute int8s fabric_attr = 0x1234;
             }
         """)
 
@@ -112,6 +113,8 @@ class TestParser(unittest.TestCase):
                             data_type=DataType(name="int8s"), code=0xAA, name="nosub", is_list=True)),
                         Attribute(tags=set([AttributeTag.READABLE]), definition=Field(
                             data_type=DataType(name="int8s"), code=0xAB, name="isNullable", attributes=set([FieldAttribute.NULLABLE]))),
+                        Attribute(tags=set([AttributeTag.READABLE, AttributeTag.FABRIC_SCOPED]), definition=Field(
+                            data_type=DataType(name="int8s"), code=0x1234, name="fabric_attr"))
                     ]
                     )])
         self.assertEqual(actual, expected)
@@ -145,6 +148,7 @@ class TestParser(unittest.TestCase):
                 attribute access(read: manage)                 int8s attr3 = 3;
                 attribute access(write: administer)            int8s attr4 = 4;
                 attribute access(read: operate, write: manage) int8s attr5 = 5;
+                fabric attribute access(read: view, write: administer) int16u attr6 = 6;
             }
         """)
 
@@ -176,6 +180,11 @@ class TestParser(unittest.TestCase):
                             readacl=AccessPrivilege.OPERATE,
                             writeacl=AccessPrivilege.MANAGE
                         ),
+                        Attribute(tags=set([AttributeTag.READABLE, AttributeTag.WRITABLE, AttributeTag.FABRIC_SCOPED]), definition=Field(
+                            data_type=DataType(name="int16u"), code=6, name="attr6"),
+                            readacl=AccessPrivilege.VIEW,
+                            writeacl=AccessPrivilege.ADMINISTER
+                        ),
                     ]
                     )])
         self.assertEqual(actual, expected)
@@ -190,6 +199,8 @@ class TestParser(unittest.TestCase):
                 command WithoutArg(): DefaultSuccess = 123;
                 command InOutStuff(InParam): OutParam = 222;
                 timed command TimedCommand(InParam): DefaultSuccess = 0xab;
+                fabric command FabricScopedCommand(InParam): DefaultSuccess = 0xac;
+                fabric Timed command FabricScopedTimedCommand(InParam): DefaultSuccess = 0xad;
             }
         """)
         expected = Idl(clusters=[
@@ -210,6 +221,12 @@ class TestParser(unittest.TestCase):
                         Command(name="TimedCommand", code=0xab,
                                 input_param="InParam", output_param="DefaultSuccess",
                                 attributes=set([CommandAttribute.TIMED_INVOKE])),
+                        Command(name="FabricScopedCommand", code=0xac,
+                                input_param="InParam", output_param="DefaultSuccess",
+                                attributes=set([CommandAttribute.FABRIC_SCOPED])),
+                        Command(name="FabricScopedTimedCommand", code=0xad,
+                                input_param="InParam", output_param="DefaultSuccess",
+                                attributes=set([CommandAttribute.TIMED_INVOKE, CommandAttribute.FABRIC_SCOPED])),
                     ],
                     )])
         self.assertEqual(actual, expected)
@@ -342,6 +359,20 @@ class TestParser(unittest.TestCase):
                     ])])
         self.assertEqual(actual, expected)
 
+    def test_parsing_metadata_for_cluster(self):
+        actual = CreateParser(skip_meta=False).parse("""
+server cluster A = 1 { /* Test comment */ }
+
+// some empty lines and then indented
+   client cluster B = 2 { }
+        """)
+
+        expected = Idl(clusters=[
+            Cluster(parse_meta=ParseMetaData(line=2, column=1), side=ClusterSide.SERVER, name="A", code=1),
+            Cluster(parse_meta=ParseMetaData(line=5, column=4), side=ClusterSide.CLIENT, name="B", code=2),
+        ])
+        self.assertEqual(actual, expected)
+
     def test_multiple_clusters(self):
         actual = parseText("""
             server cluster A = 1 { /* Test comment */ }
@@ -359,6 +390,9 @@ class TestParser(unittest.TestCase):
     def test_endpoints(self):
         actual = parseText("""
             endpoint 12 {
+                device type foo = 123;
+                device type bar = 0xFF;
+
                 server cluster Foo { }
                 server cluster Bar { }
                 binding cluster Bar;
@@ -367,6 +401,10 @@ class TestParser(unittest.TestCase):
         """)
 
         expected = Idl(endpoints=[Endpoint(number=12,
+                                           device_types=[
+                                               DeviceType(name="foo", code=123),
+                                               DeviceType(name="bar", code=0xFF),
+                                           ],
                                            server_clusters=[
                                                ServerClusterInstantiation(name="Foo"),
                                                ServerClusterInstantiation(name="Bar"),

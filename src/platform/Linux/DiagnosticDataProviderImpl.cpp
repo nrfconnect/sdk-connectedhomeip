@@ -24,6 +24,7 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <app-common/zap-generated/enums.h>
+#include <app/data-model/List.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/DiagnosticDataProvider.h>
@@ -47,6 +48,7 @@
 #include <unistd.h>
 
 using namespace ::chip;
+using namespace ::chip::app;
 using namespace ::chip::TLV;
 using namespace ::chip::DeviceLayer;
 using namespace ::chip::DeviceLayer::Internal;
@@ -266,14 +268,6 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetCurrentHeapHighWatermark(uint64_t & cu
 #endif
 }
 
-CHIP_ERROR DiagnosticDataProviderImpl::SetCurrentHeapHighWatermark(uint64_t heapHighWatermark)
-{
-    // On Linux, the write operation is non-op since we always rely on the mallinfo system
-    // function to get the current heap memory.
-
-    return CHIP_NO_ERROR;
-}
-
 CHIP_ERROR DiagnosticDataProviderImpl::ResetWatermarks()
 {
     // If implemented, the server SHALL set the value of the CurrentHeapHighWatermark attribute to the
@@ -309,13 +303,11 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetThreadMetrics(ThreadMetrics ** threadM
 
             strncpy(thread->NameBuf, entry->d_name, kMaxThreadNameLength);
             thread->NameBuf[kMaxThreadNameLength] = '\0';
-            thread->name                          = CharSpan::fromCharString(thread->NameBuf);
-            thread->id                            = atoi(entry->d_name);
+            thread->name.Emplace(CharSpan::fromCharString(thread->NameBuf));
+            thread->id = atoi(entry->d_name);
 
-            // TODO: Get stack info of each thread
-            thread->stackFreeCurrent = 0;
-            thread->stackFreeMinimum = 0;
-            thread->stackSize        = 0;
+            // TODO: Get stack info of each thread: thread->stackFreeCurrent,
+            // thread->stackFreeMinimum, thread->stackSize.
 
             thread->Next = head;
             head         = thread;
@@ -458,6 +450,7 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
         {
             if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_PACKET)
             {
+                uint8_t size           = 0;
                 NetworkInterface * ifp = new NetworkInterface();
 
                 strncpy(ifp->Name, ifa->ifa_name, Inet::InterfaceId::kMaxIfNameLength);
@@ -468,6 +461,22 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
                 ifp->type          = ConnectivityUtils::GetInterfaceConnectionType(ifa->ifa_name);
                 ifp->offPremiseServicesReachableIPv4.SetNull();
                 ifp->offPremiseServicesReachableIPv6.SetNull();
+
+                if (ConnectivityUtils::GetInterfaceIPv4Addrs(ifa->ifa_name, size, ifp) == CHIP_NO_ERROR)
+                {
+                    if (size > 0)
+                    {
+                        ifp->IPv4Addresses = DataModel::List<const chip::ByteSpan>(ifp->Ipv4AddressSpans, size);
+                    }
+                }
+
+                if (ConnectivityUtils::GetInterfaceIPv6Addrs(ifa->ifa_name, size, ifp) == CHIP_NO_ERROR)
+                {
+                    if (size > 0)
+                    {
+                        ifp->IPv6Addresses = DataModel::List<const chip::ByteSpan>(ifp->Ipv6AddressSpans, size);
+                    }
+                }
 
                 if (ConnectivityUtils::GetInterfaceHardwareAddrs(ifa->ifa_name, ifp->MacAddress, kMaxHardwareAddrSize) !=
                     CHIP_NO_ERROR)
@@ -816,6 +825,11 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(uint8_t & securityTyp
     return ConnectivityMgrImpl().GetWiFiSecurityType(securityType);
 }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_WPA
+
+DiagnosticDataProvider & GetDiagnosticDataProviderImpl()
+{
+    return DiagnosticDataProviderImpl::GetDefaultInstance();
+}
 
 } // namespace DeviceLayer
 } // namespace chip

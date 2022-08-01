@@ -154,14 +154,14 @@ fi
 # K32W SDK setup
 k32w_sdk_args=""
 
-if [[ -d "$NXP_K32W061_SDK_ROOT" ]]; then
-    k32w_sdk_args+="k32w0_sdk_root=\"$NXP_K32W061_SDK_ROOT\""
+if [[ -d "$NXP_K32W0_SDK_ROOT" ]]; then
+    k32w_sdk_args+="k32w0_sdk_root=\"$NXP_K32W0_SDK_ROOT\""
     extra_args+=" $k32w0_sdk_args enable_k32w_builds=true"
 fi
 
 echo
-if [[ ! -d "$NXP_K32W061_SDK_ROOT" ]]; then
-    echo "Hint: Set \$NXP_K32W061_SDK_ROOT to enable building for K32W061"
+if [[ ! -d "$NXP_K32W0_SDK_ROOT" ]]; then
+    echo "Hint: Set \$NXP_K32W0_SDK_ROOT to enable building for K32W061"
 else
     echo 'To build the K32W lock sample as a standalone project':
     echo "(cd $CHIP_ROOT/examples/lock-app/nxp/k32w/k32w0; gn gen out/debug --args='$k32w_sdk_args'; ninja -C out/debug)"
@@ -188,6 +188,20 @@ if [[ -f "${TI_SYSCONFIG_ROOT}/sysconfig_cli.sh" ]]; then
     echo "(cd $CHIP_ROOT/examples/lock-app/cc13x2x7_26x2x7; gn gen out/debug --args='$ti_simplelink_sdk_args'; ninja -C out/debug)"
 else
     echo "Hint: Set \$TI_SYSCONFIG_ROOT to enable building for cc13x2_26x2"
+fi
+
+echo
+
+tizen_sdk_args=""
+
+if [[ -d "${TIZEN_SDK_ROOT}" && -d "${TIZEN_SDK_SYSROOT}" ]]; then
+    tizen_sdk_args+="tizen_sdk_root=\"$TIZEN_SDK_ROOT\" tizen_sdk_sysroot=\"$TIZEN_SDK_SYSROOT\""
+    extra_args+=" $tizen_sdk_args enable_tizen_builds=true"
+else
+    echo
+    echo "Hint: Set \$TIZEN_SDK_ROOT and \$TIZEN_SDK_SYSROOT to enable building for Tizen"
+    echo "      Required Tizen SDK can be obtained from"
+    echo "      https://developer.tizen.org/development/tizen-studio/download"
 fi
 
 echo

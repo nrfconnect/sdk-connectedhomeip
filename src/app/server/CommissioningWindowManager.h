@@ -18,8 +18,11 @@
 #pragma once
 
 #include <app-common/zap-generated/cluster-objects.h>
+#include <app/data-model/Nullable.h>
 #include <app/server/AppDelegate.h>
 #include <app/server/CommissioningModeProvider.h>
+#include <lib/core/CHIPVendorIdentifiers.hpp>
+#include <lib/core/DataModelTypes.h>
 #include <lib/dnssd/Advertiser.h>
 #include <platform/CHIPDeviceConfig.h>
 #include <protocols/secure_channel/RendezvousParameters.h>
@@ -35,10 +38,12 @@ enum class CommissioningWindowAdvertisement
 
 class Server;
 
-class CommissioningWindowManager : public SessionEstablishmentDelegate, public app::CommissioningModeProvider
+class CommissioningWindowManager : public SessionEstablishmentDelegate,
+                                   public app::CommissioningModeProvider,
+                                   public SessionDelegate
 {
 public:
-    CommissioningWindowManager() {}
+    CommissioningWindowManager() : mPASESession(*this) {}
 
     CHIP_ERROR Init(Server * server)
     {
@@ -72,14 +77,31 @@ public:
         System::Clock::Seconds16 commissioningTimeout      = System::Clock::Seconds16(CHIP_DEVICE_CONFIG_DISCOVERY_TIMEOUT_SECS),
         CommissioningWindowAdvertisement advertisementMode = chip::CommissioningWindowAdvertisement::kAllSupported);
 
+    /**
+     * Open the pairing window using default configured parameters, triggered by
+     * the Administrator Commmissioning cluster implementation.
+     */
+    CHIP_ERROR
+    OpenBasicCommissioningWindowForAdministratorCommissioningCluster(System::Clock::Seconds16 commissioningTimeout,
+                                                                     FabricIndex fabricIndex, VendorId vendorId);
+
     CHIP_ERROR OpenEnhancedCommissioningWindow(System::Clock::Seconds16 commissioningTimeout, uint16_t discriminator,
-                                               Spake2pVerifier & verifier, uint32_t iterations, chip::ByteSpan salt);
+                                               Spake2pVerifier & verifier, uint32_t iterations, chip::ByteSpan salt,
+                                               FabricIndex fabricIndex, VendorId vendorId);
 
     void CloseCommissioningWindow();
 
-    app::Clusters::AdministratorCommissioning::CommissioningWindowStatus CommissioningWindowStatus() const { return mWindowStatus; }
+    app::Clusters::AdministratorCommissioning::CommissioningWindowStatus CommissioningWindowStatusForCluster() const;
 
-    // CommissioningModeProvider implemetation.
+    bool IsCommissioningWindowOpen() const;
+
+    const app::DataModel::Nullable<VendorId> & GetOpenerVendorId() const { return mOpenerVendorId; }
+
+    const app::DataModel::Nullable<FabricIndex> & GetOpenerFabricIndex() const { return mOpenerFabricIndex; }
+
+    void OnFabricRemoved(FabricIndex removedIndex);
+
+    // CommissioningModeProvider implementation.
     Dnssd::CommissioningMode GetCommissioningMode() const override;
 
     //////////// SessionEstablishmentDelegate Implementation ///////////////
@@ -88,7 +110,6 @@ public:
     void OnSessionEstablished(const SessionHandle & session) override;
 
     void Shutdown();
-    void Cleanup();
 
     void OnPlatformEvent(const DeviceLayer::ChipDeviceEvent * event);
 
@@ -97,6 +118,9 @@ public:
     void OverrideMinCommissioningTimeout(System::Clock::Seconds16 timeout) { mMinCommissioningTimeoutOverride.SetValue(timeout); }
 
 private:
+    //////////// SessionDelegate Implementation ///////////////
+    void OnSessionReleased() override;
+
     void SetBLE(bool ble) { mIsBLE = ble; }
 
     CHIP_ERROR SetTemporaryDiscriminator(uint16_t discriminator);
@@ -125,6 +149,8 @@ private:
     // differently.
     void ResetState();
 
+    void Cleanup();
+
     /**
      * Function that gets called when our commissioning window timeout timer
      * fires.
@@ -139,6 +165,11 @@ private:
      * OpenBasicCommissioningWindow.
      */
     static void HandleCommissioningWindowTimeout(chip::System::Layer * aSystemLayer, void * aAppState);
+
+    /**
+     * Helper to immediately expire the fail-safe if it's currently armed.
+     */
+    void ExpireFailSafeIfArmed();
 
     AppDelegate * mAppDelegate = nullptr;
     Server * mServer           = nullptr;
@@ -167,6 +198,16 @@ private:
     // For tests only, so that we can test the commissioning window timeout
     // without having to wait 3 minutes.
     Optional<System::Clock::Seconds16> mMinCommissioningTimeoutOverride;
+
+    // The PASE session we are using, so we can handle CloseSession properly.
+    SessionHolderWithDelegate mPASESession;
+
+    // Information about who opened the commissioning window.  These will only
+    // be non-null if the window was opened via the operational credentials
+    // cluster and the fabric index may be null even then if the fabric has been
+    // removed.
+    app::DataModel::Nullable<VendorId> mOpenerVendorId;
+    app::DataModel::Nullable<FabricIndex> mOpenerFabricIndex;
 };
 
 } // namespace chip

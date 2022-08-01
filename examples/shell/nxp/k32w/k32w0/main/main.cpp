@@ -50,7 +50,7 @@ extern InitFunc __init_array_start;
 extern InitFunc __init_array_end;
 
 /* needed for FreeRtos Heap 4 */
-uint8_t __attribute__((section(".heap"))) ucHeap[0xF000];
+uint8_t __attribute__((section(".heap"))) ucHeap[HEAP_SIZE];
 
 extern "C" unsigned int sleep(unsigned int seconds)
 {
@@ -131,8 +131,6 @@ extern "C" void main_task(void const * argument)
     }
 
     // cmd_otcli_init();
-    cmd_ping_init();
-    cmd_send_init();
 
     shellTaskHandle = xTaskCreate(shell_task, "shell_task", shell_task_size / sizeof(StackType_t), NULL, shell_task_priority, NULL);
     if (!shellTaskHandle)

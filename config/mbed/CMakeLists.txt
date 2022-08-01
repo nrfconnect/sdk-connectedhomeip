@@ -375,12 +375,17 @@ target_sources(${APP_TARGET} PRIVATE
     ${MBED_COMMON}/util/PigweedLogger.cpp
 )
 
+list(APPEND CHIP_DEFINES
+    PW_RPC_USE_GLOBAL_MUTEX=0
+)
+
 target_include_directories(${APP_TARGET} PRIVATE
                     ${PIGWEED_ROOT}/pw_sys_io/public
                     ${PIGWEED_ROOT}/pw_assert/public
                     ${PIGWEED_ROOT}/pw_assert/assert_lite_public_overrides
+                    ${PIGWEED_ROOT}/pw_assert_log/assert_backend_public_overrides
+                    ${PIGWEED_ROOT}/pw_assert_log/check_backend_public_overrides
                     ${PIGWEED_ROOT}/pw_assert_log/public
-                    ${PIGWEED_ROOT}/pw_assert_log/public_overrides
                     ${PIGWEED_ROOT}/pw_bytes/public
                     ${PIGWEED_ROOT}/pw_checksum/public
                     ${PIGWEED_ROOT}/pw_containers/public

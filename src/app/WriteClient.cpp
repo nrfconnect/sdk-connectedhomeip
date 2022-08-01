@@ -23,7 +23,7 @@
  */
 
 #include "lib/core/CHIPError.h"
-#include <app/AppBuildConfig.h>
+#include <app/AppConfig.h>
 #include <app/InteractionModelEngine.h>
 #include <app/TimedRequest.h>
 #include <app/WriteClient.h>
@@ -35,43 +35,9 @@ void WriteClient::Close()
 {
     MoveToState(State::AwaitingDestruction);
 
-    // OnDone below can destroy us before we unwind all the way back into the
-    // exchange code and it tries to close itself.  Make sure that it doesn't
-    // try to notify us that it's closing, since we will be dead.
-    //
-    // For more details, see #10344.
-    if (mpExchangeCtx != nullptr)
-    {
-        mpExchangeCtx->SetDelegate(nullptr);
-    }
-
-    mpExchangeCtx = nullptr;
-
     if (mpCallback)
     {
         mpCallback->OnDone(this);
-    }
-}
-
-void WriteClient::Abort()
-{
-    //
-    // If the exchange context hasn't already been gracefully closed
-    // (signaled by setting it to null), then we need to forcibly
-    // tear it down.
-    //
-    if (mpExchangeCtx != nullptr)
-    {
-        // We might be a delegate for this exchange, and we don't want the
-        // OnExchangeClosing notification in that case.  Null out the delegate
-        // to avoid that.
-        //
-        // TODO: This makes all sorts of assumptions about what the delegate is
-        // (notice the "might" above!) that might not hold in practice.  We
-        // really need a better solution here....
-        mpExchangeCtx->SetDelegate(nullptr);
-        mpExchangeCtx->Abort();
-        mpExchangeCtx = nullptr;
     }
 }
 
@@ -85,29 +51,29 @@ CHIP_ERROR WriteClient::ProcessWriteResponseMessage(System::PacketBufferHandle &
 
     reader.Init(std::move(payload));
 
-    err = writeResponse.Init(reader);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(writeResponse.Init(reader));
 
 #if CHIP_CONFIG_IM_ENABLE_SCHEMA_CHECK
-    err = writeResponse.CheckSchemaValidity();
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(writeResponse.CheckSchemaValidity());
 #endif
+
     err = writeResponse.GetWriteResponses(&attributeStatusesParser);
-    SuccessOrExit(err);
+    if (err == CHIP_END_OF_TLV)
+    {
+        return CHIP_NO_ERROR;
+    }
+    ReturnErrorOnFailure(err);
 
     attributeStatusesParser.GetReader(&attributeStatusesReader);
 
     while (CHIP_NO_ERROR == (err = attributeStatusesReader.Next()))
     {
-        VerifyOrExit(TLV::AnonymousTag() == attributeStatusesReader.GetTag(), err = CHIP_ERROR_INVALID_TLV_TAG);
+        VerifyOrReturnError(TLV::AnonymousTag() == attributeStatusesReader.GetTag(), err = CHIP_ERROR_INVALID_TLV_TAG);
 
         AttributeStatusIB::Parser element;
 
-        err = element.Init(attributeStatusesReader);
-        SuccessOrExit(err);
-
-        err = ProcessAttributeStatusIB(element);
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(element.Init(attributeStatusesReader));
+        ReturnErrorOnFailure(ProcessAttributeStatusIB(element));
     }
 
     // if we have exhausted this container
@@ -115,11 +81,8 @@ CHIP_ERROR WriteClient::ProcessWriteResponseMessage(System::PacketBufferHandle &
     {
         err = CHIP_NO_ERROR;
     }
-    SuccessOrExit(err);
-    ReturnErrorOnFailure(writeResponse.ExitContainer());
-
-exit:
-    return err;
+    ReturnErrorOnFailure(err);
+    return writeResponse.ExitContainer();
 }
 
 CHIP_ERROR WriteClient::PrepareAttributeIB(const ConcreteDataAttributePath & aPath)
@@ -230,7 +193,7 @@ CHIP_ERROR WriteClient::StartNewMessage()
     // end of container).
     reservedSize = static_cast<uint16_t>(reservedSize + kReservedSizeForTLVEncodingOverhead);
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     // ... and for unit tests.
     reservedSize = static_cast<uint16_t>(reservedSize + mReservedSize);
 #endif
@@ -368,15 +331,28 @@ CHIP_ERROR WriteClient::SendWriteRequest(const SessionHandle & session, System::
     err = FinalizeMessage(false /* hasMoreChunks */);
     SuccessOrExit(err);
 
-    // Create a new exchange context.
-    mpExchangeCtx = mpExchangeMgr->NewContext(session, this);
-    VerifyOrExit(mpExchangeCtx != nullptr, err = CHIP_ERROR_NO_MEMORY);
-    VerifyOrReturnError(!(mpExchangeCtx->IsGroupExchangeContext() && mHasDataVersion), CHIP_ERROR_INVALID_MESSAGE_TYPE);
-    mpExchangeCtx->SetResponseTimeout(timeout);
+    {
+        // Create a new exchange context.
+        auto exchange = mpExchangeMgr->NewContext(session, this);
+        VerifyOrExit(exchange != nullptr, err = CHIP_ERROR_NO_MEMORY);
+
+        mExchangeCtx.Grab(exchange);
+    }
+
+    VerifyOrReturnError(!(mExchangeCtx->IsGroupExchangeContext() && mHasDataVersion), CHIP_ERROR_INVALID_MESSAGE_TYPE);
+
+    if (timeout == System::Clock::kZero)
+    {
+        mExchangeCtx->UseSuggestedResponseTimeout(app::kExpectedIMProcessingTime);
+    }
+    else
+    {
+        mExchangeCtx->SetResponseTimeout(timeout);
+    }
 
     if (mTimedWriteTimeoutMs.HasValue())
     {
-        err = TimedRequest::Send(mpExchangeCtx, mTimedWriteTimeoutMs.Value());
+        err = TimedRequest::Send(mExchangeCtx.Get(), mTimedWriteTimeoutMs.Value());
         SuccessOrExit(err);
         MoveToState(State::AwaitingTimedStatus);
     }
@@ -389,7 +365,7 @@ CHIP_ERROR WriteClient::SendWriteRequest(const SessionHandle & session, System::
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(DataManagement, "Write client failed to SendWriteRequest: %s", ErrorStr(err));
+        ChipLogError(DataManagement, "Write client failed to SendWriteRequest: %" CHIP_ERROR_FORMAT, err.Format());
     }
     else
     {
@@ -420,7 +396,8 @@ CHIP_ERROR WriteClient::SendWriteRequest()
 
     System::PacketBufferHandle data = mChunks.PopHead();
 
-    if (!mChunks.IsNull() && mpExchangeCtx->IsGroupExchangeContext())
+    bool isGroupWrite = mExchangeCtx->IsGroupExchangeContext();
+    if (!mChunks.IsNull() && isGroupWrite)
     {
         // Reject this request if we have more than one chunk (mChunks is not null after PopHead()), and this is a group
         // exchange context.
@@ -428,7 +405,8 @@ CHIP_ERROR WriteClient::SendWriteRequest()
     }
 
     // kExpectResponse is ignored by ExchangeContext in case of groupcast
-    ReturnErrorOnFailure(mpExchangeCtx->SendMessage(MsgType::WriteRequest, std::move(data), SendMessageFlags::kExpectResponse));
+    ReturnErrorOnFailure(mExchangeCtx->SendMessage(MsgType::WriteRequest, std::move(data), SendMessageFlags::kExpectResponse));
+
     MoveToState(State::AwaitingResponse);
     return CHIP_NO_ERROR;
 }
@@ -436,6 +414,8 @@ CHIP_ERROR WriteClient::SendWriteRequest()
 CHIP_ERROR WriteClient::OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PayloadHeader & aPayloadHeader,
                                           System::PacketBufferHandle && aPayload)
 {
+    using namespace Protocols::InteractionModel;
+
     if (mState == State::AwaitingResponse &&
         // We had sent the last chunk of data, and received all responses
         mChunks.IsNull())
@@ -444,21 +424,27 @@ CHIP_ERROR WriteClient::OnMessageReceived(Messaging::ExchangeContext * apExchang
     }
 
     CHIP_ERROR err = CHIP_NO_ERROR;
+
     // Assert that the exchange context matches the client's current context.
     // This should never fail because even if SendWriteRequest is called
     // back-to-back, the second call will call Close() on the first exchange,
     // which clears the OnMessageReceived callback.
-    VerifyOrExit(apExchangeContext == mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(apExchangeContext == mExchangeCtx.Get(), err = CHIP_ERROR_INCORRECT_STATE);
 
     if (mState == State::AwaitingTimedStatus)
     {
-        err = HandleTimedStatus(aPayloadHeader, std::move(aPayload));
+        VerifyOrExit(aPayloadHeader.HasMessageType(MsgType::StatusResponse), err = CHIP_ERROR_INVALID_MESSAGE_TYPE);
+        CHIP_ERROR statusError = CHIP_NO_ERROR;
+        SuccessOrExit(err = StatusResponse::ProcessStatusResponse(std::move(aPayload), statusError));
+        SuccessOrExit(err = statusError);
+        err = SendWriteRequest();
+
         // Skip all other processing here (which is for the response to the
         // write request), no matter whether err is success or not.
         goto exit;
     }
 
-    if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::WriteResponse))
+    if (aPayloadHeader.HasMessageType(MsgType::WriteResponse))
     {
         err = ProcessWriteResponseMessage(std::move(aPayload));
         SuccessOrExit(err);
@@ -468,10 +454,12 @@ CHIP_ERROR WriteClient::OnMessageReceived(Messaging::ExchangeContext * apExchang
             SuccessOrExit(SendWriteRequest());
         }
     }
-    else if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::StatusResponse))
+    else if (aPayloadHeader.HasMessageType(MsgType::StatusResponse))
     {
-        err = StatusResponse::ProcessStatusResponse(std::move(aPayload));
-        SuccessOrExit(err);
+        CHIP_ERROR statusError = CHIP_NO_ERROR;
+        SuccessOrExit(err = StatusResponse::ProcessStatusResponse(std::move(aPayload), statusError));
+        SuccessOrExit(err = statusError);
+        err = CHIP_ERROR_INVALID_MESSAGE_TYPE;
     }
     else
     {
@@ -541,13 +529,6 @@ CHIP_ERROR WriteClient::ProcessAttributeStatusIB(AttributeStatusIB::Parser & aAt
 
 exit:
     return err;
-}
-
-CHIP_ERROR WriteClient::HandleTimedStatus(const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload)
-{
-    ReturnErrorOnFailure(TimedRequest::HandleResponse(aPayloadHeader, std::move(aPayload)));
-
-    return SendWriteRequest();
 }
 
 } // namespace app

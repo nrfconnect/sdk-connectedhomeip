@@ -32,6 +32,9 @@ public:
     CHIP_ERROR SyncGetKeyValue(const char * key, void * buffer, uint16_t & size) override;
     CHIP_ERROR SyncSetKeyValue(const char * key, const void * value, uint16_t size) override;
     CHIP_ERROR SyncDeleteKeyValue(const char * key) override;
+    bool SyncDoesKeyExist(const char * key) override;
+
+    void DumpKeys() const;
 
     uint16_t GetListenPort();
     chip::Logging::LogCategory GetLoggingLevel();
@@ -47,6 +50,9 @@ public:
 
     // Store local CATs.
     CHIP_ERROR SetCommissionerCATs(const chip::CATValues & cats);
+
+    // Clear all of the persistent storage for running session.
+    CHIP_ERROR SyncClearAll();
 
 private:
     CHIP_ERROR CommitConfig(const char * name);

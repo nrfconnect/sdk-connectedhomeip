@@ -58,6 +58,7 @@ public:
     static const Key kConfigKey_MfrDeviceICACerts;
     static const Key kConfigKey_MfrDevicePrivateKey;
     static const Key kConfigKey_HardwareVersion;
+    static const Key kConfigKey_HardwareVersionString;
     static const Key kConfigKey_ManufacturingDate;
     static const Key kConfigKey_SetupPinCode;
     static const Key kConfigKey_ServiceConfig;
@@ -77,6 +78,10 @@ public:
     static const Key kConfigKey_DACPublicKey;
     static const Key kConfigKey_PAICert;
     static const Key kConfigKey_CertDeclaration;
+    static const Key kConfigKey_VendorId;
+    static const Key kConfigKey_VendorName;
+    static const Key kConfigKey_ProductId;
+    static const Key kConfigKey_ProductName;
 
     // CHIP Counter keys
     static const Key kCounterKey_RebootCount;
@@ -87,8 +92,11 @@ public:
     static CHIP_ERROR ReadConfigValue(Key key, bool & val);
     static CHIP_ERROR ReadConfigValue(Key key, uint32_t & val);
     static CHIP_ERROR ReadConfigValue(Key key, uint64_t & val);
+
+    // If buf is NULL then outLen is set to the required length to fit the string/blob
     static CHIP_ERROR ReadConfigValueStr(Key key, char * buf, size_t bufSize, size_t & outLen);
     static CHIP_ERROR ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSize, size_t & outLen);
+
     static CHIP_ERROR WriteConfigValue(Key key, bool val);
     static CHIP_ERROR WriteConfigValue(Key key, uint32_t val);
     static CHIP_ERROR WriteConfigValue(Key key, uint64_t val);

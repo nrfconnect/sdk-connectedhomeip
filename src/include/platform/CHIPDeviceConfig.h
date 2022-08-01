@@ -92,19 +92,6 @@
 #endif
 
 /**
- * CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
- *
- * Enable the device factory provisioning feature.
- *
- * The factory provisioning feature allows factory or developer-supplied provisioning information
- * to be injected into a device at boot time and automatically stored in persistent storage.
- */
-#ifndef CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
-// We don't have platform/internal/FactoryProvisioning.ipp for now, so set it to 0 by default.
-#define CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING 0
-#endif
-
-/**
  * CHIP_DEVICE_CONFIG_LOG_PROVISIONING_HASH
  *
  * Compute and log a hash of the device's provisioning data on boot.
@@ -256,6 +243,16 @@
 #ifndef CHIP_DEVICE_CONFIG_FAILSAFE_EXPIRY_LENGTH_SEC
 #define CHIP_DEVICE_CONFIG_FAILSAFE_EXPIRY_LENGTH_SEC 60
 #endif // CHIP_DEVICE_CONFIG_FAILSAFE_EXPIRY_LENGTH_SEC
+
+/**
+ * CHIP_DEVICE_CONFIG_MAX_CUMULATIVE_FAILSAFE_SEC
+ *
+ * The default conservative value in seconds denoting the maximum total duration for which a fail safe
+ * timer can be re-armed.
+ */
+#ifndef CHIP_DEVICE_CONFIG_MAX_CUMULATIVE_FAILSAFE_SEC
+#define CHIP_DEVICE_CONFIG_MAX_CUMULATIVE_FAILSAFE_SEC 900
+#endif // CHIP_DEVICE_CONFIG_MAX_CUMULATIVE_FAILSAFE_SEC
 
 /**
  * CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
@@ -574,18 +571,6 @@
 #define CHIP_DEVICE_CONFIG_BLE_ADVERTISING_INTERVAL_CHANGE_TIME 30000
 #endif
 
-/**
- * CHIP_DEVICE_CONFIG_BLE_ADVERTISING_TIMEOUT
- *
- * The amount of time in miliseconds after which BLE advertisement should be disabled, counting
- * from the moment of advertisement commencement.
- *
- * Defaults to 9000000 (15 minutes).
- */
-#ifndef CHIP_DEVICE_CONFIG_BLE_ADVERTISING_TIMEOUT
-#define CHIP_DEVICE_CONFIG_BLE_ADVERTISING_TIMEOUT (15 * 60 * 1000)
-#endif
-
 // -------------------- Time Sync Configuration --------------------
 
 /**
@@ -789,7 +774,13 @@
  * Amount of services available for advertising using SRP.
  */
 #ifndef CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES
+#if CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY && CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
+#define CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES (CHIP_CONFIG_MAX_FABRICS + 3)
+#elif CHIP_DEVICE_CONFIG_ENABLE_EXTENDED_DISCOVERY || CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
+#define CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES (CHIP_CONFIG_MAX_FABRICS + 2)
+#else
 #define CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES (CHIP_CONFIG_MAX_FABRICS + 1)
+#endif
 #endif
 
 /**
@@ -944,6 +935,7 @@
  */
 #ifndef CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_SALT
 #define CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_SALT "U1BBS0UyUCBLZXkgU2FsdA=="
+#define CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_SALT_DEFAULT
 #endif
 
 /**
@@ -955,6 +947,20 @@
  *   The value is base-64 encoded string.
  */
 #ifndef CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_VERIFIER
+
+#if CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE != 20202021
+#error "Non-default Spake2+ passcode configured but verifier left unchanged"
+#endif
+
+#if CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_ITERATION_COUNT != 1000
+#error "Non-default Spake2+ iteration count configured but verifier left unchanged"
+#endif
+
+#ifndef CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_SALT_DEFAULT
+#error "Non-default Spake2+ salt configured but verifier left unchanged"
+#endif
+
+// Generated with: spake2p gen-verifier -o - -i 1000 -s "U1BBS0UyUCBLZXkgU2FsdA==" -p 20202021
 #define CHIP_DEVICE_CONFIG_USE_TEST_SPAKE2P_VERIFIER                                                                               \
     "uWFwqugDNGiEck/po7KHwwMwwqZgN10XuyBajPGuyzUEV/iree4lOrao5GuwnlQ65CJzbeUB49s31EH+NEkg0JVI5MGCQGMMT/SRPFNRODm3wH/MBiehuFc6FJ/"  \
     "NH6Rmzw=="
@@ -1161,8 +1167,8 @@
  *
  * Specifies the date of the build. Useful for deterministic builds.
  */
-#ifndef CHIP_DEVICE_CONFIG_FIRWMARE_BUILD_DATE
-#define CHIP_DEVICE_CONFIG_FIRWMARE_BUILD_DATE __DATE__
+#ifndef CHIP_DEVICE_CONFIG_FIRMWARE_BUILD_DATE
+#define CHIP_DEVICE_CONFIG_FIRMWARE_BUILD_DATE __DATE__
 #endif
 
 /**

@@ -18,15 +18,19 @@
 
 #pragma once
 
+#ifdef CONFIG_USE_LOCAL_STORAGE
 #include "../../config/PersistentStorage.h"
+#endif // CONFIG_USE_LOCAL_STORAGE
+
 #include "Command.h"
+
 #include <commands/common/CredentialIssuerCommands.h>
 #include <commands/example/ExampleCredentialIssuerCommands.h>
 #include <credentials/GroupDataProviderImpl.h>
+#include <credentials/PersistentStorageOpCertStore.h>
+#include <crypto/PersistentStorageOperationalKeystore.h>
 
 #pragma once
-
-class PersistentStorage;
 
 constexpr const char kIdentityAlpha[] = "alpha";
 constexpr const char kIdentityBeta[]  = "beta";
@@ -58,12 +62,18 @@ public:
     CHIPCommand(const char * commandName, CredentialIssuerCommands * credIssuerCmds) :
         Command(commandName), mCredIssuerCmds(credIssuerCmds)
     {
-        AddArgument("paa-trust-store-path", &mPaaTrustStorePath);
-        AddArgument("commissioner-name", &mCommissionerName);
-        AddArgument("commissioner-nodeid", 0, UINT64_MAX, &mCommissionerNodeId);
+        AddArgument("paa-trust-store-path", &mPaaTrustStorePath,
+                    "Path to directory holding PAA certificate information.  Can be absolute or relative to the current working "
+                    "directory.");
+        AddArgument(
+            "commissioner-name", &mCommissionerName,
+            "Name of fabric to use. Valid values are \"alpha\", \"beta\", \"gamma\", and integers greater than or equal to 4.");
+        AddArgument("commissioner-nodeid", 0, UINT64_MAX, &mCommissionerNodeId,
+                    "The node id to use for chip-tool.  If not provided, kTestControllerNodeId (112233, 0x1B669) will be used.");
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
         AddArgument("trace_file", &mTraceFile);
         AddArgument("trace_log", 0, 1, &mTraceLog);
+        AddArgument("trace_decode", 0, 1, &mTraceDecode);
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
         AddArgument("ble-adapter", 0, UINT64_MAX, &mBleAdapterId);
     }
@@ -89,12 +99,31 @@ protected:
     // Get the wait duration, in seconds, before the command times out.
     virtual chip::System::Clock::Timeout GetWaitDuration() const = 0;
 
-    // Shut down the command, in case any work needs to be done after the event
-    // loop has been stopped.
-    virtual void Shutdown() {}
+    // Shut down the command.  After a Shutdown call the command object is ready
+    // to be used for another command invocation.
+    virtual void Shutdown() { ResetArguments(); }
 
+    // Clean up any resources allocated by the command.  Some commands may hold
+    // on to resources after Shutdown(), but Cleanup() will guarantee those are
+    // cleaned up.
+    virtual void Cleanup() {}
+
+    // If true, skip calling Cleanup() when in interactive mode, so the command
+    // can keep doing work as needed.  Cleanup() will be called when quitting
+    // interactive mode.  This method will be called before Shutdown, so it can
+    // use member values that Shutdown will normally reset.
+    virtual bool DeferInteractiveCleanup() { return false; }
+
+    // Execute any deferred cleanups.  Used when exiting interactive mode.
+    void ExecuteDeferredCleanups();
+
+#ifdef CONFIG_USE_LOCAL_STORAGE
     PersistentStorage mDefaultStorage;
     PersistentStorage mCommissionerStorage;
+#endif // CONFIG_USE_LOCAL_STORAGE
+    chip::PersistentStorageOperationalKeystore mOperationalKeystore;
+    chip::Credentials::PersistentStorageOpCertStore mOpCertStore;
+
     chip::Credentials::GroupDataProviderImpl mGroupDataProvider{ kMaxGroupsPerFabric, kMaxGroupKeysPerFabric };
     CredentialIssuerCommands * mCredIssuerCmds;
 
@@ -110,13 +139,15 @@ protected:
 
 private:
     CHIP_ERROR MaybeSetUpStack();
-    CHIP_ERROR MaybeTearDownStack();
+    void MaybeTearDownStack();
 
     CHIP_ERROR InitializeCommissioner(std::string key, chip::FabricId fabricId,
                                       const chip::Credentials::AttestationTrustStore * trustStore);
-    CHIP_ERROR ShutdownCommissioner(std::string key);
+    void ShutdownCommissioner(std::string key);
     chip::FabricId CurrentCommissionerId();
     static std::map<std::string, std::unique_ptr<ChipDeviceCommissioner>> mCommissioners;
+    static std::set<CHIPCommand *> sDeferredCleanups;
+
     chip::Optional<char *> mCommissionerName;
     chip::Optional<chip::NodeId> mCommissionerNodeId;
     chip::Optional<uint16_t> mBleAdapterId;
@@ -141,5 +172,6 @@ private:
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
     chip::Optional<char *> mTraceFile;
     chip::Optional<bool> mTraceLog;
+    chip::Optional<bool> mTraceDecode;
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
 };

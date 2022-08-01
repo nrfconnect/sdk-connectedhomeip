@@ -28,7 +28,12 @@
 
 #ifdef ENABLE_HSM_DEVICE_ATTESTATION
 
-#define DEV_ATTESTATION_KEY 0xDADADADA
+#include <crypto/hsm/nxp/CHIPCryptoPALHsm_SE05X_utils.h>
+
+#define DEV_ATTESTATION_KEY_ID 0xDADADADA
+#define DEV_ATTESTATION_CERT_ID 0xDADADADB
+
+extern CHIP_ERROR se05xGetCertificate(uint32_t keyId, uint8_t * buf, size_t * buflen);
 
 namespace chip {
 namespace Credentials {
@@ -43,12 +48,20 @@ public:
     CHIP_ERROR GetFirmwareInformation(MutableByteSpan & out_firmware_info_buffer) override;
     CHIP_ERROR GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer) override;
     CHIP_ERROR GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer) override;
-    CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & digest_to_sign, MutableByteSpan & out_signature_buffer) override;
+    CHIP_ERROR SignWithDeviceAttestationKey(const ByteSpan & message_to_sign, MutableByteSpan & out_signature_buffer) override;
 };
 
 CHIP_ERROR ExampleSe05xDACProvider::GetDeviceAttestationCert(MutableByteSpan & out_dac_buffer)
 {
+#if 0
     return CopySpanToMutableSpan(DevelopmentCerts::kDacCert, out_dac_buffer);
+#else
+    size_t buflen = out_dac_buffer.size();
+    ChipLogDetail(Crypto, "Get certificate from se05x");
+    ReturnErrorOnFailure(se05xGetCertificate(DEV_ATTESTATION_CERT_ID, out_dac_buffer.data(), &buflen));
+    out_dac_buffer.reduce_size(buflen);
+    return CHIP_NO_ERROR;
+#endif
 }
 
 CHIP_ERROR ExampleSe05xDACProvider::GetProductAttestationIntermediateCert(MutableByteSpan & out_pai_buffer)
@@ -117,21 +130,23 @@ CHIP_ERROR ExampleSe05xDACProvider::GetFirmwareInformation(MutableByteSpan & out
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR ExampleSe05xDACProvider::SignWithDeviceAttestationKey(const ByteSpan & digest_to_sign,
+CHIP_ERROR ExampleSe05xDACProvider::SignWithDeviceAttestationKey(const ByteSpan & message_to_sign,
                                                                  MutableByteSpan & out_signature_buffer)
 {
     Crypto::P256ECDSASignature signature;
     Crypto::P256KeypairHSM keypair;
 
+    ChipLogDetail(Crypto, "Sign using DA key from se05x");
+
     VerifyOrReturnError(IsSpanUsable(out_signature_buffer), CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(IsSpanUsable(digest_to_sign), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(IsSpanUsable(message_to_sign), CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(out_signature_buffer.size() >= signature.Capacity(), CHIP_ERROR_BUFFER_TOO_SMALL);
 
-    keypair.SetKeyId(DEV_ATTESTATION_KEY);
+    keypair.SetKeyId(DEV_ATTESTATION_KEY_ID);
     keypair.provisioned_key = true;
     keypair.Initialize();
 
-    ReturnErrorOnFailure(keypair.ECDSA_sign_hash(digest_to_sign.data(), digest_to_sign.size(), signature));
+    ReturnErrorOnFailure(keypair.ECDSA_sign_msg(message_to_sign.data(), message_to_sign.size(), signature));
 
     return CopySpanToMutableSpan(ByteSpan{ signature.ConstBytes(), signature.Length() }, out_signature_buffer);
 }

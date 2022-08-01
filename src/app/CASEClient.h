@@ -28,11 +28,12 @@ class CASEClient;
 
 struct CASEClientInitParams
 {
-    SessionManager * sessionManager                     = nullptr;
-    SessionResumptionStorage * sessionResumptionStorage = nullptr;
-    Messaging::ExchangeManager * exchangeMgr            = nullptr;
-    FabricInfo * fabricInfo                             = nullptr;
-    Credentials::GroupDataProvider * groupDataProvider  = nullptr;
+    SessionManager * sessionManager                                    = nullptr;
+    SessionResumptionStorage * sessionResumptionStorage                = nullptr;
+    Credentials::CertificateValidityPolicy * certificateValidityPolicy = nullptr;
+    Messaging::ExchangeManager * exchangeMgr                           = nullptr;
+    FabricTable * fabricTable                                          = nullptr;
+    Credentials::GroupDataProvider * groupDataProvider                 = nullptr;
 
     Optional<ReliableMessageProtocolConfig> mrpLocalConfig = Optional<ReliableMessageProtocolConfig>::Missing();
 };
@@ -44,7 +45,7 @@ public:
 
     void SetRemoteMRPIntervals(const ReliableMessageProtocolConfig & remoteMRPConfig);
 
-    CHIP_ERROR EstablishSession(PeerId peer, const Transport::PeerAddress & peerAddress,
+    CHIP_ERROR EstablishSession(const ScopedNodeId & peer, const Transport::PeerAddress & peerAddress,
                                 const ReliableMessageProtocolConfig & remoteMRPConfig, SessionEstablishmentDelegate * delegate);
 
 private:

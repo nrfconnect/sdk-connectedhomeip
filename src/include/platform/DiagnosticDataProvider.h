@@ -23,6 +23,7 @@
 #pragma once
 
 #include <app-common/zap-generated/cluster-objects.h>
+#include <inet/InetInterface.h>
 #include <lib/core/ClusterEnums.h>
 #include <platform/CHIPDeviceBuildConfig.h>
 #include <platform/GeneralFaults.h>
@@ -61,56 +62,7 @@ struct NetworkInterface : public app::Clusters::GeneralDiagnostics::Structs::Net
     NetworkInterface * Next; /* Pointer to the next structure.  */
 };
 
-/**
- * Defines the General Diagnostics Delegate class to notify platform events.
- */
-class GeneralDiagnosticsDelegate
-{
-public:
-    virtual ~GeneralDiagnosticsDelegate() {}
-
-    /**
-     * @brief
-     *   Called after the current device is rebooted.
-     */
-    virtual void OnDeviceRebooted(BootReasonType bootReason) {}
-
-    /**
-     * @brief
-     *   Called when the Node detects a hardware fault has been raised.
-     */
-    virtual void OnHardwareFaultsDetected(GeneralFaults<kMaxHardwareFaults> & previous, GeneralFaults<kMaxHardwareFaults> & current)
-    {}
-
-    /**
-     * @brief
-     *   Called when the Node detects a radio fault has been raised.
-     */
-    virtual void OnRadioFaultsDetected(GeneralFaults<kMaxRadioFaults> & previous, GeneralFaults<kMaxRadioFaults> & current) {}
-
-    /**
-     * @brief
-     *   Called when the Node detects a network fault has been raised.
-     */
-    virtual void OnNetworkFaultsDetected(GeneralFaults<kMaxNetworkFaults> & previous, GeneralFaults<kMaxNetworkFaults> & current) {}
-};
-
-/**
- * Defines the Software Diagnostics Delegate class to notify software events.
- */
-class SoftwareDiagnosticsDelegate
-{
-public:
-    virtual ~SoftwareDiagnosticsDelegate() {}
-
-    /**
-     * @brief
-     *   Called when a software fault that has taken place on the Node.
-     */
-    virtual void
-    OnSoftwareFaultDetected(chip::app::Clusters::SoftwareDiagnostics::Structs::SoftwareFaultStruct::Type & softwareFault)
-    {}
-};
+class DiagnosticDataProviderImpl;
 
 /**
  * Defines the WiFi Diagnostics Delegate class to notify WiFi network events.
@@ -145,12 +97,6 @@ public:
 class DiagnosticDataProvider
 {
 public:
-    void SetGeneralDiagnosticsDelegate(GeneralDiagnosticsDelegate * delegate) { mGeneralDiagnosticsDelegate = delegate; }
-    GeneralDiagnosticsDelegate * GetGeneralDiagnosticsDelegate() const { return mGeneralDiagnosticsDelegate; }
-
-    void SetSoftwareDiagnosticsDelegate(SoftwareDiagnosticsDelegate * delegate) { mSoftwareDiagnosticsDelegate = delegate; }
-    SoftwareDiagnosticsDelegate * GetSoftwareDiagnosticsDelegate() const { return mSoftwareDiagnosticsDelegate; }
-
     void SetWiFiDiagnosticsDelegate(WiFiDiagnosticsDelegate * delegate) { mWiFiDiagnosticsDelegate = delegate; }
     WiFiDiagnosticsDelegate * GetWiFiDiagnosticsDelegate() const { return mWiFiDiagnosticsDelegate; }
 
@@ -176,10 +122,13 @@ public:
     /**
      * Software Diagnostics methods.
      */
+
+    /// Feature support - this returns support gor GetCurrentHeapHighWatermark and ResetWatermarks()
+    virtual bool SupportsWatermarks() { return false; }
+
     virtual CHIP_ERROR GetCurrentHeapFree(uint64_t & currentHeapFree);
     virtual CHIP_ERROR GetCurrentHeapUsed(uint64_t & currentHeapUsed);
     virtual CHIP_ERROR GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark);
-    virtual CHIP_ERROR SetCurrentHeapHighWatermark(uint64_t heapHighWatermark);
     virtual CHIP_ERROR ResetWatermarks();
 
     /*
@@ -228,9 +177,7 @@ protected:
     virtual ~DiagnosticDataProvider() = default;
 
 private:
-    GeneralDiagnosticsDelegate * mGeneralDiagnosticsDelegate   = nullptr;
-    SoftwareDiagnosticsDelegate * mSoftwareDiagnosticsDelegate = nullptr;
-    WiFiDiagnosticsDelegate * mWiFiDiagnosticsDelegate         = nullptr;
+    WiFiDiagnosticsDelegate * mWiFiDiagnosticsDelegate = nullptr;
 
     // No copy, move or assignment.
     DiagnosticDataProvider(const DiagnosticDataProvider &)  = delete;
@@ -239,11 +186,20 @@ private:
 };
 
 /**
- * Returns a reference to a DiagnosticDataProvider object.
+ * Returns a reference to the public interface of the DiagnosticDataProvider singleton object.
  *
- * Applications should use this to access the features of the DiagnosticDataProvider.
+ * Applications should use this to access features of the DiagnosticDataProvider object
+ * that are common to all platforms.
  */
 DiagnosticDataProvider & GetDiagnosticDataProvider();
+
+/**
+ * Returns the platform-specific implementation of the DiagnosticDataProvider singleton object.
+ *
+ * Applications can use this to gain access to features of the DiagnosticDataProvider
+ * that are specific to the selected platform.
+ */
+extern DiagnosticDataProvider & GetDiagnosticDataProviderImpl();
 
 /**
  * Sets a reference to a DiagnosticDataProvider object.
@@ -264,11 +220,6 @@ inline CHIP_ERROR DiagnosticDataProvider::GetCurrentHeapUsed(uint64_t & currentH
 }
 
 inline CHIP_ERROR DiagnosticDataProvider::GetCurrentHeapHighWatermark(uint64_t & currentHeapHighWatermark)
-{
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
-}
-
-inline CHIP_ERROR DiagnosticDataProvider::SetCurrentHeapHighWatermark(uint64_t heapHighWatermark)
 {
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }

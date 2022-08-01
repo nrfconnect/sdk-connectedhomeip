@@ -104,7 +104,7 @@ public:
      * Notifies the BindingManager that a fabric is removed from the device
      *
      */
-    void FabricRemoved(CompressedFabricId compressedId, FabricIndex fabricIndex);
+    void FabricRemoved(FabricIndex fabricIndex);
 
     /*
      * Notify a cluster change to **all** bound devices associated with the (endpoint, cluster) tuple.
@@ -126,10 +126,10 @@ private:
     static void HandleDeviceConnected(void * context, OperationalDeviceProxy * device);
     void HandleDeviceConnected(OperationalDeviceProxy * device);
 
-    static void HandleDeviceConnectionFailure(void * context, PeerId peerId, CHIP_ERROR error);
-    void HandleDeviceConnectionFailure(PeerId peerId, CHIP_ERROR error);
+    static void HandleDeviceConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
+    void HandleDeviceConnectionFailure(const ScopedNodeId & peerId, CHIP_ERROR error);
 
-    CHIP_ERROR EstablishConnection(FabricIndex fabric, NodeId node);
+    CHIP_ERROR EstablishConnection(const ScopedNodeId & nodeId);
 
     PendingNotificationMap mPendingNotificationMap;
     BoundDeviceChangedHandler mBoundDeviceChangedHandler;
@@ -137,6 +137,9 @@ private:
 
     Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
     Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;
+
+    // Used to keep track of synchronous failures from FindOrEstablishSession.
+    CHIP_ERROR mLastSessionEstablishmentError;
 };
 
 } // namespace chip

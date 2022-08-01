@@ -30,88 +30,116 @@
 namespace chip {
 namespace Controller {
 
-class DLL_EXPORT ApplicationBasicCluster : public ClusterBase
+class DLL_EXPORT OnOffCluster : public ClusterBase
 {
 public:
-    ApplicationBasicCluster() : ClusterBase(app::Clusters::ApplicationBasic::Id) {}
-    ~ApplicationBasicCluster() {}
-};
-
-class DLL_EXPORT ContentLauncherCluster : public ClusterBase
-{
-public:
-    ContentLauncherCluster() : ClusterBase(app::Clusters::ContentLauncher::Id) {}
-    ~ContentLauncherCluster() {}
+    OnOffCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OnOff::Id, endpoint)
+    {}
+    ~OnOffCluster() {}
 };
 
 class DLL_EXPORT GeneralCommissioningCluster : public ClusterBase
 {
 public:
-    GeneralCommissioningCluster() : ClusterBase(app::Clusters::GeneralCommissioning::Id) {}
+    GeneralCommissioningCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::GeneralCommissioning::Id, endpoint)
+    {}
     ~GeneralCommissioningCluster() {}
-};
-
-class DLL_EXPORT KeypadInputCluster : public ClusterBase
-{
-public:
-    KeypadInputCluster() : ClusterBase(app::Clusters::KeypadInput::Id) {}
-    ~KeypadInputCluster() {}
-};
-
-class DLL_EXPORT ModeSelectCluster : public ClusterBase
-{
-public:
-    ModeSelectCluster() : ClusterBase(app::Clusters::ModeSelect::Id) {}
-    ~ModeSelectCluster() {}
-};
-
-class DLL_EXPORT OnOffCluster : public ClusterBase
-{
-public:
-    OnOffCluster() : ClusterBase(app::Clusters::OnOff::Id) {}
-    ~OnOffCluster() {}
-};
-
-class DLL_EXPORT OperationalCredentialsCluster : public ClusterBase
-{
-public:
-    OperationalCredentialsCluster() : ClusterBase(app::Clusters::OperationalCredentials::Id) {}
-    ~OperationalCredentialsCluster() {}
-};
-
-class DLL_EXPORT RelativeHumidityMeasurementCluster : public ClusterBase
-{
-public:
-    RelativeHumidityMeasurementCluster() : ClusterBase(app::Clusters::RelativeHumidityMeasurement::Id) {}
-    ~RelativeHumidityMeasurementCluster() {}
 };
 
 class DLL_EXPORT SwitchCluster : public ClusterBase
 {
 public:
-    SwitchCluster() : ClusterBase(app::Clusters::Switch::Id) {}
+    SwitchCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::Switch::Id, endpoint)
+    {}
     ~SwitchCluster() {}
 };
 
-class DLL_EXPORT TargetNavigatorCluster : public ClusterBase
+class DLL_EXPORT OperationalCredentialsCluster : public ClusterBase
 {
 public:
-    TargetNavigatorCluster() : ClusterBase(app::Clusters::TargetNavigator::Id) {}
-    ~TargetNavigatorCluster() {}
+    OperationalCredentialsCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::OperationalCredentials::Id, endpoint)
+    {}
+    ~OperationalCredentialsCluster() {}
 };
 
-class DLL_EXPORT TemperatureMeasurementCluster : public ClusterBase
+class DLL_EXPORT ModeSelectCluster : public ClusterBase
 {
 public:
-    TemperatureMeasurementCluster() : ClusterBase(app::Clusters::TemperatureMeasurement::Id) {}
-    ~TemperatureMeasurementCluster() {}
+    ModeSelectCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ModeSelect::Id, endpoint)
+    {}
+    ~ModeSelectCluster() {}
 };
 
 class DLL_EXPORT ThermostatUserInterfaceConfigurationCluster : public ClusterBase
 {
 public:
-    ThermostatUserInterfaceConfigurationCluster() : ClusterBase(app::Clusters::ThermostatUserInterfaceConfiguration::Id) {}
+    ThermostatUserInterfaceConfigurationCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                                EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ThermostatUserInterfaceConfiguration::Id, endpoint)
+    {}
     ~ThermostatUserInterfaceConfigurationCluster() {}
+};
+
+class DLL_EXPORT TemperatureMeasurementCluster : public ClusterBase
+{
+public:
+    TemperatureMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                  EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::TemperatureMeasurement::Id, endpoint)
+    {}
+    ~TemperatureMeasurementCluster() {}
+};
+
+class DLL_EXPORT RelativeHumidityMeasurementCluster : public ClusterBase
+{
+public:
+    RelativeHumidityMeasurementCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session,
+                                       EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::RelativeHumidityMeasurement::Id, endpoint)
+    {}
+    ~RelativeHumidityMeasurementCluster() {}
+};
+
+class DLL_EXPORT TargetNavigatorCluster : public ClusterBase
+{
+public:
+    TargetNavigatorCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::TargetNavigator::Id, endpoint)
+    {}
+    ~TargetNavigatorCluster() {}
+};
+
+class DLL_EXPORT KeypadInputCluster : public ClusterBase
+{
+public:
+    KeypadInputCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::KeypadInput::Id, endpoint)
+    {}
+    ~KeypadInputCluster() {}
+};
+
+class DLL_EXPORT ContentLauncherCluster : public ClusterBase
+{
+public:
+    ContentLauncherCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ContentLauncher::Id, endpoint)
+    {}
+    ~ContentLauncherCluster() {}
+};
+
+class DLL_EXPORT ApplicationBasicCluster : public ClusterBase
+{
+public:
+    ApplicationBasicCluster(Messaging::ExchangeManager & exchangeManager, const SessionHandle & session, EndpointId endpoint) :
+        ClusterBase(exchangeManager, session, app::Clusters::ApplicationBasic::Id, endpoint)
+    {}
+    ~ApplicationBasicCluster() {}
 };
 
 } // namespace Controller

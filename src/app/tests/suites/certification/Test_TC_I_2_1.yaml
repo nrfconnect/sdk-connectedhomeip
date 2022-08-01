@@ -33,7 +33,9 @@ tests:
       attribute: "identify time"
       response:
           constraints:
-              type: uint16
+              type: int16u
+              minValue: 0
+              maxValue: 65535
 
     - label: "TH reads the IdentifyType attribute from the DUT"
       command: "readAttribute"

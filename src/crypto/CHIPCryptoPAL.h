@@ -24,7 +24,7 @@
 
 #if CHIP_HAVE_CONFIG_H
 #include <crypto/CryptoBuildConfig.h>
-#endif
+#endif // CHIP_HAVE_CONFIG_H
 
 #include <system/SystemConfig.h>
 
@@ -78,10 +78,6 @@ constexpr size_t kP256_PublicKey_Length  = CHIP_CRYPTO_PUBLIC_KEY_SIZE_BYTES;
 
 constexpr size_t kAES_CCM128_Key_Length   = 128u / 8u;
 constexpr size_t kAES_CCM128_Block_Length = kAES_CCM128_Key_Length;
-
-// TODO: Remove AES-256 from CryptoPAL since not required by V1 spec
-constexpr size_t kAES_CCM256_Key_Length   = 256u / 8u;
-constexpr size_t kAES_CCM256_Block_Length = kAES_CCM256_Key_Length;
 
 /* These sizes are hardcoded here to remove header dependency on underlying crypto library
  * in a public interface file. The validity of these sizes is verified by static_assert in
@@ -187,6 +183,19 @@ void ClearSecretData(uint8_t (&buf)[N])
     ClearSecretData(buf, N);
 }
 
+/**
+ * @brief Constant-time buffer comparison
+ *
+ * This function implements constant time memcmp. It's good practice
+ * to use constant time functions for cryptographic functions.
+ *
+ * @param a Pointer to first buffer
+ * @param b Pointer to Second buffer
+ * @param n Number of bytes to compare
+ * @return true if `n` first bytes of both buffers are equal, false otherwise
+ */
+bool IsBufferContentEqualConstantTime(const void * a, const void * b, size_t n);
+
 template <typename Sig>
 class ECPKey
 {
@@ -199,6 +208,12 @@ public:
     virtual operator uint8_t *()               = 0;
     virtual const uint8_t * ConstBytes() const = 0;
     virtual uint8_t * Bytes()                  = 0;
+
+    virtual bool Matches(const ECPKey<Sig> & other) const
+    {
+        return (this->Length() == other.Length()) &&
+            IsBufferContentEqualConstantTime(this->ConstBytes(), other.ConstBytes(), this->Length());
+    }
 
     virtual CHIP_ERROR ECDSA_validate_msg_signature(const uint8_t * msg, const size_t msg_length, const Sig & signature) const = 0;
     virtual CHIP_ERROR ECDSA_validate_hash_signature(const uint8_t * hash, const size_t hash_length,
@@ -287,6 +302,14 @@ public:
         memcpy(&bytes[0], value.data(), N);
     }
 
+    template <size_t N>
+    P256PublicKey & operator=(const FixedByteSpan<N> & value)
+    {
+        static_assert(N == kP256_PublicKey_Length, "Can only initialize from proper sized byte span");
+        memcpy(&bytes[0], value.data(), N);
+        return *this;
+    }
+
     SupportedECPKeyTypes Type() const override { return SupportedECPKeyTypes::ECP256R1; }
     size_t Length() const override { return kP256_PublicKey_Length; }
     operator uint8_t *() override { return bytes; }
@@ -322,7 +345,7 @@ public:
      *CSR.
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    virtual CHIP_ERROR NewCertificateSigningRequest(uint8_t * csr, size_t & csr_length) = 0;
+    virtual CHIP_ERROR NewCertificateSigningRequest(uint8_t * csr, size_t & csr_length) const = 0;
 
     /**
      * @brief A function to sign a msg using ECDSA
@@ -332,17 +355,7 @@ public:
      * in raw <r,s> point form (see SEC1).
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    virtual CHIP_ERROR ECDSA_sign_msg(const uint8_t * msg, size_t msg_length, Sig & out_signature) = 0;
-
-    /**
-     * @brief A function to sign a hash using ECDSA
-     * @param hash Hash that needs to be signed
-     * @param hash_length Length of hash
-     * @param out_signature Buffer that will hold the output signature. The signature consists of: 2 EC elements (r and s),
-     * in raw <r,s> point form (see SEC1).
-     * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
-     **/
-    virtual CHIP_ERROR ECDSA_sign_hash(const uint8_t * hash, size_t hash_length, Sig & out_signature) = 0;
+    virtual CHIP_ERROR ECDSA_sign_msg(const uint8_t * msg, size_t msg_length, Sig & out_signature) const = 0;
 
     /** @brief A function to derive a shared secret using ECDH
      * @param remote_public_key Public key of remote peer with which we are trying to establish secure channel. remote_public_key is
@@ -416,7 +429,7 @@ public:
      *CSR.
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR NewCertificateSigningRequest(uint8_t * csr, size_t & csr_length) override;
+    CHIP_ERROR NewCertificateSigningRequest(uint8_t * csr, size_t & csr_length) const override;
 
     /**
      * @brief A function to sign a msg using ECDSA
@@ -426,17 +439,7 @@ public:
      * in raw <r,s> point form (see SEC1).
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR ECDSA_sign_msg(const uint8_t * msg, size_t msg_length, P256ECDSASignature & out_signature) override;
-
-    /**
-     * @brief A function to sign a hash using ECDSA
-     * @param hash Hash that needs to be signed
-     * @param hash_length Length of hash
-     * @param out_signature Buffer that will hold the output signature. The signature consists of: 2 EC elements (r and s),
-     * in raw <r,s> point form (see SEC1).
-     * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
-     **/
-    CHIP_ERROR ECDSA_sign_hash(const uint8_t * hash, size_t hash_length, P256ECDSASignature & out_signature) override;
+    CHIP_ERROR ECDSA_sign_msg(const uint8_t * msg, size_t msg_length, P256ECDSASignature & out_signature) const override;
 
     /**
      * @brief A function to derive a shared secret using ECDH
@@ -462,7 +465,7 @@ public:
 
 private:
     P256PublicKey mPublicKey;
-    P256KeypairContext mKeypair;
+    mutable P256KeypairContext mKeypair;
     bool mInitialized = false;
 };
 
@@ -537,8 +540,8 @@ CHIP_ERROR EcdsaRawSignatureToAsn1(size_t fe_length_bytes, const ByteSpan & raw_
  * @param[in] fe_length_bytes Field Element length in bytes (e.g. 32 for P256 curve)
  * @param[in] asn1_sig ASN.1 DER signature input
  * @param[out] out_raw_sig Raw signature of <r,s> concatenated format output buffer. Size must be at
- * least >= `2 * fe_length_bytes`. On CHIP_NO_ERROR, the out_asn1_sig buffer will be re-assigned
- * to have the correct size based on variable-length output.
+ * least >= `2 * fe_length_bytes`. On CHIP_NO_ERROR, the out_raw_sig buffer will be re-assigned
+ * to have the correct size (2 * fe_length_bytes).
  * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
  */
 CHIP_ERROR EcdsaAsn1SignatureToRaw(size_t fe_length_bytes, const ByteSpan & asn1_sig, MutableByteSpan & out_raw_sig);
@@ -615,6 +618,27 @@ CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, c
 CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length, const uint8_t * aad, size_t aad_length,
                            const uint8_t * tag, size_t tag_length, const uint8_t * key, size_t key_length, const uint8_t * nonce,
                            size_t nonce_length, uint8_t * plaintext);
+
+/**
+ * @brief Generate a PKCS#10 CSR, usable for Matter, from a P256Keypair.
+ *
+ * This uses first principles ASN.1 encoding to avoid relying on the CHIPCryptoPAL backend
+ * itself, other than to provide an implementation of a P256Keypair * that supports
+ * at least `::Pubkey()` and `::ECDSA_sign_msg`. This allows using it with
+ * OS/Platform-bridged private key handling, without requiring a specific
+ * implementation of other bits like ASN.1.
+ *
+ * The CSR will have subject OU set to `CSA`. This is needed since omiting
+ * subject altogether often trips CSR parsing code. The profile at the CA can
+ * be configured to ignore CSR requested subject.
+ *
+ * @param keypair The key pair for which a CSR should be generated. Must not be null.
+ * @param csr_span Span to hold the resulting CSR. Must be at least kMAX_CSR_Length.  Otherwise returns CHIP_ERROR_BUFFER_TOO_SMALL.
+ *                 It will get resized to actual size needed on success.
+
+ * @return Returns a CHIP_ERROR from P256Keypair or ASN.1 backend on error, CHIP_NO_ERROR otherwise
+ **/
+CHIP_ERROR GenerateCertificateSigningRequest(const P256Keypair * keypair, MutableByteSpan & csr_span);
 
 /**
  * @brief Verify the Certificate Signing Request (CSR). If successfully verified, it outputs the public key from the CSR.
@@ -1533,6 +1557,7 @@ public:
 /**
  *  @brief Derives the Operational Group Key using the Key Derivation Function (KDF) from the given epoch key.
  * @param[in] epoch_key  The epoch key. Must be CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
+ * @param[in] compressed_fabric_id The compressed fabric ID for the fabric (big endian byte string)
  * @param[out] out_key  Symmetric key used as the encryption key during message processing for group communication.
  The buffer size must be at least CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
  * @return Returns a CHIP_NO_ERROR on succcess, or CHIP_ERROR_INTERNAL if the provided key is invalid.
@@ -1547,6 +1572,15 @@ CHIP_ERROR DeriveGroupOperationalKey(const ByteSpan & epoch_key, const ByteSpan 
  * @return Returns a CHIP_NO_ERROR on succcess, or CHIP_ERROR_INVALID_ARGUMENT if the provided key is invalid.
  **/
 CHIP_ERROR DeriveGroupSessionId(const ByteSpan & operational_key, uint16_t & session_id);
+
+/**
+ *  @brief Derives the Privacy Group Key using the Key Derivation Function (KDF) from the given epoch key.
+ * @param[in] epoch_key  The epoch key. Must be CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
+ * @param[out] out_key  Symmetric key used as the privacy key during message processing for group communication.
+ The buffer size must be at least CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES bytes length.
+ * @return Returns a CHIP_NO_ERROR on succcess, or CHIP_ERROR_INTERNAL if the provided key is invalid.
+ **/
+CHIP_ERROR DeriveGroupPrivacyKey(const ByteSpan & epoch_key, MutableByteSpan & out_key);
 
 } // namespace Crypto
 } // namespace chip

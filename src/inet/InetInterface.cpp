@@ -34,6 +34,7 @@
 #include <lib/support/CHIPMemString.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/DLLUtil.h>
+#include <lib/support/SafeInt.h>
 
 #if CHIP_SYSTEM_CONFIG_USE_LWIP && !CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
 #include <lwip/netif.h>
@@ -435,6 +436,21 @@ CHIP_ERROR InterfaceId::GetInterfaceName(char * nameBuf, size_t nameBufSize) con
 
 CHIP_ERROR InterfaceId::InterfaceNameToId(const char * intfName, InterfaceId & interface)
 {
+    // First attempt to parse as a numeric ID:
+    char * parseEnd;
+    unsigned long intfNum = strtoul(intfName, &parseEnd, 10);
+    if (*parseEnd == 0)
+    {
+        if (intfNum > 0 && intfNum < UINT8_MAX && CanCastTo<InterfaceId::PlatformType>(intfNum))
+        {
+            interface = InterfaceId(static_cast<InterfaceId::PlatformType>(intfNum));
+            return CHIP_NO_ERROR;
+        }
+
+        return INET_ERROR_UNKNOWN_INTERFACE;
+    }
+
+    // Falling back to name -> ID lookup otherwise (e.g. wlan0)
     unsigned int intfId = if_nametoindex(intfName);
     interface           = InterfaceId(intfId);
     if (intfId == 0)
@@ -852,6 +868,8 @@ CHIP_ERROR InterfaceId::GetLinkLocalAddr(IPAddress * llAddr) const
 
     struct ifaddrs * ifaddr;
     const int rv = getifaddrs(&ifaddr);
+    bool found   = false;
+
     if (rv == -1)
     {
         return INET_ERROR_ADDRESS_NOT_FOUND;
@@ -865,9 +883,10 @@ CHIP_ERROR InterfaceId::GetLinkLocalAddr(IPAddress * llAddr) const
                 ((mPlatformInterface == 0) || (mPlatformInterface == if_nametoindex(ifaddr_iter->ifa_name))))
             {
                 struct in6_addr * sin6_addr = &(reinterpret_cast<struct sockaddr_in6 *>(ifaddr_iter->ifa_addr))->sin6_addr;
-                if (sin6_addr->s6_addr[0] == 0xfe && (sin6_addr->s6_addr[1] & 0xc0) == 0x80) // Link Local Address
+                if ((sin6_addr->s6_addr[0] == 0xfe) && ((sin6_addr->s6_addr[1] & 0xc0) == 0x80)) // Link Local Address
                 {
                     (*llAddr) = IPAddress((reinterpret_cast<struct sockaddr_in6 *>(ifaddr_iter->ifa_addr))->sin6_addr);
+                    found     = true;
                     break;
                 }
             }
@@ -875,7 +894,7 @@ CHIP_ERROR InterfaceId::GetLinkLocalAddr(IPAddress * llAddr) const
     }
     freeifaddrs(ifaddr);
 
-    return CHIP_NO_ERROR;
+    return (found) ? CHIP_NO_ERROR : INET_ERROR_ADDRESS_NOT_FOUND;
 }
 
 #endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS && CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS

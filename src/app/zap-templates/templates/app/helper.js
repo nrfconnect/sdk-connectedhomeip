@@ -30,11 +30,11 @@ const StringHelper    = require('../../common/StringHelper.js');
 const ChipTypesHelper = require('../../common/ChipTypesHelper.js');
 const TestHelper      = require('../../common/ClusterTestGeneration.js');
 
-zclHelper['isEvent'] = function(db, event_name, packageId) {
-    return queryEvents
-      .selectAllEvents(db, packageId)
-      .then(events => events.find(event => event.name == event_name))
-      .then(events => events ? 'event' : dbEnum.zclType.unknown);
+zclHelper['isEvent'] = function (db, event_name, packageId) {
+  return queryEvents
+    .selectAllEvents(db, packageId)
+    .then(events => events.find(event => event.name == event_name))
+    .then(events => events ? 'event' : dbEnum.zclType.unknown);
 }
 
 // This list of attributes is taken from section '11.2. Global Attributes' of the
@@ -57,7 +57,6 @@ var endpointClusterWithInit = [
   'Basic',
   'Color Control',
   'Groups',
-  'IAS Zone',
   'Identify',
   'Level Control',
   'Localization Configuration',
@@ -75,16 +74,18 @@ var endpointClusterWithAttributeChanged = [
   'Identify',
   'Pump Configuration and Control',
   'Window Covering',
+  'Fan Control',
 ];
 var endpointClusterWithPreAttribute = [
-  'IAS Zone',
   'Door Lock',
+  'Pump Configuration and Control',
   'Thermostat User Interface Configuration',
   'Time Format Localization',
   'Localization Configuration',
   'Mode Select',
+  'Fan Control',
+  'Thermostat',
 ];
-var endpointClusterWithMessageSent = [ 'IAS Zone' ];
 
 /**
  * Populate the GENERATED_FUNCTIONS field
@@ -112,12 +113,6 @@ function chip_endpoint_generated_functions()
       if (endpointClusterWithAttributeChanged.includes(clusterName)) {
         functionList     = functionList.concat(`  (EmberAfGenericClusterFunction) Matter${
             cHelper.asCamelCased(clusterName, false)}ClusterServerAttributeChangedCallback,\\\n`)
-        hasFunctionArray = true
-      }
-
-      if (endpointClusterWithMessageSent.includes(clusterName)) {
-        functionList     = functionList.concat(`  (EmberAfGenericClusterFunction) emberAf${
-            cHelper.asCamelCased(clusterName, false)}ClusterServerMessageSentCallback,\\\n`)
         hasFunctionArray = true
       }
 
@@ -203,11 +198,6 @@ function chip_endpoint_cluster_list()
 
       if (endpointClusterWithPreAttribute.includes(clusterName)) {
         c.mask.push('PRE_ATTRIBUTE_CHANGED_FUNCTION')
-        hasFunctionArray = true
-      }
-
-      if (endpointClusterWithMessageSent.includes(clusterName)) {
-        c.mask.push('MESSAGE_SENT_FUNCTION')
         hasFunctionArray = true
       }
 
@@ -332,7 +322,7 @@ async function asTypedExpression(value, type)
   return `static_cast<${resultType}>(${value})`;
 }
 
-async function asTypedLiteral(value, type)
+async function asTypedLiteral(value, type, cookie)
 {
   const valueIsANumber = !isNaN(value);
   if (!valueIsANumber) {
@@ -345,6 +335,7 @@ async function asTypedLiteral(value, type)
     return value + 'L';
   case 'int64_t':
     return value + 'LL';
+  case 'uint8_t':
   case 'uint16_t':
     return value + 'U';
   case 'uint32_t':
@@ -358,7 +349,7 @@ async function asTypedLiteral(value, type)
     // If the number looks like an integer, append ".0" to the end;
     // otherwise adding an "f" suffix makes compilers complain.
     value = value.toString();
-    if (value.match(/^[0-9]+$/)) {
+    if (value.match(/^-?[0-9]+$/)) {
       value = value + ".0";
     }
     return value + 'f';
@@ -398,6 +389,17 @@ function asUpperCamelCase(label)
 {
   let str = string.toCamelCase(label, false);
   return str.replace(/[^A-Za-z0-9_]/g, '');
+}
+
+function chip_friendly_endpoint_type_name(options)
+{
+  var name = this.endpointTypeName;
+  if (name.startsWith("MA-")) {
+    // prefix likely for "Matter" and is redundant
+    name = name.substring(3);
+  }
+
+  return asLowerCamelCase(name);
 }
 
 function asMEI(prefix, suffix)
@@ -476,7 +478,7 @@ async function zapTypeToClusterObjectType(type, isDecodable, options)
       if (s) {
         return 'uint' + s[1] + '_t';
       }
-      return 'chip::BitFlags<' + ns + type + '>';
+      return 'chip::BitMask<' + ns + type + '>';
     }
 
     if (types.isStruct) {
@@ -726,9 +728,6 @@ function isWeaklyTypedEnum(label)
     "HueDirection",
     "HueMoveMode",
     "HueStepMode",
-    "IasEnrollResponseCode",
-    "IasZoneState",
-    "IasZoneType",
     "IdentifyEffectIdentifier",
     "IdentifyEffectVariant",
     "IdentifyIdentifyType",
@@ -861,6 +860,7 @@ exports.asTypedExpression                     = asTypedExpression;
 exports.asTypedLiteral                        = asTypedLiteral;
 exports.asLowerCamelCase                      = asLowerCamelCase;
 exports.asUpperCamelCase                      = asUpperCamelCase;
+exports.chip_friendly_endpoint_type_name      = chip_friendly_endpoint_type_name;
 exports.hasProperty                           = hasProperty;
 exports.hasSpecificAttributes                 = hasSpecificAttributes;
 exports.asMEI                                 = asMEI;

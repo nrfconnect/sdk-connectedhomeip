@@ -201,10 +201,12 @@ void BDXDownloader::EndDownload(CHIP_ERROR reason)
         {
             mImageProcessor->Abort();
         }
-        SetState(State::kIdle, OTAChangeReasonEnum::kSuccess);
 
         // Because AbortTransfer() will generate a StatusReport to send.
         PollTransferSession();
+
+        // Now that we've sent our report, we're idle.
+        SetState(State::kIdle, OTAChangeReasonEnum::kSuccess);
     }
     else
     {
@@ -224,6 +226,17 @@ void BDXDownloader::PollTransferSession()
         CHIP_ERROR err = HandleBdxEvent(outEvent);
         VerifyOrReturn(err == CHIP_NO_ERROR, ChipLogError(BDX, "HandleBDXEvent: %" CHIP_ERROR_FORMAT, err.Format()));
     } while (outEvent.EventType != TransferSession::OutputEventType::kNone);
+}
+
+void BDXDownloader::CleanupOnError(OTAChangeReasonEnum reason)
+{
+    Reset();
+    mBdxTransfer.Reset();
+    SetState(State::kIdle, reason);
+    if (mImageProcessor)
+    {
+        mImageProcessor->Abort();
+    }
 }
 
 CHIP_ERROR BDXDownloader::HandleBdxEvent(const chip::bdx::TransferSession::OutputEvent & outEvent)
@@ -266,20 +279,15 @@ CHIP_ERROR BDXDownloader::HandleBdxEvent(const chip::bdx::TransferSession::Outpu
     }
     case TransferSession::OutputEventType::kStatusReceived:
         ChipLogError(BDX, "BDX StatusReport %x", static_cast<uint16_t>(outEvent.statusData.statusCode));
-        mBdxTransfer.Reset();
-        ReturnErrorOnFailure(mImageProcessor->Abort());
+        CleanupOnError(OTAChangeReasonEnum::kFailure);
         break;
     case TransferSession::OutputEventType::kInternalError:
         ChipLogError(BDX, "TransferSession error");
-        Reset();
-        mBdxTransfer.Reset();
-        ReturnErrorOnFailure(mImageProcessor->Abort());
+        CleanupOnError(OTAChangeReasonEnum::kFailure);
         break;
     case TransferSession::OutputEventType::kTransferTimeout:
         ChipLogError(BDX, "Transfer timed out");
-        Reset();
-        mBdxTransfer.Reset();
-        ReturnErrorOnFailure(mImageProcessor->Abort());
+        CleanupOnError(OTAChangeReasonEnum::kTimeOut);
         break;
     case TransferSession::OutputEventType::kInitReceived:
     case TransferSession::OutputEventType::kAckReceived:

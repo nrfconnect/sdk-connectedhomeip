@@ -16,22 +16,19 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <platform/CHIPDeviceLayer.h>
+
 #include <ChipShellCollection.h>
-#include <app/clusters/ota-requestor/BDXDownloader.h>
-#include <app/clusters/ota-requestor/DefaultOTARequestor.h>
-#include <app/clusters/ota-requestor/DefaultOTARequestorDriver.h>
-#include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
+#include <OTAConfig.h>
 #include <app/server/Server.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <inet/EndPointStateOpenThread.h>
 #include <lib/shell/Engine.h>
 #include <lib/support/CHIPPlatformMemory.h>
 #include <mbedtls/platform.h>
-#include <platform/CHIPDeviceLayer.h>
-#include <platform/CYW30739/OTAImageProcessorImpl.h>
 #include <protocols/secure_channel/PASESession.h>
 #include <sparcommon.h>
 #include <stdio.h>
-#include <wiced_bt_ota_firmware_upgrade.h>
 #include <wiced_memory.h>
 #include <wiced_platform.h>
 
@@ -41,12 +38,6 @@ using namespace chip::DeviceLayer;
 using namespace chip::Shell;
 
 static void InitApp(intptr_t args);
-
-DefaultOTARequestor gRequestorCore;
-DefaultOTARequestorStorage gRequestorStorage;
-DeviceLayer::DefaultOTARequestorDriver gRequestorUser;
-BDXDownloader gDownloader;
-OTAImageProcessorImpl gImageProcessor;
 
 APPLICATION_START()
 {
@@ -113,7 +104,6 @@ APPLICATION_START()
     {
         printf("ERROR Shell Init %d\n", ret);
     }
-    cmd_ping_init();
     Engine::Root().RunMainLoop();
 
     assert(!wiced_rtos_check_for_stack_overflow());
@@ -126,25 +116,14 @@ void InitApp(intptr_t args)
     /* Start CHIP datamodel server */
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;
+    nativeParams.lockCb                = [] { ThreadStackMgr().LockThreadStack(); };
+    nativeParams.unlockCb              = [] { ThreadStackMgr().UnlockThreadStack(); };
+    nativeParams.openThreadInstancePtr = chip::DeviceLayer::ThreadStackMgrImpl().OTInstance();
+    initParams.endpointNativeParams    = static_cast<void *>(&nativeParams);
     chip::Server::GetInstance().Init(initParams);
 
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 
-    // Initialize and interconnect the Requestor and Image Processor objects -- START
-    SetRequestorInstance(&gRequestorCore);
-
-    gRequestorStorage.Init(chip::Server::GetInstance().GetPersistentStorage());
-    gRequestorCore.Init(chip::Server::GetInstance(), gRequestorStorage, gRequestorUser, gDownloader);
-    gRequestorUser.Init(&gRequestorCore, &gImageProcessor);
-
-    gImageProcessor.SetOTADownloader(&gDownloader);
-
-    // Connect the Downloader and Image Processor objects
-    gDownloader.SetImageProcessorDelegate(&gImageProcessor);
-    // Initialize and interconnect the Requestor and Image Processor objects -- END
-
-    if (!wiced_ota_fw_upgrade_init(NULL, NULL, NULL))
-    {
-        ChipLogError(SoftwareUpdate, "wiced_ota_fw_upgrade_init");
-    }
+    OTAConfig::Init();
 }

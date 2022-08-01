@@ -134,25 +134,11 @@ enum PublicEventTypes
     kServiceConnectivityChange,
 
     /**
-     * Fabric Membership Change
-     *
-     * Signals a change in the device's membership in a chip fabric.
-     */
-    kFabricMembershipChange,
-
-    /**
      * Service Provisioning Change
      *
      * Signals a change to the device's service provisioning state.
      */
     kServiceProvisioningChange,
-
-    /**
-     * Account Pairing Change
-     *
-     * Signals a change to the device's state with respect to being paired to a user account.
-     */
-    kAccountPairingChange,
 
     /**
      * Time Sync Change
@@ -167,13 +153,6 @@ enum PublicEventTypes
      * Signals a change to the sleepy end device interval.
      */
     kSEDIntervalChange,
-
-    /**
-     * Security Session Established
-     *
-     * Signals that an external entity has established a new security session with the device.
-     */
-    kSessionEstablished,
 
     /**
      * CHIPoBLE Connection Established
@@ -470,15 +449,15 @@ struct ChipDeviceEvent final
 
         struct
         {
-            uint64_t PeerNodeId;
-            FabricIndex PeerFabricIndex;
+            uint64_t nodeId;
+            FabricIndex fabricIndex;
         } CommissioningComplete;
 
         struct
         {
-            FabricIndex PeerFabricIndex;
-            bool AddNocCommandHasBeenInvoked;
-            bool UpdateNocCommandHasBeenInvoked;
+            FabricIndex fabricIndex;
+            bool addNocCommandHasBeenInvoked;
+            bool updateNocCommandHasBeenInvoked;
         } FailSafeTimerExpired;
 
         struct

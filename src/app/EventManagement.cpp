@@ -27,7 +27,6 @@
 #include <lib/core/CHIPEventLoggingConfig.h>
 #include <lib/core/CHIPTLVUtilities.hpp>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/ErrorStr.h>
 #include <lib/support/logging/CHIPLogging.h>
 
 using namespace chip::TLV;
@@ -123,14 +122,6 @@ void EventManagement::Init(Messaging::ExchangeManager * apExchangeManager, uint3
     mpEventBuffer = apCircularEventBuffer;
     mState        = EventManagementStates::Idle;
     mBytesWritten = 0;
-
-#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
-    CHIP_ERROR err = chip::System::Mutex::Init(mAccessLock);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(EventLogging, "mutex init fails with error %s", ErrorStr(err));
-    }
-#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
 }
 
 CHIP_ERROR EventManagement::CopyToNextBuffer(CircularEventBuffer * apEventBuffer)
@@ -347,9 +338,6 @@ void EventManagement::CreateEventManagement(Messaging::ExchangeManager * apExcha
  */
 void EventManagement::DestroyEventManagement()
 {
-#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
-    ScopedLock lock(sInstance);
-#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
     sInstance.mState        = EventManagementStates::Shutdown;
     sInstance.mpEventBuffer = nullptr;
     sInstance.mpExchangeMgr = nullptr;
@@ -408,17 +396,8 @@ void EventManagement::VendEventNumber()
 CHIP_ERROR EventManagement::LogEvent(EventLoggingDelegate * apDelegate, const EventOptions & aEventOptions,
                                      EventNumber & aEventNumber)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    {
-#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
-        ScopedLock lock(sInstance);
-#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
-
-        VerifyOrExit(mState != EventManagementStates::Shutdown, err = CHIP_ERROR_INCORRECT_STATE);
-        err = LogEventPrivate(apDelegate, aEventOptions, aEventNumber);
-    }
-exit:
-    return err;
+    VerifyOrReturnError(mState != EventManagementStates::Shutdown, CHIP_ERROR_INCORRECT_STATE);
+    return LogEventPrivate(apDelegate, aEventOptions, aEventNumber);
 }
 
 CHIP_ERROR EventManagement::LogEventPrivate(EventLoggingDelegate * apDelegate, const EventOptions & aEventOptions,
@@ -488,7 +467,7 @@ CHIP_ERROR EventManagement::LogEventPrivate(EventLoggingDelegate * apDelegate, c
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(EventLogging, "Log event with error %s", ErrorStr(err));
+        ChipLogError(EventLogging, "Log event with error %" CHIP_ERROR_FORMAT, err.Format());
         writer = checkpoint;
     }
     else if (opts.mPriority >= CHIP_CONFIG_EVENT_GLOBAL_PRIORITY)
@@ -539,30 +518,6 @@ CHIP_ERROR EventManagement::CopyEvent(const TLVReader & aReader, TLVWriter & aWr
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR EventManagement::WriteEventStatusIB(TLVWriter & aWriter, const ConcreteEventPath & aEvent, StatusIB aStatus)
-{
-    TLVType containerType;
-    ReturnErrorOnFailure(aWriter.StartContainer(AnonymousTag(), kTLVType_Structure, containerType));
-
-    EventStatusIB::Builder builder;
-    builder.Init(&aWriter, to_underlying(EventReportIB::Tag::kEventStatus));
-
-    ReturnErrorOnFailure(builder.CreatePath()
-                             .Endpoint(aEvent.mEndpointId)
-                             .Cluster(aEvent.mClusterId)
-                             .Event(aEvent.mEventId)
-                             .EndOfEventPathIB()
-                             .GetError());
-
-    ReturnErrorOnFailure(builder.CreateErrorStatus().EncodeStatusIB(aStatus).GetError());
-
-    ReturnErrorOnFailure(builder.EndOfEventStatusIB().GetError());
-
-    ReturnErrorOnFailure(aWriter.EndContainer(containerType));
-    ReturnErrorOnFailure(aWriter.Finalize());
-    return CHIP_NO_ERROR;
-}
-
 CHIP_ERROR EventManagement::CheckEventContext(EventLoadOutContext * eventLoadOutContext,
                                               const EventManagement::EventEnvelopeContext & event)
 {
@@ -581,19 +536,13 @@ CHIP_ERROR EventManagement::CheckEventContext(EventLoadOutContext * eventLoadOut
     ConcreteEventPath path(event.mEndpointId, event.mClusterId, event.mEventId);
     CHIP_ERROR ret = CHIP_ERROR_UNEXPECTED_EVENT;
 
-    bool eventReadViaConcretePath = false;
-
     for (auto * interestedPath = eventLoadOutContext->mpInterestedEventPaths; interestedPath != nullptr;
          interestedPath        = interestedPath->mpNext)
     {
         if (interestedPath->mValue.IsEventPathSupersetOf(path))
         {
             ret = CHIP_NO_ERROR;
-            if (!interestedPath->mValue.HasEventWildcard())
-            {
-                eventReadViaConcretePath = true;
-                break;
-            }
+            break;
         }
     }
 
@@ -603,18 +552,10 @@ CHIP_ERROR EventManagement::CheckEventContext(EventLoadOutContext * eventLoadOut
     Access::Privilege requestPrivilege = RequiredPrivilege::ForReadEvent(path);
     CHIP_ERROR accessControlError =
         Access::GetAccessControl().Check(eventLoadOutContext->mSubjectDescriptor, requestPath, requestPrivilege);
-
     if (accessControlError != CHIP_NO_ERROR)
     {
         ReturnErrorCodeIf(accessControlError != CHIP_ERROR_ACCESS_DENIED, accessControlError);
-        if (eventReadViaConcretePath)
-        {
-            ret = CHIP_ERROR_ACCESS_DENIED;
-        }
-        else
-        {
-            ret = CHIP_ERROR_UNEXPECTED_EVENT;
-        }
+        ret = CHIP_ERROR_UNEXPECTED_EVENT;
     }
 
     return ret;
@@ -689,24 +630,6 @@ CHIP_ERROR EventManagement::CopyEventsSince(const TLVReader & aReader, size_t aD
         loadOutContext->mFirst               = false;
         loadOutContext->mEventCount++;
     }
-    else if (err == CHIP_ERROR_ACCESS_DENIED)
-    {
-        // checkpoint the writer
-        TLV::TLVWriter checkpoint = loadOutContext->mWriter;
-
-        err = WriteEventStatusIB(loadOutContext->mWriter, ConcreteEventPath(event.mEndpointId, event.mClusterId, event.mEventId),
-                                 StatusIB(Protocols::InteractionModel::Status::UnsupportedAccess));
-
-        if (err != CHIP_NO_ERROR)
-        {
-            loadOutContext->mWriter = checkpoint;
-            return err;
-        }
-
-        loadOutContext->mPreviousTime.mValue = loadOutContext->mCurrentTime.mValue;
-        loadOutContext->mFirst               = false;
-        loadOutContext->mEventCount++;
-    }
     return err;
 }
 
@@ -720,10 +643,6 @@ CHIP_ERROR EventManagement::FetchEventsSince(TLVWriter & aWriter, const ObjectLi
     TLVReader reader;
     CircularEventBufferWrapper bufWrapper;
     EventLoadOutContext context(aWriter, PriorityLevel::Invalid, aEventMin);
-
-#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
-    ScopedLock lock(sInstance);
-#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
 
     context.mSubjectDescriptor     = aSubjectDescriptor;
     context.mpInterestedEventPaths = apEventPathList;
@@ -800,10 +719,6 @@ CHIP_ERROR EventManagement::FabricRemoved(FabricIndex aFabricIndex)
     const bool recurse = false;
     TLVReader reader;
     CircularEventBufferWrapper bufWrapper;
-
-#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
-    ScopedLock lock(sInstance);
-#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
 
     ReturnErrorOnFailure(GetEventReader(reader, PriorityLevel::Critical, &bufWrapper));
     CHIP_ERROR err = TLV::Utilities::Iterate(reader, FabricRemovedCB, &aFabricIndex, recurse);
@@ -925,10 +840,6 @@ CHIP_ERROR EventManagement::EvictEvent(CHIPCircularTLVBuffer & apBuffer, void * 
 
 void EventManagement::SetScheduledEventInfo(EventNumber & aEventNumber, uint32_t & aInitialWrittenEventBytes) const
 {
-#if !CHIP_SYSTEM_CONFIG_NO_LOCKING
-    ScopedLock lock(sInstance);
-#endif // !CHIP_SYSTEM_CONFIG_NO_LOCKING
-
     aEventNumber              = mLastEventNumber;
     aInitialWrittenEventBytes = mBytesWritten;
 }

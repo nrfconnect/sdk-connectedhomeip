@@ -26,24 +26,24 @@ using namespace ::chip;
 CHIP_ERROR ModelCommand::RunCommand()
 {
 
-    if (IsGroupId(mNodeId))
+    if (IsGroupId(mDestinationId))
     {
-        FabricIndex fabricIndex;
-        ReturnErrorOnFailure(CurrentCommissioner().GetFabricIndex(&fabricIndex));
-        ChipLogProgress(chipTool, "Sending command to group 0x%x", GroupIdFromNodeId(mNodeId));
+        FabricIndex fabricIndex = CurrentCommissioner().GetFabricIndex();
+        ChipLogProgress(chipTool, "Sending command to group 0x%x", GroupIdFromNodeId(mDestinationId));
 
-        return SendGroupCommand(GroupIdFromNodeId(mNodeId), fabricIndex);
+        return SendGroupCommand(GroupIdFromNodeId(mDestinationId), fabricIndex);
     }
 
-    ChipLogProgress(chipTool, "Sending command to node 0x%" PRIx64, mNodeId);
+    ChipLogProgress(chipTool, "Sending command to node 0x%" PRIx64, mDestinationId);
 
     CommissioneeDeviceProxy * commissioneeDeviceProxy = nullptr;
-    if (CHIP_NO_ERROR == CurrentCommissioner().GetDeviceBeingCommissioned(mNodeId, &commissioneeDeviceProxy))
+    if (CHIP_NO_ERROR == CurrentCommissioner().GetDeviceBeingCommissioned(mDestinationId, &commissioneeDeviceProxy))
     {
         return SendCommand(commissioneeDeviceProxy, mEndPointId);
     }
 
-    return CurrentCommissioner().GetConnectedDevice(mNodeId, &mOnDeviceConnectedCallback, &mOnDeviceConnectionFailureCallback);
+    return CurrentCommissioner().GetConnectedDevice(mDestinationId, &mOnDeviceConnectedCallback,
+                                                    &mOnDeviceConnectionFailureCallback);
 }
 
 void ModelCommand::OnDeviceConnectedFn(void * context, chip::OperationalDeviceProxy * device)
@@ -55,7 +55,7 @@ void ModelCommand::OnDeviceConnectedFn(void * context, chip::OperationalDevicePr
     VerifyOrReturn(CHIP_NO_ERROR == err, command->SetCommandExitStatus(err));
 }
 
-void ModelCommand::OnDeviceConnectionFailureFn(void * context, PeerId peerId, CHIP_ERROR err)
+void ModelCommand::OnDeviceConnectionFailureFn(void * context, const chip::ScopedNodeId & peerId, CHIP_ERROR err)
 {
     LogErrorOnFailure(err);
 
@@ -66,7 +66,8 @@ void ModelCommand::OnDeviceConnectionFailureFn(void * context, PeerId peerId, CH
 
 void ModelCommand::Shutdown()
 {
-    ResetArguments();
     mOnDeviceConnectedCallback.Cancel();
     mOnDeviceConnectionFailureCallback.Cancel();
+
+    CHIPCommand::Shutdown();
 }

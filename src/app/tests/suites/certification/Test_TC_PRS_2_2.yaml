@@ -26,18 +26,28 @@ tests:
 
       disabled: true
 
-    - label: "TH reads MeasuredValue attribute from DUT"
+    - label: "TH reads from the DUT the MeasuredValue attribute"
+      PICS: PRS.S.A0000
       verification: |
+          Verify on the TH Log:
+
           ./chip-tool pressuremeasurement read measured-value 1 1
-          Verify response: cluster id: 0x0403 Attribute: 0
+
+          CHIP:TOO:   MeasuredValue: 0
       disabled: true
 
     - label: "Operate on device to change the pressure significantly"
+      PICS: PRS.M.PressureChange
       verification: |
-
+          Operate at device
       disabled: true
 
-    - label: "after a few seconds, TH reads MeasuredValue attribute from DUT"
+    - label:
+          "After a few seconds, TH reads from the DUT the MeasuredValue
+          attribute"
+      PICS: PRS.S.A0000
       verification: |
+          ./chip-tool pressuremeasurement read measured-value 1 1
 
+          DUT action missing [cant verify using Raspi]
       disabled: true

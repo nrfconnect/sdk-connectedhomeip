@@ -63,16 +63,11 @@ public:
 
     void Shutdown();
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     void SetWriterReserved(uint32_t aReservedSize) { mReservedSize = aReservedSize; }
 
     void SetMaxAttributesPerChunk(uint32_t aMaxAttributesPerChunk) { mMaxAttributesPerChunk = aMaxAttributesPerChunk; }
 #endif
-
-    /**
-     * Main work-horse function that executes the run-loop.
-     */
-    void Run();
 
     /**
      * Should be invoked when the device receives a Status report, or when the Report data request times out.
@@ -126,11 +121,16 @@ public:
 
     void ScheduleUrgentEventDeliverySync();
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     size_t GetGlobalDirtySetSize() { return mGlobalDirtySet.Allocated(); }
 #endif
 
 private:
+    /**
+     * Main work-horse function that executes the run-loop.
+     */
+    void Run();
+
     friend class TestReportingEngine;
 
     struct AttributePathParamsWithGeneration : public AttributePathParams
@@ -154,6 +154,7 @@ private:
                                    AttributeReportIBs::Builder & aAttributeReportIBs,
                                    const ConcreteReadAttributePath & aClusterInfo,
                                    AttributeValueEncoder::AttributeEncodeState * apEncoderState);
+    CHIP_ERROR CheckAccessDeniedEventPaths(TLV::TLVWriter & aWriter, bool & aHasEncodedData, ReadHandler * apReadHandler);
 
     // If version match, it means don't send, if version mismatch, it means send.
     // If client sends the same path with multiple data versions, client will get the data back per the spec, because at least one
@@ -247,7 +248,7 @@ private:
      *  mGlobalDirtySet is used to track the set of attribute/event paths marked dirty for reporting purposes.
      *
      */
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     // For unit tests, always use inline allocation for code coverage.
     ObjectPool<AttributePathParamsWithGeneration, CHIP_IM_SERVER_MAX_NUM_DIRTY_SET, ObjectPoolMem::kInline> mGlobalDirtySet;
 #else
@@ -268,7 +269,7 @@ private:
      */
     uint64_t mDirtyGeneration = 1;
 
-#if CONFIG_IM_BUILD_FOR_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     uint32_t mReservedSize          = 0;
     uint32_t mMaxAttributesPerChunk = UINT32_MAX;
 #endif

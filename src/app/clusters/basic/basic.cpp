@@ -26,6 +26,7 @@
 #include <app/util/attribute-storage.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/ConfigurationManager.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 #include <platform/PlatformManager.h>
 
 #include <cstddef>
@@ -90,14 +91,14 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
     case VendorName::Id: {
         constexpr size_t kMaxLen     = DeviceLayer::ConfigurationManager::kMaxVendorNameLength;
         char vendorName[kMaxLen + 1] = { 0 };
-        status                       = ConfigurationMgr().GetVendorName(vendorName, sizeof(vendorName));
+        status                       = GetDeviceInstanceInfoProvider()->GetVendorName(vendorName, sizeof(vendorName));
         status                       = EncodeStringOnSuccess(status, aEncoder, vendorName, kMaxLen);
         break;
     }
 
     case VendorID::Id: {
         uint16_t vendorId = 0;
-        status            = ConfigurationMgr().GetVendorId(vendorId);
+        status            = GetDeviceInstanceInfoProvider()->GetVendorId(vendorId);
         if (status == CHIP_NO_ERROR)
         {
             status = aEncoder.Encode(vendorId);
@@ -108,14 +109,14 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
     case ProductName::Id: {
         constexpr size_t kMaxLen      = DeviceLayer::ConfigurationManager::kMaxProductNameLength;
         char productName[kMaxLen + 1] = { 0 };
-        status                        = ConfigurationMgr().GetProductName(productName, sizeof(productName));
+        status                        = GetDeviceInstanceInfoProvider()->GetProductName(productName, sizeof(productName));
         status                        = EncodeStringOnSuccess(status, aEncoder, productName, kMaxLen);
         break;
     }
 
     case ProductID::Id: {
         uint16_t productId = 0;
-        status             = ConfigurationMgr().GetProductId(productId);
+        status             = GetDeviceInstanceInfoProvider()->GetProductId(productId);
         if (status == CHIP_NO_ERROR)
         {
             status = aEncoder.Encode(productId);
@@ -125,7 +126,7 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
 
     case HardwareVersion::Id: {
         uint16_t hardwareVersion = 0;
-        status                   = ConfigurationMgr().GetHardwareVersion(hardwareVersion);
+        status                   = GetDeviceInstanceInfoProvider()->GetHardwareVersion(hardwareVersion);
         if (status == CHIP_NO_ERROR)
         {
             status = aEncoder.Encode(hardwareVersion);
@@ -136,7 +137,7 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
     case HardwareVersionString::Id: {
         constexpr size_t kMaxLen                = DeviceLayer::ConfigurationManager::kMaxHardwareVersionStringLength;
         char hardwareVersionString[kMaxLen + 1] = { 0 };
-        status = ConfigurationMgr().GetHardwareVersionString(hardwareVersionString, sizeof(hardwareVersionString));
+        status = GetDeviceInstanceInfoProvider()->GetHardwareVersionString(hardwareVersionString, sizeof(hardwareVersionString));
         status = EncodeStringOnSuccess(status, aEncoder, hardwareVersionString, kMaxLen);
         break;
     }
@@ -165,7 +166,8 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
         uint16_t manufacturingYear;
         uint8_t manufacturingMonth;
         uint8_t manufacturingDayOfMonth;
-        status = ConfigurationMgr().GetManufacturingDate(manufacturingYear, manufacturingMonth, manufacturingDayOfMonth);
+        status =
+            GetDeviceInstanceInfoProvider()->GetManufacturingDate(manufacturingYear, manufacturingMonth, manufacturingDayOfMonth);
 
         // TODO: Remove defaulting once proper runtime defaulting of unimplemented factory data is done
         if (status == CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND || status == CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE)
@@ -237,7 +239,7 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
     case SerialNumber::Id: {
         constexpr size_t kMaxLen             = DeviceLayer::ConfigurationManager::kMaxSerialNumberLength;
         char serialNumberString[kMaxLen + 1] = { 0 };
-        status                               = ConfigurationMgr().GetSerialNumber(serialNumberString, sizeof(serialNumberString));
+        status = GetDeviceInstanceInfoProvider()->GetSerialNumber(serialNumberString, sizeof(serialNumberString));
 
         // TODO: Remove defaulting once proper runtime defaulting of unimplemented factory data is done
         if (status == CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND || status == CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE)
@@ -273,7 +275,7 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
         constexpr uint16_t kMinCaseSessionsPerFabricMandatedBySpec = 3;
 
         capabilityMinima.caseSessionsPerFabric  = kMinCaseSessionsPerFabricMandatedBySpec;
-        capabilityMinima.subscriptionsPerFabric = InteractionModelEngine::GetInstance()->GetMinSubscriptionsPerFabric();
+        capabilityMinima.subscriptionsPerFabric = InteractionModelEngine::GetInstance()->GetMinGuaranteedSubscriptionsPerFabric();
 
         status = aEncoder.Encode(capabilityMinima);
         break;

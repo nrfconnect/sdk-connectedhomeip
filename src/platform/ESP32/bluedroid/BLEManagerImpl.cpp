@@ -34,8 +34,8 @@
 #include <ble/CHIPBleServiceData.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
-#include <platform/internal/BLEManager.h>
 #include <platform/CommissionableDataProvider.h>
+#include <platform/internal/BLEManager.h>
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"
@@ -125,7 +125,6 @@ const uint16_t CHIPoBLEGATTAttrCount = sizeof(CHIPoBLEGATTAttrs) / sizeof(CHIPoB
 } // unnamed namespace
 
 BLEManagerImpl BLEManagerImpl::sInstance;
-constexpr System::Clock::Timeout BLEManagerImpl::kAdvertiseTimeout;
 constexpr System::Clock::Timeout BLEManagerImpl::kFastAdvertiseTimeout;
 
 CHIP_ERROR BLEManagerImpl::_Init()
@@ -153,23 +152,6 @@ exit:
     return err;
 }
 
-CHIP_ERROR BLEManagerImpl::_SetCHIPoBLEServiceMode(CHIPoBLEServiceMode val)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    VerifyOrExit(val != ConnectivityManager::kCHIPoBLEServiceMode_NotSupported, err = CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrExit(mServiceMode != ConnectivityManager::kCHIPoBLEServiceMode_NotSupported, err = CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE);
-
-    if (val != mServiceMode)
-    {
-        mServiceMode = val;
-        PlatformMgr().ScheduleWork(DriveBLEState, 0);
-    }
-
-exit:
-    return err;
-}
-
 CHIP_ERROR BLEManagerImpl::_SetAdvertisingEnabled(bool val)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -179,7 +161,6 @@ CHIP_ERROR BLEManagerImpl::_SetAdvertisingEnabled(bool val)
     if (val)
     {
         mAdvertiseStartTime = System::SystemClock().GetMonotonicTimestamp();
-        ReturnErrorOnFailure(DeviceLayer::SystemLayer().StartTimer(kAdvertiseTimeout, HandleAdvertisementTimer, this));
         ReturnErrorOnFailure(DeviceLayer::SystemLayer().StartTimer(kFastAdvertiseTimeout, HandleFastAdvertisementTimer, this));
     }
     mFlags.Set(Flags::kFastAdvertisingEnabled, val);
@@ -188,22 +169,6 @@ CHIP_ERROR BLEManagerImpl::_SetAdvertisingEnabled(bool val)
     PlatformMgr().ScheduleWork(DriveBLEState, 0);
 exit:
     return err;
-}
-
-void BLEManagerImpl::HandleAdvertisementTimer(System::Layer * systemLayer, void * context)
-{
-    static_cast<BLEManagerImpl *>(context)->HandleAdvertisementTimer();
-}
-
-void BLEManagerImpl::HandleAdvertisementTimer()
-{
-    System::Clock::Timestamp currentTimestamp = System::SystemClock().GetMonotonicTimestamp();
-
-    if (currentTimestamp - mAdvertiseStartTime >= kAdvertiseTimeout)
-    {
-        mFlags.Clear(Flags::kAdvertisingEnabled);
-        PlatformMgr().ScheduleWork(DriveBLEState, 0);
-    }
 }
 
 void BLEManagerImpl::HandleFastAdvertisementTimer(System::Layer * systemLayer, void * context)
@@ -304,9 +269,7 @@ void BLEManagerImpl::_OnPlatformEvent(const ChipDeviceEvent * event)
         HandleConnectionError(event->CHIPoBLEConnectionError.ConId, event->CHIPoBLEConnectionError.Reason);
         break;
 
-    case DeviceEventType::kFabricMembershipChange:
     case DeviceEventType::kServiceProvisioningChange:
-    case DeviceEventType::kAccountPairingChange:
     case DeviceEventType::kWiFiConnectivityChange:
         // If CHIPOBLE_DISABLE_ADVERTISING_WHEN_PROVISIONED is enabled, and there is a change to the
         // device's provisioning state, then automatically disable CHIPoBLE advertising if the device

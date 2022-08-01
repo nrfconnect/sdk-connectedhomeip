@@ -21,33 +21,19 @@ config:
     cluster: "Secure Channel"
     endpoint: 0
     discriminator:
-        type: INT16U
+        type: int16u
         defaultValue: 3840
     vendorId:
-        type: INT16U
+        type: int16u
         defaultValue: 65521
     productId:
-        type: INT16U
+        type: int16u
         defaultValue: 32769
     deviceType:
-        type: INT16U
+        type: int16u
         defaultValue: 5
 
 tests:
-    - label: "Stop target device"
-      cluster: "SystemCommands"
-      command: "Stop"
-
-    - label:
-          "Start target device with the provided discriminator for basic
-          commissioning advertisement"
-      cluster: "SystemCommands"
-      command: "Start"
-      arguments:
-          values:
-              - name: "discriminator"
-                value: discriminator
-
     - label: "Wait for the commissioned device to be retrieved"
       cluster: "DelayCommands"
       command: "WaitForCommissionee"
@@ -84,9 +70,7 @@ tests:
     #validate the service type and the service domain not implemented in CI
 
     - label: "Check Hostname"
-      # On macOS the hostname is the device name and because of it this test is disabled for now.
-      disabled: true
-      PICS: "(WIFI || ETH) && !THREAD"
+      PICS: "( MCORE.SC.WIFI || MCORE.SC.ETH ) && !MCORE.SC.THR"
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -99,9 +83,7 @@ tests:
                     isHexString: true
 
     - label: "Check Hostname"
-      # On macOS the hostname is the device name and because of it this test is disabled for now.
-      disabled: true
-      PICS: "(!WIFI && !ETH) && THREAD"
+      PICS: "( !MCORE.SC.WIFI && !MCORE.SC.ETH ) && MCORE.SC.THR "
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -131,7 +113,7 @@ tests:
                 value: discriminator
 
     - label: "Check Vendor ID (_V)"
-      PICS: VENDOR_SUBTYPE
+      PICS: MCORE.SC.VENDOR_SUBTYPE
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByVendorId"
       arguments:
@@ -140,8 +122,7 @@ tests:
                 value: vendorId
 
     - label: "Check Device Type ID (_T)"
-      disabled: true
-      PICS: DEVTYPE_SUBTYPE
+      PICS: PICS_SKIP_SAMPLE_APP && MCORE.SC.DEVTYPE_SUBTYPE
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByDeviceType"
       arguments:
@@ -154,7 +135,7 @@ tests:
       command: "FindCommissionableByCommissioningMode"
 
     - label: "TXT key for Vendor ID and Product ID (VP)"
-      PICS: VP_KEY
+      PICS: MCORE.SC.VP_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -163,7 +144,7 @@ tests:
                 value: vendorId
 
     - label: "TXT key for Vendor ID and Product ID (VP)"
-      PICS: VP_KEY
+      PICS: MCORE.SC.VP_KEY
       optional: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
@@ -173,7 +154,7 @@ tests:
                 value: productId
 
     - label: "Optional TXT key for MRP Retry Interval Idle (CRI)"
-      PICS: CRI_COMM_DISCOVERY_KEY
+      PICS: MCORE.SC.SII_OP_DISCOVERY_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -183,7 +164,7 @@ tests:
                     maxValue: 3600000
 
     - label: "Optional TXT key for MRP Retry Interval Active (CRA)"
-      PICS: CRA_COMM_DISCOVERY_KEY
+      PICS: MCORE.SC.SAI_OP_DISCOVERY_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -201,8 +182,7 @@ tests:
                 value: 1
 
     - label: "Optional TXT key for device type (DT)"
-      disabled: true
-      PICS: DT_KEY
+      PICS: PICS_SKIP_SAMPLE_APP && MCORE.SC.DT_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -213,7 +193,7 @@ tests:
                     maxValue: 999
 
     - label: "Optional TXT key for device name (DN)"
-      PICS: DN_KEY
+      PICS: MCORE.SC.DN_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -223,7 +203,7 @@ tests:
                     maxLength: 32
 
     - label: "Optional TXT key for rotating device identifier (RI)"
-      PICS: RI_KEY
+      PICS: MCORE.SC.RI_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -233,7 +213,7 @@ tests:
                     maxValue: 100
 
     - label: "Optional TXT key for pairing hint (PH)"
-      PICS: PH_KEY
+      PICS: MCORE.SC.PH_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -243,7 +223,7 @@ tests:
                     notValue: 0
 
     - label: "Optional TXT key for pairing instructions (PI)"
-      PICS: PI_KEY
+      PICS: MCORE.SC.PI_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -261,8 +241,8 @@ tests:
                 constraints:
                     minValue: 1
 
-    # The testplan needs TH needs to be Rebooted so below steps disabled for now
     - label: "Stop target device"
+      PICS: PICS_SDK_CI_ONLY
       cluster: "SystemCommands"
       command: "Stop"
 
@@ -270,14 +250,35 @@ tests:
           "Start target device with the provided discriminator for basic
           commissioning advertisement"
       cluster: "SystemCommands"
+      PICS: PICS_SDK_CI_ONLY
       command: "Start"
       arguments:
           values:
               - name: "discriminator"
                 value: discriminator
 
+    - label: "TH is rebooted"
+      verification: |
+          Not implemented in YAML
+      cluster: "LogCommands"
+      command: "UserPrompt"
+      PICS: PICS_SKIP_SAMPLE_APP
+      arguments:
+          values:
+              - name: "message"
+                value: "Please reboot the TH and enter 'y' after TH starts"
+              - name: "expectedValue"
+                value: "y"
+
+    - label: "Wait for the commissioned device to be retrieved"
+      cluster: "DelayCommands"
+      command: "WaitForCommissionee"
+      arguments:
+          values:
+              - name: "nodeId"
+                value: nodeId
+
     - label: "Open Commissioning Window"
-      disabled: true
       cluster: "AdministratorCommissioning"
       command: "OpenBasicCommissioningWindow"
       timedInteractionTimeoutMs: 10000
@@ -287,7 +288,6 @@ tests:
                 value: 180
 
     - label: "Check Instance Name"
-      disabled: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -303,9 +303,7 @@ tests:
     #validate the service type and the service domain not implemented in CI
 
     - label: "Check Hostname"
-      # On macOS the hostname is the device name and because of it this test is disabled for now.
-      disabled: true
-      PICS: "(WIFI || ETH) && !THREAD"
+      PICS: "( MCORE.SC.WIFI || MCORE.SC.ETH ) && !MCORE.SC.THR "
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -318,9 +316,7 @@ tests:
                     isHexString: true
 
     - label: "Check Hostname"
-      # On macOS the hostname is the device name and because of it this test is disabled for now.
-      disabled: true
-      PICS: "(!WIFI && !ETH) && THREAD"
+      PICS: "( !MCORE.SC.WIFI && !MCORE.SC.ETH ) && MCORE.SC.THR"
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -333,7 +329,6 @@ tests:
                     isHexString: true
 
     - label: "Check Long Discriminator _L"
-      disabled: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByLongDiscriminator"
       arguments:
@@ -342,7 +337,6 @@ tests:
                 value: discriminator
 
     - label: "Check Short Discriminator (_S)"
-      disabled: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByShortDiscriminator"
       arguments:
@@ -351,8 +345,7 @@ tests:
                 value: discriminator
 
     - label: "Check Vendor ID (_V)"
-      disabled: true
-      PICS: VENDOR_SUBTYPE
+      PICS: MCORE.SC.VENDOR_SUBTYPE
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByVendorId"
       arguments:
@@ -361,9 +354,7 @@ tests:
                 value: vendorId
 
     - label: "Check Device Type ID (_T)"
-      # The device type is not broadcasted by the accessory under CI.
-      disabled: true
-      PICS: DEVTYPE_SUBTYPE
+      PICS: PICS_SKIP_SAMPLE_APP && MCORE.SC.DEVTYPE_SUBTYPE
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByDeviceType"
       arguments:
@@ -372,13 +363,11 @@ tests:
                 value: deviceType
 
     - label: "Check Commissioning Mode (_CM)"
-      disabled: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionableByCommissioningMode"
 
     - label: "TXT key for Vendor ID and Product ID (VP)"
-      PICS: VP_KEY
-      disabled: true
+      PICS: MCORE.SC.VP_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -387,8 +376,7 @@ tests:
                 value: vendorId
 
     - label: "TXT key for Vendor ID and Product ID (VP)"
-      PICS: VP_KEY
-      disabled: true
+      PICS: MCORE.SC.VP_KEY
       optional: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
@@ -398,8 +386,7 @@ tests:
                 value: productId
 
     - label: "Optional TXT key for MRP Retry Interval Idle (CRI)"
-      disabled: true
-      PICS: CRI_COMM_DISCOVERY_KEY
+      PICS: MCORE.SC.SII_OP_DISCOVERY_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -409,8 +396,7 @@ tests:
                     maxValue: 3600000
 
     - label: "Optional TXT key for MRP Retry Interval Active (CRA)"
-      disabled: true
-      PICS: CRA_COMM_DISCOVERY_KEY
+      PICS: MCORE.SC.SAI_OP_DISCOVERY_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -420,7 +406,6 @@ tests:
                     maxValue: 3600000
 
     - label: "TXT key for commissioning mode (CM)"
-      disabled: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -429,8 +414,7 @@ tests:
                 value: 1
 
     - label: "Optional TXT key for device type (DT)"
-      disabled: true
-      PICS: DT_KEY
+      PICS: PICS_SKIP_SAMPLE_APP && MCORE.SC.DT_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -438,11 +422,10 @@ tests:
               - name: "deviceType"
                 value: deviceType
                 constraints:
-                    maxValue: 49151
+                    maxValue: 999
 
     - label: "Optional TXT key for device name (DN)"
-      disabled: true
-      PICS: DN_KEY
+      PICS: MCORE.SC.DN_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -452,8 +435,7 @@ tests:
                     maxLength: 32
 
     - label: "Optional TXT key for rotating device identifier (RI)"
-      disabled: true
-      PICS: RI_KEY
+      PICS: MCORE.SC.RI_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -463,8 +445,7 @@ tests:
                     maxValue: 100
 
     - label: "Optional TXT key for pairing hint (PH)"
-      disabled: true
-      PICS: PH_KEY
+      PICS: MCORE.SC.PH_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -474,8 +455,7 @@ tests:
                     notValue: 0
 
     - label: "Optional TXT key for pairing instructions (PI)"
-      disabled: true
-      PICS: PI_KEY
+      PICS: MCORE.SC.PI_KEY
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -485,7 +465,6 @@ tests:
                     maxLength: 128
 
     - label: "Check IPs"
-      disabled: true
       cluster: "DiscoveryCommands"
       command: "FindCommissionable"
       response:
@@ -495,20 +474,27 @@ tests:
                     minValue: 1
 
     #Negative scenarios not implemented in CI
-    - label: "Log commands"
+    - label: "TH adds an unknown key/value pair in the advertised data"
       cluster: "LogCommands"
-      command: "Log"
+      command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
       arguments:
           values:
               - name: "message"
                 value:
-                    "TH adds an unknown key/value pair in the advertised data"
+                    "Please enter 'y' if TH adds an unknown key/value pair in
+                    the advertised data"
+              - name: "expectedValue"
+                value: "y"
 
     #Negative scenarios not implemented in CI
-    - label: "Log commands"
+    - label: "Scan for DNS-SD commissioner advertisements from TH"
       cluster: "LogCommands"
-      command: "Log"
+      command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
       arguments:
           values:
               - name: "message"
-                value: "Scan for DNS-SD commissioner advertisements from TH"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"

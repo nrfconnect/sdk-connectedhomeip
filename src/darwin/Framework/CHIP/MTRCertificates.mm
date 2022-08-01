@@ -15,43 +15,34 @@
  */
 
 #import "MTRCertificates.h"
-#import "CHIPError_Internal.h"
-#import "CHIPOperationalCredentialsDelegate.h"
-#import "CHIPP256KeypairBridge.h"
+#import "MTRError_Internal.h"
+#import "MTRMemory.h"
+#import "MTROperationalCredentialsDelegate.h"
+#import "MTRP256KeypairBridge.h"
 #import "NSDataSpanConversion.h"
 
 #include <credentials/CHIPCert.h>
 #include <crypto/CHIPCryptoPAL.h>
-#include <lib/support/CHIPMem.h>
 
 using namespace chip;
 using namespace chip::Crypto;
 using namespace chip::Credentials;
 
-// RAII helper for doing MemoryInit/MemoryShutdown, just in case the underlying
-// Matter APIs we are using use Platform::Memory.  MemoryInit/MemoryShutdown are
-// refcounted, so it's OK if we use AutoPlatformMemory after MemoryInit has
-// already happened elsewhere.
-struct AutoPlatformMemory {
-    AutoPlatformMemory() { Platform::MemoryInit(); }
-    ~AutoPlatformMemory() { Platform::MemoryShutdown(); }
-};
-
 @implementation MTRCertificates
 
-+ (nullable NSData *)generateRootCertificate:(id<CHIPKeypair>)keypair
++ (nullable NSData *)generateRootCertificate:(id<MTRKeypair>)keypair
                                     issuerId:(nullable NSNumber *)issuerId
                                     fabricId:(nullable NSNumber *)fabricId
                                        error:(NSError * __autoreleasing *)error
 {
     NSLog(@"Generating root certificate");
 
-    AutoPlatformMemory platformMemory;
+    [MTRMemory ensureInit];
 
     NSData * rootCert = nil;
-    CHIP_ERROR err = CHIPOperationalCredentialsDelegate::GenerateRootCertificate(keypair, issuerId, fabricId, &rootCert);
+    CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateRootCertificate(keypair, issuerId, fabricId, &rootCert);
     if (error) {
-        *error = [CHIPError errorForCHIPErrorCode:err];
+        *error = [MTRError errorForCHIPErrorCode:err];
     }
 
     if (err != CHIP_NO_ERROR) {
@@ -61,7 +52,7 @@ struct AutoPlatformMemory {
     return rootCert;
 }
 
-+ (nullable NSData *)generateIntermediateCertificate:(id<CHIPKeypair>)rootKeypair
++ (nullable NSData *)generateIntermediateCertificate:(id<MTRKeypair>)rootKeypair
                                      rootCertificate:(NSData *)rootCertificate
                                intermediatePublicKey:(SecKeyRef)intermediatePublicKey
                                             issuerId:(nullable NSNumber *)issuerId
@@ -70,13 +61,13 @@ struct AutoPlatformMemory {
 {
     NSLog(@"Generating intermediate certificate");
 
-    AutoPlatformMemory platformMemory;
+    [MTRMemory ensureInit];
 
     NSData * intermediate = nil;
-    CHIP_ERROR err = CHIPOperationalCredentialsDelegate::GenerateIntermediateCertificate(
+    CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateIntermediateCertificate(
         rootKeypair, rootCertificate, intermediatePublicKey, issuerId, fabricId, &intermediate);
     if (error) {
-        *error = [CHIPError errorForCHIPErrorCode:err];
+        *error = [MTRError errorForCHIPErrorCode:err];
     }
 
     if (err != CHIP_NO_ERROR) {
@@ -86,10 +77,38 @@ struct AutoPlatformMemory {
     return intermediate;
 }
 
-+ (BOOL)keypair:(id<CHIPKeypair>)keypair matchesCertificate:(NSData *)certificate
++ (nullable NSData *)generateOperationalCertificate:(id<MTRKeypair>)signingKeypair
+                                 signingCertificate:(NSData *)signingCertificate
+                               operationalPublicKey:(SecKeyRef)operationalPublicKey
+                                           fabricId:(NSNumber *)fabricId
+                                             nodeId:(NSNumber *)nodeId
+                              caseAuthenticatedTags:(NSArray<NSNumber *> * _Nullable)caseAuthenticatedTags
+                                              error:(NSError * __autoreleasing _Nullable * _Nullable)error
 {
+    NSLog(@"Generating operational certificate");
+
+    [MTRMemory ensureInit];
+
+    NSData * opcert = nil;
+    CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateOperationalCertificate(
+        signingKeypair, signingCertificate, operationalPublicKey, fabricId, nodeId, caseAuthenticatedTags, &opcert);
+    if (error) {
+        *error = [MTRError errorForCHIPErrorCode:err];
+    }
+
+    if (err != CHIP_NO_ERROR) {
+        NSLog(@"Generating operational certificate failed: %s", ErrorStr(err));
+    }
+
+    return opcert;
+}
+
++ (BOOL)keypair:(id<MTRKeypair>)keypair matchesCertificate:(NSData *)certificate
+{
+    [MTRMemory ensureInit];
+
     P256PublicKey keypairPubKey;
-    CHIP_ERROR err = CHIPP256KeypairBridge::MatterPubKeyFromSecKeyRef(keypair.pubkey, &keypairPubKey);
+    CHIP_ERROR err = MTRP256KeypairBridge::MatterPubKeyFromSecKeyRef(keypair.publicKey, &keypairPubKey);
     if (err != CHIP_NO_ERROR) {
         NSLog(@"Can't extract public key from keypair: %s", ErrorStr(err));
         return NO;
@@ -109,6 +128,8 @@ struct AutoPlatformMemory {
 
 + (BOOL)isCertificate:(NSData *)certificate1 equalTo:(NSData *)certificate2
 {
+    [MTRMemory ensureInit];
+
     P256PublicKey pubKey1;
     CHIP_ERROR err = ExtractPubkeyFromX509Cert(AsByteSpan(certificate1), pubKey1);
     if (err != CHIP_NO_ERROR) {
@@ -144,6 +165,35 @@ struct AutoPlatformMemory {
     }
 
     return subject1.IsEqual(subject2);
+}
+
++ (nullable NSData *)generateCertificateSigningRequest:(id<MTRKeypair>)keypair
+                                                 error:(NSError * __autoreleasing _Nullable * _Nullable)error
+{
+    [MTRMemory ensureInit];
+
+    MTRP256KeypairBridge keypairBridge;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    do {
+        err = keypairBridge.Init(keypair);
+        if (err != CHIP_NO_ERROR) {
+            break;
+        }
+
+        uint8_t buf[kMAX_CSR_Length];
+        MutableByteSpan csr(buf);
+        err = GenerateCertificateSigningRequest(&keypairBridge, csr);
+        if (err != CHIP_NO_ERROR) {
+            break;
+        }
+
+        return AsData(csr);
+    } while (0);
+
+    if (error) {
+        *error = [MTRError errorForCHIPErrorCode:err];
+    }
+    return nil;
 }
 
 @end

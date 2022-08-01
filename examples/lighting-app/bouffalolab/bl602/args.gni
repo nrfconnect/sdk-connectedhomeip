@@ -22,6 +22,8 @@ pw_assert_BACKEND = "$dir_pw_assert_log"
 
 chip_enable_openthread = false
 
+pw_rpc_CONFIG = "$dir_pw_rpc:disable_global_mutex"
+
 # Disable lock tracking, since our FreeRTOS configuration does not set
 # INCLUDE_xSemaphoreGetMutexHolder
 chip_stack_lock_tracking = "none"

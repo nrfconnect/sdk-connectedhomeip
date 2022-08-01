@@ -29,6 +29,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import asyncio
 from ctypes import *
+from dataclasses import dataclass
 
 from .ChipStack import *
 from .interaction_model import InteractionModelError, delegate as im
@@ -38,6 +39,7 @@ from .clusters import Attribute as ClusterAttribute
 from .clusters import ClusterObjects as ClusterObjects
 from .clusters import Objects as GeneratedObjects
 from .clusters.CHIPClusters import *
+from . import clusters as Clusters
 import enum
 import threading
 import typing
@@ -59,6 +61,37 @@ _DevicePairingDelegate_OnCommissioningStatusUpdateFunct = CFUNCTYPE(
 # else seems to do it.
 _DeviceAvailableFunct = CFUNCTYPE(None, c_void_p, c_uint32)
 
+_IssueNOCChainCallbackPythonCallbackFunct = CFUNCTYPE(
+    None, py_object, c_uint32, c_void_p, c_size_t, c_void_p, c_size_t, c_void_p, c_size_t, c_void_p, c_size_t, c_uint64)
+
+
+@dataclass
+class NOCChain:
+    nocBytes: bytes
+    icacBytes: bytes
+    rcacBytes: bytes
+    ipkBytes: bytes
+    adminSubject: int
+
+
+@_IssueNOCChainCallbackPythonCallbackFunct
+def _IssueNOCChainCallbackPythonCallback(devCtrl, status: int, noc: c_void_p, nocLen: int, icac: c_void_p, icacLen: int, rcac: c_void_p, rcacLen: int, ipk: c_void_p, ipkLen: int, adminSubject: int):
+    nocChain = NOCChain(None, None, None, None, 0)
+    if status == 0:
+        nocBytes = None
+        if nocLen > 0:
+            nocBytes = string_at(noc, nocLen)[:]
+        icacBytes = None
+        if icacLen > 0:
+            icacBytes = string_at(icac, icacLen)[:]
+        rcacBytes = None
+        if rcacLen > 0:
+            rcacBytes = string_at(rcac, rcacLen)[:]
+        ipkBytes = None
+        if ipkLen > 0:
+            ipkBytes = string_at(ipk, ipkLen)[:]
+        nocChain = NOCChain(nocBytes, icacBytes, rcacBytes, ipkBytes, adminSubject)
+    devCtrl.NOCChainCallback(nocChain)
 
 # This is a fix for WEAV-429. Jay Logue recommends revisiting this at a later
 # date to allow for truly multiple instances so this is temporary.
@@ -81,12 +114,13 @@ class DCState(enum.IntEnum):
     BLE_READY = 2
     RENDEZVOUS_ONGOING = 3
     RENDEZVOUS_CONNECTED = 4
+    COMMISSIONING = 5
 
 
 class ChipDeviceController():
     activeList = set()
 
-    def __init__(self, opCredsContext: ctypes.c_void_p, fabricId: int, fabricIndex: int, nodeId: int, paaTrustStorePath: str = "", useTestCommissioner: bool = False):
+    def __init__(self, opCredsContext: ctypes.c_void_p, fabricId: int, fabricIndex: int, nodeId: int, adminVendorId: int, paaTrustStorePath: str = "", useTestCommissioner: bool = False):
         self.state = DCState.NOT_INITIALIZED
         self.devCtrl = None
         self._ChipStack = builtins.chipStack
@@ -94,11 +128,13 @@ class ChipDeviceController():
 
         self._InitLib()
 
+        self._dmLib.pychip_DeviceController_SetIssueNOCChainCallbackPythonCallback(_IssueNOCChainCallbackPythonCallback)
+
         devCtrl = c_void_p(None)
 
         res = self._ChipStack.Call(
             lambda: self._dmLib.pychip_OpCreds_AllocateController(ctypes.c_void_p(
-                opCredsContext), pointer(devCtrl), fabricIndex, fabricId, nodeId, ctypes.c_char_p(None if len(paaTrustStorePath) is 0 else str.encode(paaTrustStorePath)), useTestCommissioner)
+                opCredsContext), pointer(devCtrl), fabricIndex, fabricId, nodeId, adminVendorId, ctypes.c_char_p(None if len(paaTrustStorePath) == 0 else str.encode(paaTrustStorePath)), useTestCommissioner)
         )
 
         if res != 0:
@@ -115,9 +151,13 @@ class ChipDeviceController():
                 self._ChipStack.callbackRes = self._ChipStack.ErrorToException(
                     err)
             else:
-                print("Established CASE with Device")
-            self.state = DCState.IDLE
-            self._ChipStack.completeEvent.set()
+                print("Established secure session with Device")
+            if self.state != DCState.COMMISSIONING:
+                # During Commissioning, HandleKeyExchangeComplete will also be called,
+                # in this case the async operation should be marked as finished by
+                # HandleCommissioningComplete instead this function.
+                self.state = DCState.IDLE
+                self._ChipStack.completeEvent.set()
 
         def HandleCommissioningComplete(nodeid, err):
             if err != 0:
@@ -126,9 +166,9 @@ class ChipDeviceController():
                 print("Commissioning complete")
             self.state = DCState.IDLE
             self._ChipStack.callbackRes = err
-            self._ChipStack.completeEvent.set()
-            self._ChipStack.commissioningCompleteEvent.set()
             self._ChipStack.commissioningEventRes = err
+            self._ChipStack.commissioningCompleteEvent.set()
+            self._ChipStack.completeEvent.set()
 
         self.cbHandleKeyExchangeCompleteFunct = _DevicePairingDelegate_OnPairingCompleteFunct(
             HandleKeyExchangeComplete)
@@ -212,14 +252,11 @@ class ChipDeviceController():
 
         self._ChipStack.commissioningCompleteEvent.clear()
 
-        self.state = DCState.RENDEZVOUS_ONGOING
+        self.state = DCState.COMMISSIONING
         self._ChipStack.CallAsync(
             lambda: self._dmLib.pychip_DeviceController_ConnectBLE(
                 self.devCtrl, discriminator, setupPinCode, nodeid)
         )
-        # Wait up to 5 additional seconds for the commissioning complete event
-        if not self._ChipStack.commissioningCompleteEvent.isSet():
-            self._ChipStack.commissioningCompleteEvent.wait(5.0)
         if not self._ChipStack.commissioningCompleteEvent.isSet():
             # Error 50 is a timeout
             return False
@@ -233,6 +270,21 @@ class ChipDeviceController():
                 self.devCtrl)
         )
 
+    def ExpireSessions(self, nodeid):
+        """Close all sessions with `nodeid` (if any existed) so that sessions get re-established.
+
+        This is needed to properly handle operations that invalidate a node's state, such as
+        UpdateNOC.
+
+        WARNING: ONLY CALL THIS IF YOU UNDERSTAND THE SIDE-EFFECTS
+        """
+        self.CheckIsActive()
+
+        res = self._ChipStack.Call(lambda: self._dmLib.pychip_ExpireSessions(self.devCtrl, nodeid))
+        if res != 0:
+            raise self._ChipStack.ErrorToException(res)
+
+    # TODO: This needs to be called MarkSessionDefunct
     def CloseSession(self, nodeid):
         self.CheckIsActive()
 
@@ -241,26 +293,24 @@ class ChipDeviceController():
                 self.devCtrl, nodeid)
         )
 
-    def EstablishPASESessionIP(self, ipaddr, setupPinCode, nodeid):
+    def EstablishPASESessionIP(self, ipaddr: str, setupPinCode: int, nodeid: int):
         self.CheckIsActive()
 
         self.state = DCState.RENDEZVOUS_ONGOING
         return self._ChipStack.CallAsync(
             lambda: self._dmLib.pychip_DeviceController_EstablishPASESessionIP(
-                self.devCtrl, ipaddr, setupPinCode, nodeid)
+                self.devCtrl, ipaddr.encode("utf-8"), setupPinCode, nodeid)
         )
 
     def Commission(self, nodeid):
         self.CheckIsActive()
         self._ChipStack.commissioningCompleteEvent.clear()
+        self.state = DCState.COMMISSIONING
 
         self._ChipStack.CallAsync(
             lambda: self._dmLib.pychip_DeviceController_Commission(
                 self.devCtrl, nodeid)
         )
-        # Wait up to 5 additional seconds for the commissioning complete event
-        if not self._ChipStack.commissioningCompleteEvent.isSet():
-            self._ChipStack.commissioningCompleteEvent.wait(5.0)
         if not self._ChipStack.commissioningCompleteEvent.isSet():
             # Error 50 is a timeout
             return False
@@ -290,26 +340,48 @@ class ChipDeviceController():
     def CheckTestCommissionerPaseConnection(self, nodeid):
         return self._dmLib.pychip_TestPaseConnection(nodeid)
 
-    def CommissionIP(self, ipaddr, setupPinCode, nodeid):
+    def CommissionWithCode(self, setupPayload: str, nodeid: int):
+        self.CheckIsActive()
+
+        setupPayload = setupPayload.encode() + b'\0'
+
+        # IP connection will run through full commissioning, so we need to wait
+        # for the commissioning complete event, not just any callback.
+        self.state = DCState.COMMISSIONING
+
+        self._ChipStack.commissioningCompleteEvent.clear()
+
+        self._ChipStack.CallAsync(
+            lambda: self._dmLib.pychip_DeviceController_ConnectWithCode(
+                self.devCtrl, setupPayload, nodeid)
+        )
+        if not self._ChipStack.commissioningCompleteEvent.isSet():
+            # Error 50 is a timeout
+            return False
+        return self._ChipStack.commissioningEventRes == 0
+
+    def CommissionIP(self, ipaddr: str, setupPinCode: int, nodeid: int):
         self.CheckIsActive()
 
         # IP connection will run through full commissioning, so we need to wait
         # for the commissioning complete event, not just any callback.
-        self.state = DCState.RENDEZVOUS_ONGOING
+        self.state = DCState.COMMISSIONING
 
         self._ChipStack.commissioningCompleteEvent.clear()
 
         self._ChipStack.CallAsync(
             lambda: self._dmLib.pychip_DeviceController_ConnectIP(
-                self.devCtrl, ipaddr, setupPinCode, nodeid)
+                self.devCtrl, ipaddr.encode("utf-8"), setupPinCode, nodeid)
         )
-        # Wait up to 5 additional seconds for the commissioning complete event
-        if not self._ChipStack.commissioningCompleteEvent.isSet():
-            self._ChipStack.commissioningCompleteEvent.wait(5.0)
         if not self._ChipStack.commissioningCompleteEvent.isSet():
             # Error 50 is a timeout
             return False
         return self._ChipStack.commissioningEventRes == 0
+
+    def NOCChainCallback(self, nocChain):
+        self._ChipStack.callbackRes = nocChain
+        self._ChipStack.completeEvent.set()
+        return
 
     def CommissionThread(self, discriminator, setupPinCode, nodeId, threadOperationalDataset: bytes):
         ''' Commissions a Thread device over BLE
@@ -317,13 +389,13 @@ class ChipDeviceController():
         self.SetThreadOperationalDataset(threadOperationalDataset)
         return self.ConnectBLE(discriminator, setupPinCode, nodeId)
 
-    def CommissionWiFi(self, discriminator, setupPinCode, nodeId, ssid, credentials):
+    def CommissionWiFi(self, discriminator, setupPinCode, nodeId, ssid: str, credentials: str):
         ''' Commissions a WiFi device over BLE
         '''
         self.SetWiFiCredentials(ssid, credentials)
         return self.ConnectBLE(discriminator, setupPinCode, nodeId)
 
-    def SetWiFiCredentials(self, ssid, credentials):
+    def SetWiFiCredentials(self, ssid: str, credentials: str):
         self.CheckIsActive()
 
         return self._ChipStack.Call(
@@ -342,10 +414,7 @@ class ChipDeviceController():
     def ResolveNode(self, nodeid):
         self.CheckIsActive()
 
-        return self._ChipStack.CallAsync(
-            lambda: self._dmLib.pychip_DeviceController_UpdateDevice(
-                self.devCtrl, nodeid)
-        )
+        self.GetConnectedDeviceSync(nodeid, allowPASE=False)
 
     def GetAddressAndPort(self, nodeid):
         self.CheckIsActive()
@@ -474,37 +543,52 @@ class ChipDeviceController():
         else:
             raise self._ChipStack.ErrorToException(res)
 
+    def GetNodeId(self):
+        self.CheckIsActive()
+
+        nodeid = c_uint64(0)
+
+        res = self._ChipStack.Call(
+            lambda: self._dmLib.pychip_DeviceController_GetNodeId(
+                self.devCtrl, pointer(nodeid))
+        )
+
+        if res == 0:
+            return nodeid.value
+        else:
+            raise self._ChipStack.ErrorToException(res)
+
     def GetClusterHandler(self):
         self.CheckIsActive()
 
         return self._Cluster
 
-    def GetConnectedDeviceSync(self, nodeid):
+    def GetConnectedDeviceSync(self, nodeid, allowPASE=True, timeoutMs: int = None):
         self.CheckIsActive()
 
         returnDevice = c_void_p(None)
+        returnErr = None
         deviceAvailableCV = threading.Condition()
 
         @_DeviceAvailableFunct
         def DeviceAvailableCallback(device, err):
             nonlocal returnDevice
+            nonlocal returnErr
             nonlocal deviceAvailableCV
             with deviceAvailableCV:
                 returnDevice = c_void_p(device)
+                returnErr = err
                 deviceAvailableCV.notify_all()
-            if err != 0:
-                print("Failed in getting the connected device: {}".format(err))
-                raise self._ChipStack.ErrorToException(err)
 
-        res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetDeviceBeingCommissioned(
-            self.devCtrl, nodeid, byref(returnDevice)))
-        if res == 0:
-            # TODO: give users more contrtol over whether they want to send this command over a PASE established connection
-            print('Using PASE connection')
-            return returnDevice
+        if allowPASE:
+            res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetDeviceBeingCommissioned(
+                self.devCtrl, nodeid, byref(returnDevice)), timeoutMs)
+            if res == 0:
+                print('Using PASE connection')
+                return returnDevice
 
         res = self._ChipStack.Call(lambda: self._dmLib.pychip_GetConnectedDeviceByNodeId(
-            self.devCtrl, nodeid, DeviceAvailableCallback))
+            self.devCtrl, nodeid, DeviceAvailableCallback), timeoutMs)
         if res != 0:
             raise self._ChipStack.ErrorToException(res)
 
@@ -512,45 +596,66 @@ class ChipDeviceController():
         # Check if the device is already set before waiting for the callback.
         if returnDevice.value is None:
             with deviceAvailableCV:
-                deviceAvailableCV.wait()
+                timeout = None
+                if (timeoutMs):
+                    timeout = float(timeoutMs) / 1000
+
+                ret = deviceAvailableCV.wait(timeout)
+                if ret is False:
+                    raise TimeoutError("Timed out waiting for DNS-SD resolution")
 
         if returnDevice.value is None:
-            raise self._ChipStack.ErrorToException(CHIP_ERROR_INTERNAL)
+            raise self._ChipStack.ErrorToException(returnErr)
         return returnDevice
 
-    async def SendCommand(self, nodeid: int, endpoint: int, payload: ClusterObjects.ClusterCommand, responseType=None, timedRequestTimeoutMs: int = None):
+    def ComputeRoundTripTimeout(self, nodeid, upperLayerProcessingTimeoutMs: int = 0):
+        ''' Returns a computed timeout value based on the round-trip time it takes for the peer at the other end of the session to
+            receive a message, process it and send it back. This is computed based on the session type, the type of transport, sleepy
+            characteristics of the target and a caller-provided value for the time it takes to process a message at the upper layer on
+            the target For group sessions.
+
+            This will result in a session being established if one wasn't already.
+        '''
+        device = self.GetConnectedDeviceSync(nodeid)
+        res = self._ChipStack.Call(lambda: self._dmLib.pychip_DeviceProxy_ComputeRoundTripTimeout(
+            device, upperLayerProcessingTimeoutMs))
+        return res
+
+    async def SendCommand(self, nodeid: int, endpoint: int, payload: ClusterObjects.ClusterCommand, responseType=None, timedRequestTimeoutMs: int = None, interactionTimeoutMs: int = None):
         '''
         Send a cluster-object encapsulated command to a node and get returned a future that can be awaited upon to receive the response.
         If a valid responseType is passed in, that will be used to deserialize the object. If not, the type will be automatically deduced
         from the metadata received over the wire.
 
         timedWriteTimeoutMs: Timeout for a timed invoke request. Omit or set to 'None' to indicate a non-timed request.
+        interactionTimeoutMs: Overall timeout for the interaction. Omit or set to 'None' to have the SDK automatically compute the right
+                              timeout value based on transport characteristics as well as the responsiveness of the target.
         '''
         self.CheckIsActive()
 
         eventLoop = asyncio.get_running_loop()
         future = eventLoop.create_future()
 
-        device = self.GetConnectedDeviceSync(nodeid)
-        res = self._ChipStack.Call(
-            lambda: ClusterCommand.SendCommand(
-                future, eventLoop, responseType, device, ClusterCommand.CommandPath(
-                    EndpointId=endpoint,
-                    ClusterId=payload.cluster_id,
-                    CommandId=payload.command_id,
-                ), payload, timedRequestTimeoutMs=timedRequestTimeoutMs)
-        )
+        device = self.GetConnectedDeviceSync(nodeid, timeoutMs=interactionTimeoutMs)
+        res = ClusterCommand.SendCommand(
+            future, eventLoop, responseType, device, ClusterCommand.CommandPath(
+                EndpointId=endpoint,
+                ClusterId=payload.cluster_id,
+                CommandId=payload.command_id,
+            ), payload, timedRequestTimeoutMs=timedRequestTimeoutMs, interactionTimeoutMs=interactionTimeoutMs)
         if res != 0:
             future.set_exception(self._ChipStack.ErrorToException(res))
         return await future
 
-    async def WriteAttribute(self, nodeid: int, attributes: typing.List[typing.Tuple[int, ClusterObjects.ClusterAttributeDescriptor, int]], timedRequestTimeoutMs: int = None):
+    async def WriteAttribute(self, nodeid: int, attributes: typing.List[typing.Tuple[int, ClusterObjects.ClusterAttributeDescriptor, int]], timedRequestTimeoutMs: int = None, interactionTimeoutMs: int = None):
         '''
         Write a list of attributes on a target node.
 
         nodeId: Target's Node ID
         timedWriteTimeoutMs: Timeout for a timed write request. Omit or set to 'None' to indicate a non-timed request.
         attributes: A list of tuples of type (endpoint, cluster-object):
+        interactionTimeoutMs: Overall timeout for the interaction. Omit or set to 'None' to have the SDK automatically compute the right
+                              timeout value based on transport characteristics as well as the responsiveness of the target.
 
         E.g
             (1, Clusters.TestCluster.Attributes.XYZAttribute('hello')) -- Write 'hello' to the XYZ attribute on the test cluster to endpoint 1
@@ -560,7 +665,7 @@ class ChipDeviceController():
         eventLoop = asyncio.get_running_loop()
         future = eventLoop.create_future()
 
-        device = self.GetConnectedDeviceSync(nodeid)
+        device = self.GetConnectedDeviceSync(nodeid, timeoutMs=interactionTimeoutMs)
 
         attrs = []
         for v in attributes:
@@ -571,10 +676,8 @@ class ChipDeviceController():
                 attrs.append(ClusterAttribute.AttributeWriteRequest(
                     v[0], v[1], v[2], 1, v[1].value))
 
-        res = self._ChipStack.Call(
-            lambda: ClusterAttribute.WriteAttributes(
-                future, eventLoop, device, attrs, timedRequestTimeoutMs=timedRequestTimeoutMs)
-        )
+        res = ClusterAttribute.WriteAttributes(
+            future, eventLoop, device, attrs, timedRequestTimeoutMs=timedRequestTimeoutMs, interactionTimeoutMs=interactionTimeoutMs)
         if res != 0:
             raise self._ChipStack.ErrorToException(res)
         return await future
@@ -755,8 +858,8 @@ class ChipDeviceController():
         eventPaths = [self._parseEventPathTuple(
             v) for v in events] if events else None
 
-        res = self._ChipStack.Call(
-            lambda: ClusterAttribute.Read(future=future, eventLoop=eventLoop, device=device, devCtrl=self, attributes=attributePaths, dataVersionFilters=clusterDataVersionFilters, events=eventPaths, returnClusterObject=returnClusterObject, subscriptionParameters=ClusterAttribute.SubscriptionParameters(reportInterval[0], reportInterval[1]) if reportInterval else None, fabricFiltered=fabricFiltered, keepSubscriptions=keepSubscriptions))
+        res = ClusterAttribute.Read(future=future, eventLoop=eventLoop, device=device, devCtrl=self, attributes=attributePaths, dataVersionFilters=clusterDataVersionFilters, events=eventPaths, returnClusterObject=returnClusterObject,
+                                    subscriptionParameters=ClusterAttribute.SubscriptionParameters(reportInterval[0], reportInterval[1]) if reportInterval else None, fabricFiltered=fabricFiltered, keepSubscriptions=keepSubscriptions)
         if res != 0:
             raise self._ChipStack.ErrorToException(res)
         return await future
@@ -859,7 +962,7 @@ class ChipDeviceController():
             print(f"CommandResponse {res}")
             return (0, res)
         except InteractionModelError as ex:
-            return (int(ex.state), None)
+            return (int(ex.status), None)
 
     def ZCLReadAttribute(self, cluster, attribute, nodeid, endpoint, groupid, blocking=True):
         self.CheckIsActive()
@@ -930,6 +1033,16 @@ class ChipDeviceController():
 
         self._ChipStack.blockingCB = blockingCB
 
+    def IssueNOCChain(self, csr: Clusters.OperationalCredentials.Commands.CSRResponse, nodeId: int):
+        """Issue an NOC chain using the associated OperationalCredentialsDelegate.
+        The NOC chain will be provided in TLV cert format."""
+        self.CheckIsActive()
+
+        return self._ChipStack.CallAsync(
+            lambda: self._dmLib.pychip_DeviceController_IssueNOCChain(
+                self.devCtrl, py_object(self), csr.NOCSRElements, len(csr.NOCSRElements), nodeId)
+        )
+
     # ----- Private Members -----
     def _InitLib(self):
         if self._dmLib is None:
@@ -999,6 +1112,10 @@ class ChipDeviceController():
                 c_void_p, c_char_p, c_uint32, c_uint64]
             self._dmLib.pychip_DeviceController_ConnectIP.restype = c_uint32
 
+            self._dmLib.pychip_DeviceController_ConnectWithCode.argtypes = [
+                c_void_p, c_char_p, c_uint64]
+            self._dmLib.pychip_DeviceController_ConnectWithCode.restype = c_uint32
+
             self._dmLib.pychip_DeviceController_CloseSession.argtypes = [
                 c_void_p, c_uint64]
             self._dmLib.pychip_DeviceController_CloseSession.restype = c_uint32
@@ -1019,10 +1136,6 @@ class ChipDeviceController():
                 c_void_p, _DevicePairingDelegate_OnCommissioningStatusUpdateFunct]
             self._dmLib.pychip_ScriptDevicePairingDelegate_SetCommissioningCompleteCallback.restype = c_uint32
 
-            self._dmLib.pychip_DeviceController_UpdateDevice.argtypes = [
-                c_void_p, c_uint64]
-            self._dmLib.pychip_DeviceController_UpdateDevice.restype = c_uint32
-
             self._dmLib.pychip_GetConnectedDeviceByNodeId.argtypes = [
                 c_void_p, c_uint64, _DeviceAvailableFunct]
             self._dmLib.pychip_GetConnectedDeviceByNodeId.restype = c_uint32
@@ -1030,6 +1143,9 @@ class ChipDeviceController():
             self._dmLib.pychip_GetDeviceBeingCommissioned.argtypes = [
                 c_void_p, c_uint64, c_void_p]
             self._dmLib.pychip_GetDeviceBeingCommissioned.restype = c_uint32
+
+            self._dmLib.pychip_ExpireSessions.argtypes = [c_void_p, c_uint64]
+            self._dmLib.pychip_ExpireSessions.restype = c_uint32
 
             self._dmLib.pychip_DeviceCommissioner_CloseBleConnection.argtypes = [
                 c_void_p]
@@ -1058,3 +1174,12 @@ class ChipDeviceController():
             self._dmLib.pychip_SetTestCommissionerSimulateFailureOnReport.argtypes = [
                 c_uint8]
             self._dmLib.pychip_SetTestCommissionerSimulateFailureOnReport.restype = c_bool
+
+            self._dmLib.pychip_DeviceController_IssueNOCChain.argtypes = [
+                c_void_p, py_object, c_char_p, c_size_t, c_uint64
+            ]
+            self._dmLib.pychip_DeviceController_IssueNOCChain.restype = c_uint32
+
+            self._dmLib.pychip_DeviceController_SetIssueNOCChainCallbackPythonCallback.argtypes = [
+                _IssueNOCChainCallbackPythonCallbackFunct]
+            self._dmLib.pychip_DeviceController_SetIssueNOCChainCallbackPythonCallback.restype = None

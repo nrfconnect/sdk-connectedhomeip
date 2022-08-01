@@ -81,7 +81,7 @@ uint8_t singletonAttributeData[ACTUAL_SINGLETONS_SIZE];
 
 uint16_t emberEndpointCount = 0;
 
-// If we have attributes that are more than 2 bytes, then
+// If we have attributes that are more than 4 bytes, then
 // we need this data block for the defaults
 #if (defined(GENERATED_DEFAULTS) && GENERATED_DEFAULTS_COUNT)
 constexpr const uint8_t generatedDefaults[] = GENERATED_DEFAULTS;
@@ -435,7 +435,7 @@ static uint8_t * singletonAttributeLocation(const EmberAfAttributeMetadata * am)
     uint16_t index                     = 0;
     while (m < am)
     {
-        if ((m->mask & ATTRIBUTE_MASK_SINGLETON) != 0U)
+        if (m->IsSingleton() && !m->IsExternal())
         {
             index = static_cast<uint16_t>(index + m->size);
         }
@@ -953,8 +953,19 @@ bool emberAfEndpointEnableDisable(EndpointId endpoint, bool enable)
             }
         }
 
-        // TODO: Once endpoints are in parts lists other than that of endpoint
-        // 0, something more complicated might need to happen here.
+        EndpointId parentEndpointId = emberAfParentEndpointFromIndex(index);
+        while (parentEndpointId != kInvalidEndpointId)
+        {
+            MatterReportingAttributeChangeCallback(parentEndpointId, app::Clusters::Descriptor::Id,
+                                                   app::Clusters::Descriptor::Attributes::PartsList::Id);
+            uint16_t parentIndex = emberAfIndexFromEndpoint(parentEndpointId);
+            if (parentIndex == kEmberInvalidEndpointIndex)
+            {
+                // Something has gone wrong.
+                break;
+            }
+            parentEndpointId = emberAfParentEndpointFromIndex(parentIndex);
+        }
 
         MatterReportingAttributeChangeCallback(/* endpoint = */ 0, app::Clusters::Descriptor::Id,
                                                app::Clusters::Descriptor::Attributes::PartsList::Id);
@@ -1216,7 +1227,7 @@ void emAfLoadAttributeDefaults(EndpointId endpoint, bool ignoreStorage, Optional
                 ptr                                 = nullptr; // Will get set to the value to write, as needed.
 
                 // First check for a persisted value.
-                if (!ignoreStorage && am->IsNonVolatile())
+                if (!ignoreStorage && am->IsAutomaticallyPersisted())
                 {
                     VerifyOrDie(attrStorage && "Attribute persistence needs a persistence provider");
                     MutableByteSpan bytes(attrData);
@@ -1245,11 +1256,20 @@ void emAfLoadAttributeDefaults(EndpointId endpoint, bool ignoreStorage, Optional
 
                     if (ptr == nullptr)
                     {
+                        size_t defaultValueSizeForBigEndianNudger = 0;
+                        // Bypasses compiler warning about unused variable for little endian platforms.
+                        (void) defaultValueSizeForBigEndianNudger;
                         if ((am->mask & ATTRIBUTE_MASK_MIN_MAX) != 0U)
                         {
+                            // This is intentionally 2 and not 4 bytes since defaultValue in min/max
+                            // attributes is still uint16_t.
                             if (emberAfAttributeSize(am) <= 2)
                             {
+                                static_assert(sizeof(am->defaultValue.ptrToMinMaxValue->defaultValue.defaultValue) == 2,
+                                              "if statement relies on size of max/min defaultValue being 2");
                                 ptr = (uint8_t *) &(am->defaultValue.ptrToMinMaxValue->defaultValue.defaultValue);
+                                defaultValueSizeForBigEndianNudger =
+                                    sizeof(am->defaultValue.ptrToMinMaxValue->defaultValue.defaultValue);
                             }
                             else
                             {
@@ -1258,9 +1278,10 @@ void emAfLoadAttributeDefaults(EndpointId endpoint, bool ignoreStorage, Optional
                         }
                         else
                         {
-                            if (emberAfAttributeSize(am) <= 2)
+                            if ((emberAfAttributeSize(am) <= 4) && !emberAfIsStringAttributeType(am->attributeType))
                             {
-                                ptr = (uint8_t *) &(am->defaultValue.defaultValue);
+                                ptr                                = (uint8_t *) &(am->defaultValue.defaultValue);
+                                defaultValueSizeForBigEndianNudger = sizeof(am->defaultValue.defaultValue);
                             }
                             else
                             {
@@ -1271,13 +1292,15 @@ void emAfLoadAttributeDefaults(EndpointId endpoint, bool ignoreStorage, Optional
                         // it should be treated as if it is pointing to an array of all zeroes.
 
 #if (BIGENDIAN_CPU)
-                        // The default value for one- and two-byte attributes is stored in an
-                        // uint16_t.  On big-endian platforms, a pointer to the default value of
-                        // a one-byte attribute will point to the wrong byte.  So, for those
-                        // cases, nudge the pointer forward so it points to the correct byte.
-                        if (emberAfAttributeSize(am) == 1 && ptr != NULL)
+                        // The default values for attributes that are less than or equal to
+                        // defaultValueSizeForBigEndianNudger in bytes are stored in an
+                        // uint32_t.  On big-endian platforms, a pointer to the default value
+                        // of size less than defaultValueSizeForBigEndianNudger will point to the wrong
+                        // byte.  So, for those cases, nudge the pointer forward so it points
+                        // to the correct byte.
+                        if (emberAfAttributeSize(am) < defaultValueSizeForBigEndianNudger && ptr != NULL)
                         {
-                            *ptr++;
+                            ptr += (defaultValueSizeForBigEndianNudger - emberAfAttributeSize(am));
                         }
 #endif // BIGENDIAN
                     }
@@ -1308,7 +1331,7 @@ void emAfSaveAttributeToStorageIfNeeded(uint8_t * data, EndpointId endpoint, Clu
                                         const EmberAfAttributeMetadata * metadata)
 {
     // Get out of here if this attribute isn't marked non-volatile.
-    if (!metadata->IsNonVolatile())
+    if (!metadata->IsAutomaticallyPersisted())
     {
         return;
     }

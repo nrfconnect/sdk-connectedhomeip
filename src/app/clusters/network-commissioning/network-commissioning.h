@@ -46,7 +46,7 @@ public:
      * Register will register the network commissioning instance to the attribute and command dispatching route.
      */
     CHIP_ERROR Init();
-    CHIP_ERROR Shutdown();
+    void Shutdown();
 
     // CommandHandlerInterface
     void InvokeCommand(HandlerContext & ctx) override;
@@ -99,6 +99,15 @@ private:
     uint8_t mConnectingNetworkIDLen = 0;
     uint8_t mLastNetworkID[DeviceLayer::NetworkCommissioning::kMaxNetworkIDLen];
     uint8_t mLastNetworkIDLen = 0;
+
+    Optional<uint64_t> mCurrentOperationBreadcrumb;
+
+    // Commits the breadcrumb value saved in mCurrentOperationBreadcrumb to the breadcrumb attribute in GeneralCommissioning
+    // cluster. Will set mCurrentOperationBreadcrumb to NullOptional.
+    void CommitSavedBreadcrumb();
+
+    // Sets the breadcrumb attribute in GeneralCommissioning cluster, no-op when breadcrumbValue is NullOptional.
+    void UpdateBreadcrumb(const Optional<uint64_t> & breadcrumbValue);
 
     // Actual handlers of the commands
     void HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetworks::DecodableType & req);

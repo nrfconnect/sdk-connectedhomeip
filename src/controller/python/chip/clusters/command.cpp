@@ -35,7 +35,8 @@ extern "C" {
 chip::ChipError::StorageType pychip_CommandSender_SendCommand(void * appContext, DeviceProxy * device,
                                                               uint16_t timedRequestTimeoutMs, chip::EndpointId endpointId,
                                                               chip::ClusterId clusterId, chip::CommandId commandId,
-                                                              const uint8_t * payload, size_t length);
+                                                              const uint8_t * payload, size_t length,
+                                                              uint16_t interactionTimeoutMs);
 }
 
 namespace chip {
@@ -127,9 +128,11 @@ void pychip_CommandSender_InitCallbacks(OnCommandSenderResponseCallback onComman
 chip::ChipError::StorageType pychip_CommandSender_SendCommand(void * appContext, DeviceProxy * device,
                                                               uint16_t timedRequestTimeoutMs, chip::EndpointId endpointId,
                                                               chip::ClusterId clusterId, chip::CommandId commandId,
-                                                              const uint8_t * payload, size_t length)
+                                                              const uint8_t * payload, size_t length, uint16_t interactionTimeoutMs)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+
+    VerifyOrReturnError(device->GetSecureSession().HasValue(), CHIP_ERROR_MISSING_SECURE_SESSION.AsInteger());
 
     std::unique_ptr<CommandSenderCallback> callback = std::make_unique<CommandSenderCallback>(appContext);
     std::unique_ptr<CommandSender> sender           = std::make_unique<CommandSender>(callback.get(), device->GetExchangeManager(),
@@ -146,12 +149,16 @@ chip::ChipError::StorageType pychip_CommandSender_SendCommand(void * appContext,
         VerifyOrExit(writer != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
         reader.Init(payload, length);
         reader.Next();
-        SuccessOrExit(writer->CopyContainer(TLV::ContextTag(to_underlying(CommandDataIB::Tag::kData)), reader));
+        SuccessOrExit(writer->CopyContainer(TLV::ContextTag(to_underlying(CommandDataIB::Tag::kFields)), reader));
     }
 
     SuccessOrExit(err = sender->FinishCommand(timedRequestTimeoutMs != 0 ? Optional<uint16_t>(timedRequestTimeoutMs)
                                                                          : Optional<uint16_t>::Missing()));
-    SuccessOrExit(err = device->SendCommands(sender.get()));
+
+    SuccessOrExit(err = sender->SendCommandRequest(device->GetSecureSession().Value(),
+                                                   interactionTimeoutMs != 0
+                                                       ? MakeOptional(System::Clock::Milliseconds32(interactionTimeoutMs))
+                                                       : Optional<System::Clock::Timeout>::Missing()));
 
     sender.release();
     callback.release();

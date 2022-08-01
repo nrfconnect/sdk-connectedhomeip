@@ -35,14 +35,13 @@ config("includes") {
 
 executable("chip-lighting-app") {
   sources = [
-    "LightingManager.cpp",
     "include/CHIPProjectAppConfig.h",
-    "include/LightingManager.h",
     "main.cpp",
   ]
 
   deps = [
     "${chip_root}/examples/lighting-app/lighting-common",
+    "${chip_root}/examples/lighting-app/lighting-common:lighting-manager",
     "${chip_root}/examples/platform/linux:app-main",
     "${chip_root}/src/lib",
   ]
@@ -62,7 +61,7 @@ executable("chip-lighting-app") {
 
     sources += [
       "${chip_root}/examples/platform/linux/Rpc.cpp",
-      "${dir_pigweed}/targets/host/system_rpc_server.cc",
+      "${chip_root}/examples/platform/linux/system_rpc_server.cc",
     ]
 
     deps += [

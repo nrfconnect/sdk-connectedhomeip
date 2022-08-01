@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2021-2022 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -111,7 +111,7 @@ public:
         template <typename T, std::enable_if_t<DataModel::IsFabricScoped<T>::value, bool> = true>
         CHIP_ERROR Encode(T && aArg) const
         {
-            VerifyOrReturnError(aArg.GetFabricIndex() != kUndefinedFabricIndex, CHIP_ERROR_INVALID_FABRIC_ID);
+            VerifyOrReturnError(aArg.GetFabricIndex() != kUndefinedFabricIndex, CHIP_ERROR_INVALID_FABRIC_INDEX);
 
             // If we are encoding for a fabric filtered attribute read and the fabric index does not match that present in the
             // request, skip encoding this list item.
@@ -264,7 +264,7 @@ private:
         CHIP_ERROR err = EncodeAttributeReportIB(std::forward<Ts>(aArgs)...);
         if (err != CHIP_NO_ERROR)
         {
-            // For list chunking, ReportEngine should not rollback the buffer when CHIP_NO_MEMORY or similar error occurred.
+            // For list chunking, ReportEngine should not rollback the buffer when CHIP_ERROR_NO_MEMORY or similar error occurred.
             // However, the error might be raised in the middle of encoding procedure, then the buffer may contain partial data,
             // unclosed containers etc. This line clears all possible partial data and makes EncodeListItem is atomic.
             mAttributeReportIBsBuilder.Rollback(backup);

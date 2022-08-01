@@ -33,6 +33,16 @@ tests:
       attribute: "ClusterRevision"
       response:
           value: 1
+          constraints:
+              type: int16u
+
+    - label: "TH reads the FeatureMap attribute from the DUT"
+      command: "readAttribute"
+      attribute: "FeatureMap"
+      response:
+          value: 0
+          constraints:
+              type: bitmap32
 
     - label: "TH reads the AttributeList attribute from the DUT"
       command: "readAttribute"
@@ -40,11 +50,13 @@ tests:
       response:
           constraints:
               type: list
+              contains: [0, 65528, 65529, 65531, 65532, 65533]
 
     - label: "TH reads the AcceptedCommandList attribute from the DUT"
       command: "readAttribute"
       attribute: "AcceptedCommandList"
       response:
+          value: []
           constraints:
               type: list
 
@@ -52,14 +64,22 @@ tests:
       command: "readAttribute"
       attribute: "GeneratedCommandList"
       response:
+          value: []
           constraints:
               type: list
 
-    #issue #11053 disabled steps below Global attributes missing from YAML framework
-    - label: "TH reads the EventList attribute from the DUT"
-      disabled: true
-      command: "readAttribute"
-      attribute: "EventList"
-      response:
-          constraints:
-              type: list
+    #issue #15011 disabled steps below Global attributes missing from YAML framework
+    - label:
+          "Read EventList attribute from the DUT and Verify that the DUT
+          response provides a list of supported events."
+      verification: |
+          Not implemented in chip-tool
+      cluster: "LogCommands"
+      command: "UserPrompt"
+      PICS: PICS_USER_PROMPT
+      arguments:
+          values:
+              - name: "message"
+                value: "Please enter 'y' for success"
+              - name: "expectedValue"
+                value: "y"

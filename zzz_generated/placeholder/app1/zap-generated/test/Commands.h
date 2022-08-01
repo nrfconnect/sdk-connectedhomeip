@@ -21,10 +21,12 @@
 
 #include "TestCommand.h"
 
-class Test_TC_DM_1_3_SimulatedSuite : public TestCommand
+#include <lib/support/CHIPListUtils.h>
+
+class Test_TC_BINFO_2_3_SimulatedSuite : public TestCommand
 {
 public:
-    Test_TC_DM_1_3_SimulatedSuite() : TestCommand("Test_TC_DM_1_3_Simulated", 21)
+    Test_TC_BINFO_2_3_SimulatedSuite() : TestCommand("Test_TC_BINFO_2_3_Simulated", 21)
     {
         AddArgument("nodeId", 0, UINT64_MAX, &mNodeId);
         AddArgument("cluster", &mCluster);
@@ -32,7 +34,7 @@ public:
         AddArgument("timeout", 0, UINT16_MAX, &mTimeout);
     }
 
-    ~Test_TC_DM_1_3_SimulatedSuite() {}
+    ~Test_TC_BINFO_2_3_SimulatedSuite() {}
 
 private:
     chip::Optional<chip::NodeId> mNodeId;
@@ -77,11 +79,13 @@ private:
         {
         case 0: {
             LogStep(0, "Wait for the device to be commissioned");
+            ListFreer listFreer;
             chip::app::Clusters::DelayCommands::Commands::WaitForCommissioning::Type value;
             return WaitForCommissioning(kIdentityAlpha, value);
         }
         case 1: {
             LogStep(1, "Log OnOff Test Startup");
+            ListFreer listFreer;
             chip::app::Clusters::LogCommands::Commands::Log::Type value;
             value.message = chip::Span<const char>("*** Basic Cluster Tests Readygarbage: not in length on purpose", 29);
             return Log(kIdentityAlpha, value);
@@ -167,205 +171,11 @@ private:
     }
 };
 
-class Test_TC_DM_3_3_SimulatedSuite : public TestCommand
-{
-public:
-    Test_TC_DM_3_3_SimulatedSuite() : TestCommand("Test_TC_DM_3_3_Simulated", 6)
-    {
-        AddArgument("nodeId", 0, UINT64_MAX, &mNodeId);
-        AddArgument("cluster", &mCluster);
-        AddArgument("endpoint", 0, UINT16_MAX, &mEndpoint);
-        AddArgument("timeout", 0, UINT16_MAX, &mTimeout);
-    }
-
-    ~Test_TC_DM_3_3_SimulatedSuite() {}
-
-private:
-    chip::Optional<chip::NodeId> mNodeId;
-    chip::Optional<chip::CharSpan> mCluster;
-    chip::Optional<chip::EndpointId> mEndpoint;
-    chip::Optional<uint16_t> mTimeout;
-
-    chip::EndpointId GetEndpoint(chip::EndpointId endpoint) { return mEndpoint.HasValue() ? mEndpoint.Value() : endpoint; }
-
-    //
-    // Tests methods
-    //
-
-    void OnResponse(const chip::app::StatusIB & status, chip::TLV::TLVReader * data) override
-    {
-        bool shouldContinue = false;
-
-        switch (mTestIndex - 1)
-        {
-        case 0:
-            VerifyOrReturn(CheckValue("status", chip::to_underlying(status.mStatus), 0));
-            shouldContinue = true;
-            break;
-        default:
-            LogErrorOnFailure(ContinueOnChipMainThread(CHIP_ERROR_INVALID_ARGUMENT));
-        }
-
-        if (shouldContinue)
-        {
-            ContinueOnChipMainThread(CHIP_NO_ERROR);
-        }
-    }
-
-    CHIP_ERROR DoTestStep(uint16_t testIndex) override
-    {
-        using namespace chip::app::Clusters;
-        switch (testIndex)
-        {
-        case 0: {
-            LogStep(0, "Wait for the device to be commissioned");
-            chip::app::Clusters::DelayCommands::Commands::WaitForCommissioning::Type value;
-            return WaitForCommissioning(kIdentityAlpha, value);
-        }
-        case 1: {
-            LogStep(1, "Wait for Scan Network Command");
-            return WaitCommand(GetEndpoint(0), NetworkCommissioning::Id, NetworkCommissioning::Commands::ScanNetworks::Id);
-        }
-        case 2: {
-            LogStep(2, "Wait for Add Wifi Network Command");
-            VerifyOrdo(!ShouldSkip("WIFI"), return ContinueOnChipMainThread(CHIP_NO_ERROR));
-            return WaitCommand(GetEndpoint(0), NetworkCommissioning::Id,
-                               NetworkCommissioning::Commands::AddOrUpdateWiFiNetwork::Id);
-        }
-        case 3: {
-            LogStep(3, "Wait for Update Thread Network Command");
-            VerifyOrdo(!ShouldSkip("THREAD"), return ContinueOnChipMainThread(CHIP_NO_ERROR));
-            return WaitCommand(GetEndpoint(0), NetworkCommissioning::Id,
-                               NetworkCommissioning::Commands::AddOrUpdateThreadNetwork::Id);
-        }
-        case 4: {
-            LogStep(4, "Wait for Enable Network Command");
-            return WaitCommand(GetEndpoint(0), NetworkCommissioning::Id, NetworkCommissioning::Commands::ConnectNetwork::Id);
-        }
-        case 5: {
-            LogStep(5, "Wait for Remove Network Command");
-            VerifyOrdo(!ShouldSkip("WIFI | THREAD"), return ContinueOnChipMainThread(CHIP_NO_ERROR));
-            return WaitCommand(GetEndpoint(0), NetworkCommissioning::Id, NetworkCommissioning::Commands::RemoveNetwork::Id);
-        }
-        }
-        return CHIP_NO_ERROR;
-    }
-};
-
-class Test_TC_DM_2_3_SimulatedSuite : public TestCommand
-{
-public:
-    Test_TC_DM_2_3_SimulatedSuite() : TestCommand("Test_TC_DM_2_3_Simulated", 10)
-    {
-        AddArgument("nodeId", 0, UINT64_MAX, &mNodeId);
-        AddArgument("cluster", &mCluster);
-        AddArgument("endpoint", 0, UINT16_MAX, &mEndpoint);
-        AddArgument("timeout", 0, UINT16_MAX, &mTimeout);
-    }
-
-    ~Test_TC_DM_2_3_SimulatedSuite() {}
-
-private:
-    chip::Optional<chip::NodeId> mNodeId;
-    chip::Optional<chip::CharSpan> mCluster;
-    chip::Optional<chip::EndpointId> mEndpoint;
-    chip::Optional<uint16_t> mTimeout;
-
-    chip::EndpointId GetEndpoint(chip::EndpointId endpoint) { return mEndpoint.HasValue() ? mEndpoint.Value() : endpoint; }
-
-    //
-    // Tests methods
-    //
-
-    void OnResponse(const chip::app::StatusIB & status, chip::TLV::TLVReader * data) override
-    {
-        bool shouldContinue = false;
-
-        switch (mTestIndex - 1)
-        {
-        case 9:
-            VerifyOrReturn(CheckValue("status", chip::to_underlying(status.mStatus), 0));
-            shouldContinue = true;
-            break;
-        default:
-            LogErrorOnFailure(ContinueOnChipMainThread(CHIP_ERROR_INVALID_ARGUMENT));
-        }
-
-        if (shouldContinue)
-        {
-            ContinueOnChipMainThread(CHIP_NO_ERROR);
-        }
-    }
-
-    CHIP_ERROR DoTestStep(uint16_t testIndex) override
-    {
-        using namespace chip::app::Clusters;
-        switch (testIndex)
-        {
-        case 0: {
-            LogStep(0, "Wait for Arm Fail Safe");
-            return WaitCommand(GetEndpoint(0), GeneralCommissioning::Id, GeneralCommissioning::Commands::ArmFailSafe::Id);
-        }
-        case 1: {
-            LogStep(1, "Wait for Set Regulatory Config");
-            return WaitCommand(GetEndpoint(0), GeneralCommissioning::Id, GeneralCommissioning::Commands::SetRegulatoryConfig::Id);
-        }
-        case 2: {
-            LogStep(2, "Wait for Attestation Certificate Chain Request");
-            return WaitCommand(GetEndpoint(0), OperationalCredentials::Id,
-                               OperationalCredentials::Commands::CertificateChainRequest::Id);
-        }
-        case 3: {
-            LogStep(3, "Wait for Attestation Certificate Chain Request");
-            return WaitCommand(GetEndpoint(0), OperationalCredentials::Id,
-                               OperationalCredentials::Commands::CertificateChainRequest::Id);
-        }
-        case 4: {
-            LogStep(4, "Wait for Attestation Request");
-            return WaitCommand(GetEndpoint(0), OperationalCredentials::Id,
-                               OperationalCredentials::Commands::AttestationRequest::Id);
-        }
-        case 5: {
-            LogStep(5, "Wait for CSR Request");
-            return WaitCommand(GetEndpoint(0), OperationalCredentials::Id, OperationalCredentials::Commands::CSRRequest::Id);
-        }
-        case 6: {
-            LogStep(6, "Wait for Add Trusted Root Certificate Request");
-            return WaitCommand(GetEndpoint(0), OperationalCredentials::Id,
-                               OperationalCredentials::Commands::AddTrustedRootCertificate::Id);
-        }
-        case 7: {
-            LogStep(7, "Wait for Add Op NOC");
-            return WaitCommand(GetEndpoint(0), OperationalCredentials::Id, OperationalCredentials::Commands::AddNOC::Id);
-        }
-        case 8: {
-            LogStep(8, "Wait for Commissioning Complete");
-            return WaitCommand(GetEndpoint(0), GeneralCommissioning::Id, GeneralCommissioning::Commands::CommissioningComplete::Id);
-        }
-        case 9: {
-            LogStep(9, "Wait 3000ms");
-            chip::app::Clusters::DelayCommands::Commands::WaitForMs::Type value;
-            value.ms = 3000UL;
-            return WaitForMs(kIdentityAlpha, value);
-        }
-        }
-        return CHIP_NO_ERROR;
-    }
-};
-
 std::unique_ptr<TestCommand> GetTestCommand(std::string testName)
 {
-    if (testName == "Test_TC_DM_1_3_Simulated")
+    if (testName == "Test_TC_BINFO_2_3_Simulated")
     {
-        return std::unique_ptr<Test_TC_DM_1_3_SimulatedSuite>(new Test_TC_DM_1_3_SimulatedSuite());
-    }
-    if (testName == "Test_TC_DM_3_3_Simulated")
-    {
-        return std::unique_ptr<Test_TC_DM_3_3_SimulatedSuite>(new Test_TC_DM_3_3_SimulatedSuite());
-    }
-    if (testName == "Test_TC_DM_2_3_Simulated")
-    {
-        return std::unique_ptr<Test_TC_DM_2_3_SimulatedSuite>(new Test_TC_DM_2_3_SimulatedSuite());
+        return std::unique_ptr<Test_TC_BINFO_2_3_SimulatedSuite>(new Test_TC_BINFO_2_3_SimulatedSuite());
     }
 
     return nullptr;
@@ -374,7 +184,5 @@ std::unique_ptr<TestCommand> GetTestCommand(std::string testName)
 void PrintTestCommands()
 {
     ChipLogError(chipTool, "Supported commands:");
-    ChipLogError(chipTool, "\t* Test_TC_DM_1_3_Simulated");
-    ChipLogError(chipTool, "\t* Test_TC_DM_3_3_Simulated");
-    ChipLogError(chipTool, "\t* Test_TC_DM_2_3_Simulated");
+    ChipLogError(chipTool, "\t* Test_TC_BINFO_2_3_Simulated");
 }

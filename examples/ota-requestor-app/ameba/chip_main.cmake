@@ -27,6 +27,9 @@ list(
     ${chip_dir}/src/app/clusters/ota-requestor/DefaultOTARequestorDriver.cpp
     ${chip_dir}/src/app/clusters/ota-requestor/DefaultOTARequestorStorage.cpp
     ${chip_dir}/src/app/clusters/ota-requestor/ota-requestor-server.cpp
+    ${chip_dir}/examples/platform/ameba/ota/OTAInitializer.cpp
+
+    ${chip_dir}/examples/providers/DeviceInfoProviderImpl.cpp
 )
 
 add_library(
@@ -58,10 +61,10 @@ target_include_directories(
     ${chip_dir}/src/controller/data_model
     ${chip_dir}/third_party/nlio/repo/include/
     ${chip_dir}/third_party/nlunit-test/repo/src
-
     ${chip_dir}/src/app/clusters/ota-requestor
     ${chip_dir}/examples/ota-requestor-app/ameba/main/include
-
+    ${chip_dir}/examples/platform/ameba
+    ${chip_dir}/examples/providers
     ${sdk_root}/component/soc/realtek/amebad/fwlib/include
 )
 
@@ -74,8 +77,15 @@ list(
     -DUSE_ZAP_CONFIG
     -DCHIP_HAVE_CONFIG_H
     -DMBEDTLS_CONFIG_FILE=<mbedtls_config.h>
-    -DMATTER_OTA_REQUESTOR_APP=1
 )
+
+if (matter_enable_persistentstorage_audit)
+list(
+    APPEND chip_main_flags
+
+    -DCHIP_SUPPORT_ENABLE_STORAGE_API_AUDIT
+)
+endif (matter_enable_persistentstorage_audit)
 
 list(
     APPEND chip_main_cpp_flags

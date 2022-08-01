@@ -58,9 +58,10 @@ CHIP_ERROR WiFiDriverImpl::Init(NetworkStatusChangeCallback * networkStatusChang
         mWiFiInterface->set_blocking(false);
     }
 
-    mScanCallback    = nullptr;
-    mConnectCallback = nullptr;
-    mScanSpecific    = false;
+    mScanCallback         = nullptr;
+    mConnectCallback      = nullptr;
+    mScanSpecific         = false;
+    mStatusChangeCallback = networkStatusChangeCallback;
 
     mIp4Address = IPAddress::Any;
     mIp6Address = IPAddress::Any;
@@ -86,7 +87,7 @@ CHIP_ERROR WiFiDriverImpl::Init(NetworkStatusChangeCallback * networkStatusChang
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR WiFiDriverImpl::Shutdown()
+void WiFiDriverImpl::Shutdown()
 {
     Network network;
     auto networks = GetNetworks();
@@ -101,20 +102,19 @@ CHIP_ERROR WiFiDriverImpl::Shutdown()
     {
         networks->Release();
     }
-    mScanCallback    = nullptr;
-    mConnectCallback = nullptr;
-    mScanSpecific    = false;
-    mWiFiInterface   = nullptr;
-    mIp4Address      = IPAddress::Any;
-    mIp6Address      = IPAddress::Any;
-    mSecurityType    = NSAPI_SECURITY_NONE;
+    mScanCallback         = nullptr;
+    mConnectCallback      = nullptr;
+    mStatusChangeCallback = nullptr;
+    mScanSpecific         = false;
+    mWiFiInterface        = nullptr;
+    mIp4Address           = IPAddress::Any;
+    mIp6Address           = IPAddress::Any;
+    mSecurityType         = NSAPI_SECURITY_NONE;
     memset(mScanSSID, 0, sizeof(mScanSSID));
     mStagingNetwork.ssidLen        = 0;
     mStagingNetwork.credentialsLen = 0;
     mSavedNetwork.ssidLen          = 0;
     mSavedNetwork.credentialsLen   = 0;
-
-    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR WiFiDriverImpl::CommitConfiguration()
@@ -394,6 +394,18 @@ exit:
     }
 }
 
+CHIP_ERROR WiFiDriverImpl::SetLastDisconnectReason(const ChipDeviceEvent * event)
+{
+    (void) event;
+    mLastDisconnectedReason = 0;
+    return CHIP_NO_ERROR;
+}
+
+int32_t WiFiDriverImpl::GetLastDisconnectReason()
+{
+    return mLastDisconnectedReason;
+}
+
 size_t WiFiDriverImpl::WiFiNetworkIterator::Count()
 {
     return mDriver->mStagingNetwork.ssidLen == 0 ? 0 : 1;
@@ -600,6 +612,25 @@ WiFiAuthSecurityType WiFiDriverImpl::NsapiToNetworkSecurity(nsapi_security_t nsa
     default:
         return kWiFiSecurityType_NotSpecified;
     }
+}
+
+void WiFiDriverImpl::OnNetworkStatusChange()
+{
+    // Network configuredNetwork;
+    bool staEnabled   = ConnectivityMgrImpl().IsWiFiStationEnabled();
+    bool staConnected = ConnectivityMgrImpl().IsWiFiStationConnected();
+    VerifyOrReturn(staEnabled && mStatusChangeCallback != nullptr);
+
+    if (staConnected)
+    {
+        mStatusChangeCallback->OnNetworkingStatusChange(
+            Status::kSuccess, MakeOptional(ByteSpan((const uint8_t *) mStagingNetwork.ssid, mStagingNetwork.ssidLen)),
+            NullOptional);
+        return;
+    }
+    mStatusChangeCallback->OnNetworkingStatusChange(
+        Status::kUnknownError, MakeOptional(ByteSpan((const uint8_t *) mStagingNetwork.ssid, mStagingNetwork.ssidLen)),
+        MakeOptional(GetLastDisconnectReason()));
 }
 
 } // namespace NetworkCommissioning

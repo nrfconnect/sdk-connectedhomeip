@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import enum
 import logging
 
 from lark import Lark
@@ -13,6 +14,10 @@ except:
     sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
     from matter_idl_types import *
+
+
+class SharedTag(enum.Enum):
+    FABRIC_SCOPED = enum.auto()
 
 
 class AddServerClusterToEndpointTransform:
@@ -39,6 +44,18 @@ class AddBindingToEndpointTransform:
         endpoint.client_bindings.append(self.name)
 
 
+class AddDeviceTypeToEndpointTransform:
+    """Provides an 'apply' method that can be run on endpoints
+       to add a device type to it
+    """
+
+    def __init__(self, device_type: DeviceType):
+        self.device_type = device_type
+
+    def apply(self, endpoint):
+        endpoint.device_types.append(self.device_type)
+
+
 class MatterIdlTransformer(Transformer):
     """
     A transformer capable to transform data parsed by Lark according to 
@@ -62,8 +79,10 @@ class MatterIdlTransformer(Transformer):
 
       Actual parametes to the methods depend on the rules multiplicity and/or
       optionality.
-
     """
+
+    def __init__(self, skip_meta):
+        self.skip_meta = skip_meta
 
     def positive_integer(self, tokens):
         """Numbers in the grammar are integers or hex numbers.
@@ -114,6 +133,12 @@ class MatterIdlTransformer(Transformer):
         else:
             raise Error("Unexpected size for data type")
 
+    def shared_tag_fabric(self, _):
+        return SharedTag.FABRIC_SCOPED
+
+    def shared_tags(self, entries):
+        return entries
+
     @v_args(inline=True)
     def constant_entry(self, id, number):
         return ConstantEntry(name=id, code=number)
@@ -144,6 +169,9 @@ class MatterIdlTransformer(Transformer):
 
     def attr_nosubscribe(self, _):
         return AttributeTag.NOSUBSCRIBE
+
+    def attribute_tags(self, tags):
+        return tags
 
     def critical_priority(self, _):
         return EventPriority.CRITICAL
@@ -190,14 +218,23 @@ class MatterIdlTransformer(Transformer):
         return init_args
 
     def command(self, args):
-        # A command has 4 arguments if no input or
-        # 5 arguments if input parameter is available
-        param_in = None
-        if len(args) > 4:
-            param_in = args[2]
+        # The command takes 5 arguments if no input argument, 6 if input
+        # argument is provided
+        if len(args) != 6:
+            args.insert(3, None)
+
+        attr = args[1]  # direct command attributes
+        for shared_attr in args[0]:
+            if shared_attr == SharedTag.FABRIC_SCOPED:
+                attr.add(CommandAttribute.FABRIC_SCOPED)
+            else:
+                raise Exception("Unknown shared tag: %r" % shared_attr)
 
         return Command(
-            attributes=args[0], input_param=param_in, output_param=args[-2], code=args[-1], **args[1])
+            attributes=attr,
+            input_param=args[3], output_param=args[4], code=args[5],
+            **args[2]
+        )
 
     def event_access(self, privilege):
         return privilege[0]
@@ -268,17 +305,26 @@ class MatterIdlTransformer(Transformer):
     def callback_attribute(self, _):
         return AttributeStorage.CALLBACK
 
-    @v_args(inline=True)
-    def endpoint_attribute_instantiation(self, storage, id, default=None):
-        return AttributeInstantiation(name=id, storage=storage, default=default)
+    @v_args(meta=True, inline=True)
+    def endpoint_attribute_instantiation(self, meta, storage, id, default=None):
+        meta = None if self.skip_meta else ParseMetaData(meta)
+        return AttributeInstantiation(parse_meta=meta, name=id, storage=storage, default=default)
 
     def ESCAPED_STRING(self, s):
         # handle escapes, skip the start and end quotes
         return s.value[1:-1].encode('utf-8').decode('unicode-escape')
 
-    def attribute(self, args):
-        tags = set(args[:-1])
-        (definition, acl) = args[-1]
+    @v_args(inline=True)
+    def attribute(self, shared_tags, tags, definition_tuple):
+
+        tags = set(tags)
+        (definition, acl) = definition_tuple
+
+        for shared_attr in shared_tags:
+            if shared_attr == SharedTag.FABRIC_SCOPED:
+                tags.add(AttributeTag.FABRIC_SCOPED)
+            else:
+                raise Exception("Unknown shared tag: %r" % shared_attr)
 
         # until we support write only (and need a bit of a reshuffle)
         # if the 'attr_readonly == READABLE' is not in the list, we make things
@@ -312,16 +358,23 @@ class MatterIdlTransformer(Transformer):
         return endpoint
 
     @v_args(inline=True)
+    def endpoint_device_type(self, name, code):
+        return AddDeviceTypeToEndpointTransform(DeviceType(name=name, code=code))
+
+    @v_args(inline=True)
     def endpoint_cluster_binding(self, id):
         return AddBindingToEndpointTransform(id)
 
-    @v_args(inline=True)
-    def endpoint_server_cluster(self, id, *attributes):
-        return AddServerClusterToEndpointTransform(ServerClusterInstantiation(name=id, attributes=list(attributes)))
+    @v_args(meta=True, inline=True)
+    def endpoint_server_cluster(self, meta, id, *attributes):
+        meta = None if self.skip_meta else ParseMetaData(meta)
+        return AddServerClusterToEndpointTransform(ServerClusterInstantiation(parse_meta=meta, name=id, attributes=list(attributes)))
 
-    @v_args(inline=True)
-    def cluster(self, side, name, code, *content):
-        result = Cluster(side=side, name=name, code=code)
+    @v_args(inline=True, meta=True)
+    def cluster(self, meta, side, name, code, *content):
+        meta = None if self.skip_meta else ParseMetaData(meta)
+
+        result = Cluster(parse_meta=meta, side=side, name=name, code=code)
 
         for item in content:
             if type(item) == Enum:
@@ -359,11 +412,28 @@ class MatterIdlTransformer(Transformer):
         return idl
 
 
-def CreateParser():
+class ParserWithLines:
+    def __init__(self, parser, skip_meta: bool):
+        self.parser = parser
+        self.skip_meta = skip_meta
+
+    def parse(self, file, file_name: str = None):
+        idl = MatterIdlTransformer(self.skip_meta).transform(self.parser.parse(file))
+        idl.parse_file_name = file_name
+        return idl
+
+
+def CreateParser(skip_meta: bool = False):
     """
     Generates a parser that will process a ".matter" file into a IDL
     """
-    return Lark.open('matter_grammar.lark', rel_to=__file__, start='idl', parser='lalr', transformer=MatterIdlTransformer())
+
+    # NOTE: LALR parser is fast. While Earley could parse more ambigous grammars,
+    #       earley is much slower:
+    #    - 0.39s LALR parsing of all-clusters-app.matter
+    #    - 2.26s Earley parsing of the same thing.
+    # For this reason, every attempt should be made to make the grammar context free
+    return ParserWithLines(Lark.open('matter_grammar.lark', rel_to=__file__, start='idl', parser='lalr', propagate_positions=True), skip_meta)
 
 
 if __name__ == '__main__':
@@ -394,7 +464,7 @@ if __name__ == '__main__':
                             log_level], fmt='%(asctime)s %(levelname)-7s %(message)s')
 
         logging.info("Starting to parse ...")
-        data = CreateParser().parse(open(filename).read())
+        data = CreateParser().parse(open(filename).read(), file_name=filename)
         logging.info("Parse completed")
 
         logging.info("Data:")

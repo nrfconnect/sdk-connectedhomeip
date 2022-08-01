@@ -90,6 +90,39 @@
                 }
             ]
         },
+        {
+            "name": "LightingApp (Tizen) [remote]",
+            "type": "cppdbg",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/out/tizen-arm-light",
+            "program": "${workspaceFolder}/out/tizen-arm-light/chip-lighting-app",
+            "miDebuggerPath": "${env:TIZEN_SDK_ROOT}/tools/arm-linux-gnueabi-gcc-9.2/bin/arm-linux-gnueabi-gdb",
+            "additionalSOLibSearchPath": "${env:TIZEN_ROOTFS}",
+            "preLaunchTask": "Launch LightingApp with gdbserver attached (Tizen)",
+            "miDebuggerServerAddress": "localhost:9999",
+            "linux": {
+                "MIMode": "gdb"
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "set solib-absolute-prefix ${env:TIZEN_ROOTFS}"
+                },
+                {
+                    "text": "set sysroot ${env:TIZEN_SDK_SYSROOT}"
+                },
+                {
+                    "text": "set debug-file-directory {env:TIZEN_SDK_SYSROOT}/usr/lib/debug"
+                },
+                {
+                    "text": "set solib-search-path ${workspaceFolder}/out/tizen-arm-light"
+                }
+            ]
+        },
 
         {
             "name": "Debug Mbed examples",
@@ -97,8 +130,8 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/examples/${input:mbedApp}/mbed",
             "executable": "./build-${input:mbedTarget}/${input:mbedDebugProfile}/chip-mbed-${input:mbedApp}-example.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
-            "openocdPath": "${env:OPENOCD_PATH/bin}",
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
+            "serverpath": "${env:OPENOCD_PATH}/bin/openocd",
             "servertype": "openocd",
             "searchDir": [
                 "${workspaceRoot}/config/mbed/scripts",
@@ -130,7 +163,7 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/examples/${input:mbedApp}/mbed",
             "executable": "./build-${input:mbedTarget}/${input:mbedDebugProfile}/chip-mbed-${input:mbedApp}-example.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "external",
             "gdbTarget": "host.docker.internal:3334", //port 3333 for the CM0+, 3334 for the CM4
             "overrideLaunchCommands": [
@@ -157,8 +190,8 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/examples/${input:mbedApp}/mbed",
             "executable": "./build-${input:mbedTarget}/${input:mbedFlashProfile}/chip-mbed-${input:mbedApp}-example.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
-            "openocdPath": "${env:OPENOCD_PATH/bin}",
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
+            "serverpath": "${env:OPENOCD_PATH}/bin/openocd",
             "servertype": "openocd",
             "searchDir": [
                 "${workspaceRoot}/config/mbed/scripts",
@@ -182,7 +215,7 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/examples/${input:mbedApp}/mbed",
             "executable": "./build-${input:mbedTarget}/${input:mbedFlashProfile}/chip-mbed-${input:mbedApp}-example.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "external",
             "gdbTarget": "host.docker.internal:3334", //port 3333 for the CM0+, 3334 for the CM4
             "overrideLaunchCommands": [
@@ -200,9 +233,9 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/src/test_driver/mbed/unit_tests",
             "executable": "./build-${input:mbedTarget}/${input:mbedDebugProfile}/chip-mbed-unit-tests.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "openocd",
-            "openocdPath": "${env:OPENOCD_PATH/bin}",
+            "serverpath": "${env:OPENOCD_PATH}/bin/openocd",
             "searchDir": [
                 "${workspaceRoot}/config/mbed/scripts",
                 "${env:OPENOCD_PATH}/scripts"
@@ -233,7 +266,7 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/src/test_driver/mbed/unit_tests",
             "executable": "./build-${input:mbedTarget}/${input:mbedDebugProfile}/chip-mbed-unit-tests.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "external",
             "gdbTarget": "host.docker.internal:3334", //port 3333 for the CM0+, 3334 for the CM4
             "overrideLaunchCommands": [
@@ -260,9 +293,9 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/src/test_driver/mbed//unit_tests",
             "executable": "./build-${input:mbedTarget}/${input:mbedFlashProfile}/chip-mbed-unit-tests.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "openocd",
-            "openocdPath": "${env:OPENOCD_PATH/bin}",
+            "serverpath": "${env:OPENOCD_PATH}/bin/openocd",
             "searchDir": [
                 "${workspaceRoot}/config/mbed/scripts",
                 "${env:OPENOCD_PATH/scripts}"
@@ -285,7 +318,7 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/src/test_driver/mbed/unit_tests",
             "executable": "./build-${input:mbedTarget}/${input:mbedFlashProfile}/chip-mbed-unit-tests.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "external",
             "gdbTarget": "host.docker.internal:3334", //port 3333 for the CM0+, 3334 for the CM4
             "overrideLaunchCommands": [
@@ -303,9 +336,9 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/examples/platform/mbed/bootloader",
             "executable": "./build-${input:mbedTarget}/${input:mbedDebugProfile}/chip-mbed-bootloader.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "openocd",
-            "openocdPath": "${env:OPENOCD_PATH/bin}",
+            "serverpath": "${env:OPENOCD_PATH}/bin/openocd",
             "searchDir": [
                 "${workspaceRoot}/config/mbed/scripts",
                 "${env:OPENOCD_PATH}/scripts"
@@ -336,7 +369,7 @@
             "request": "launch",
             "cwd": "${workspaceRoot}/examples/platform/mbed/bootloader",
             "executable": "./build-${input:mbedTarget}/${input:mbedDebugProfile}/chip-mbed-bootloader.elf",
-            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/pigweed/bin/", // Pigweed environment bootstraping required
+            "armToolchainPath": "${env:PW_ENVIRONMENT_ROOT}/cipd/packages/arm/bin/", // Pigweed environment bootstraping required
             "servertype": "external",
             "gdbTarget": "host.docker.internal:3334", //port 3333 for the CM0+, 3334 for the CM4
             "overrideLaunchCommands": [

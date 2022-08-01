@@ -35,6 +35,9 @@
 #define KVS_MAX_ENTRIES 75 // Available key slot count for Kvs Key mapping.
 #endif
 
+// Delay before Key/Value is actually saved in NVM
+#define EFR32_KVS_SAVE_DELAY_SECONDS 5
+
 static_assert((KVS_MAX_ENTRIES <= 255), "Implementation supports up to 255 Kvs entries");
 static_assert((KVS_MAX_ENTRIES >= 30), "Mininimal Kvs entries requirement is not met");
 
@@ -119,6 +122,10 @@ public:
     static constexpr Key kConfigKey_LockUserName       = EFR32ConfigKey(kMatterConfig_KeyBase, 0x12);
     static constexpr Key kConfigKey_CredentialData     = EFR32ConfigKey(kMatterConfig_KeyBase, 0x13);
     static constexpr Key kConfigKey_UserCredentials    = EFR32ConfigKey(kMatterConfig_KeyBase, 0x14);
+    static constexpr Key kConfigKey_WeekDaySchedules   = EFR32ConfigKey(kMatterConfig_KeyBase, 0x15);
+    static constexpr Key kConfigKey_YearDaySchedules   = EFR32ConfigKey(kMatterConfig_KeyBase, 0x16);
+    static constexpr Key kConfigKey_HolidaySchedules   = EFR32ConfigKey(kMatterConfig_KeyBase, 0x17);
+
     static constexpr Key kConfigKey_GroupKeyMax =
         EFR32ConfigKey(kMatterConfig_KeyBase, 0x1E); // Allows 16 Group Keys to be created.
     static constexpr Key kConfigKey_UniqueId = EFR32ConfigKey(kMatterFactory_KeyBase, 0x1F);
@@ -126,6 +133,7 @@ public:
     // Matter Counter Keys
     static constexpr Key kConfigKey_BootCount             = EFR32ConfigKey(kMatterCounter_KeyBase, 0x00);
     static constexpr Key kConfigKey_TotalOperationalHours = EFR32ConfigKey(kMatterCounter_KeyBase, 0x01);
+    static constexpr Key kConfigKey_LifeTimeCounter       = EFR32ConfigKey(kMatterCounter_KeyBase, 0x02);
 
     // Matter KVS storage Keys
     static constexpr Key kConfigKey_KvsStringKeyMap = EFR32ConfigKey(kMatterKvs_KeyBase, 0x00);

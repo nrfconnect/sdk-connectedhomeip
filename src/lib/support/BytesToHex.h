@@ -59,7 +59,8 @@ enum class HexFlags : int
  * On success, number of bytes written to destination is always:
  *   output_size = (src_size * 2) + ((flags & HexFlags::kNullTerminate) ? 1 : 0);
  *
- * @param src_bytes Pointer to non-null buffer to convert
+ * @param src_bytes Pointer to buffer to convert.  Only allowed to be null if
+ *                  src_size is 0.
  * @param src_size Number of bytes to convert from src_bytes
  * @param [out] dest_hex Destination buffer to receive hex encoding
  * @param dest_size_max Maximum buffer size for the hex encoded `dest_hex` buffer
@@ -67,7 +68,9 @@ enum class HexFlags : int
  * @param flags Flags from `HexFlags` for formatting options
  *
  * @return CHIP_ERROR_BUFFER_TOO_SMALL on dest_max_size too small to fit output
- * @return CHIP_ERROR_INVALID_ARGUMENT if either src_bytes or dest_hex is nullptr
+ * @return CHIP_ERROR_INVALID_ARGUMENT if either src_bytes or dest_hex is
+ *                                     nullptr without the corresponding size
+ *                                     being 0.
  * @return CHIP_NO_ERROR on success
  */
 
@@ -174,6 +177,18 @@ size_t UppercaseHexToUint32(const char * src_hex, const size_t src_size, uint32_
 
 /** Same as UppercaseHexToUint64() but for uint16_t. */
 size_t UppercaseHexToUint16(const char * src_hex, const size_t src_size, uint16_t & dest);
+
+/**
+ * Computes the hex encoded length for a given input length.
+ * Left shift to generate optimized equivalent of LEN*2.
+ */
+#define HEX_ENCODED_LENGTH(LEN) ((LEN) << 1)
+
+/**
+ * Computes the maximum possible decoded length for a given hex string input length.
+ * Right shift to generate optimized equivalent of LEN/2.
+ */
+#define HEX_MAX_DECODED_LENGTH(LEN) ((LEN) >> 1)
 
 } // namespace Encoding
 } // namespace chip

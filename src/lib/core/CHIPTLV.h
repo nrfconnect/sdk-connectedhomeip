@@ -32,6 +32,7 @@
 #include <lib/core/CHIPTLVTypes.h>
 
 #include <lib/support/BitFlags.h>
+#include <lib/support/BitMask.h>
 #include <lib/support/DLLUtil.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/ScopedBuffer.h>
@@ -55,12 +56,12 @@
 namespace chip {
 namespace TLV {
 
-inline uint8_t operator|(TLVElementType lhs, TLVTagControl rhs)
+constexpr inline uint8_t operator|(TLVElementType lhs, TLVTagControl rhs)
 {
     return static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs);
 }
 
-inline uint8_t operator|(TLVTagControl lhs, TLVElementType rhs)
+constexpr inline uint8_t operator|(TLVTagControl lhs, TLVElementType rhs)
 {
     return static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs);
 }
@@ -532,6 +533,21 @@ public:
     }
 
     /**
+     * Get the value of the current element as a BitMask value, if it's an integer
+     * value that fits in the BitMask type.
+     *
+     * @param[out] v Receives the value associated with current TLV element.
+     */
+    template <typename T>
+    CHIP_ERROR Get(BitMask<T> & v)
+    {
+        std::underlying_type_t<T> val;
+        ReturnErrorOnFailure(Get(val));
+        v.SetRaw(val);
+        return CHIP_NO_ERROR;
+    }
+
+    /**
      * Get the value of the current byte or UTF8 string element.
      *
      * To determine the required input buffer size, call the GetLength() method before calling GetBytes().
@@ -840,11 +856,18 @@ public:
     uint32_t GetRemainingLength() const { return mMaxLen - mLenRead; }
 
     /**
+     * Return the total number of bytes for the TLV data
+     * @return the total number of bytes for the TLV data
+     */
+    uint32_t GetTotalLength() const { return mMaxLen; }
+
+    /**
      * Returns the stored backing store.
      *
      * @return the stored backing store.
      */
     TLVBackingStore * GetBackingStore() { return mBackingStore; }
+
     /**
      * Gets the point in the underlying input buffer that corresponds to the reader's current position.
      *
@@ -1422,6 +1445,16 @@ public:
      */
     template <typename T>
     CHIP_ERROR Put(Tag tag, BitFlags<T> data)
+    {
+        return Put(tag, data.Raw());
+    }
+
+    /**
+     *
+     * Encodes an unsigned integer with bits corresponding to the flags set when data is a BitMask
+     */
+    template <typename T>
+    CHIP_ERROR Put(Tag tag, BitMask<T> data)
     {
         return Put(tag, data.Raw());
     }

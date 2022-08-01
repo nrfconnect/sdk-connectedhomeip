@@ -120,7 +120,7 @@ private:
     EncryptedPacketBufferHandle(PacketBufferHandle && aBuffer) : PacketBufferHandle(std::move(aBuffer)) {}
 };
 
-class DLL_EXPORT SessionManager : public TransportMgrDelegate
+class DLL_EXPORT SessionManager : public TransportMgrDelegate, public FabricTable::Delegate
 {
 public:
     SessionManager();
@@ -150,30 +150,33 @@ public:
     /// ExchangeManager)
     void SetMessageDelegate(SessionMessageDelegate * cb) { mCB = cb; }
 
-    void RegisterRecoveryDelegate(SessionRecoveryDelegate & cb);
-    void UnregisterRecoveryDelegate(SessionRecoveryDelegate & cb);
-    void RefreshSessionOperationalData(const SessionHandle & sessionHandle);
-
     // Test-only: create a session on the fly.
     CHIP_ERROR InjectPaseSessionWithTestKey(SessionHolder & sessionHolder, uint16_t localSessionId, NodeId peerNodeId,
                                             uint16_t peerSessionId, FabricIndex fabricIndex,
                                             const Transport::PeerAddress & peerAddress, CryptoContext::SessionRole role);
+    CHIP_ERROR InjectCaseSessionWithTestKey(SessionHolder & sessionHolder, uint16_t localSessionId, uint16_t peerSessionId,
+                                            NodeId localNodeId, NodeId peerNodeId, FabricIndex fabric,
+                                            const Transport::PeerAddress & peerAddress, CryptoContext::SessionRole role,
+                                            const CATValues & cats = CATValues{});
 
     /**
      * @brief
      *   Allocate a secure session and non-colliding session ID in the secure
      *   session table.
      *
+     *   If we're either establishing or just finished establishing a session to a peer in either initiator or responder
+     *   roles, the node id of that peer should be provided in sessionEvictionHint. Else, it should be initialized
+     *   to a default-constructed ScopedNodeId().
+     *
      * @return SessionHandle with a reference to a SecureSession, else NullOptional on failure
      */
     CHECK_RETURN_VALUE
-    Optional<SessionHandle> AllocateSession();
+    Optional<SessionHandle> AllocateSession(Transport::SecureSession::Type secureSessionType,
+                                            const ScopedNodeId & sessionEvictionHint);
 
-    void ExpirePairing(const SessionHandle & session);
-    void ExpireAllPairings(const ScopedNodeId & node);
-    void ExpireAllPairingsForPeerExceptPending(const ScopedNodeId & node);
-    void ExpireAllPairingsForFabric(FabricIndex fabric);
-    void ExpireAllPASEPairings();
+    void ExpireAllSessions(const ScopedNodeId & node);
+    void ExpireAllSessionsForFabric(FabricIndex fabricIndex);
+    void ExpireAllPASESessions();
 
     /**
      * @brief
@@ -206,6 +209,7 @@ public:
     void FabricRemoved(FabricIndex fabricIndex);
 
     TransportMgrBase * GetTransportManager() const { return mTransportMgr; }
+    Transport::SecureSessionTable & GetSecureSessions() { return mSecureSessions; }
 
     /**
      * @brief
@@ -242,6 +246,13 @@ public:
     using SessionHandleCallback = bool (*)(void * context, SessionHandle & sessionHandle);
     CHIP_ERROR ForEachSessionHandle(void * context, SessionHandleCallback callback);
 
+    //// FabricTable::Delegate Implementation ////
+    void OnFabricRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex) override
+    {
+        (void) fabricTable;
+        this->FabricRemoved(fabricIndex);
+    }
+
 private:
     /**
      *    The State of a secure transport object.
@@ -261,32 +272,16 @@ private:
     System::Layer * mSystemLayer = nullptr;
     FabricTable * mFabricTable   = nullptr;
     Transport::UnauthenticatedSessionTable<CHIP_CONFIG_UNAUTHENTICATED_CONNECTION_POOL_SIZE> mUnauthenticatedSessions;
-    Transport::SecureSessionTable<CHIP_CONFIG_PEER_CONNECTION_POOL_SIZE> mSecureSessions;
+    Transport::SecureSessionTable mSecureSessions;
     State mState; // < Initialization state of the object
     chip::Transport::GroupOutgoingCounters mGroupClientCounter;
 
     SessionMessageDelegate * mCB = nullptr;
 
-    ObjectPool<std::reference_wrapper<SessionRecoveryDelegate>, CHIP_CONFIG_MAX_SESSION_RECOVERY_DELEGATES>
-        mSessionRecoveryDelegates;
-
     TransportMgrBase * mTransportMgr                                   = nullptr;
     Transport::MessageCounterManagerInterface * mMessageCounterManager = nullptr;
 
     GlobalUnencryptedMessageCounter mGlobalUnencryptedMessageCounter;
-
-    friend class SessionHandle;
-
-    /** Schedules a new oneshot timer for checking connection expiry. */
-    void ScheduleExpiryTimer();
-
-    /** Cancels any active timers for connection expiry checks. */
-    void CancelExpiryTimer();
-
-    /**
-     * Callback for timer expiry check
-     */
-    static void ExpiryTimerCallback(System::Layer * layer, void * param);
 
     void SecureUnicastMessageDispatch(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
                                       System::PacketBufferHandle && msg);

@@ -19,20 +19,26 @@
 #pragma once
 
 #include <jni.h>
-#include <lib/core/DataModelTypes.h>
+
+#include "Constants.h"
+#include "MatterCallbackHandler-JNI.h"
 
 class TvCastingAppJNI
 {
 public:
-    void InitializeWithObjects(jobject app);
-    void PostClusterInit(chip::ClusterId clusterId, chip::EndpointId endpoint);
+    MatterCallbackHandlerJNI & getCommissioningCompleteHandler() { return mCommissioningCompleteHandler; }
+    MatterCallbackHandlerJNI & getMediaCommandResponseHandler(enum MediaCommandName name)
+    {
+        return mMediaCommandResponseHandler[name];
+    }
 
 private:
     friend TvCastingAppJNI & TvCastingAppJNIMgr();
 
     static TvCastingAppJNI sInstance;
-    jobject mTvCastingAppObject      = nullptr;
-    jmethodID mPostClusterInitMethod = nullptr;
+
+    MatterCallbackHandlerJNI mCommissioningCompleteHandler;
+    MatterCallbackHandlerJNI mMediaCommandResponseHandler[MEDIA_COMMAND_COUNT];
 };
 
 inline class TvCastingAppJNI & TvCastingAppJNIMgr()

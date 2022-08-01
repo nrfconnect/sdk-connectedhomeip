@@ -30,14 +30,16 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestor.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestorDriver.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
+#include <platform/cc13x2_26x2/OTAImageProcessorImpl.h>
+#endif
 #include <lib/shell/Engine.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPPlatformMemory.h>
-#include <platform/cc13x2_26x2/OTAImageProcessorImpl.h>
 
 #include <app/server/OnboardingCodesUtil.h>
 
@@ -61,6 +63,7 @@ extern "C" {
 int cc13x2_26x2LogInit(void);
 }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 static DefaultOTARequestor sRequestorCore;
 static DefaultOTARequestorStorage sRequestorStorage;
 static DefaultOTARequestorDriver sRequestorUser;
@@ -78,6 +81,7 @@ void InitializeOTARequestor(void)
     sDownloader.SetImageProcessorDelegate(&sImageProcessor);
     sRequestorUser.Init(&sRequestorCore, &sImageProcessor);
 }
+#endif
 
 CHIP_ERROR AppTask::StartAppTask()
 {
@@ -119,7 +123,7 @@ CHIP_ERROR AppTask::Init()
             ;
     }
 
-    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_Router);
+    ret = ConnectivityMgr().SetThreadDeviceType(ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
     if (ret != CHIP_NO_ERROR)
     {
         while (1)
@@ -147,9 +151,9 @@ CHIP_ERROR AppTask::Init()
 
     // Initialize device attestation config
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
     InitializeOTARequestor();
-
+#endif
     return err;
 }
 

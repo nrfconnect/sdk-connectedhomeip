@@ -285,12 +285,29 @@ constexpr inline const _T & max(const _T & a, const _T & b)
  *  @param[in]  expr        A Boolean expression to be evaluated.
  *  @param[in]  code        A value to return if @a expr is false.
  */
-#define VerifyOrReturnError(expr, code)                                                                                            \
+#define VerifyOrReturnError(expr, code) VerifyOrReturnValue(expr, code)
+
+/**
+ *  @def VerifyOrReturnValue(expr, value)
+ *
+ *  @brief
+ *    Returns a specified value if expression evaluates to false
+ *
+ *  Example usage:
+ *
+ *  @code
+ *    VerifyOrReturnError(param != nullptr, Foo());
+ *  @endcode
+ *
+ *  @param[in]  expr        A Boolean expression to be evaluated.
+ *  @param[in]  value       A value to return if @a expr is false.
+ */
+#define VerifyOrReturnValue(expr, value)                                                                                           \
     do                                                                                                                             \
     {                                                                                                                              \
         if (!(expr))                                                                                                               \
         {                                                                                                                          \
-            return code;                                                                                                           \
+            return (value);                                                                                                        \
         }                                                                                                                          \
     } while (false)
 
@@ -593,7 +610,7 @@ inline void chipDie(void)
     } while (false)
 
 /**
- *  @def VerifyOrdo(expr, ...)
+ *  @def VerifyOrDo(expr, ...)
  *
  *  @brief
  *    do something if expression evaluates to false
@@ -601,12 +618,12 @@ inline void chipDie(void)
  *  Example usage:
  *
  * @code
- *    VerifyOrdo(param != nullptr, LogError("param is nullptr"));
+ *    VerifyOrDo(param != nullptr, LogError("param is nullptr"));
  *  @endcode
  *
  *  @param[in]  expr        A Boolean expression to be evaluated.
  */
-#define VerifyOrdo(expr, ...)                                                                                                      \
+#define VerifyOrDo(expr, ...)                                                                                                      \
     do                                                                                                                             \
     {                                                                                                                              \
         if (!(expr))                                                                                                               \

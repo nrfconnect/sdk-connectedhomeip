@@ -47,7 +47,8 @@ CHIP_ERROR CommissioneeDeviceProxy::SendCommands(app::CommandSender * commandObj
 {
     VerifyOrReturnError(mSecureSession, CHIP_ERROR_INCORRECT_STATE);
     VerifyOrReturnError(commandObj != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    return commandObj->SendCommandRequest(mSecureSession.Get(), timeout);
+    VerifyOrReturnError(mSecureSession, CHIP_ERROR_MISSING_SECURE_SESSION);
+    return commandObj->SendCommandRequest(mSecureSession.Get().Value(), timeout);
 }
 
 void CommissioneeDeviceProxy::OnSessionReleased()
@@ -55,16 +56,16 @@ void CommissioneeDeviceProxy::OnSessionReleased()
     mState = ConnectionState::NotConnected;
 }
 
-CHIP_ERROR CommissioneeDeviceProxy::CloseSession()
+void CommissioneeDeviceProxy::CloseSession()
 {
-    ReturnErrorCodeIf(mState != ConnectionState::SecureConnected, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturn(mState == ConnectionState::SecureConnected);
     if (mSecureSession)
     {
-        mSessionManager->ExpirePairing(mSecureSession.Get());
+        mSecureSession->AsSecureSession()->MarkForEviction();
     }
+
     mState = ConnectionState::NotConnected;
     mPairing.Clear();
-    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR CommissioneeDeviceProxy::UpdateDeviceData(const Transport::PeerAddress & addr,
@@ -87,7 +88,7 @@ CHIP_ERROR CommissioneeDeviceProxy::UpdateDeviceData(const Transport::PeerAddres
         return CHIP_NO_ERROR;
     }
 
-    Transport::SecureSession * secureSession = mSecureSession.Get()->AsSecureSession();
+    Transport::SecureSession * secureSession = mSecureSession.Get().Value()->AsSecureSession();
     secureSession->SetPeerAddress(addr);
 
     return CHIP_NO_ERROR;
@@ -96,8 +97,15 @@ CHIP_ERROR CommissioneeDeviceProxy::UpdateDeviceData(const Transport::PeerAddres
 CHIP_ERROR CommissioneeDeviceProxy::SetConnected(const SessionHandle & session)
 {
     VerifyOrReturnError(mState == ConnectionState::Connecting, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(session->AsSecureSession()->IsPASESession(), CHIP_ERROR_INVALID_ARGUMENT);
+
+    if (!mSecureSession.Grab(session))
+    {
+        mState = ConnectionState::NotConnected;
+        return CHIP_ERROR_INTERNAL;
+    }
+
     mState = ConnectionState::SecureConnected;
-    mSecureSession.Grab(session);
     return CHIP_NO_ERROR;
 }
 

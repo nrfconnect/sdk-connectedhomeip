@@ -41,44 +41,77 @@ tests:
       response:
           value: 1
 
-    - label: "Read current color temprature"
+    - label: "TH writes 0 to the Options attribute"
+      PICS: CC.S.F04 && CC.S.A000f
+      command: "writeAttribute"
+      attribute: "Options"
+      arguments:
+          value: 0
+
+    - label: "TH reads ColorTempPhysicalMinMireds attribute from DUT"
+      PICS: CC.S.F04 && CC.S.A400b
       command: "readAttribute"
-      attribute: "color temperature"
+      attribute: "ColorTempPhysicalMinMireds"
       response:
+          saveAs: ColorTempPhysicalMinMiredsValue
           constraints:
-              type: uint16
+              type: int16u
               minValue: 0
               maxValue: 65279
 
+    - label: "TH reads ColorTempPhysicalMaxMireds attribute from DUT."
+      PICS: CC.S.F04 && CC.S.A400c
+      command: "readAttribute"
+      attribute: "ColorTempPhysicalMaxMireds"
+      response:
+          saveAs: ColorTempPhysicalMaxMiredsValue
+          constraints:
+              type: int16u
+              minValue: 0
+              maxValue: 65279
+
+    - label: "TH reads ColorTemperatureMireds attribute from DUT."
+      PICS: CC.S.F04 && CC.S.A0007
+      command: "readAttribute"
+      attribute: "ColorTemperature"
+      response:
+          constraints:
+              type: int16u
+              minValue: ColorTempPhysicalMinMiredsValue
+              maxValue: ColorTempPhysicalMaxMiredsValue
+
     - label: "Move To Color Temperature command"
+      PICS: CC.S.F04 && CC.S.C0A.Rsp
       command: "MoveToColorTemperature"
       arguments:
           values:
               - name: "colorTemperature"
-                value: 100
-              - name: "transitionTime"
+                value: ColorTempPhysicalMaxMiredsValue
+              - name: "TransitionTime"
                 value: 10
-              - name: "optionsMask"
+              - name: "OptionsMask"
                 value: 0
-              - name: "optionsOverride"
+              - name: "OptionsOverride"
                 value: 0
 
-    - label: "Wait 10ms"
+    - label: "Wait 1500ms"
       cluster: "DelayCommands"
       command: "WaitForMs"
       arguments:
           values:
               - name: "ms"
-                value: 10
+                value: 1500
 
     - label: "Read current color temprature"
+      PICS: CC.S.F04 && CC.S.A0007
       command: "readAttribute"
-      attribute: "color temperature"
+      attribute: "ColorTemperature"
       response:
+          value: ColorTempPhysicalMaxMiredsValue
           constraints:
-              type: uint16
-              minValue: 0
-              maxValue: 65279
+              type: int16u
+              minValue: ColorTempPhysicalMinMiredsValue
+              maxValue: ColorTempPhysicalMaxMiredsValue
 
     - label: "Turn off light that we turned on"
       cluster: "On/Off"

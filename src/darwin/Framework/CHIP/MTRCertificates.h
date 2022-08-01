@@ -13,8 +13,6 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#ifndef MATTER_CERTIFICATES_H
-#define MATTER_CERTIFICATES_H
 
 /**
  * Utilities for working with Matter certificates.
@@ -24,7 +22,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@protocol CHIPKeypair;
+@protocol MTRKeypair;
 
 @interface MTRCertificates : NSObject
 
@@ -36,12 +34,12 @@ NS_ASSUME_NONNULL_BEGIN
  * issuer id is used.
  *
  * If fabricId is not nil, it will be included in the subject DN of the
- * certificate.
+ * certificate.  In this case it must be a valid Matter fabric id.
  *
  * On failure returns nil and if "error" is not null sets *error to the relevant
  * error.
  */
-+ (nullable NSData *)generateRootCertificate:(id<CHIPKeypair>)keypair
++ (nullable NSData *)generateRootCertificate:(id<MTRKeypair>)keypair
                                     issuerId:(nullable NSNumber *)issuerId
                                     fabricId:(nullable NSNumber *)fabricId
                                        error:(NSError * __autoreleasing _Nullable * _Nullable)error;
@@ -54,17 +52,46 @@ NS_ASSUME_NONNULL_BEGIN
  * issuer id is used.
  *
  * If fabricId is not nil, it will be included in the subject DN of the
- * certificate.
+ * certificate.  In this case it must be a valid Matter fabric id.
  *
  * On failure returns nil and if "error" is not null sets *error to the relevant
  * error.
  */
-+ (nullable NSData *)generateIntermediateCertificate:(id<CHIPKeypair>)rootKeypair
++ (nullable NSData *)generateIntermediateCertificate:(id<MTRKeypair>)rootKeypair
                                      rootCertificate:(NSData *)rootCertificate
                                intermediatePublicKey:(SecKeyRef)intermediatePublicKey
                                             issuerId:(nullable NSNumber *)issuerId
                                             fabricId:(nullable NSNumber *)fabricId
                                                error:(NSError * __autoreleasing _Nullable * _Nullable)error;
+
+/**
+ * Generate an X.509 DER encoded certificate that has the
+ * right fields to be a valid Matter operational certificate.
+ *
+ * signingKeypair and signingCertificate are the root or intermediate that is
+ * signing the operational certificate.
+ *
+ * nodeId and fabricId are expected to be 64-bit unsigned integers.
+ *
+ * nodeId must be a valid Matter operational node id.
+ *
+ * fabricId must be a valid Matter fabric id.
+ *
+ * caseAuthenticatedTags may be nil to indicate no CASE Authenticated Tags
+ * should be used.  If caseAuthenticatedTags is not nil, it must have length at
+ * most 3 and the values in the array are expected to be 32-bit unsigned Case
+ * Authenticated Tag values.
+ *
+ * On failure returns nil and if "error" is not null sets *error to the relevant
+ * error.
+ */
++ (nullable NSData *)generateOperationalCertificate:(id<MTRKeypair>)signingKeypair
+                                 signingCertificate:(NSData *)signingCertificate
+                               operationalPublicKey:(SecKeyRef)operationalPublicKey
+                                           fabricId:(NSNumber *)fabricId
+                                             nodeId:(NSNumber *)nodeId
+                              caseAuthenticatedTags:(NSArray<NSNumber *> * _Nullable)caseAuthenticatedTags
+                                              error:(NSError * __autoreleasing _Nullable * _Nullable)error;
 
 /**
  * Check whether the given keypair's public key matches the given certificate's
@@ -73,7 +100,7 @@ NS_ASSUME_NONNULL_BEGIN
  *
  * Will return NO on failures to extract public keys from the objects.
  */
-+ (BOOL)keypair:(id<CHIPKeypair>)keypair matchesCertificate:(NSData *)certificate;
++ (BOOL)keypair:(id<MTRKeypair>)keypair matchesCertificate:(NSData *)certificate;
 
 /**
  * Check whether two X.509 DER encoded certificates are equivalent, in the sense
@@ -82,8 +109,22 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (BOOL)isCertificate:(NSData *)certificate1 equalTo:(NSData *)certificate2;
 
+/**
+ * Generate a PKCS#10 certificate signing request from a MTRKeypair.  This can
+ * then be used to request an operational or ICA certificate from an external
+ * certificate authority.
+ *
+ * The CSR will have the subject OU DN set to 'CSA', because omitting all
+ * identifying information altogether often trips up CSR parsing code.  The CA
+ * being used should expect this and ignore the request subject, producing a
+ * subject that matches the rules for Matter certificates.
+ *
+ * On failure returns nil and if "error" is not null sets *error to the relevant
+ * error.
+ */
++ (nullable NSData *)generateCertificateSigningRequest:(id<MTRKeypair>)keypair
+                                                 error:(NSError * __autoreleasing _Nullable * _Nullable)error;
+
 @end
 
 NS_ASSUME_NONNULL_END
-
-#endif // MATTER_CERTIFICATES_H

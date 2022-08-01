@@ -27,9 +27,13 @@
 class LockManager
 {
 public:
-    LockManager() {}
+    LockManager() = default;
 
     bool InitEndpoint(chip::EndpointId endpointId);
+
+    bool SetDoorState(chip::EndpointId endpointId, DlDoorState doorState);
+
+    bool SendLockAlarm(chip::EndpointId endpointId, DlAlarmCode alarmCode);
 
     bool Lock(chip::EndpointId endpointId, const Optional<chip::ByteSpan> & pin, DlOperationError & err);
     bool Unlock(chip::EndpointId endpointId, const Optional<chip::ByteSpan> & pin, DlOperationError & err);
@@ -49,10 +53,14 @@ public:
                          EmberAfPluginDoorLockWeekDaySchedule & schedule);
     DlStatus GetSchedule(chip::EndpointId endpointId, uint8_t yearDayIndex, uint16_t userIndex,
                          EmberAfPluginDoorLockYearDaySchedule & schedule);
+    DlStatus GetSchedule(chip::EndpointId endpointId, uint8_t holidayIndex, EmberAfPluginDoorLockHolidaySchedule & schedule);
+
     DlStatus SetSchedule(chip::EndpointId endpointId, uint8_t weekDayIndex, uint16_t userIndex, DlScheduleStatus status,
                          DlDaysMaskMap daysMask, uint8_t startHour, uint8_t startMinute, uint8_t endHour, uint8_t endMinute);
     DlStatus SetSchedule(chip::EndpointId endpointId, uint8_t yearDayIndex, uint16_t userIndex, DlScheduleStatus status,
                          uint32_t localStartTime, uint32_t localEndTime);
+    DlStatus SetSchedule(chip::EndpointId endpointId, uint8_t holidayIndex, DlScheduleStatus status, uint32_t localStartTime,
+                         uint32_t localEndTime, DlOperatingMode operatingMode);
 
     static LockManager & Instance();
 

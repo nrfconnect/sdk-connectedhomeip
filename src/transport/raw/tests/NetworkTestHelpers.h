@@ -40,7 +40,7 @@ public:
     CHIP_ERROR Init();
 
     // Shutdown all layers, finalize operations
-    CHIP_ERROR Shutdown();
+    void Shutdown();
 
     /// Perform a single short IO Loop
     void DriveIO();
@@ -64,7 +64,8 @@ class LoopbackTransportDelegate
 public:
     virtual ~LoopbackTransportDelegate() {}
 
-    // Called by the loopback transport when it drops a message due to a nonzero mNumMessagesToDrop.
+    // Called by the loopback transport when it drops one of a configurable number of messages (mDroppedMessageCount) after a
+    // configurable allowed number of messages (mNumMessagesToAllowBeforeDropping)
     virtual void OnMessageDropped() {}
 };
 
@@ -74,10 +75,9 @@ public:
     void InitLoopbackTransport(System::Layer * systemLayer) { mSystemLayer = systemLayer; }
     void ShutdownLoopbackTransport()
     {
-        // TODO: remove these after #17624 (Ensure tests drain all message in loopback transport) being fixed
-        // Packets are allocated from platform memory, we should release them before Platform::MemoryShutdown
-        while (!mPendingMessageQueue.empty())
-            mPendingMessageQueue.pop();
+        // Make sure no one left packets hanging out that they thought got
+        // delivered but actually didn't.
+        VerifyOrDie(mPendingMessageQueue.empty());
     }
 
     /// Transports are required to have a constructor that takes exactly one argument
@@ -103,19 +103,30 @@ public:
     {
         ReturnErrorOnFailure(mMessageSendError);
         mSentMessageCount++;
+        bool dropMessage = false;
+        if (mNumMessagesToAllowBeforeDropping > 0)
+        {
+            --mNumMessagesToAllowBeforeDropping;
+        }
+        else if (mNumMessagesToDrop > 0)
+        {
+            dropMessage = true;
+            --mNumMessagesToDrop;
+        }
 
-        if (mNumMessagesToDrop == 0)
+        if (dropMessage)
+        {
+            mDroppedMessageCount++;
+            if (mDelegate != nullptr)
+            {
+                mDelegate->OnMessageDropped();
+            }
+        }
+        else
         {
             System::PacketBufferHandle receivedMessage = msgBuf.CloneData();
             mPendingMessageQueue.push(PendingMessageItem(address, std::move(receivedMessage)));
             mSystemLayer->ScheduleWork(OnMessageReceived, this);
-        }
-        else
-        {
-            mNumMessagesToDrop--;
-            mDroppedMessageCount++;
-            if (mDelegate != nullptr)
-                mDelegate->OnMessageDropped();
         }
 
         return CHIP_NO_ERROR;
@@ -125,10 +136,11 @@ public:
 
     void Reset()
     {
-        mNumMessagesToDrop   = 0;
-        mDroppedMessageCount = 0;
-        mSentMessageCount    = 0;
-        mMessageSendError    = CHIP_NO_ERROR;
+        mNumMessagesToDrop                = 0;
+        mDroppedMessageCount              = 0;
+        mSentMessageCount                 = 0;
+        mNumMessagesToAllowBeforeDropping = 0;
+        mMessageSendError                 = CHIP_NO_ERROR;
     }
 
     struct PendingMessageItem
@@ -144,11 +156,12 @@ public:
     System::Layer * mSystemLayer = nullptr;
     std::queue<PendingMessageItem> mPendingMessageQueue;
     Transport::PeerAddress mTxAddress;
-    uint32_t mNumMessagesToDrop           = 0;
-    uint32_t mDroppedMessageCount         = 0;
-    uint32_t mSentMessageCount            = 0;
-    CHIP_ERROR mMessageSendError          = CHIP_NO_ERROR;
-    LoopbackTransportDelegate * mDelegate = nullptr;
+    uint32_t mNumMessagesToDrop                = 0;
+    uint32_t mDroppedMessageCount              = 0;
+    uint32_t mSentMessageCount                 = 0;
+    uint32_t mNumMessagesToAllowBeforeDropping = 0;
+    CHIP_ERROR mMessageSendError               = CHIP_NO_ERROR;
+    LoopbackTransportDelegate * mDelegate      = nullptr;
 };
 
 } // namespace Test

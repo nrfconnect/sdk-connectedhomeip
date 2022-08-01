@@ -55,7 +55,6 @@ private:
     void InitiateFactoryReset(void) override;
     CHIP_ERROR ReadPersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t & value) override;
     CHIP_ERROR WritePersistedStorageValue(::chip::Platform::PersistedStorage::Key key, uint32_t value) override;
-    CHIP_ERROR GetUniqueId(char * buf, size_t bufSize) override;
     // NOTE: Other public interface methods are implemented by GenericConfigurationManagerImpl<>.
 
     // ===== Members that implement the GenericConfigurationManagerImpl protected interface.
@@ -76,6 +75,14 @@ private:
 
     static void DoFactoryReset(intptr_t arg);
 };
+
+/**
+ * Returns the platform-specific implementation of the ConfigurationManager object.
+ *
+ * Applications can use this to gain access to features of the ConfigurationManager
+ * that are specific to the selected platform.
+ */
+ConfigurationManager & ConfigurationMgrImpl();
 
 } // namespace DeviceLayer
 } // namespace chip

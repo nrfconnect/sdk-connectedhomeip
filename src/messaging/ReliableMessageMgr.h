@@ -38,9 +38,6 @@
 namespace chip {
 namespace Messaging {
 
-class ExchangeContext;
-using ExchangeHandle = ReferenceCountedHandle<ExchangeContext>;
-
 enum class SendMessageFlags : uint16_t;
 class ReliableMessageContext;
 
@@ -69,7 +66,7 @@ public:
                                                        including both successfully and failure send. */
     };
 
-    ReliableMessageMgr(BitMapObjectPool<ExchangeContext, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS> & contextPool);
+    ReliableMessageMgr(ObjectPool<ExchangeContext, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS> & contextPool);
     ~ReliableMessageMgr();
 
     void Init(chip::System::Layer * systemLayer);
@@ -104,7 +101,7 @@ public:
     /**
      *  Calculate the backoff timer for the retransmission.
      *
-     *  @param[in]   backoffBase    The base interval to use for the backoff calculation, either the active or idle interval.
+     *  @param[in]   baseInterval   The base interval to use for the backoff calculation, either the active or idle interval.
      *  @param[in]   sendCount      Count of how many times this message
      *                              has been retransmitted so far (0 if it has
      *                              been sent only once with no retransmits,
@@ -112,7 +109,7 @@ public:
      *
      *  @retval  The backoff time value, including jitter.
      */
-    static System::Clock::Timestamp GetBackoff(System::Clock::Timestamp backoffBase, uint8_t sendCount);
+    static System::Clock::Timestamp GetBackoff(System::Clock::Timestamp baseInterval, uint8_t sendCount);
 
     /**
      *  Start retranmisttion of cached encryped packet for current entry.
@@ -180,7 +177,7 @@ public:
 #endif // CHIP_CONFIG_TEST
 
 private:
-    BitMapObjectPool<ExchangeContext, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS> & mContextPool;
+    ObjectPool<ExchangeContext, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS> & mContextPool;
     chip::System::Layer * mSystemLayer;
 
     /* Placeholder function to run a function for all exchanges */
@@ -196,7 +193,7 @@ private:
     void TicklessDebugDumpRetransTable(const char * log);
 
     // ReliableMessageProtocol Global tables for timer context
-    BitMapObjectPool<RetransTableEntry, CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE> mRetransTable;
+    ObjectPool<RetransTableEntry, CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE> mRetransTable;
 };
 
 } // namespace Messaging

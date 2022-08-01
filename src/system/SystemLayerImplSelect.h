@@ -45,7 +45,7 @@ public:
 
     // Layer overrides.
     CHIP_ERROR Init() override;
-    CHIP_ERROR Shutdown() override;
+    void Shutdown() override;
     bool IsInitialized() const override { return mLayerState.IsInitialized(); }
     CHIP_ERROR StartTimer(Clock::Timeout delay, TimerCompleteCallback onComplete, void * appState) override;
     void CancelTimer(TimerCompleteCallback onComplete, void * appState) override;
@@ -90,6 +90,11 @@ protected:
         int mFD;
         SocketEvents mPendingIO;
         SocketWatchCallback mCallback;
+#if CHIP_SYSTEM_CONFIG_USE_DISPATCH
+        dispatch_source_t mRdSource;
+        dispatch_source_t mWrSource;
+        void DisableAndClear();
+#endif
         intptr_t mCallbackData;
     };
     SocketWatch mSocketWatchPool[kSocketWatchMax];

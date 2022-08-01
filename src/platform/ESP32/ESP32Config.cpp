@@ -56,6 +56,7 @@ const ESP32Config::Key ESP32Config::kConfigKey_MfrDeviceCert         = { kConfig
 const ESP32Config::Key ESP32Config::kConfigKey_MfrDeviceICACerts     = { kConfigNamespace_ChipFactory, "device-ca-certs" };
 const ESP32Config::Key ESP32Config::kConfigKey_MfrDevicePrivateKey   = { kConfigNamespace_ChipFactory, "device-key" };
 const ESP32Config::Key ESP32Config::kConfigKey_HardwareVersion       = { kConfigNamespace_ChipFactory, "hardware-ver" };
+const ESP32Config::Key ESP32Config::kConfigKey_HardwareVersionString = { kConfigNamespace_ChipFactory, "hw-ver-str" };
 const ESP32Config::Key ESP32Config::kConfigKey_ManufacturingDate     = { kConfigNamespace_ChipFactory, "mfg-date" };
 const ESP32Config::Key ESP32Config::kConfigKey_SetupPinCode          = { kConfigNamespace_ChipFactory, "pin-code" };
 const ESP32Config::Key ESP32Config::kConfigKey_SetupDiscriminator    = { kConfigNamespace_ChipFactory, "discriminator" };
@@ -67,6 +68,11 @@ const ESP32Config::Key ESP32Config::kConfigKey_DACPrivateKey         = { kConfig
 const ESP32Config::Key ESP32Config::kConfigKey_DACPublicKey          = { kConfigNamespace_ChipFactory, "dac-pub-key" };
 const ESP32Config::Key ESP32Config::kConfigKey_PAICert               = { kConfigNamespace_ChipFactory, "pai-cert" };
 const ESP32Config::Key ESP32Config::kConfigKey_CertDeclaration       = { kConfigNamespace_ChipFactory, "cert-dclrn" };
+const ESP32Config::Key ESP32Config::kConfigKey_VendorId              = { kConfigNamespace_ChipFactory, "vendor-id" };
+const ESP32Config::Key ESP32Config::kConfigKey_VendorName            = { kConfigNamespace_ChipFactory, "vendor-name" };
+const ESP32Config::Key ESP32Config::kConfigKey_ProductId             = { kConfigNamespace_ChipFactory, "product-id" };
+const ESP32Config::Key ESP32Config::kConfigKey_ProductName           = { kConfigNamespace_ChipFactory, "product-name" };
+const ESP32Config::Key ESP32Config::kConfigKey_UniqueId              = { kConfigNamespace_ChipFactory, "unique-id" };
 
 // Keys stored in the chip-config namespace
 const ESP32Config::Key ESP32Config::kConfigKey_ServiceConfig      = { kConfigNamespace_ChipConfig, "service-config" };
@@ -77,7 +83,6 @@ const ESP32Config::Key ESP32Config::kConfigKey_FailSafeArmed      = { kConfigNam
 const ESP32Config::Key ESP32Config::kConfigKey_WiFiStationSecType = { kConfigNamespace_ChipConfig, "sta-sec-type" };
 const ESP32Config::Key ESP32Config::kConfigKey_RegulatoryLocation = { kConfigNamespace_ChipConfig, "reg-location" };
 const ESP32Config::Key ESP32Config::kConfigKey_CountryCode        = { kConfigNamespace_ChipConfig, "country-code" };
-const ESP32Config::Key ESP32Config::kConfigKey_UniqueId           = { kConfigNamespace_ChipFactory, "unique-id" };
 
 // Keys stored in the Chip-counters namespace
 const ESP32Config::Key ESP32Config::kCounterKey_RebootCount           = { kConfigNamespace_ChipCounters, "reboot-count" };
@@ -180,18 +185,24 @@ CHIP_ERROR ESP32Config::ReadConfigValueStr(Key key, char * buf, size_t bufSize, 
 
     ReturnErrorOnFailure(handle.Open(key.Namespace, NVS_READONLY, GetPartitionLabelByNamespace(key.Namespace)));
 
-    outLen        = bufSize;
+    outLen = bufSize;
+
+    // If buf is null, nvs_get_str() sets the outLen to required length to fit the string
     esp_err_t err = nvs_get_str(handle, key.Name, buf, &outLen);
     if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         outLen = 0;
         return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
     }
-    if (err == ESP_ERR_NVS_INVALID_LENGTH && buf != NULL)
+    if (buf != NULL)
     {
-        return CHIP_ERROR_BUFFER_TOO_SMALL;
+        if (err == ESP_ERR_NVS_INVALID_LENGTH)
+        {
+            return CHIP_ERROR_BUFFER_TOO_SMALL;
+        }
+        ReturnErrorCodeIf(buf[outLen - 1] != 0, CHIP_ERROR_INVALID_STRING_LENGTH);
+        ReturnMappedErrorOnFailure(err);
     }
-    ReturnMappedErrorOnFailure(err);
 
     outLen -= 1; // Don't count trailing nul.
 
@@ -204,18 +215,22 @@ CHIP_ERROR ESP32Config::ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSiz
 
     ReturnErrorOnFailure(handle.Open(key.Namespace, NVS_READONLY, GetPartitionLabelByNamespace(key.Namespace)));
 
-    outLen        = bufSize;
+    outLen = bufSize;
+    // If buf is null, nvs_get_blob() sets the outLen to required length to fit the blob
     esp_err_t err = nvs_get_blob(handle, key.Name, buf, &outLen);
     if (err == ESP_ERR_NVS_NOT_FOUND)
     {
         outLen = 0;
         return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
     }
-    else if (err == ESP_ERR_NVS_INVALID_LENGTH && buf != NULL)
+    if (buf != NULL)
     {
-        return CHIP_ERROR_BUFFER_TOO_SMALL;
+        if (err == ESP_ERR_NVS_INVALID_LENGTH)
+        {
+            return CHIP_ERROR_BUFFER_TOO_SMALL;
+        }
+        ReturnMappedErrorOnFailure(err);
     }
-    ReturnMappedErrorOnFailure(err);
 
     return CHIP_NO_ERROR;
 }

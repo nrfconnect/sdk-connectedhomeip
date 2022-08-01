@@ -17,14 +17,19 @@
  */
 
 #include "AppContentLauncherManager.h"
+#include "../../java/ContentAppAttributeDelegate.h"
+#include <json/json.h>
 
 using namespace std;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::DataModel;
 using namespace chip::app::Clusters::ContentLauncher;
+using ContentAppAttributeDelegate = chip::AppPlatform::ContentAppAttributeDelegate;
 
-AppContentLauncherManager::AppContentLauncherManager(list<std::string> acceptHeaderList, uint32_t supportedStreamingProtocols)
+AppContentLauncherManager::AppContentLauncherManager(ContentAppAttributeDelegate attributeDelegate,
+                                                     list<std::string> acceptHeaderList, uint32_t supportedStreamingProtocols) :
+    mAttributeDelegate(attributeDelegate)
 {
     mAcceptHeaderList            = acceptHeaderList;
     mSupportedStreamingProtocols = supportedStreamingProtocols;
@@ -36,6 +41,22 @@ void AppContentLauncherManager::HandleLaunchContent(CommandResponseHelper<Launch
 {
     ChipLogProgress(Zcl, "AppContentLauncherManager::HandleLaunchContent for endpoint %d", mEndpointId);
     string dataString(data.data(), data.size());
+
+    ChipLogProgress(Zcl, " AutoPlay=%s", (autoplay ? "true" : "false"));
+
+    bool foundMatch = false;
+    auto iter       = parameterList.begin();
+    while (iter.Next())
+    {
+        auto & parameterType = iter.GetValue();
+        ChipLogProgress(Zcl, " TEST CASE found match=Example TV Show type=%d", static_cast<uint16_t>(parameterType.type));
+        foundMatch = true;
+    }
+
+    if (!foundMatch)
+    {
+        ChipLogProgress(Zcl, " TEST CASE did not find a match");
+    }
 
     LaunchResponseType response;
     // TODO: Insert code here
@@ -54,7 +75,7 @@ void AppContentLauncherManager::HandleLaunchUrl(CommandResponseHelper<LaunchResp
 
     // TODO: Insert code here
     LaunchResponseType response;
-    response.data   = chip::MakeOptional(CharSpan::fromCharString("exampleData"));
+    response.data   = chip::MakeOptional(CharSpan::fromCharString("Success"));
     response.status = ContentLauncher::ContentLaunchStatusEnum::kSuccess;
     helper.Success(response);
 }
@@ -62,6 +83,32 @@ void AppContentLauncherManager::HandleLaunchUrl(CommandResponseHelper<LaunchResp
 CHIP_ERROR AppContentLauncherManager::HandleGetAcceptHeaderList(AttributeValueEncoder & aEncoder)
 {
     ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetAcceptHeaderList");
+    chip::app::ConcreteReadAttributePath aPath(mEndpointId, chip::app::Clusters::ContentLauncher::Id,
+                                               chip::app::Clusters::ContentLauncher::Attributes::AcceptHeader::Id);
+    const char * resStr = mAttributeDelegate.Read(aPath);
+    ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetSupportedStreamingProtocols response %s", resStr);
+
+    if (resStr != nullptr && *resStr != 0)
+    {
+        Json::Reader reader;
+        Json::Value value;
+        if (reader.parse(resStr, value))
+        {
+            std::string attrId = to_string(chip::app::Clusters::ContentLauncher::Attributes::AcceptHeader::Id);
+            ChipLogProgress(
+                Zcl, "AppContentLauncherManager::HandleGetSupportedStreamingProtocols response parsing done. reading attr %s",
+                attrId.c_str());
+            if (value[attrId].isArray())
+            {
+                mAcceptHeaderList.clear();
+                for (Json::Value & entry : value[attrId])
+                {
+                    mAcceptHeaderList.push_back(entry.asString());
+                }
+            }
+        }
+    }
+
     return aEncoder.EncodeList([this](const auto & encoder) -> CHIP_ERROR {
         for (std::string & entry : mAcceptHeaderList)
         {
@@ -75,5 +122,41 @@ CHIP_ERROR AppContentLauncherManager::HandleGetAcceptHeaderList(AttributeValueEn
 uint32_t AppContentLauncherManager::HandleGetSupportedStreamingProtocols()
 {
     ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetSupportedStreamingProtocols");
+    chip::app::ConcreteReadAttributePath aPath(mEndpointId, chip::app::Clusters::ContentLauncher::Id,
+                                               chip::app::Clusters::ContentLauncher::Attributes::SupportedStreamingProtocols::Id);
+    const char * resStr = mAttributeDelegate.Read(aPath);
+    ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetSupportedStreamingProtocols response %s", resStr);
+
+    if (resStr == nullptr || *resStr == 0)
+    {
+        return mSupportedStreamingProtocols;
+    }
+
+    Json::Reader reader;
+    Json::Value value;
+    if (!reader.parse(resStr, value))
+    {
+        return mSupportedStreamingProtocols;
+    }
+    std::string attrId = to_string(chip::app::Clusters::ContentLauncher::Attributes::SupportedStreamingProtocols::Id);
+    ChipLogProgress(Zcl, "AppContentLauncherManager::HandleGetSupportedStreamingProtocols response parsing done. reading attr %s",
+                    attrId.c_str());
+    if (!value[attrId].empty())
+    {
+        uint32_t supportedStreamingProtocols = static_cast<uint32_t>(value[attrId].asInt());
+        mSupportedStreamingProtocols         = supportedStreamingProtocols;
+    }
     return mSupportedStreamingProtocols;
+}
+
+uint32_t AppContentLauncherManager::GetFeatureMap(chip::EndpointId endpoint)
+{
+    if (endpoint >= EMBER_AF_CONTENT_LAUNCH_CLUSTER_SERVER_ENDPOINT_COUNT)
+    {
+        return mDynamicEndpointFeatureMap;
+    }
+
+    uint32_t featureMap = 0;
+    Attributes::FeatureMap::Get(endpoint, &featureMap);
+    return featureMap;
 }

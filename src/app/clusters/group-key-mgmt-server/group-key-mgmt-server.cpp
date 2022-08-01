@@ -1,6 +1,6 @@
 /**
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -122,6 +122,8 @@ public:
         {
         case GroupKeyManagement::Attributes::ClusterRevision::Id:
             return ReadClusterRevision(aPath.mEndpointId, aEncoder);
+        case Attributes::FeatureMap::Id:
+            return aEncoder.Encode(static_cast<uint32_t>(0));
         case GroupKeyManagement::Attributes::GroupKeyMap::Id:
             return ReadGroupKeyMap(aPath.mEndpointId, aEncoder);
         case GroupKeyManagement::Attributes::GroupTable::Id:
@@ -202,7 +204,7 @@ private:
             while (iter.Next())
             {
                 const auto & value = iter.GetValue();
-                VerifyOrReturnError(fabric_index == value.fabricIndex, CHIP_ERROR_INVALID_FABRIC_ID);
+                VerifyOrReturnError(fabric_index == value.fabricIndex, CHIP_ERROR_INVALID_FABRIC_INDEX);
                 // Cannot map to IPK, see `GroupKeyMapStruct` in Group Key Management cluster spec
                 VerifyOrReturnError(value.groupKeySetID != 0, CHIP_IM_GLOBAL_STATUS(ConstraintError));
 
@@ -217,7 +219,7 @@ private:
             size_t current_count = 0;
             VerifyOrReturnError(nullptr != provider, CHIP_ERROR_INTERNAL);
             ReturnErrorOnFailure(aDecoder.Decode(value));
-            VerifyOrReturnError(fabric_index == value.fabricIndex, CHIP_ERROR_INVALID_FABRIC_ID);
+            VerifyOrReturnError(fabric_index == value.fabricIndex, CHIP_ERROR_INVALID_FABRIC_INDEX);
             // Cannot map to IPK, see `GroupKeyMapStruct` in Group Key Management cluster spec
             VerifyOrReturnError(value.groupKeySetID != 0, CHIP_IM_GLOBAL_STATUS(ConstraintError));
 
@@ -304,7 +306,7 @@ bool emberAfGroupKeyManagementClusterKeySetWriteCallback(
 
     uint8_t compressed_fabric_id_buffer[sizeof(uint64_t)];
     MutableByteSpan compressed_fabric_id(compressed_fabric_id_buffer);
-    CHIP_ERROR err = fabric->GetCompressedId(compressed_fabric_id);
+    CHIP_ERROR err = fabric->GetCompressedFabricIdBytes(compressed_fabric_id);
     if (CHIP_NO_ERROR != err)
     {
         emberAfSendImmediateDefaultResponse(EMBER_ZCL_STATUS_FAILURE);

@@ -28,7 +28,6 @@ static constexpr uint8_t category_max_len_bytes = 3;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
 
 static bool isLogInitialized;
-extern uint8_t gOtLogUartInstance;
 extern "C" uint32_t otPlatAlarmMilliGetNow(void);
 
 namespace chip {
@@ -108,8 +107,7 @@ void ENFORCE_FORMAT(1, 0) GenericLog(const char * format, va_list arg, const cha
 
     if (!isLogInitialized)
     {
-        isLogInitialized   = true;
-        gOtLogUartInstance = 0;
+        isLogInitialized = true;
         otPlatUartEnable();
     }
 
@@ -157,6 +155,7 @@ void ENFORCE_FORMAT(3, 0) LogV(const char * module, uint8_t category, const char
 #undef K32W_LOG_MODULE_NAME
 #define K32W_LOG_MODULE_NAME lwip
 
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
 /**
  * LwIP log output function.
  */
@@ -169,6 +168,7 @@ extern "C" void ENFORCE_FORMAT(1, 2) LwIPLog(const char * msg, ...)
     GenericLog(msg, v, module, chip::Logging::kLogCategory_None);
     va_end(v);
 }
+#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 

@@ -26,12 +26,15 @@
 
 #include <cstdint>
 
+#if CHIP_HAVE_CONFIG_H
+#include <platform/CHIPDeviceBuildConfig.h>
+#include <setup_payload/CHIPAdditionalDataPayloadBuildConfig.h>
+#endif
+
 #include <app-common/zap-generated/cluster-objects.h>
 #include <lib/support/Span.h>
-#include <platform/CHIPDeviceBuildConfig.h>
-#include <platform/FailSafeContext.h>
 #include <platform/PersistedStorage.h>
-#include <setup_payload/CHIPAdditionalDataPayloadBuildConfig.h>
+#include <platform/internal/CHIPDeviceLayerInternal.h>
 
 namespace chip {
 namespace Ble {
@@ -85,26 +88,18 @@ public:
         kMaxLanguageTagLength = 5 // ISO 639-1 standard language codes
     };
 
-    virtual CHIP_ERROR GetVendorName(char * buf, size_t bufSize)                                    = 0;
-    virtual CHIP_ERROR GetVendorId(uint16_t & vendorId)                                             = 0;
-    virtual CHIP_ERROR GetProductName(char * buf, size_t bufSize)                                   = 0;
-    virtual CHIP_ERROR GetProductId(uint16_t & productId)                                           = 0;
-    virtual CHIP_ERROR GetHardwareVersionString(char * buf, size_t bufSize)                         = 0;
-    virtual CHIP_ERROR GetHardwareVersion(uint16_t & hardwareVer)                                   = 0;
-    virtual CHIP_ERROR GetSerialNumber(char * buf, size_t bufSize)                                  = 0;
-    virtual CHIP_ERROR GetPrimaryMACAddress(MutableByteSpan buf)                                    = 0;
-    virtual CHIP_ERROR GetPrimaryWiFiMACAddress(uint8_t * buf)                                      = 0;
-    virtual CHIP_ERROR GetPrimary802154MACAddress(uint8_t * buf)                                    = 0;
-    virtual CHIP_ERROR GetManufacturingDate(uint16_t & year, uint8_t & month, uint8_t & dayOfMonth) = 0;
-    virtual CHIP_ERROR GetSoftwareVersionString(char * buf, size_t bufSize)                         = 0;
-    virtual CHIP_ERROR GetSoftwareVersion(uint32_t & softwareVer)                                   = 0;
+    virtual CHIP_ERROR GetPrimaryMACAddress(MutableByteSpan buf)                           = 0;
+    virtual CHIP_ERROR GetPrimaryWiFiMACAddress(uint8_t * buf)                             = 0;
+    virtual CHIP_ERROR GetPrimary802154MACAddress(uint8_t * buf)                           = 0;
+    virtual CHIP_ERROR GetSoftwareVersionString(char * buf, size_t bufSize)                = 0;
+    virtual CHIP_ERROR GetSoftwareVersion(uint32_t & softwareVer)                          = 0;
+    virtual CHIP_ERROR GetFirmwareBuildChipEpochTime(System::Clock::Seconds32 & buildTime) = 0;
+    virtual CHIP_ERROR SetFirmwareBuildChipEpochTime(System::Clock::Seconds32 buildTime) { return CHIP_ERROR_NOT_IMPLEMENTED; }
 #if CHIP_ENABLE_ROTATING_DEVICE_ID && defined(CHIP_DEVICE_CONFIG_ROTATING_DEVICE_ID_UNIQUE_ID)
     // Lifetime counter is monotonic counter that is incremented upon each commencement of advertising
-    virtual CHIP_ERROR GetLifetimeCounter(uint16_t & lifetimeCounter) = 0;
-    virtual CHIP_ERROR IncrementLifetimeCounter()                     = 0;
-    // Unique ID is identifier utilized for the rotating device ID calculation purpose as an input key. It is separate identifier
-    // from the Basic cluster unique ID.
-    virtual CHIP_ERROR GetRotatingDeviceIdUniqueId(MutableByteSpan & uniqueIdSpan) = 0;
+    virtual CHIP_ERROR GetLifetimeCounter(uint16_t & lifetimeCounter)             = 0;
+    virtual CHIP_ERROR IncrementLifetimeCounter()                                 = 0;
+    virtual CHIP_ERROR SetRotatingDeviceIdUniqueId(const ByteSpan & uniqueIdSpan) = 0;
 #endif
     virtual CHIP_ERROR GetRegulatoryLocation(uint8_t & location)                       = 0;
     virtual CHIP_ERROR GetCountryCode(char * buf, size_t bufSize, size_t & codeLen)    = 0;
@@ -186,9 +181,18 @@ protected:
 /**
  * Returns a reference to a ConfigurationManager object.
  *
- * Applications should use this to access the features of the ConfigurationManager.
+ * Applications should use this to access features of the ConfigurationManager object
+ * that are common to all platforms.
  */
-extern ConfigurationManager & ConfigurationMgr();
+ConfigurationManager & ConfigurationMgr();
+
+/**
+ * Returns the platform-specific implementation of the ConfigurationManager object.
+ *
+ * Applications can use this to gain access to features of the ConfigurationManager
+ * that are specific to the selected platform.
+ */
+extern ConfigurationManager & ConfigurationMgrImpl();
 
 /**
  * Sets a reference to a ConfigurationManager object.
@@ -196,7 +200,7 @@ extern ConfigurationManager & ConfigurationMgr();
  * This must be called before any calls to ConfigurationMgr. If a nullptr is passed in,
  * no changes will be made.
  */
-extern void SetConfigurationMgr(ConfigurationManager * configurationManager);
+void SetConfigurationMgr(ConfigurationManager * configurationManager);
 
 inline CHIP_ERROR ConfigurationManager::GetLocationCapability(uint8_t & location)
 {

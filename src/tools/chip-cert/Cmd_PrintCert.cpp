@@ -49,7 +49,7 @@ const char * const gCmdOptionHelp =
     "   -o, --out\n"
     "\n"
     "       The output printed certificate file name. If not specified\n"
-    "       or if specified - then output is writen to stdout.\n"
+    "       or if specified - then output is written to stdout.\n"
     "\n"
     ;
 
@@ -84,7 +84,7 @@ OptionSet *gCmdOptionSets[] =
 // clang-format on
 
 const char * gInFileName  = nullptr;
-const char * gOutFileName = nullptr;
+const char * gOutFileName = "-";
 
 bool HandleOption(const char * progName, OptionSet * optSet, int id, const char * name, const char * arg)
 {

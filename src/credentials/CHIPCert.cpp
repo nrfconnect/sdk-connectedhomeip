@@ -32,6 +32,7 @@
 #include <stddef.h>
 
 #include <credentials/CHIPCert.h>
+#include <credentials/CHIPCertificateSet.h>
 #include <lib/asn1/ASN1.h>
 #include <lib/asn1/ASN1Macros.h>
 #include <lib/core/CHIPCore.h>
@@ -273,7 +274,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
 
     context.mTrustAnchor = nullptr;
 
-    return ValidateCert(cert, context, context.mValidateFlags, 0);
+    return ValidateCert(cert, context, 0);
 }
 
 CHIP_ERROR ChipCertificateSet::FindValidCert(const ChipDN & subjectDN, const CertificateKeyId & subjectKeyId,
@@ -281,7 +282,7 @@ CHIP_ERROR ChipCertificateSet::FindValidCert(const ChipDN & subjectDN, const Cer
 {
     context.mTrustAnchor = nullptr;
 
-    return FindValidCert(subjectDN, subjectKeyId, context, context.mValidateFlags, 0, certData);
+    return FindValidCert(subjectDN, subjectKeyId, context, 0, certData);
 }
 
 CHIP_ERROR ChipCertificateSet::VerifySignature(const ChipCertificateData * cert, const ChipCertificateData * caCert)
@@ -304,8 +305,7 @@ CHIP_ERROR ChipCertificateSet::VerifySignature(const ChipCertificateData * cert,
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, ValidationContext & context,
-                                            BitFlags<CertValidateFlags> validateFlags, uint8_t depth)
+CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, ValidationContext & context, uint8_t depth)
 {
     CHIP_ERROR err                     = CHIP_NO_ERROR;
     const ChipCertificateData * caCert = nullptr;
@@ -371,15 +371,86 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
         }
     }
 
-    // Verify the validity time of the certificate, if requested.
-    if (cert->mNotBeforeTime != 0 && !validateFlags.Has(CertValidateFlags::kIgnoreNotBefore))
+    // Verify NotBefore and NotAfter validity of the certificates.
+    //
+    // See also ASN1ToChipEpochTime().
+    //
+    // X.509/RFC5280 defines the special time 99991231235959Z to mean 'no
+    // well-defined expiration date'.  In CHIP TLV-encoded certificates, this
+    // special value is represented as a CHIP Epoch time value of 0 sec
+    // (2000-01-01 00:00:00 UTC).
+    CertificateValidityResult validityResult;
+    if (context.mEffectiveTime.Is<CurrentChipEpochTime>())
     {
-        // TODO - enable check for certificate validity dates
-        // VerifyOrExit(context.mEffectiveTime >= cert->mNotBeforeTime, err = CHIP_ERROR_CERT_NOT_VALID_YET);
+        if (context.mEffectiveTime.Get<CurrentChipEpochTime>().count() < cert->mNotBeforeTime)
+        {
+            ChipLogDetail(SecureChannel, "Certificate's mNotBeforeTime (%" PRIu32 ") is after current time (%" PRIu32 ")",
+                          cert->mNotBeforeTime, context.mEffectiveTime.Get<CurrentChipEpochTime>().count());
+            validityResult = CertificateValidityResult::kNotYetValid;
+        }
+        else if (cert->mNotAfterTime != kNullCertTime &&
+                 context.mEffectiveTime.Get<CurrentChipEpochTime>().count() > cert->mNotAfterTime)
+        {
+            ChipLogDetail(SecureChannel, "Certificate's mNotAfterTime (%" PRIu32 ") is before current time (%" PRIu32 ")",
+                          cert->mNotAfterTime, context.mEffectiveTime.Get<CurrentChipEpochTime>().count());
+            validityResult = CertificateValidityResult::kExpired;
+        }
+        else
+        {
+            validityResult = CertificateValidityResult::kValid;
+        }
     }
-    if (cert->mNotAfterTime != 0 && !validateFlags.Has(CertValidateFlags::kIgnoreNotAfter))
+    else if (context.mEffectiveTime.Is<LastKnownGoodChipEpochTime>())
     {
-        VerifyOrExit(context.mEffectiveTime <= cert->mNotAfterTime, err = CHIP_ERROR_CERT_EXPIRED);
+        // Last Known Good Time may not be moved forward except at the time of
+        // commissioning or firmware update, so we can't use it to validate
+        // NotBefore.  However, so long as firmware build times are properly
+        // recorded and certificates loaded during commissioning are in fact
+        // valid at the time of commissioning, observing a NotAfter that falls
+        // before Last Known Good Time is a reliable indicator that the
+        // certificate in question is expired.  Check for this.
+        if (cert->mNotAfterTime != 0 && context.mEffectiveTime.Get<LastKnownGoodChipEpochTime>().count() > cert->mNotAfterTime)
+        {
+            ChipLogDetail(SecureChannel, "Certificate's mNotAfterTime (%" PRIu32 ") is before last known good time (%" PRIu32 ")",
+                          cert->mNotAfterTime, context.mEffectiveTime.Get<LastKnownGoodChipEpochTime>().count());
+            validityResult = CertificateValidityResult::kExpiredAtLastKnownGoodTime;
+        }
+        else
+        {
+            validityResult = CertificateValidityResult::kNotExpiredAtLastKnownGoodTime;
+        }
+    }
+    else
+    {
+        validityResult = CertificateValidityResult::kTimeUnknown;
+    }
+
+    if (context.mValidityPolicy != nullptr)
+    {
+        SuccessOrExit(err = context.mValidityPolicy->ApplyCertificateValidityPolicy(cert, depth, validityResult));
+    }
+    else
+    {
+        switch (validityResult)
+        {
+        case CertificateValidityResult::kValid:
+        case CertificateValidityResult::kNotExpiredAtLastKnownGoodTime:
+        // By default, we do not enforce certificate validity based upon a Last
+        // Known Good Time source.  However, implementations may always inject a
+        // policy that does enforce based upon this.
+        case CertificateValidityResult::kExpiredAtLastKnownGoodTime:
+        case CertificateValidityResult::kTimeUnknown:
+            break;
+        case CertificateValidityResult::kNotYetValid:
+            ExitNow(err = CHIP_ERROR_CERT_NOT_VALID_YET);
+            break;
+        case CertificateValidityResult::kExpired:
+            ExitNow(err = CHIP_ERROR_CERT_EXPIRED);
+            break;
+        default:
+            ExitNow(err = CHIP_ERROR_INTERNAL);
+            break;
+        }
     }
 
     // If the certificate itself is trusted, then it is implicitly valid.  Record this certificate as the trust
@@ -411,7 +482,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
 
     // Search for a valid CA certificate that matches the Issuer DN and Authority Key Id of the current certificate.
     // Fail if no acceptable certificate is found.
-    err = FindValidCert(cert->mIssuerDN, cert->mAuthKeyId, context, validateFlags, static_cast<uint8_t>(depth + 1), &caCert);
+    err = FindValidCert(cert->mIssuerDN, cert->mAuthKeyId, context, static_cast<uint8_t>(depth + 1), &caCert);
     if (err != CHIP_NO_ERROR)
     {
         ExitNow(err = CHIP_ERROR_CA_CERT_NOT_FOUND);
@@ -427,8 +498,7 @@ exit:
 }
 
 CHIP_ERROR ChipCertificateSet::FindValidCert(const ChipDN & subjectDN, const CertificateKeyId & subjectKeyId,
-                                             ValidationContext & context, BitFlags<CertValidateFlags> validateFlags, uint8_t depth,
-                                             const ChipCertificateData ** certData)
+                                             ValidationContext & context, uint8_t depth, const ChipCertificateData ** certData)
 {
     CHIP_ERROR err;
 
@@ -461,7 +531,7 @@ CHIP_ERROR ChipCertificateSet::FindValidCert(const ChipDN & subjectDN, const Cer
         // Attempt to validate the cert.  If the cert is valid, return it to the caller. Otherwise,
         // save the returned error and continue searching.  If there are no other matching certs this
         // will be the error returned to the caller.
-        err = ValidateCert(candidateCert, context, validateFlags, depth);
+        err = ValidateCert(candidateCert, context, depth);
         if (err == CHIP_NO_ERROR)
         {
             *certData = candidateCert;
@@ -513,11 +583,11 @@ bool ChipCertificateData::IsEqual(const ChipCertificateData & other) const
 
 void ValidationContext::Reset()
 {
-    mEffectiveTime = 0;
-    mTrustAnchor   = nullptr;
+    mEffectiveTime  = EffectiveTime{};
+    mTrustAnchor    = nullptr;
+    mValidityPolicy = nullptr;
     mRequiredKeyUsages.ClearAll();
     mRequiredKeyPurposes.ClearAll();
-    mValidateFlags.ClearAll();
     mRequiredCertType = kCertType_NotSpecified;
 }
 
@@ -585,6 +655,8 @@ CHIP_ERROR ChipDN::AddAttribute(chip::ASN1::OID oid, uint64_t val)
 
 CHIP_ERROR ChipDN::AddCATs(const chip::CATValues & cats)
 {
+    VerifyOrReturnError(cats.AreValid(), CHIP_ERROR_INVALID_ARGUMENT);
+
     for (auto & cat : cats.values)
     {
         if (cat != kUndefinedCAT)
@@ -613,9 +685,9 @@ CHIP_ERROR ChipDN::AddAttribute(chip::ASN1::OID oid, CharSpan val, bool isPrinta
 
 CHIP_ERROR ChipDN::GetCertType(uint8_t & certType) const
 {
-    CHIP_ERROR err       = CHIP_NO_ERROR;
     uint8_t lCertType    = kCertType_NotSpecified;
     bool fabricIdPresent = false;
+    bool catsPresent     = false;
     uint8_t rdnCount     = RDNCount();
 
     certType = kCertType_NotSpecified;
@@ -624,46 +696,55 @@ CHIP_ERROR ChipDN::GetCertType(uint8_t & certType) const
     {
         if (rdn[i].mAttrOID == kOID_AttributeType_MatterRCACId)
         {
-            VerifyOrExit(lCertType == kCertType_NotSpecified, err = CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
 
             lCertType = kCertType_Root;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterICACId)
         {
-            VerifyOrExit(lCertType == kCertType_NotSpecified, err = CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
 
             lCertType = kCertType_ICA;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterNodeId)
         {
-            VerifyOrExit(lCertType == kCertType_NotSpecified, err = CHIP_ERROR_WRONG_CERT_DN);
-            VerifyOrReturnError(IsOperationalNodeId(rdn[i].mChipVal), CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(IsOperationalNodeId(rdn[i].mChipVal), CHIP_ERROR_WRONG_NODE_ID);
             lCertType = kCertType_Node;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterFirmwareSigningId)
         {
-            VerifyOrExit(lCertType == kCertType_NotSpecified, err = CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
 
             lCertType = kCertType_FirmwareSigning;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterFabricId)
         {
             // Only one fabricId attribute is allowed per DN.
-            VerifyOrExit(!fabricIdPresent, err = CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(!fabricIdPresent, CHIP_ERROR_WRONG_CERT_DN);
             VerifyOrReturnError(IsValidFabricId(rdn[i].mChipVal), CHIP_ERROR_WRONG_CERT_DN);
             fabricIdPresent = true;
+        }
+        else if (rdn[i].mAttrOID == kOID_AttributeType_MatterCASEAuthTag)
+        {
+            VerifyOrReturnError(CanCastTo<CASEAuthTag>(rdn[i].mChipVal), CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(IsValidCASEAuthTag(static_cast<CASEAuthTag>(rdn[i].mChipVal)), CHIP_ERROR_WRONG_CERT_DN);
+            catsPresent = true;
         }
     }
 
     if (lCertType == kCertType_Node)
     {
-        VerifyOrExit(fabricIdPresent, err = CHIP_ERROR_WRONG_CERT_DN);
+        VerifyOrReturnError(fabricIdPresent, CHIP_ERROR_WRONG_CERT_DN);
+    }
+    else
+    {
+        VerifyOrReturnError(!catsPresent, CHIP_ERROR_WRONG_CERT_DN);
     }
 
     certType = lCertType;
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR ChipDN::GetCertChipId(uint64_t & chipId) const
@@ -791,7 +872,7 @@ CHIP_ERROR ChipDN::DecodeFromTLV(TLVReader & reader)
             ReturnErrorOnFailure(reader.Get(chipAttr));
             if (attrOID == chip::ASN1::kOID_AttributeType_MatterNodeId)
             {
-                VerifyOrReturnError(IsOperationalNodeId(attrOID), CHIP_ERROR_INVALID_ARGUMENT);
+                VerifyOrReturnError(IsOperationalNodeId(attrOID), CHIP_ERROR_WRONG_NODE_ID);
             }
             else if (attrOID == chip::ASN1::kOID_AttributeType_MatterFabricId)
             {
@@ -946,7 +1027,7 @@ CHIP_ERROR ChipDN::DecodeFromASN1(ASN1Reader & reader)
 
                         if (attrOID == chip::ASN1::kOID_AttributeType_MatterNodeId)
                         {
-                            VerifyOrReturnError(IsOperationalNodeId(chipAttr), CHIP_ERROR_WRONG_CERT_DN);
+                            VerifyOrReturnError(IsOperationalNodeId(chipAttr), CHIP_ERROR_WRONG_NODE_ID);
                         }
                         else if (attrOID == chip::ASN1::kOID_AttributeType_MatterFabricId)
                         {
@@ -1011,9 +1092,25 @@ exit:
 DLL_EXPORT CHIP_ERROR ASN1ToChipEpochTime(const chip::ASN1::ASN1UniversalTime & asn1Time, uint32_t & epochTime)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-
     // X.509/RFC5280 defines the special time 99991231235959Z to mean 'no well-defined expiration date'.
-    // In CHIP certificate it is represented as a CHIP Epoch UTC time value of 0 sec (2020-01-01 00:00:00 UTC).
+    // In CHIP certificate it is represented as a CHIP Epoch time value of 0 sec (2000-01-01 00:00:00 UTC).
+    //
+    // While it is not conventional to use this special value for NotBefore, for simplicity we convert all
+    // time values of 99991231235959Z to CHIP epoch zero seconds.  ChipEpochToASN1Time performs the inverse
+    // translation for conversions in the other direction.
+    //
+    // If in a conversion from X509 to CHIP TLV format the input X509 certificate encloses 99991231235959Z
+    // for NotBefore, this will be converted to the CHIP Epoch time value of 0 and consuming code will
+    // handle this transparently, as logic considering a NotBefore time at the CHIP epoch will evaluate all
+    // possible unsigned offsets from the CHIP epoch as valid, which is equivalent to ignoring NotBefore.
+    //
+    // If in a conversion from X509 to CHIP TLV format the input X509 certificate encloses a NotBefore time
+    // at the CHIP epoch itself, 2000-01-01 00:00:00, a resultant conversion to CHIP TLV certificate format
+    // will appear to have an invalid TBS signature when the symmetric ChipEpochToASN1Time produces
+    // 99991231235959Z for NotBefore during signature validation.
+    //
+    // Thus such certificates, when passing through this code, will not appear valid.  This should be
+    // immediately evident at commissioning time.
     if ((asn1Time.Year == kX509NoWellDefinedExpirationDateYear) && (asn1Time.Month == kMonthsPerYear) &&
         (asn1Time.Day == kMaxDaysPerMonth) && (asn1Time.Hour == kHoursPerDay - 1) && (asn1Time.Minute == kMinutesPerHour - 1) &&
         (asn1Time.Second == kSecondsPerMinute - 1))
@@ -1036,7 +1133,17 @@ exit:
 DLL_EXPORT CHIP_ERROR ChipEpochToASN1Time(uint32_t epochTime, chip::ASN1::ASN1UniversalTime & asn1Time)
 {
     // X.509/RFC5280 defines the special time 99991231235959Z to mean 'no well-defined expiration date'.
-    // In CHIP certificate it is represented as a CHIP Epoch time value of 0 secs (2020-01-01 00:00:00 UTC).
+    // In CHIP certificate it is represented as a CHIP Epoch time value of 0 secs (2000-01-01 00:00:00 UTC).
+    //
+    // For simplicity and symmetry with ASN1ToChipEpochTime, this method makes this conversion for all
+    // times, which in consuming code can create a conversion from CHIP epoch 0 seconds to 99991231235959Z
+    // for NotBefore, which is not conventional.
+    //
+    // If an original X509 certificate encloses a NotBefore time that this the CHIP Epoch itself, 2000-01-01
+    // 00:00:00, the resultant X509 certificate in a conversion back from CHIP TLV format using this time
+    // conversion method will instead enclose the NotBefore time 99991231235959Z, which will invalidiate the
+    // TBS signature.  Thus, certificates with this specific attribute are not usable with this code.
+    // Attempted installation of such certficates will fail during commissioning.
     if (epochTime == kNullCertTime)
     {
         asn1Time.Year   = kX509NoWellDefinedExpirationDateYear;
@@ -1053,6 +1160,38 @@ DLL_EXPORT CHIP_ERROR ChipEpochToASN1Time(uint32_t epochTime, chip::ASN1::ASN1Un
     }
 
     return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR ValidateChipRCAC(const ByteSpan & rcac)
+{
+    ChipCertificateSet certSet;
+    ChipCertificateData certData;
+    ValidationContext validContext;
+    uint8_t certType;
+
+    // Note that this function doesn't check RCAC NotBefore / NotAfter time validity.
+    // It is assumed that RCAC should be valid at the time of installation by definition.
+
+    ReturnErrorOnFailure(certSet.Init(&certData, 1));
+
+    ReturnErrorOnFailure(certSet.LoadCert(rcac, CertDecodeFlags::kGenerateTBSHash));
+
+    ReturnErrorOnFailure(certData.mSubjectDN.GetCertType(certType));
+    VerifyOrReturnError(certType == kCertType_Root, CHIP_ERROR_WRONG_CERT_TYPE);
+
+    VerifyOrReturnError(certData.mSubjectDN.IsEqual(certData.mIssuerDN), CHIP_ERROR_WRONG_CERT_TYPE);
+
+    VerifyOrReturnError(certData.mSubjectKeyId.data_equal(certData.mAuthKeyId), CHIP_ERROR_WRONG_CERT_TYPE);
+
+    VerifyOrReturnError(certData.mCertFlags.Has(CertFlags::kIsCA), CHIP_ERROR_CERT_USAGE_NOT_ALLOWED);
+    if (certData.mCertFlags.Has(CertFlags::kPathLenConstraintPresent))
+    {
+        VerifyOrReturnError(certData.mPathLenConstraint <= 1, CHIP_ERROR_CERT_USAGE_NOT_ALLOWED);
+    }
+
+    VerifyOrReturnError(certData.mKeyUsageFlags.Has(KeyUsageFlags::kKeyCertSign), CHIP_ERROR_CERT_USAGE_NOT_ALLOWED);
+
+    return ChipCertificateSet::VerifySignature(&certData, &certData);
 }
 
 CHIP_ERROR ConvertIntegerDERToRaw(ByteSpan derInt, uint8_t * rawInt, const uint16_t rawIntLen)
@@ -1238,6 +1377,9 @@ CHIP_ERROR ExtractCATsFromOpCert(const ChipCertificateData & opcert, CATValues &
         cats.values[i] = kUndefinedCAT;
     }
 
+    // Make sure the set contained valid data, otherwise it's an invalid cert
+    VerifyOrReturnError(cats.AreValid(), CHIP_ERROR_WRONG_CERT_DN);
+
     return CHIP_NO_ERROR;
 }
 
@@ -1272,6 +1414,20 @@ CHIP_ERROR ExtractPublicKeyFromChipCert(const ByteSpan & chipCert, P256PublicKey
     ReturnErrorOnFailure(certSet.LoadCert(chipCert, BitFlags<CertDecodeFlags>()));
 
     publicKey = certData.mPublicKey;
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR ExtractNotBeforeFromChipCert(const ByteSpan & chipCert, chip::System::Clock::Seconds32 & notBeforeChipEpochTime)
+{
+    ChipCertificateSet certSet;
+    ChipCertificateData certData;
+
+    ReturnErrorOnFailure(certSet.Init(&certData, 1));
+
+    ReturnErrorOnFailure(certSet.LoadCert(chipCert, BitFlags<CertDecodeFlags>()));
+
+    notBeforeChipEpochTime = chip::System::Clock::Seconds32(certData.mNotBeforeTime);
 
     return CHIP_NO_ERROR;
 }

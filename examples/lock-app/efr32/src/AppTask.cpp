@@ -23,7 +23,9 @@
 #include "LEDWidget.h"
 #ifdef DISPLAY_ENABLED
 #include "lcd.h"
+#ifdef QR_CODE_ENABLED
 #include "qrcodegen.h"
+#endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
 #include "sl_simple_led_instances.h"
 #include <app-common/zap-generated/af-structs.h>
@@ -40,9 +42,6 @@
 #include <app/util/attribute-storage.h>
 
 #include <assert.h>
-
-#include <credentials/DeviceAttestationCredsProvider.h>
-#include <credentials/examples/DeviceAttestationCredsExample.h>
 
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
@@ -81,6 +80,7 @@ using chip::app::Clusters::DoorLock::DlOperationSource;
 using namespace chip;
 using namespace ::chip::DeviceLayer;
 using namespace ::chip::DeviceLayer::Internal;
+using namespace EFR32DoorLock::LockInitParams;
 
 namespace {
 TimerHandle_t sFunctionTimer; // FreeRTOS app sw timer.
@@ -170,7 +170,6 @@ Identify gIdentify = {
 } // namespace
 
 using namespace chip::TLV;
-using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
 
 AppTask AppTask::sAppTask;
@@ -208,11 +207,6 @@ CHIP_ERROR AppTask::Init()
     sWiFiNetworkCommissioningInstance.Init();
 #endif
 
-    chip::DeviceLayer::PlatformMgr().LockChipStack();
-    // Initialize device attestation config
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
-
     // Create FreeRTOS sw timer for Function Selection.
     sFunctionTimer = xTimerCreate("FnTmr",          // Just a text name, not used by the RTOS kernel
                                   1,                // == default timer period (mS)
@@ -233,19 +227,67 @@ CHIP_ERROR AppTask::Init()
     chip::EndpointId endpointId{ 1 };
     chip::DeviceLayer::PlatformMgr().LockChipStack();
     chip::app::Clusters::DoorLock::Attributes::LockState::Get(endpointId, state);
-    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
 
-    uint8_t maxCredentialsPerUser = 0;
-    if (!DoorLockServer::Instance().GetNumberOfCredentialsSupportedPerUser(endpointId, maxCredentialsPerUser))
+    uint8_t numberOfCredentialsPerUser = 0;
+    if (!DoorLockServer::Instance().GetNumberOfCredentialsSupportedPerUser(endpointId, numberOfCredentialsPerUser))
     {
         ChipLogError(Zcl,
                      "Unable to get number of credentials supported per user when initializing lock endpoint, defaulting to 5 "
                      "[endpointId=%d]",
                      endpointId);
-        maxCredentialsPerUser = 5;
+        numberOfCredentialsPerUser = 5;
     }
 
-    err = LockMgr().Init(state, maxCredentialsPerUser);
+    uint16_t numberOfUsers = 0;
+    if (!DoorLockServer::Instance().GetNumberOfUserSupported(endpointId, numberOfUsers))
+    {
+        ChipLogError(Zcl,
+                     "Unable to get number of supported users when initializing lock endpoint, defaulting to 10 [endpointId=%d]",
+                     endpointId);
+        numberOfUsers = 10;
+    }
+
+    uint8_t numberOfWeekdaySchedulesPerUser = 0;
+    if (!DoorLockServer::Instance().GetNumberOfWeekDaySchedulesPerUserSupported(endpointId, numberOfWeekdaySchedulesPerUser))
+    {
+        ChipLogError(
+            Zcl,
+            "Unable to get number of supported weekday schedules when initializing lock endpoint, defaulting to 10 [endpointId=%d]",
+            endpointId);
+        numberOfWeekdaySchedulesPerUser = 10;
+    }
+
+    uint8_t numberOfYeardaySchedulesPerUser = 0;
+    if (!DoorLockServer::Instance().GetNumberOfYearDaySchedulesPerUserSupported(endpointId, numberOfYeardaySchedulesPerUser))
+    {
+        ChipLogError(
+            Zcl,
+            "Unable to get number of supported yearday schedules when initializing lock endpoint, defaulting to 10 [endpointId=%d]",
+            endpointId);
+        numberOfYeardaySchedulesPerUser = 10;
+    }
+
+    uint8_t numberOfHolidaySchedules = 0;
+    if (!DoorLockServer::Instance().GetNumberOfHolidaySchedulesSupported(endpointId, numberOfHolidaySchedules))
+    {
+        ChipLogError(
+            Zcl,
+            "Unable to get number of supported holiday schedules when initializing lock endpoint, defaulting to 10 [endpointId=%d]",
+            endpointId);
+        numberOfHolidaySchedules = 10;
+    }
+
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
+    err = LockMgr().Init(state,
+                         ParamBuilder()
+                             .SetNumberOfUsers(numberOfUsers)
+                             .SetNumberOfCredentialsPerUser(numberOfCredentialsPerUser)
+                             .SetNumberOfWeekdaySchedulesPerUser(numberOfWeekdaySchedulesPerUser)
+                             .SetNumberOfYeardaySchedulesPerUser(numberOfYeardaySchedulesPerUser)
+                             .SetNumberOfHolidaySchedules(numberOfHolidaySchedules)
+                             .GetLockParam());
+
     if (err != CHIP_NO_ERROR)
     {
         EFR32_LOG("LockMgr().Init() failed");
@@ -273,12 +315,14 @@ CHIP_ERROR AppTask::Init()
     ConfigurationMgr().LogDeviceConfig();
 
 // Print setup info on LCD if available
-#ifdef DISPLAY_ENABLED
-    std::string QRCode;
+#ifdef QR_CODE_ENABLED
+    // Create buffer for QR code that can fit max size and null terminator.
+    char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    chip::MutableCharSpan QRCode(qrCodeBuffer);
 
     if (GetQRCode(QRCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)) == CHIP_NO_ERROR)
     {
-        LCDWriteQRCode((uint8_t *) QRCode.c_str());
+        LCDWriteQRCode((uint8_t *) QRCode.data());
     }
     else
     {
@@ -286,7 +330,7 @@ CHIP_ERROR AppTask::Init()
     }
 #else
     PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE));
-#endif
+#endif // QR_CODE_ENABLED
 
     return err;
 }

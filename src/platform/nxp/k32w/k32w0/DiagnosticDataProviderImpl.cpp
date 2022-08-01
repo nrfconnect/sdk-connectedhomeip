@@ -27,7 +27,9 @@
 #include <platform/DiagnosticDataProvider.h>
 #include <platform/nxp/k32w/k32w0/DiagnosticDataProviderImpl.h>
 
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
 #include <lwip/tcpip.h>
+#endif
 
 #include <openthread/platform/entropy.h>
 
@@ -130,6 +132,11 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetBootReason(BootReasonType & bootReason
     }
 
     return err;
+}
+
+DiagnosticDataProvider & GetDiagnosticDataProviderImpl()
+{
+    return DiagnosticDataProviderImpl::GetDefaultInstance();
 }
 
 } // namespace DeviceLayer

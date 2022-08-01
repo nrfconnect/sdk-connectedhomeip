@@ -55,8 +55,12 @@ bool LockEndpoint::GetUser(uint16_t userIndex, EmberAfPluginDoorLockUserInfo & u
     user.userUniqueId   = userInDb.userUniqueId;
     user.userType       = userInDb.userType;
     user.credentialRule = userInDb.credentialRule;
-    user.createdBy      = userInDb.createdBy;
-    user.lastModifiedBy = userInDb.lastModifiedBy;
+    // So far there's no way to actually create the credential outside the matter, so here we always set the creation/modification
+    // source to Matter
+    user.creationSource     = DlAssetSource::kMatterIM;
+    user.createdBy          = userInDb.createdBy;
+    user.modificationSource = DlAssetSource::kMatterIM;
+    user.lastModifiedBy     = userInDb.lastModifiedBy;
 
     ChipLogDetail(Zcl,
                   "Found occupied user "
@@ -129,6 +133,30 @@ bool LockEndpoint::SetUser(uint16_t userIndex, chip::FabricIndex creator, chip::
     return true;
 }
 
+DlDoorState LockEndpoint::GetDoorState() const
+{
+    return mDoorState;
+}
+
+bool LockEndpoint::SetDoorState(DlDoorState newState)
+{
+    if (mDoorState != newState)
+    {
+        ChipLogProgress(Zcl, "Changing the door state to: %d [endpointId=%d,previousState=%d]", to_underlying(newState),
+                        mEndpointId, to_underlying(mDoorState));
+
+        mDoorState = newState;
+        return DoorLockServer::Instance().SetDoorState(mEndpointId, mDoorState);
+    }
+    return true;
+}
+
+bool LockEndpoint::SendLockAlarm(DlAlarmCode alarmCode) const
+{
+    ChipLogProgress(Zcl, "Sending the LockAlarm event [endpointId=%d,alarmCode=%u]", mEndpointId, to_underlying(alarmCode));
+    return DoorLockServer::Instance().SendLockAlarmEvent(mEndpointId, alarmCode);
+}
+
 bool LockEndpoint::GetCredential(uint16_t credentialIndex, DlCredentialType credentialType,
                                  EmberAfPluginDoorLockCredentialInfo & credential) const
 {
@@ -151,8 +179,12 @@ bool LockEndpoint::GetCredential(uint16_t credentialIndex, DlCredentialType cred
     }
     credential.credentialType = credentialInStorage.credentialType;
     credential.credentialData = chip::ByteSpan(credentialInStorage.credentialData, credentialInStorage.credentialDataSize);
-    credential.createdBy      = credentialInStorage.createdBy;
-    credential.lastModifiedBy = credentialInStorage.modifiedBy;
+    // So far there's no way to actually create the credential outside the matter, so here we always set the creation/modification
+    // source to Matter
+    credential.creationSource     = DlAssetSource::kMatterIM;
+    credential.createdBy          = credentialInStorage.createdBy;
+    credential.modificationSource = DlAssetSource::kMatterIM;
+    credential.lastModifiedBy     = credentialInStorage.modifiedBy;
 
     ChipLogDetail(Zcl, "Found occupied credential [endpoint=%d,index=%u,type=%u,dataSize=%u,createdBy=%u,modifiedBy=%u]",
                   mEndpointId, credentialIndex, to_underlying(credential.credentialType),
@@ -294,6 +326,40 @@ DlStatus LockEndpoint::SetSchedule(uint8_t yearDayIndex, uint16_t userIndex, DlS
     return DlStatus::kSuccess;
 }
 
+DlStatus LockEndpoint::GetSchedule(uint8_t holidayIndex, EmberAfPluginDoorLockHolidaySchedule & schedule)
+{
+    if (0 == holidayIndex || holidayIndex > mHolidaySchedules.size())
+    {
+        return DlStatus::kFailure;
+    }
+
+    const auto & scheduleInStorage = mHolidaySchedules[holidayIndex - 1];
+    if (DlScheduleStatus::kAvailable == scheduleInStorage.status)
+    {
+        return DlStatus::kNotFound;
+    }
+
+    schedule = scheduleInStorage.schedule;
+    return DlStatus::kSuccess;
+}
+
+DlStatus LockEndpoint::SetSchedule(uint8_t holidayIndex, DlScheduleStatus status, uint32_t localStartTime, uint32_t localEndTime,
+                                   DlOperatingMode operatingMode)
+{
+    if (0 == holidayIndex || holidayIndex > mHolidaySchedules.size())
+    {
+        return DlStatus::kFailure;
+    }
+
+    auto & scheduleInStorage                  = mHolidaySchedules[holidayIndex - 1];
+    scheduleInStorage.schedule.localStartTime = localStartTime;
+    scheduleInStorage.schedule.localEndTime   = localEndTime;
+    scheduleInStorage.schedule.operatingMode  = operatingMode;
+    scheduleInStorage.status                  = status;
+
+    return DlStatus::kSuccess;
+}
+
 bool LockEndpoint::setLockState(DlLockState lockState, const Optional<chip::ByteSpan> & pin, DlOperationError & err)
 {
     if (!pin.HasValue())
@@ -304,33 +370,131 @@ bool LockEndpoint::setLockState(DlLockState lockState, const Optional<chip::Byte
         return true;
     }
 
-    // Check the PIN code
-    for (const auto & pinCredential : mLockCredentials)
+    // Find the credential so we can make sure it is not absent right away
+    auto credential = std::find_if(mLockCredentials.begin(), mLockCredentials.end(), [&pin](const LockCredentialInfo & c) {
+        return (c.credentialType == DlCredentialType::kPin && c.status != DlCredentialStatus::kAvailable) &&
+            chip::ByteSpan{ c.credentialData, c.credentialDataSize }.data_equal(pin.Value());
+    });
+    if (credential == mLockCredentials.end())
     {
-        if (pinCredential.credentialType != DlCredentialType::kPin || pinCredential.status == DlCredentialStatus::kAvailable)
-        {
-            continue;
-        }
+        ChipLogDetail(Zcl,
+                      "Lock App: specified PIN code was not found in the database, ignoring command to set lock state to \"%s\" "
+                      "[endpointId=%d]",
+                      lockStateToString(lockState), mEndpointId);
 
-        chip::ByteSpan credentialData(pinCredential.credentialData, pinCredential.credentialDataSize);
-        if (credentialData.data_equal(pin.Value()))
-        {
-            ChipLogDetail(
-                Zcl, "Lock App: specified PIN code was found in the database, setting door lock state to \"%s\" [endpointId=%d]",
-                lockStateToString(lockState), mEndpointId);
+        err = DlOperationError::kInvalidCredential;
+        return false;
+    }
 
-            mLockState = lockState;
-            return true;
+    // Find a user that correspond to this credential
+    auto credentialIndex = static_cast<unsigned>(credential - mLockCredentials.begin());
+    auto user = std::find_if(mLockUsers.begin(), mLockUsers.end(), [credential, credentialIndex](const LockUserInfo & u) {
+        return std::any_of(u.credentials.begin(), u.credentials.end(), [&credential, credentialIndex](const DlCredential & c) {
+            return c.CredentialIndex == credentialIndex && c.CredentialType == to_underlying(credential->credentialType);
+        });
+    });
+    if (user == mLockUsers.end())
+    {
+        ChipLogDetail(Zcl,
+                      "Lock App: specified PIN code was found in the database, but the lock user is not associated with it "
+                      "[endpointId=%d,credentialIndex=%u]",
+                      mEndpointId, credentialIndex);
+    }
+
+    auto userIndex = static_cast<uint8_t>(user - mLockUsers.begin());
+
+    // Check if schedules affect the user
+    if ((user->userType == DlUserType::kScheduleRestrictedUser || user->userType == DlUserType::kWeekDayScheduleUser) &&
+        !weekDayScheduleInAction(userIndex))
+    {
+        if ((user->userType == DlUserType::kScheduleRestrictedUser || user->userType == DlUserType::kYearDayScheduleUser) &&
+            !yearDayScheduleInAction(userIndex))
+        {
+            ChipLogDetail(Zcl,
+                          "Lock App: associated user is not allowed to operate the lock due to schedules"
+                          "[endpointId=%d,userIndex=%u]",
+                          mEndpointId, userIndex);
+            err = DlOperationError::kRestricted;
+            return false;
         }
     }
 
-    ChipLogDetail(Zcl,
-                  "Lock App: specified PIN code was not found in the database, ignoring command to set lock state to \"%s\" "
-                  "[endpointId=%d]",
-                  lockStateToString(lockState), mEndpointId);
+    ChipLogDetail(
+        Zcl,
+        "Lock App: specified PIN code was found in the database, setting door lock state to \"%s\" [endpointId=%d,userIndex=%u]",
+        lockStateToString(lockState), mEndpointId, userIndex);
 
-    err = DlOperationError::kInvalidCredential;
-    return false;
+    mLockState = lockState;
+    return true;
+}
+
+bool LockEndpoint::weekDayScheduleInAction(uint16_t userIndex) const
+{
+    const auto & user = mLockUsers[userIndex];
+    if (user.userType != DlUserType::kScheduleRestrictedUser && user.userType != DlUserType::kWeekDayScheduleUser)
+    {
+        return true;
+    }
+
+    chip::System::Clock::Milliseconds64 cTMs;
+    auto chipError = chip::System::SystemClock().GetClock_RealTimeMS(cTMs);
+    if (chipError != CHIP_NO_ERROR)
+    {
+        ChipLogError(Zcl, "Lock App: unable to get current time to check user schedules [endpointId=%d,error=%d (%s)]", mEndpointId,
+                     chipError.AsInteger(), chipError.AsString());
+        return false;
+    }
+    time_t unixEpoch = std::chrono::duration_cast<chip::System::Clock::Seconds32>(cTMs).count();
+
+    tm calendarTime{};
+    localtime_r(&unixEpoch, &calendarTime);
+
+    auto currentTime =
+        calendarTime.tm_hour * chip::kSecondsPerHour + calendarTime.tm_min * chip::kSecondsPerMinute + calendarTime.tm_sec;
+
+    // Second, check the week day schedules.
+    return std::any_of(
+        mWeekDaySchedules[userIndex].begin(), mWeekDaySchedules[userIndex].end(),
+        [currentTime, calendarTime](const WeekDaysScheduleInfo & s) {
+            auto startTime = s.schedule.startHour * chip::kSecondsPerHour + s.schedule.startMinute * chip::kSecondsPerMinute;
+            auto endTime   = s.schedule.endHour * chip::kSecondsPerHour + s.schedule.endMinute * chip::kSecondsPerMinute;
+            return s.status == DlScheduleStatus::kOccupied && (to_underlying(s.schedule.daysMask) & (1 << calendarTime.tm_wday)) &&
+                startTime <= currentTime && currentTime <= endTime;
+        });
+}
+
+bool LockEndpoint::yearDayScheduleInAction(uint16_t userIndex) const
+{
+    const auto & user = mLockUsers[userIndex];
+    if (user.userType != DlUserType::kScheduleRestrictedUser && user.userType != DlUserType::kYearDayScheduleUser)
+    {
+        return true;
+    }
+
+    chip::System::Clock::Milliseconds64 cTMs;
+    auto chipError = chip::System::SystemClock().GetClock_RealTimeMS(cTMs);
+    if (chipError != CHIP_NO_ERROR)
+    {
+        ChipLogError(Zcl, "Lock App: unable to get current time to check user schedules [endpointId=%d,error=%d (%s)]", mEndpointId,
+                     chipError.AsInteger(), chipError.AsString());
+        return false;
+    }
+    auto unixEpoch     = std::chrono::duration_cast<chip::System::Clock::Seconds32>(cTMs).count();
+    uint32_t chipEpoch = 0;
+    if (!chip::UnixEpochToChipEpochTime(unixEpoch, chipEpoch))
+    {
+        ChipLogError(Zcl,
+                     "Lock App: unable to convert Unix Epoch time to Matter Epoch Time to check user schedules "
+                     "[endpointId=%d,userIndex=%d]",
+                     mEndpointId, userIndex);
+        return false;
+    }
+
+    return std::any_of(mYearDaySchedules[userIndex].begin(), mYearDaySchedules[userIndex].end(),
+                       [chipEpoch](const YearDayScheduleInfo & sch) {
+                           return sch.status == DlScheduleStatus::kOccupied && sch.schedule.localStartTime <= chipEpoch &&
+                               chipEpoch <= sch.schedule.localEndTime;
+                       });
 }
 
 const char * LockEndpoint::lockStateToString(DlLockState lockState) const
@@ -343,6 +507,8 @@ const char * LockEndpoint::lockStateToString(DlLockState lockState) const
         return "Locked";
     case DlLockState::kUnlocked:
         return "Unlocked";
+    case DlLockState::kUnknownEnumValue:
+        break;
     }
 
     return "Unknown";

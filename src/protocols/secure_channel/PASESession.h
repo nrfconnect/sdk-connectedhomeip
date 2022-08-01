@@ -49,9 +49,6 @@ extern const char * kSpake2pR2ISessionInfo;
 
 constexpr uint16_t kPBKDFParamRandomNumberSize = 32;
 
-constexpr uint32_t kSetupPINCodeMaximumValue   = 99999998;
-constexpr uint32_t kSetupPINCodeUndefinedValue = 0;
-
 using namespace Crypto;
 
 struct PASESessionSerialized;
@@ -101,7 +98,7 @@ public:
      * @return CHIP_ERROR     The result of initialization
      */
     CHIP_ERROR WaitForPairing(SessionManager & sessionManager, const Spake2pVerifier & verifier, uint32_t pbkdf2IterCount,
-                              const ByteSpan & salt, Optional<ReliableMessageProtocolConfig> mrpConfig,
+                              const ByteSpan & salt, Optional<ReliableMessageProtocolConfig> mrpLocalConfig,
                               SessionEstablishmentDelegate * delegate);
 
     /**
@@ -118,8 +115,9 @@ public:
      *
      * @return CHIP_ERROR      The result of initialization
      */
-    CHIP_ERROR Pair(SessionManager & sessionManager, uint32_t peerSetUpPINCode, Optional<ReliableMessageProtocolConfig> mrpConfig,
-                    Messaging::ExchangeContext * exchangeCtxt, SessionEstablishmentDelegate * delegate);
+    CHIP_ERROR Pair(SessionManager & sessionManager, uint32_t peerSetUpPINCode,
+                    Optional<ReliableMessageProtocolConfig> mrpLocalConfig, Messaging::ExchangeContext * exchangeCtxt,
+                    SessionEstablishmentDelegate * delegate);
 
     /**
      * @brief
@@ -212,7 +210,8 @@ private:
 
     void Finish();
 
-    Protocols::SecureChannel::MsgType mNextExpectedMsg = Protocols::SecureChannel::MsgType::PASE_PakeError;
+    // mNextExpectedMsg is set when we are expecting a message.
+    Optional<Protocols::SecureChannel::MsgType> mNextExpectedMsg;
 
 #ifdef ENABLE_HSM_SPAKE
     Spake2pHSM_P256_SHA256_HKDF_HMAC mSpake2p;

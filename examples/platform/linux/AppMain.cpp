@@ -41,6 +41,8 @@
 #include <platform/CommissionableDataProvider.h>
 #include <platform/DiagnosticDataProvider.h>
 
+#include <DeviceInfoProviderImpl.h>
+
 #if CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
 #include "CommissionerMain.h"
 #include <ControllerShellCommands.h>
@@ -61,8 +63,13 @@
 #endif
 
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
+#include "TraceDecoder.h"
 #include "TraceHandlers.h"
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
+
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
+#include <app/clusters/ota-requestor/OTATestEventTriggerDelegate.h>
+#endif
 
 #include <signal.h>
 
@@ -96,9 +103,7 @@ namespace {
 // To hold SPAKE2+ verifier, discriminator, passcode
 LinuxCommissionableDataProvider gCommissionableDataProvider;
 
-#if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
-chip::trace::TraceStream * gTraceStream = nullptr;
-#endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
+chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
 
 void EventHandler(const DeviceLayer::ChipDeviceEvent * event, intptr_t arg)
 {
@@ -109,69 +114,9 @@ void EventHandler(const DeviceLayer::ChipDeviceEvent * event, intptr_t arg)
     }
 }
 
-// when the shell is enabled, don't intercept signals since it prevents the user from
-// using expected commands like CTRL-C to quit the application. (see issue #17845)
-#if !defined(ENABLE_CHIP_SHELL)
-void OnSignalHandler(int signum)
-{
-    ChipLogDetail(DeviceLayer, "Caught signal %d", signum);
-
-    // The BootReason attribute SHALL indicate the reason for the Node’s most recent boot, the real usecase
-    // for this attribute is embedded system. In Linux simulation, we use different signals to tell the current
-    // running process to terminate with different reasons.
-    BootReasonType bootReason = BootReasonType::kUnspecified;
-    switch (signum)
-    {
-    case SIGVTALRM:
-        bootReason = BootReasonType::kPowerOnReboot;
-        break;
-    case SIGALRM:
-        bootReason = BootReasonType::kBrownOutReset;
-        break;
-    case SIGILL:
-        bootReason = BootReasonType::kSoftwareWatchdogReset;
-        break;
-    case SIGTRAP:
-        bootReason = BootReasonType::kHardwareWatchdogReset;
-        break;
-    case SIGIO:
-        bootReason = BootReasonType::kSoftwareUpdateCompleted;
-        break;
-    case SIGINT:
-        bootReason = BootReasonType::kSoftwareReset;
-        break;
-    default:
-        IgnoreUnusedVariable(bootReason);
-        ChipLogError(NotSpecified, "Unhandled signal: Should never happens");
-        chipDie();
-        break;
-    }
-
-    Server::GetInstance().DispatchShutDownAndStopEventLoop();
-}
-
-void SetupSignalHandlers()
-{
-    // sigaction is not used here because Tsan interceptors seems to
-    // never dispatch the signals on darwin.
-    signal(SIGALRM, OnSignalHandler);
-    signal(SIGVTALRM, OnSignalHandler);
-    signal(SIGILL, OnSignalHandler);
-    signal(SIGTRAP, OnSignalHandler);
-    signal(SIGTERM, OnSignalHandler);
-    signal(SIGIO, OnSignalHandler);
-    signal(SIGINT, OnSignalHandler);
-}
-#endif // !defined(ENABLE_CHIP_SHELL)
-
 void Cleanup()
 {
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
-    if (gTraceStream != nullptr)
-    {
-        delete gTraceStream;
-        gTraceStream = nullptr;
-    }
     chip::trace::DeInitTrace();
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
 
@@ -241,7 +186,12 @@ int ChipLinuxAppInit(int argc, char * const argv[], OptionSet * customOptions)
                                                    LinuxDeviceOptions::GetInstance());
     SuccessOrExit(err);
 
-    err = GetSetupPayload(LinuxDeviceOptions::GetInstance().payload, rendezvousFlags);
+    if (LinuxDeviceOptions::GetInstance().payload.rendezvousInformation.HasAny())
+    {
+        rendezvousFlags = LinuxDeviceOptions::GetInstance().payload.rendezvousInformation;
+    }
+
+    err = GetPayloadContents(LinuxDeviceOptions::GetInstance().payload, rendezvousFlags);
     SuccessOrExit(err);
 
     ConfigurationMgr().LogDeviceConfig();
@@ -254,7 +204,7 @@ int ChipLinuxAppInit(int argc, char * const argv[], OptionSet * customOptions)
     {
         // For testing of manual pairing code with custom commissioning flow
         ChipLogProgress(NotSpecified, "==== Onboarding payload for Custom Commissioning Flows ====");
-        err = GetSetupPayload(LinuxDeviceOptions::GetInstance().payload, rendezvousFlags);
+        err = GetPayloadContents(LinuxDeviceOptions::GetInstance().payload, rendezvousFlags);
         SuccessOrExit(err);
 
         LinuxDeviceOptions::GetInstance().payload.commissioningFlow = chip::CommissioningFlow::kCustom;
@@ -273,17 +223,25 @@ int ChipLinuxAppInit(int argc, char * const argv[], OptionSet * customOptions)
     if (LinuxDeviceOptions::GetInstance().traceStreamFilename.HasValue())
     {
         const char * traceFilename = LinuxDeviceOptions::GetInstance().traceStreamFilename.Value().c_str();
-        gTraceStream               = new chip::trace::TraceStreamFile(traceFilename);
+        auto traceStream           = new chip::trace::TraceStreamFile(traceFilename);
+        chip::trace::AddTraceStream(traceStream);
     }
     else if (LinuxDeviceOptions::GetInstance().traceStreamToLogEnabled)
     {
-        gTraceStream = new chip::trace::TraceStreamLog();
+        auto traceStream = new chip::trace::TraceStreamLog();
+        chip::trace::AddTraceStream(traceStream);
+    }
+
+    if (LinuxDeviceOptions::GetInstance().traceStreamDecodeEnabled)
+    {
+        chip::trace::TraceDecoderOptions options;
+        options.mEnableProtocolInteractionModelResponse = false;
+
+        chip::trace::TraceDecoder * decoder = new chip::trace::TraceDecoder();
+        decoder->SetOptions(options);
+        chip::trace::AddTraceStream(decoder);
     }
     chip::trace::InitTrace();
-    if (gTraceStream != nullptr)
-    {
-        chip::trace::SetTraceStream(gTraceStream);
-    }
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
 
 #if CONFIG_NETWORK_LAYER_BLE
@@ -340,13 +298,28 @@ void ChipLinuxAppMainLoop()
     // use a different service port to make testing possible with other sample devices running on same host
     initParams.operationalServicePort        = LinuxDeviceOptions::GetInstance().securedDevicePort;
     initParams.userDirectedCommissioningPort = LinuxDeviceOptions::GetInstance().unsecuredCommissionerPort;
-    ;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
 
     initParams.interfaceId = LinuxDeviceOptions::GetInstance().interfaceId;
 
+    if (LinuxDeviceOptions::GetInstance().mCSRResponseOptions.csrExistingKeyPair)
+    {
+        LinuxDeviceOptions::GetInstance().mCSRResponseOptions.badCsrOperationalKeyStoreForTest.Init(
+            initParams.persistentStorageDelegate);
+        initParams.operationalKeystore = &LinuxDeviceOptions::GetInstance().mCSRResponseOptions.badCsrOperationalKeyStoreForTest;
+    }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
+    static OTATestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(
+        LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey) };
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+#endif
+
     // Init ZCL Data Model and CHIP App Server
     Server::GetInstance().Init(initParams);
+
+    gExampleDeviceInfoProvider.SetStorageDelegate(&chip::Server::GetInstance().GetPersistentStorage());
+    DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
 
     // Now that the server has started and we are done with our startup logging,
     // log our discovery/onboarding information again so it's not lost in the
@@ -367,10 +340,6 @@ void ChipLinuxAppMainLoop()
     Shell::RegisterControllerCommands();
 #endif // defined(ENABLE_CHIP_SHELL)
 #endif // CHIP_DEVICE_CONFIG_ENABLE_BOTH_COMMISSIONER_AND_COMMISSIONEE
-
-#if !defined(ENABLE_CHIP_SHELL)
-    SetupSignalHandlers();
-#endif // !defined(ENABLE_CHIP_SHELL)
 
     ApplicationInit();
 

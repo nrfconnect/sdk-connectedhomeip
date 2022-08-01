@@ -29,40 +29,41 @@ tests:
                 value: nodeId
 
     - label: "Reads constraints of attribute: MeasuredValue"
+      PICS: RH.S.A0000
       command: "readAttribute"
       attribute: "measured value"
       response:
           constraints:
-              type: int16
+              type: int16u
               minValue: 0
               maxValue: 10000
 
     - label: "Reads constraints of attribute: MinMeasuredValue"
+      PICS: RH.S.A0001
       command: "readAttribute"
       attribute: "min measured value"
       response:
           constraints:
-              type: int16
+              type: int16u
               minValue: 0
               maxValue: 9999
 
-    #Issue 14703
     - label: "Reads constraints of attribute: MaxMeasuredValue"
-      PICS: PICS_SKIP_SAMPLE_APP
+      PICS: RH.S.A0002
       command: "readAttribute"
       attribute: "max measured value"
       response:
           constraints:
-              type: int16
+              type: int16u
               minValue: 1
               maxValue: 10000
 
     - label: "Reads constraints of attribute: Tolerance"
-      optional: true
+      PICS: RH.S.A0003
       command: "readAttribute"
       attribute: "tolerance"
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: 0
               maxValue: 2048

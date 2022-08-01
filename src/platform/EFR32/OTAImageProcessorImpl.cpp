@@ -18,11 +18,14 @@
 
 #include "OTAImageProcessorImpl.h"
 #include <app/clusters/ota-requestor/OTADownloader.h>
+#include <app/clusters/ota-requestor/OTARequestorInterface.h>
 
 extern "C" {
 #include "platform/bootloader/api/btl_interface.h"
 #include "platform/emlib/inc/em_bus.h" // For CORE_CRITICAL_SECTION
 }
+
+#include "EFR32Config.h"
 
 /// No error, operation OK
 #define SL_BOOTLOADER_OK 0L
@@ -73,6 +76,38 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & block)
     }
 
     DeviceLayer::PlatformMgr().ScheduleWork(HandleProcessBlock, reinterpret_cast<intptr_t>(this));
+    return CHIP_NO_ERROR;
+}
+
+bool OTAImageProcessorImpl::IsFirstImageRun()
+{
+    OTARequestorInterface * requestor = chip::GetRequestorInstance();
+    if (requestor == nullptr)
+    {
+        return false;
+    }
+
+    return requestor->GetCurrentUpdateState() == OTARequestorInterface::OTAUpdateStateEnum::kApplying;
+}
+
+CHIP_ERROR OTAImageProcessorImpl::ConfirmCurrentImage()
+{
+    OTARequestorInterface * requestor = chip::GetRequestorInstance();
+    if (requestor == nullptr)
+    {
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    uint32_t currentVersion;
+    uint32_t targetVersion = requestor->GetTargetVersion();
+    ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetSoftwareVersion(currentVersion));
+    if (currentVersion != targetVersion)
+    {
+        ChipLogError(SoftwareUpdate, "Current software version = %" PRIu32 ", expected software version = %" PRIu32, currentVersion,
+                     targetVersion);
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
+
     return CHIP_NO_ERROR;
 }
 
@@ -148,11 +183,14 @@ void OTAImageProcessorImpl::HandleApply(intptr_t context)
 
     ChipLogProgress(SoftwareUpdate, "OTAImageProcessorImpl::HandleApply()");
 
-    CORE_CRITICAL_SECTION(err = bootloader_verifyImage(mSlotId, NULL);)
+    // Force KVS to store pending keys such as data from StoreCurrentUpdateInfo()
+    chip::DeviceLayer::PersistedStorage::KeyValueStoreMgrImpl().ForceKeyMapSave();
 
+    CORE_CRITICAL_SECTION(err = bootloader_verifyImage(mSlotId, NULL);)
     if (err != SL_BOOTLOADER_OK)
     {
         ChipLogError(SoftwareUpdate, "ERROR: bootloader_verifyImage() error %ld", err);
+
         return;
     }
 
@@ -160,6 +198,7 @@ void OTAImageProcessorImpl::HandleApply(intptr_t context)
     if (err != SL_BOOTLOADER_OK)
     {
         ChipLogError(SoftwareUpdate, "ERROR: bootloader_setImageToBootload() error %ld", err);
+
         return;
     }
 

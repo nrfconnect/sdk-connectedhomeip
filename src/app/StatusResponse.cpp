@@ -37,14 +37,14 @@ CHIP_ERROR StatusResponse::Send(Protocols::InteractionModel::Status aStatus, Mes
     response.Status(aStatus);
     ReturnErrorOnFailure(response.GetError());
     ReturnErrorOnFailure(writer.Finalize(&msgBuf));
-    apExchangeContext->SetResponseTimeout(kImMessageTimeout);
+    apExchangeContext->UseSuggestedResponseTimeout(app::kExpectedIMProcessingTime);
     ReturnErrorOnFailure(apExchangeContext->SendMessage(Protocols::InteractionModel::MsgType::StatusResponse, std::move(msgBuf),
                                                         aExpectResponse ? Messaging::SendMessageFlags::kExpectResponse
                                                                         : Messaging::SendMessageFlags::kNone));
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR StatusResponse::ProcessStatusResponse(System::PacketBufferHandle && aPayload)
+CHIP_ERROR StatusResponse::ProcessStatusResponse(System::PacketBufferHandle && aPayload, CHIP_ERROR & aStatusError)
 {
     StatusResponseMessage::Parser response;
     System::PacketBufferTLVReader reader;
@@ -59,12 +59,8 @@ CHIP_ERROR StatusResponse::ProcessStatusResponse(System::PacketBufferHandle && a
                     ChipLogValueIMStatus(status.mStatus));
     ReturnErrorOnFailure(response.ExitContainer());
 
-    if (status.mStatus == Protocols::InteractionModel::Status::Success)
-    {
-        return CHIP_NO_ERROR;
-    }
-
-    return status.ToChipError();
+    aStatusError = status.ToChipError();
+    return CHIP_NO_ERROR;
 }
 } // namespace app
 } // namespace chip

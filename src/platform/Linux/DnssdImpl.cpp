@@ -328,6 +328,8 @@ CHIP_ERROR MdnsAvahi::Init(DnssdAsyncReturnCallback initCallback, DnssdAsyncRetu
     CHIP_ERROR error = CHIP_NO_ERROR;
     int avahiError   = 0;
 
+    Shutdown();
+
     VerifyOrExit(initCallback != nullptr, error = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(errorCallback != nullptr, error = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(mClient == nullptr && mGroup == nullptr, error = CHIP_ERROR_INCORRECT_STATE);
@@ -342,7 +344,7 @@ exit:
     return error;
 }
 
-CHIP_ERROR MdnsAvahi::Shutdown()
+void MdnsAvahi::Shutdown()
 {
     if (mGroup)
     {
@@ -354,7 +356,6 @@ CHIP_ERROR MdnsAvahi::Shutdown()
         avahi_client_free(mClient);
         mClient = nullptr;
     }
-    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR MdnsAvahi::SetHostname(const char * hostname)
@@ -649,9 +650,10 @@ void MdnsAvahi::HandleBrowse(AvahiServiceBrowser * browser, AvahiIfIndex interfa
         ChipLogProgress(DeviceLayer, "Avahi browse: remove");
         if (strcmp("local", domain) == 0)
         {
-            std::remove_if(context->mServices.begin(), context->mServices.end(), [name, type](const DnssdService & service) {
-                return strcmp(name, service.mName) == 0 && type == GetFullType(service.mType, service.mProtocol);
-            });
+            context->mServices.erase(
+                std::remove_if(context->mServices.begin(), context->mServices.end(), [name, type](const DnssdService & service) {
+                    return strcmp(name, service.mName) == 0 && type == GetFullType(service.mType, service.mProtocol);
+                }));
         }
         break;
     case AVAHI_BROWSER_CACHE_EXHAUSTED:
@@ -729,7 +731,6 @@ void MdnsAvahi::HandleResolve(AvahiServiceResolver * resolver, AvahiIfIndex inte
     case AVAHI_RESOLVER_FOUND:
         DnssdService result = {};
 
-        result.mAddress.SetValue(chip::Inet::IPAddress());
         ChipLogError(DeviceLayer, "Avahi resolve found");
 
         Platform::CopyString(result.mName, name);
@@ -753,6 +754,7 @@ void MdnsAvahi::HandleResolve(AvahiServiceResolver * resolver, AvahiIfIndex inte
         }
 
         CHIP_ERROR result_err = CHIP_ERROR_INVALID_ADDRESS;
+        chip::Inet::IPAddress ipAddress; // Will be set of result_err is set to CHIP_NO_ERROR
         if (address)
         {
             switch (address->proto)
@@ -762,7 +764,7 @@ void MdnsAvahi::HandleResolve(AvahiServiceResolver * resolver, AvahiIfIndex inte
                 struct in_addr addr4;
 
                 memcpy(&addr4, &(address->data.ipv4), sizeof(addr4));
-                result.mAddress.SetValue(chip::Inet::IPAddress(addr4));
+                ipAddress  = chip::Inet::IPAddress(addr4);
                 result_err = CHIP_NO_ERROR;
 #else
                 ChipLogError(Discovery, "Ignoring IPv4 mDNS address.");
@@ -772,7 +774,7 @@ void MdnsAvahi::HandleResolve(AvahiServiceResolver * resolver, AvahiIfIndex inte
                 struct in6_addr addr6;
 
                 memcpy(&addr6, &(address->data.ipv6), sizeof(addr6));
-                result.mAddress.SetValue(chip::Inet::IPAddress(addr6));
+                ipAddress  = chip::Inet::IPAddress(addr6);
                 result_err = CHIP_NO_ERROR;
                 break;
             default:
@@ -802,7 +804,7 @@ void MdnsAvahi::HandleResolve(AvahiServiceResolver * resolver, AvahiIfIndex inte
 
         if (result_err == CHIP_NO_ERROR)
         {
-            context->mCallback(context->mContext, &result, Span<Inet::IPAddress>(), CHIP_NO_ERROR);
+            context->mCallback(context->mContext, &result, Span<Inet::IPAddress>(&ipAddress, 1), CHIP_NO_ERROR);
         }
         else
         {
@@ -820,9 +822,9 @@ CHIP_ERROR ChipDnssdInit(DnssdAsyncReturnCallback initCallback, DnssdAsyncReturn
     return MdnsAvahi::GetInstance().Init(initCallback, errorCallback, context);
 }
 
-CHIP_ERROR ChipDnssdShutdown()
+void ChipDnssdShutdown()
 {
-    return MdnsAvahi::GetInstance().Shutdown();
+    MdnsAvahi::GetInstance().Shutdown();
 }
 
 CHIP_ERROR ChipDnssdPublishService(const DnssdService * service, DnssdPublishCallback callback, void * context)

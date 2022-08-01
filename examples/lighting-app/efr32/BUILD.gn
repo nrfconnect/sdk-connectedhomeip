@@ -58,9 +58,20 @@ declare_args() {
   sl_wfx_config_softap = false
   sl_wfx_config_scan = true
 
-  # Enables LCD Qr Code on supported devices
-  show_qr_code = true
+  # Disable LCD on supported devices
+  disable_lcd = false
+
+  # Argument to Disable IPv4 for wifi(rs911)
+  chip_enable_wifi_ipv4 = false
 }
+
+declare_args() {
+  # Enables LCD Qr Code on supported devices
+  show_qr_code = !disable_lcd
+}
+
+# qr code cannot be true if lcd is disabled
+assert(!(disable_lcd && show_qr_code))
 
 # Sanity check
 assert(!(chip_enable_wifi && chip_enable_openthread))
@@ -73,14 +84,17 @@ if (chip_enable_wifi) {
 # BRD4166A --> ThunderBoard Sense 2 (No LCD)
 if (efr32_board == "BRD4166A" || efr32_board == "BRD4180A") {
   show_qr_code = false
+  disable_lcd = true
 }
-
-# Enables LCD on supported devices
-lcd_on = show_qr_code
 
 # WiFi settings
 if (chip_enable_wifi) {
-  wifi_sdk_dir = "${chip_root}/third_party/efr32_sdk/repo/matter/wifi"
+  # disabling LCD for MG24 for wifi
+  if (efr32_board == "BRD4186A" || efr32_board == "BRD4187A") {
+    show_qr_code = false
+    disable_lcd = true
+  }
+  wifi_sdk_dir = "${chip_root}/third_party/silabs/matter_support/matter/wifi"
   efr32_lwip_defs = [ "LWIP_NETIF_API=1" ]
   efr32_lwip_defs += [
     "LWIP_IPV4=1",
@@ -93,7 +107,7 @@ if (chip_enable_wifi) {
 
   if (use_rs911x) {
     wiseconnect_sdk_root =
-        "${chip_root}/third_party/efr32_sdk/wiseconnect-wifi-bt-sdk"
+        "${chip_root}/third_party/silabs/wiseconnect-wifi-bt-sdk"
     import("${wifi_sdk_dir}/rs911x/rs911x.gni")
   } else {
     import("${wifi_sdk_dir}/wf200/wf200.gni")
@@ -178,6 +192,7 @@ efr32_executable("lighting_app") {
   deps = [
     ":sdk",
     "${chip_root}/examples/lighting-app/lighting-common",
+    "${chip_root}/examples/providers:device_info_provider",
     "${chip_root}/src/lib",
     "${chip_root}/src/setup_payload",
   ]
@@ -205,6 +220,10 @@ efr32_executable("lighting_app") {
   if (chip_enable_ota_requestor) {
     defines += [ "EFR32_OTA_ENABLED" ]
     sources += [ "${examples_plat_dir}/OTAConfig.cpp" ]
+  }
+
+  if (chip_enable_wifi_ipv4) {
+    defines += [ "CHIP_DEVICE_CONFIG_ENABLE_IPV4" ]
   }
 
   # WiFi Settings
@@ -236,7 +255,7 @@ efr32_executable("lighting_app") {
     }
   }
 
-  if (lcd_on) {
+  if (!disable_lcd) {
     sources += [ "${examples_plat_dir}/display/lcd.c" ]
     defines += [ "DISPLAY_ENABLED" ]
     if (show_qr_code) {
@@ -315,6 +334,11 @@ efr32_executable("lighting_app") {
       "-Wl,--defsym",
       "-Wl,SILABS_WIFI=1",
     ]
+  }
+
+  # Attestation Credentials
+  if (chip_build_platform_attestation_credentials_provider) {
+    deps += [ "${examples_plat_dir}:efr32-attestation-credentials" ]
   }
 
   output_dir = root_out_dir

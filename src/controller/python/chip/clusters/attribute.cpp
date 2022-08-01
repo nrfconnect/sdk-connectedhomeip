@@ -15,6 +15,7 @@
  *    limitations under the License.
  */
 
+#include "system/SystemClock.h"
 #include <cstdarg>
 #include <memory>
 #include <type_traits>
@@ -22,12 +23,15 @@
 #include <app/BufferedReadCallback.h>
 #include <app/ChunkedWriteCallback.h>
 #include <app/DeviceProxy.h>
+#include <app/InteractionModelEngine.h>
 #include <app/ReadClient.h>
 #include <app/WriteClient.h>
 #include <lib/support/CodeUtils.h>
 
 #include <cstdio>
 #include <lib/support/logging/CHIPLogging.h>
+
+#include <lib/core/Optional.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -70,6 +74,8 @@ using OnReadEventDataCallback           = void (*)(PyObject * appContext, chip::
                                          uint8_t timestampType, uint8_t * data, uint32_t dataLen,
                                          std::underlying_type_t<Protocols::InteractionModel::Status> imstatus);
 using OnSubscriptionEstablishedCallback = void (*)(PyObject * appContext, SubscriptionId subscriptionId);
+using OnResubscriptionAttemptedCallback = void (*)(PyObject * appContext, uint32_t aTerminationCause,
+                                                   uint32_t aNextResubscribeIntervalMsec);
 using OnReadErrorCallback               = void (*)(PyObject * appContext, uint32_t chiperror);
 using OnReadDoneCallback                = void (*)(PyObject * appContext);
 using OnReportBeginCallback             = void (*)(PyObject * appContext);
@@ -78,6 +84,7 @@ using OnReportEndCallback               = void (*)(PyObject * appContext);
 OnReadAttributeDataCallback gOnReadAttributeDataCallback             = nullptr;
 OnReadEventDataCallback gOnReadEventDataCallback                     = nullptr;
 OnSubscriptionEstablishedCallback gOnSubscriptionEstablishedCallback = nullptr;
+OnResubscriptionAttemptedCallback gOnResubscriptionAttemptedCallback = nullptr;
 OnReadErrorCallback gOnReadErrorCallback                             = nullptr;
 OnReadDoneCallback gOnReadDoneCallback                               = nullptr;
 OnReportBeginCallback gOnReportBeginCallback                         = nullptr;
@@ -85,7 +92,7 @@ OnReportBeginCallback gOnReportEndCallback                           = nullptr;
 
 void PythonResubscribePolicy(uint32_t aNumCumulativeRetries, uint32_t & aNextSubscriptionIntervalMsec, bool & aShouldResubscribe)
 {
-    aShouldResubscribe = false;
+    aShouldResubscribe = true;
 }
 
 class ReadClientCallback : public ReadClient::Callback
@@ -139,6 +146,14 @@ public:
     void OnSubscriptionEstablished(SubscriptionId aSubscriptionId) override
     {
         gOnSubscriptionEstablishedCallback(mAppContext, aSubscriptionId);
+    }
+
+    CHIP_ERROR OnResubscriptionNeeded(ReadClient * apReadClient, CHIP_ERROR aTerminationCause) override
+    {
+        ReturnErrorOnFailure(ReadClient::Callback::OnResubscriptionNeeded(apReadClient, aTerminationCause));
+        gOnResubscriptionAttemptedCallback(mAppContext, aTerminationCause.AsInteger(),
+                                           apReadClient->ComputeTimeTillNextSubscription());
+        return CHIP_NO_ERROR;
     }
 
     void OnEventData(const EventHeader & aEventHeader, TLV::TLVReader * apData, const StatusIB * apStatus) override
@@ -203,7 +218,7 @@ public:
 
     void OnReportEnd() override { gOnReportEndCallback(mAppContext); }
 
-    void OnDone() override
+    void OnDone(ReadClient *) override
     {
         gOnReadDoneCallback(mAppContext);
 
@@ -233,7 +248,8 @@ struct __attribute__((packed)) PyReadAttributeParams
 
 // Encodes n attribute write requests, follows 3 * n arguments, in the (AttributeWritePath*=void *, uint8_t*, size_t) order.
 chip::ChipError::StorageType pychip_WriteClient_WriteAttributes(void * appContext, DeviceProxy * device,
-                                                                uint16_t timedWriteTimeoutMs, size_t n, ...);
+                                                                uint16_t timedWriteTimeoutMs, uint16_t interactionTimeoutMs,
+                                                                size_t n, ...);
 chip::ChipError::StorageType pychip_ReadClient_ReadAttributes(void * appContext, ReadClient ** pReadClient,
                                                               ReadClientCallback ** pCallback, DeviceProxy * device,
                                                               uint8_t * readParamsBuf, size_t n, size_t total, ...);
@@ -296,12 +312,14 @@ void pychip_WriteClient_InitCallbacks(OnWriteResponseCallback onWriteResponseCal
 void pychip_ReadClient_InitCallbacks(OnReadAttributeDataCallback onReadAttributeDataCallback,
                                      OnReadEventDataCallback onReadEventDataCallback,
                                      OnSubscriptionEstablishedCallback onSubscriptionEstablishedCallback,
+                                     OnResubscriptionAttemptedCallback onResubscriptionAttemptedCallback,
                                      OnReadErrorCallback onReadErrorCallback, OnReadDoneCallback onReadDoneCallback,
                                      OnReportBeginCallback onReportBeginCallback, OnReportEndCallback onReportEndCallback)
 {
     gOnReadAttributeDataCallback       = onReadAttributeDataCallback;
     gOnReadEventDataCallback           = onReadEventDataCallback;
     gOnSubscriptionEstablishedCallback = onSubscriptionEstablishedCallback;
+    gOnResubscriptionAttemptedCallback = onResubscriptionAttemptedCallback;
     gOnReadErrorCallback               = onReadErrorCallback;
     gOnReadDoneCallback                = onReadDoneCallback;
     gOnReportBeginCallback             = onReportBeginCallback;
@@ -309,7 +327,8 @@ void pychip_ReadClient_InitCallbacks(OnReadAttributeDataCallback onReadAttribute
 }
 
 chip::ChipError::StorageType pychip_WriteClient_WriteAttributes(void * appContext, DeviceProxy * device,
-                                                                uint16_t timedWriteTimeoutMs, size_t n, ...)
+                                                                uint16_t timedWriteTimeoutMs, uint16_t interactionTimeoutMs,
+                                                                size_t n, ...)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -321,7 +340,7 @@ chip::ChipError::StorageType pychip_WriteClient_WriteAttributes(void * appContex
     va_list args;
     va_start(args, n);
 
-    VerifyOrExit(device != nullptr && device->GetSecureSession().HasValue(), err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(device != nullptr && device->GetSecureSession().HasValue(), err = CHIP_ERROR_MISSING_SECURE_SESSION);
 
     {
         for (size_t i = 0; i < n; i++)
@@ -349,7 +368,9 @@ chip::ChipError::StorageType pychip_WriteClient_WriteAttributes(void * appContex
         }
     }
 
-    SuccessOrExit(err = client->SendWriteRequest(device->GetSecureSession().Value()));
+    SuccessOrExit(err = client->SendWriteRequest(device->GetSecureSession().Value(),
+                                                 interactionTimeoutMs != 0 ? System::Clock::Milliseconds32(interactionTimeoutMs)
+                                                                           : System::Clock::kZero));
 
     client.release();
     callback.release();
@@ -365,6 +386,12 @@ void pychip_ReadClient_Abort(ReadClient * apReadClient, ReadClientCallback * apC
     VerifyOrDie(apCallback != nullptr);
 
     delete apCallback;
+}
+
+void pychip_ReadClient_OverrideLivenessTimeout(ReadClient * pReadClient, uint32_t livenessTimeoutMs)
+{
+    VerifyOrDie(pReadClient != nullptr);
+    pReadClient->OverrideLivenessTimeout(System::Clock::Milliseconds32(livenessTimeoutMs));
 }
 
 chip::ChipError::StorageType pychip_ReadClient_Read(void * appContext, ReadClient ** pReadClient, ReadClientCallback ** pCallback,
@@ -448,9 +475,11 @@ chip::ChipError::StorageType pychip_ReadClient_Read(void * appContext, ReadClien
             params.mMinIntervalFloorSeconds   = pyParams.minInterval;
             params.mMaxIntervalCeilingSeconds = pyParams.maxInterval;
             params.mKeepSubscriptions         = pyParams.keepSubscriptions;
-            params.mResubscribePolicy         = PythonResubscribePolicy;
+
+            dataVersionFilters.release();
             attributePaths.release();
             eventPaths.release();
+
             err = readClient->SendAutoResubscribeRequest(std::move(params));
             SuccessOrExit(err);
         }

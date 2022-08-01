@@ -131,6 +131,12 @@ CHIP_ERROR ManualSetupPayloadParser::populatePayload(SetupPayload & outPayload)
         return result;
     }
 
+    // First digit of '8' or '9' would be invalid for v1 and would indicate new format (e.g. version 2)
+    if (chunk1 == 8 || chunk1 == 9)
+    {
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+
     bool isLongCode = ((chunk1 >> kManualSetupChunk1VidPidPresentBitPos) & 1) == 1;
     result          = CheckCodeLengthValidity(representationWithoutCheckDigit, isLongCode);
     if (result != CHIP_NO_ERROR)
@@ -144,10 +150,6 @@ CHIP_ERROR ManualSetupPayloadParser::populatePayload(SetupPayload & outPayload)
     uint32_t discriminator = ((chunk2 >> kManualSetupChunk2DiscriminatorLsbitsPos) & kDiscriminatorLsbitsMask);
     discriminator |= ((chunk1 >> kManualSetupChunk1DiscriminatorMsbitsPos) & kDiscriminatorMsbitsMask)
         << kManualSetupChunk2DiscriminatorLsbitsLength;
-
-    // Since manual code only contains upper msbits of discriminator, re-align
-    constexpr int kDiscriminatorShift = (kPayloadDiscriminatorFieldLengthInBits - kManualSetupDiscriminatorFieldLengthInBits);
-    discriminator <<= kDiscriminatorShift;
 
     constexpr uint32_t kPincodeMsbitsMask = (1 << kManualSetupChunk3PINCodeMsbitsLength) - 1;
     constexpr uint32_t kPincodeLsbitsMask = (1 << kManualSetupChunk2PINCodeLsbitsLength) - 1;
@@ -194,9 +196,8 @@ CHIP_ERROR ManualSetupPayloadParser::populatePayload(SetupPayload & outPayload)
     outPayload.commissioningFlow = isLongCode ? CommissioningFlow::kCustom : CommissioningFlow::kStandard;
     static_assert(kSetupPINCodeFieldLengthInBits <= 32, "Won't fit in uint32_t");
     outPayload.setUpPINCode = static_cast<uint32_t>(setUpPINCode);
-    static_assert(kManualSetupDiscriminatorFieldLengthInBits <= 16, "Won't fit in uint16_t");
-    outPayload.discriminator        = static_cast<uint16_t>(discriminator);
-    outPayload.isShortDiscriminator = true;
+    static_assert(kManualSetupDiscriminatorFieldLengthInBits <= 8, "Won't fit in uint8_t");
+    outPayload.discriminator.SetShortValue(static_cast<uint8_t>(discriminator));
 
     return result;
 }

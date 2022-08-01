@@ -69,16 +69,26 @@ private:
     void OnReportBegin() override;
     void OnReportEnd() override;
     void OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus) override;
-    void OnError(CHIP_ERROR aError) override { return mCallback.OnError(aError); }
+    void OnError(CHIP_ERROR aError) override
+    {
+        mBufferedList.clear();
+        return mCallback.OnError(aError);
+    }
+
     void OnEventData(const EventHeader & aEventHeader, TLV::TLVReader * apData, const StatusIB * apStatus) override
     {
         return mCallback.OnEventData(aEventHeader, apData, apStatus);
     }
 
-    void OnDone() override { return mCallback.OnDone(); }
+    void OnDone(ReadClient * apReadClient) override { return mCallback.OnDone(apReadClient); }
     void OnSubscriptionEstablished(SubscriptionId aSubscriptionId) override
     {
         mCallback.OnSubscriptionEstablished(aSubscriptionId);
+    }
+
+    CHIP_ERROR OnResubscriptionNeeded(ReadClient * apReadClient, CHIP_ERROR aTerminationCause) override
+    {
+        return mCallback.OnResubscriptionNeeded(apReadClient, aTerminationCause);
     }
 
     void OnDeallocatePaths(chip::app::ReadPrepareParams && aReadPrepareParams) override

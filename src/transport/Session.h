@@ -21,6 +21,7 @@
 #include <lib/core/PeerId.h>
 #include <lib/core/ScopedNodeId.h>
 #include <messaging/ReliableMessageProtocolConfig.h>
+#include <platform/LockTracker.h>
 #include <transport/SessionHolder.h>
 #include <transport/raw/PeerAddress.h>
 
@@ -55,27 +56,36 @@ public:
 
     void AddHolder(SessionHolder & holder)
     {
+        assertChipStackLockedByCurrentThread();
         VerifyOrDie(!holder.IsInList());
         mHolders.PushBack(&holder);
     }
 
     void RemoveHolder(SessionHolder & holder)
     {
+        assertChipStackLockedByCurrentThread();
         VerifyOrDie(mHolders.Contains(&holder));
         mHolders.Remove(&holder);
     }
 
-    // For types of sessions using reference counter, override these functions, otherwise leave it empty.
-    virtual void Retain() {}
-    virtual void Release() {}
+    virtual void Retain()  = 0;
+    virtual void Release() = 0;
 
-    virtual ScopedNodeId GetPeer() const                               = 0;
-    virtual ScopedNodeId GetLocalScopedNodeId() const                  = 0;
-    virtual Access::SubjectDescriptor GetSubjectDescriptor() const     = 0;
-    virtual bool RequireMRP() const                                    = 0;
-    virtual const ReliableMessageProtocolConfig & GetMRPConfig() const = 0;
-    virtual System::Clock::Timestamp GetMRPBaseTimeout()               = 0;
-    virtual System::Clock::Milliseconds32 GetAckTimeout() const        = 0;
+    virtual bool IsActiveSession() const = 0;
+
+    virtual ScopedNodeId GetPeer() const                                     = 0;
+    virtual ScopedNodeId GetLocalScopedNodeId() const                        = 0;
+    virtual Access::SubjectDescriptor GetSubjectDescriptor() const           = 0;
+    virtual bool RequireMRP() const                                          = 0;
+    virtual const ReliableMessageProtocolConfig & GetRemoteMRPConfig() const = 0;
+    virtual System::Clock::Timestamp GetMRPBaseTimeout()                     = 0;
+    virtual System::Clock::Milliseconds32 GetAckTimeout() const              = 0;
+
+    // Returns a suggested timeout value based on the round-trip time it takes for the peer at the other end of the session to
+    // receive a message, process it and send it back. This is computed based on the session type, the type of transport, sleepy
+    // characteristics of the target and a caller-provided value for the time it takes to process a message at the upper layer on
+    // the target For group sessions, this function will always return 0.
+    System::Clock::Timeout ComputeRoundTripTimeout(System::Clock::Timeout upperlayerProcessingTimeout);
 
     FabricIndex GetFabricIndex() const { return mFabricIndex; }
 
@@ -91,6 +101,18 @@ public:
 
     bool IsSecureSession() const { return GetSessionType() == SessionType::kSecure; }
 
+    void DispatchSessionEvent(SessionDelegate::Event event)
+    {
+        // Holders might remove themselves when notified.
+        auto holder = mHolders.begin();
+        while (holder != mHolders.end())
+        {
+            auto cur = holder;
+            ++holder;
+            cur->DispatchSessionEvent(event);
+        }
+    }
+
 protected:
     // This should be called by sub-classes at the very beginning of the destructor, before any data field is disposed, such that
     // the session is still functional during the callback.
@@ -99,14 +121,15 @@ protected:
         SessionHandle session(*this);
         while (!mHolders.Empty())
         {
-            mHolders.begin()->OnSessionReleased(); // OnSessionReleased must remove the item from the linked list
+            mHolders.begin()->SessionReleased(); // SessionReleased must remove the item from the linked list
         }
     }
 
     void SetFabricIndex(FabricIndex index) { mFabricIndex = index; }
 
-private:
     IntrusiveList<SessionHolder> mHolders;
+
+private:
     FabricIndex mFabricIndex = kUndefinedFabricIndex;
 };
 

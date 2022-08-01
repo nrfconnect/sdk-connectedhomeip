@@ -21,7 +21,7 @@
 #include "app/ConcreteAttributePath.h"
 #include "protocols/interaction_model/Constants.h"
 #include <app-common/zap-generated/cluster-objects.h>
-#include <app/AppBuildConfig.h>
+#include <app/AppConfig.h>
 #include <app/AttributeAccessInterface.h>
 #include <app/BufferedReadCallback.h>
 #include <app/CommandHandlerInterface.h>
@@ -34,6 +34,7 @@
 #include <functional>
 #include <lib/support/ErrorStr.h>
 #include <lib/support/TimeUtils.h>
+#include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <lib/support/UnitTestUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -64,7 +65,8 @@ constexpr EndpointId kTestEndpointId3 = 3;
 constexpr EndpointId kTestEndpointId4    = 4;
 constexpr EndpointId kTestEndpointId5    = 5;
 constexpr AttributeId kTestListAttribute = 6;
-constexpr AttributeId kTestBadAttribute  = 7; // Reading this attribute will return CHIP_NO_MEMORY but nothing is actually encoded.
+constexpr AttributeId kTestBadAttribute =
+    7; // Reading this attribute will return CHIP_ERROR_NO_MEMORY but nothing is actually encoded.
 
 class TestCommandInteraction
 {
@@ -128,7 +130,7 @@ public:
     void OnAttributeData(const app::ConcreteDataAttributePath & aPath, TLV::TLVReader * apData,
                          const app::StatusIB & aStatus) override;
 
-    void OnDone() override;
+    void OnDone(app::ReadClient * apReadClient) override;
 
     void OnReportEnd() override { mOnReportEnd = true; }
 
@@ -198,7 +200,7 @@ void TestReadCallback::OnAttributeData(const app::ConcreteDataAttributePath & aP
     mAttributeCount++;
 }
 
-void TestReadCallback::OnDone() {}
+void TestReadCallback::OnDone(app::ReadClient *) {}
 
 class TestMutableAttrAccess
 {
@@ -274,7 +276,7 @@ CHIP_ERROR TestAttrAccess::Read(const app::ConcreteReadAttributePath & aPath, ap
         });
     case kTestBadAttribute:
         // The "BadAttribute" is implemented by encoding a very large octet string, then the encode will always return
-        // CHIP_NO_MEMORY.
+        // CHIP_ERROR_NO_MEMORY.
         return aEncoder.EncodeList([](const auto & encoder) {
             return encoder.Encode(ByteSpan(sAnStringThatCanNeverFitIntoTheMTU, sizeof(sAnStringThatCanNeverFitIntoTheMTU)));
         });
@@ -295,7 +297,7 @@ public:
     void OnAttributeData(const app::ConcreteDataAttributePath & aPath, TLV::TLVReader * apData,
                          const app::StatusIB & aStatus) override;
 
-    void OnDone() override {}
+    void OnDone(app::ReadClient *) override {}
 
     void OnReportBegin() override { mAttributeCount = 0; }
 
@@ -917,10 +919,8 @@ nlTestSuite sSuite =
 
 int TestReadChunkingTests()
 {
-    TestContext gContext;
     gSuite = &sSuite;
-    nlTestRunner(&sSuite, &gContext);
-    return (nlTestRunnerStats(&sSuite));
+    return chip::ExecuteTestsWithContext<TestContext>(&sSuite);
 }
 
 CHIP_REGISTER_TEST_SUITE(TestReadChunkingTests)

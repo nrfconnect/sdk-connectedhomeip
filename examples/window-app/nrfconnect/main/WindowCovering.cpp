@@ -23,9 +23,9 @@
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/util/af.h>
-#include <logging/log.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <zephyr.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/zephyr.h>
 
 LOG_MODULE_DECLARE(app, CONFIG_MATTER_LOG_LEVEL);
 
@@ -33,8 +33,9 @@ using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
 using namespace chip::app::Clusters::WindowCovering;
 
-static k_timer sLiftTimer;
-static k_timer sTiltTimer;
+static const struct pwm_dt_spec sLiftPwmDevice = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
+static const struct pwm_dt_spec sTiltPwmDevice = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led2));
+
 static constexpr uint32_t sMoveTimeoutMs{ 200 };
 
 WindowCovering::WindowCovering()
@@ -42,31 +43,13 @@ WindowCovering::WindowCovering()
     mLiftLED.Init(LIFT_STATE_LED);
     mTiltLED.Init(TILT_STATE_LED);
 
-    if (mLiftIndicator.Init(LIFT_PWM_DEVICE, LIFT_PWM_CHANNEL, 0, 255) != 0)
+    if (mLiftIndicator.Init(&sLiftPwmDevice, 0, 255) != 0)
     {
         LOG_ERR("Cannot initialize the lift indicator");
     }
-    if (mTiltIndicator.Init(TILT_PWM_DEVICE, TILT_PWM_CHANNEL, 0, 255) != 0)
+    if (mTiltIndicator.Init(&sTiltPwmDevice, 0, 255) != 0)
     {
         LOG_ERR("Cannot initialize the tilt indicator");
-    }
-
-    k_timer_init(&sLiftTimer, MoveTimerTimeoutCallback, nullptr);
-    k_timer_init(&sTiltTimer, MoveTimerTimeoutCallback, nullptr);
-}
-
-void WindowCovering::MoveTimerTimeoutCallback(k_timer * aTimer)
-{
-    if (!aTimer)
-        return;
-
-    if (aTimer == &sLiftTimer)
-    {
-        chip::DeviceLayer::PlatformMgr().ScheduleWork(DriveCurrentLiftPosition);
-    }
-    else if (aTimer == &sTiltTimer)
-    {
-        chip::DeviceLayer::PlatformMgr().ScheduleWork(DriveCurrentTiltPosition);
     }
 }
 
@@ -108,17 +91,15 @@ chip::Percent100ths WindowCovering::CalculateSingleStep(MoveType aMoveType)
     NPercent100ths current{};
     OperationalState opState{};
 
-    OperationalStatus opStatus = OperationalStatusGet(Endpoint());
-
     if (aMoveType == MoveType::LIFT)
     {
         status  = Attributes::CurrentPositionLiftPercent100ths::Get(Endpoint(), current);
-        opState = opStatus.lift;
+        opState = OperationalStateGet(Endpoint(), OperationalStatus::kLift);
     }
     else if (aMoveType == MoveType::TILT)
     {
         status  = Attributes::CurrentPositionTiltPercent100ths::Get(Endpoint(), current);
-        opState = opStatus.tilt;
+        opState = OperationalStateGet(Endpoint(), OperationalStatus::kTilt);
     }
 
     if ((status == EMBER_ZCL_STATUS_SUCCESS) && !current.IsNull())
@@ -136,38 +117,34 @@ chip::Percent100ths WindowCovering::CalculateSingleStep(MoveType aMoveType)
 
 bool WindowCovering::TargetCompleted(MoveType aMoveType, NPercent100ths aCurrent, NPercent100ths aTarget)
 {
-    OperationalStatus currentOpStatus = OperationalStatusGet(Endpoint());
-    OperationalState currentOpState   = (aMoveType == MoveType::LIFT) ? currentOpStatus.lift : currentOpStatus.tilt;
-
-    if (!aCurrent.IsNull() && !aTarget.IsNull())
-    {
-        switch (currentOpState)
-        {
-        case OperationalState::MovingDownOrClose:
-            return (aCurrent.Value() >= aTarget.Value());
-        case OperationalState::MovingUpOrOpen:
-            return (aCurrent.Value() <= aTarget.Value());
-        default:
-            return true;
-        }
-    }
-    else
-    {
-        LOG_ERR("Invalid target/current positions");
-    }
-    return false;
+    return (OperationalState::Stall == ComputeOperationalState(aTarget, aCurrent));
 }
 
 void WindowCovering::StartTimer(MoveType aMoveType, uint32_t aTimeoutMs)
 {
-    if (aMoveType == MoveType::LIFT)
+    MoveType * moveType = chip::Platform::New<MoveType>();
+    VerifyOrReturn(moveType != nullptr);
+
+    *moveType = aMoveType;
+    (void) chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(aTimeoutMs), MoveTimerTimeoutCallback,
+                                                       reinterpret_cast<void *>(moveType));
+}
+
+void WindowCovering::MoveTimerTimeoutCallback(chip::System::Layer * systemLayer, void * appState)
+{
+    MoveType * moveType = reinterpret_cast<MoveType *>(appState);
+    VerifyOrReturn(moveType != nullptr);
+
+    if (*moveType == MoveType::LIFT)
     {
-        k_timer_start(&sLiftTimer, K_MSEC(sMoveTimeoutMs), K_NO_WAIT);
+        chip::DeviceLayer::PlatformMgr().ScheduleWork(WindowCovering::DriveCurrentLiftPosition);
     }
-    else if (aMoveType == MoveType::TILT)
+    else if (*moveType == MoveType::TILT)
     {
-        k_timer_start(&sTiltTimer, K_MSEC(sMoveTimeoutMs), K_NO_WAIT);
+        chip::DeviceLayer::PlatformMgr().ScheduleWork(WindowCovering::DriveCurrentTiltPosition);
     }
+
+    chip::Platform::Delete(moveType);
 }
 
 void WindowCovering::DriveCurrentTiltPosition(intptr_t)
@@ -232,23 +209,19 @@ void WindowCovering::SetSingleStepTarget(OperationalState aDirection)
 
 void WindowCovering::UpdateOperationalStatus(MoveType aMoveType, OperationalState aDirection)
 {
-    OperationalStatus currentOpStatus = OperationalStatusGet(Endpoint());
-
     switch (aMoveType)
     {
     case MoveType::LIFT:
-        currentOpStatus.lift = aDirection;
+        OperationalStateSet(Endpoint(), OperationalStatus::kLift, aDirection);
         break;
     case MoveType::TILT:
-        currentOpStatus.tilt = aDirection;
+        OperationalStateSet(Endpoint(), OperationalStatus::kTilt, aDirection);
         break;
     case MoveType::NONE:
         break;
     default:
         break;
     }
-
-    OperationalStatusSetWithGlobalUpdated(Endpoint(), currentOpStatus);
 }
 
 void WindowCovering::SetTargetPosition(OperationalState aDirection, chip::Percent100ths aPosition)
@@ -321,4 +294,23 @@ uint8_t WindowCovering::PositionToBrightness(uint16_t aPosition, MoveType aMoveT
     }
 
     return Percent100thsToValue(pwmLimits, aPosition);
+}
+
+void WindowCovering::SchedulePostAttributeChange(chip::EndpointId aEndpoint, chip::AttributeId aAttributeId)
+{
+    AttributeUpdateData * data = chip::Platform::New<AttributeUpdateData>();
+    VerifyOrReturn(data != nullptr);
+
+    data->mEndpoint    = aEndpoint;
+    data->mAttributeId = aAttributeId;
+
+    chip::DeviceLayer::PlatformMgr().ScheduleWork(DoPostAttributeChange, reinterpret_cast<intptr_t>(data));
+}
+
+void WindowCovering::DoPostAttributeChange(intptr_t aArg)
+{
+    AttributeUpdateData * data = reinterpret_cast<AttributeUpdateData *>(aArg);
+    VerifyOrReturn(data != nullptr);
+
+    PostAttributeChange(data->mEndpoint, data->mAttributeId);
 }

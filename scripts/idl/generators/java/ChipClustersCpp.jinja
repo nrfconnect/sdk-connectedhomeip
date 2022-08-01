@@ -1,14 +1,16 @@
 {%- macro encode_optional(target, source, depth, encodable) -%}
-  if ({{source}} != nullptr) {
-    jobject optionalValue_{{depth}};
+  {
+    jobject optionalValue_{{depth}} = nullptr;
     chip::JniReferences::GetInstance().GetOptionalValue({{source}}, optionalValue_{{depth}});
-    auto & definedValue_{{depth}} = {{target}}.Emplace();
-    {{ encode_value(
-       "definedValue_{}".format(depth),
-       "optionalValue_{}".format(depth),
-       depth+1,
-       encodable.without_optional()
-    )}}
+    if (optionalValue_{{depth}}) {
+      auto & definedValue_{{depth}} = {{target}}.Emplace();
+      {{ encode_value(
+          "definedValue_{}".format(depth),
+          "optionalValue_{}".format(depth),
+          depth+1,
+          encodable.without_optional()
+      )}}
+    }
   }
 {%- endmacro %}
 
@@ -111,9 +113,8 @@ using namespace chip::Controller;
 JNI_METHOD(jlong, {{cluster.name | capitalcase}}Cluster, initWithDevice)(JNIEnv * env, jobject self, jlong devicePtr, jint endpointId)
 {
     chip::DeviceLayer::StackLock lock;
-    {{cluster.name |  capitalcase}}Cluster * cppCluster = new {{cluster.name | capitalcase}}Cluster();
-
-    cppCluster->Associate(reinterpret_cast<DeviceProxy *>(devicePtr), endpointId);
+    DeviceProxy * device = reinterpret_cast<DeviceProxy *>(devicePtr);
+    {{cluster.name |  capitalcase}}Cluster * cppCluster = new {{cluster.name | capitalcase}}Cluster(*device->GetExchangeManager(), device->GetSecureSession().Value(), endpointId);
     return reinterpret_cast<jlong>(cppCluster);
 }
 

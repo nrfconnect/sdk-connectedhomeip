@@ -18,7 +18,6 @@
 
 #include "LockManager.h"
 
-#include <cstring>
 #include <iostream>
 #include <lib/support/logging/CHIPLogging.h>
 
@@ -89,17 +88,50 @@ bool LockManager::InitEndpoint(chip::EndpointId endpointId)
         numberOfYearDaySchedulesPerUser = 10;
     }
 
+    uint8_t numberOfHolidaySchedules = 0;
+    if (!DoorLockServer::Instance().GetNumberOfHolidaySchedulesSupported(endpointId, numberOfHolidaySchedules))
+    {
+        ChipLogError(
+            Zcl,
+            "Unable to get number of supported holiday schedules when initializing lock endpoint, defaulting to 10 [endpointId=%d]",
+            endpointId);
+        numberOfHolidaySchedules = 10;
+    }
+
     mEndpoints.emplace_back(endpointId, numberOfSupportedUsers, numberOfSupportedCredentials, numberOfWeekDaySchedulesPerUser,
-                            numberOfYearDaySchedulesPerUser, numberOfCredentialsSupportedPerUser);
+                            numberOfYearDaySchedulesPerUser, numberOfCredentialsSupportedPerUser, numberOfHolidaySchedules);
 
     ChipLogProgress(Zcl,
                     "Initialized new lock door endpoint "
                     "[id=%d,users=%d,credentials=%d,weekDaySchedulesPerUser=%d,yearDaySchedulesPerUser=%d,"
-                    "numberOfCredentialsSupportedPerUser=%d]",
+                    "numberOfCredentialsSupportedPerUser=%d,holidaySchedules=%d]",
                     endpointId, numberOfSupportedUsers, numberOfSupportedCredentials, numberOfWeekDaySchedulesPerUser,
-                    numberOfYearDaySchedulesPerUser, numberOfCredentialsSupportedPerUser);
+                    numberOfYearDaySchedulesPerUser, numberOfCredentialsSupportedPerUser, numberOfHolidaySchedules);
 
     return true;
+}
+
+bool LockManager::SetDoorState(chip::EndpointId endpointId, DlDoorState doorState)
+{
+    auto lockEndpoint = getEndpoint(endpointId);
+    if (nullptr == lockEndpoint)
+    {
+        ChipLogError(Zcl, "Unable to toggle the door state - endpoint does not exist or not initialized [endpointId=%d]",
+                     endpointId);
+        return false;
+    }
+    return lockEndpoint->SetDoorState(doorState);
+}
+
+bool LockManager::SendLockAlarm(chip::EndpointId endpointId, DlAlarmCode alarmCode)
+{
+    auto lockEndpoint = getEndpoint(endpointId);
+    if (nullptr == lockEndpoint)
+    {
+        ChipLogError(Zcl, "Unable to send lock alarm - endpoint does not exist or not initialized [endpointId=%d]", endpointId);
+        return false;
+    }
+    return lockEndpoint->SendLockAlarm(alarmCode);
 }
 
 bool LockManager::Lock(chip::EndpointId endpointId, const Optional<chip::ByteSpan> & pin, DlOperationError & err)
@@ -225,6 +257,32 @@ DlStatus LockManager::SetSchedule(chip::EndpointId endpointId, uint8_t yearDayIn
         return DlStatus::kFailure;
     }
     return lockEndpoint->SetSchedule(yearDayIndex, userIndex, status, localStartTime, localEndTime);
+}
+
+DlStatus LockManager::GetSchedule(chip::EndpointId endpointId, uint8_t holidayIndex,
+                                  EmberAfPluginDoorLockHolidaySchedule & schedule)
+{
+    auto lockEndpoint = getEndpoint(endpointId);
+    if (nullptr == lockEndpoint)
+    {
+        ChipLogError(Zcl, "Unable to get the holiday schedule - endpoint does not exist or not initialized [endpointId=%d]",
+                     endpointId);
+        return DlStatus::kFailure;
+    }
+    return lockEndpoint->GetSchedule(holidayIndex, schedule);
+}
+
+DlStatus LockManager::SetSchedule(chip::EndpointId endpointId, uint8_t holidayIndex, DlScheduleStatus status,
+                                  uint32_t localStartTime, uint32_t localEndTime, DlOperatingMode operatingMode)
+{
+    auto lockEndpoint = getEndpoint(endpointId);
+    if (nullptr == lockEndpoint)
+    {
+        ChipLogError(Zcl, "Unable to set the holiday schedule - endpoint does not exist or not initialized [endpointId=%d]",
+                     endpointId);
+        return DlStatus::kFailure;
+    }
+    return lockEndpoint->SetSchedule(holidayIndex, status, localStartTime, localEndTime, operatingMode);
 }
 
 LockEndpoint * LockManager::getEndpoint(chip::EndpointId endpointId)

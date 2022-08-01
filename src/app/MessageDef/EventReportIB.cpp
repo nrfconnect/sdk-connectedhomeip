@@ -24,7 +24,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include <app/AppBuildConfig.h>
+#include <app/AppConfig.h>
 
 namespace chip {
 namespace app {
@@ -32,7 +32,7 @@ namespace app {
 CHIP_ERROR EventReportIB::Parser::CheckSchemaValidity() const
 {
     CHIP_ERROR err      = CHIP_NO_ERROR;
-    int TagPresenceMask = 0;
+    int tagPresenceMask = 0;
     TLV::TLVReader reader;
 
     PRETTY_PRINT("EventReportIB =");
@@ -52,8 +52,8 @@ CHIP_ERROR EventReportIB::Parser::CheckSchemaValidity() const
         {
         case to_underlying(Tag::kEventStatus):
             // check if this tag has appeared before
-            VerifyOrReturnError(!(TagPresenceMask & (1 << to_underlying(Tag::kEventStatus))), CHIP_ERROR_INVALID_TLV_TAG);
-            TagPresenceMask |= (1 << to_underlying(Tag::kEventStatus));
+            VerifyOrReturnError(!(tagPresenceMask & (1 << to_underlying(Tag::kEventStatus))), CHIP_ERROR_INVALID_TLV_TAG);
+            tagPresenceMask |= (1 << to_underlying(Tag::kEventStatus));
             {
                 EventStatusIB::Parser eventStatus;
                 ReturnErrorOnFailure(eventStatus.Init(reader));
@@ -65,8 +65,8 @@ CHIP_ERROR EventReportIB::Parser::CheckSchemaValidity() const
             break;
         case to_underlying(Tag::kEventData):
             // check if this tag has appeared before
-            VerifyOrReturnError(!(TagPresenceMask & (1 << to_underlying(Tag::kEventData))), CHIP_ERROR_INVALID_TLV_TAG);
-            TagPresenceMask |= (1 << to_underlying(Tag::kEventData));
+            VerifyOrReturnError(!(tagPresenceMask & (1 << to_underlying(Tag::kEventData))), CHIP_ERROR_INVALID_TLV_TAG);
+            tagPresenceMask |= (1 << to_underlying(Tag::kEventData));
             {
                 EventDataIB::Parser eventData;
                 ReturnErrorOnFailure(eventData.Init(reader));
@@ -83,7 +83,7 @@ CHIP_ERROR EventReportIB::Parser::CheckSchemaValidity() const
     }
 
     PRETTY_PRINT("},");
-    PRETTY_PRINT("");
+    PRETTY_PRINT_BLANK_LINE();
 
     if (CHIP_END_OF_TLV == err)
     {
@@ -91,12 +91,12 @@ CHIP_ERROR EventReportIB::Parser::CheckSchemaValidity() const
         const int CheckDataField   = 1 << to_underlying(Tag::kEventData);
         const int CheckStatusField = (1 << to_underlying(Tag::kEventStatus));
 
-        if ((TagPresenceMask & CheckDataField) == CheckDataField && (TagPresenceMask & CheckStatusField) == CheckStatusField)
+        if ((tagPresenceMask & CheckDataField) == CheckDataField && (tagPresenceMask & CheckStatusField) == CheckStatusField)
         {
             // kEventData and kEventStatus both exist
             err = CHIP_ERROR_IM_MALFORMED_EVENT_REPORT_IB;
         }
-        else if ((TagPresenceMask & CheckDataField) != CheckDataField && (TagPresenceMask & CheckStatusField) != CheckStatusField)
+        else if ((tagPresenceMask & CheckDataField) != CheckDataField && (tagPresenceMask & CheckStatusField) != CheckStatusField)
         {
             // kEventData and kErrorStatus not exist
             err = CHIP_ERROR_IM_MALFORMED_EVENT_REPORT_IB;
@@ -108,8 +108,7 @@ CHIP_ERROR EventReportIB::Parser::CheckSchemaValidity() const
     }
 
     ReturnErrorOnFailure(err);
-    ReturnErrorOnFailure(reader.ExitContainer(mOuterContainerType));
-    return CHIP_NO_ERROR;
+    return reader.ExitContainer(mOuterContainerType);
 }
 #endif // CHIP_CONFIG_IM_ENABLE_SCHEMA_CHECK
 
@@ -117,16 +116,14 @@ CHIP_ERROR EventReportIB::Parser::GetEventStatus(EventStatusIB::Parser * const a
 {
     TLV::TLVReader reader;
     ReturnErrorOnFailure(mReader.FindElementWithTag(TLV::ContextTag(to_underlying(Tag::kEventStatus)), reader));
-    ReturnErrorOnFailure(apEventStatus->Init(reader));
-    return CHIP_NO_ERROR;
+    return apEventStatus->Init(reader);
 }
 
 CHIP_ERROR EventReportIB::Parser::GetEventData(EventDataIB::Parser * const apEventData) const
 {
     TLV::TLVReader reader;
     ReturnErrorOnFailure(mReader.FindElementWithTag(TLV::ContextTag(to_underlying(Tag::kEventData)), reader));
-    ReturnErrorOnFailure(apEventData->Init(reader));
-    return CHIP_NO_ERROR;
+    return apEventData->Init(reader);
 }
 
 EventStatusIB::Builder & EventReportIB::Builder::CreateEventStatus()
@@ -151,6 +148,28 @@ EventReportIB::Builder & EventReportIB::Builder::EndOfEventReportIB()
 {
     EndOfContainer();
     return *this;
+}
+
+CHIP_ERROR EventReportIB::ConstructEventStatusIB(TLV::TLVWriter & aWriter, const ConcreteEventPath & aEvent, StatusIB aStatus)
+{
+    Builder eventReportIBBuilder;
+    ReturnErrorOnFailure(eventReportIBBuilder.Init(&aWriter));
+    EventStatusIB::Builder & eventStatusIBBuilder = eventReportIBBuilder.CreateEventStatus();
+    ReturnErrorOnFailure(eventReportIBBuilder.GetError());
+    EventPathIB::Builder & eventPathIBBuilder = eventStatusIBBuilder.CreatePath();
+    ReturnErrorOnFailure(eventStatusIBBuilder.GetError());
+    ReturnErrorOnFailure(eventPathIBBuilder.Endpoint(aEvent.mEndpointId)
+                             .Cluster(aEvent.mClusterId)
+                             .Event(aEvent.mEventId)
+                             .EndOfEventPathIB()
+                             .GetError());
+
+    ReturnErrorOnFailure(eventStatusIBBuilder.CreateErrorStatus().EncodeStatusIB(aStatus).GetError());
+
+    ReturnErrorOnFailure(eventStatusIBBuilder.EndOfEventStatusIB().GetError());
+    ReturnErrorOnFailure(eventReportIBBuilder.EndOfEventReportIB().GetError());
+    ReturnErrorOnFailure(aWriter.Finalize());
+    return CHIP_NO_ERROR;
 }
 } // namespace app
 } // namespace chip

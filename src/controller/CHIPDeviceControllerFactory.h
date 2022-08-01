@@ -32,6 +32,7 @@
 #include <controller/CHIPDeviceController.h>
 #include <controller/CHIPDeviceControllerSystemState.h>
 #include <credentials/GroupDataProvider.h>
+#include <credentials/OperationalCertificateStore.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
 
 namespace chip {
@@ -46,12 +47,24 @@ struct SetupParams
     controllerNOC. It's used by controller to establish CASE sessions with devices */
     Crypto::P256Keypair * operationalKeypair = nullptr;
 
+    /**
+     * Controls whether or not the operationalKeypair should be owned by the
+     * caller.  By default, this is false, but if the keypair cannot be
+     * serialized, then setting this to true will allow the caller to manage
+     * this keypair's lifecycle.
+     */
+    bool hasExternallyOwnedOperationalKeypair = false;
+
     /* The following certificates must be in x509 DER format */
     ByteSpan controllerNOC;
     ByteSpan controllerICAC;
     ByteSpan controllerRCAC;
 
-    chip::VendorId controllerVendorId;
+    //
+    // This must be set to a valid, operational VendorId value associated with
+    // the controller/commissioner.
+    //
+    chip::VendorId controllerVendorId = VendorId::Unspecified;
 
     // The Device Pairing Delegated used to initialize a Commissioner
     DevicePairingDelegate * pairingDelegate = nullptr;
@@ -69,16 +82,20 @@ struct SetupParams
     CommissioningDelegate * defaultCommissioner                        = nullptr;
 };
 
-// TODO everything other than the fabric storage and group data provider here should be removed.
-// We're blocked because of the need to support !CHIP_DEVICE_LAYER
+// TODO everything other than the fabric storage, group data provider, OperationalKeystore
+// and OperationalCertificateStore here should be removed. We're blocked because of the
+// need to support !CHIP_DEVICE_LAYER
 struct FactoryInitParams
 {
-    System::Layer * systemLayer                                   = nullptr;
-    PersistentStorageDelegate * fabricIndependentStorage          = nullptr;
-    Credentials::GroupDataProvider * groupDataProvider            = nullptr;
-    Inet::EndPointManager<Inet::TCPEndPoint> * tcpEndPointManager = nullptr;
-    Inet::EndPointManager<Inet::UDPEndPoint> * udpEndPointManager = nullptr;
-    FabricTable * fabricTable                                     = nullptr;
+    System::Layer * systemLayer                                        = nullptr;
+    PersistentStorageDelegate * fabricIndependentStorage               = nullptr;
+    Credentials::CertificateValidityPolicy * certificateValidityPolicy = nullptr;
+    Credentials::GroupDataProvider * groupDataProvider                 = nullptr;
+    Inet::EndPointManager<Inet::TCPEndPoint> * tcpEndPointManager      = nullptr;
+    Inet::EndPointManager<Inet::UDPEndPoint> * udpEndPointManager      = nullptr;
+    FabricTable * fabricTable                                          = nullptr;
+    OperationalKeystore * operationalKeystore                          = nullptr;
+    Credentials::OperationalCertificateStore * opCertStore             = nullptr;
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * bleLayer = nullptr;
 #endif
@@ -106,7 +123,12 @@ public:
     }
 
     CHIP_ERROR Init(FactoryInitParams params);
+
+    // Shuts down matter and frees the system state.
+    //
+    // Must not be called while any controllers are alive.
     void Shutdown();
+
     CHIP_ERROR SetupController(SetupParams params, DeviceController & controller);
     CHIP_ERROR SetupCommissioner(SetupParams params, DeviceCommissioner & commissioner);
 
@@ -125,8 +147,9 @@ public:
     //
     // Some clients do not prefer a complete shutdown of the stack being initiated if
     // all device controllers have ceased to exist. To avoid that, this method has been
-    // created to permit retention of the underlying system state to avoid that.
+    // created to permit retention of the underlying system state.
     //
+    // NB: The system state will still be freed in Shutdown() regardless of this call.
     void RetainSystemState() { (void) mSystemState->Retain(); }
 
     //
@@ -151,52 +174,64 @@ public:
     //
     const DeviceControllerSystemState * GetSystemState() const { return mSystemState; }
 
-    class ControllerFabricDelegate final : public FabricTableDelegate
+    class ControllerFabricDelegate final : public chip::FabricTable::Delegate
     {
     public:
-        ControllerFabricDelegate() : FabricTableDelegate(true) {}
-
-        CHIP_ERROR Init(SessionManager * sessionManager, Credentials::GroupDataProvider * groupDataProvider)
+        CHIP_ERROR Init(SessionResumptionStorage * sessionResumptionStorage, Credentials::GroupDataProvider * groupDataProvider)
         {
-            VerifyOrReturnError(sessionManager != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+            VerifyOrReturnError(sessionResumptionStorage != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
             VerifyOrReturnError(groupDataProvider != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
 
-            mSessionManager    = sessionManager;
-            mGroupDataProvider = groupDataProvider;
+            mSessionResumptionStorage = sessionResumptionStorage;
+            mGroupDataProvider        = groupDataProvider;
             return CHIP_NO_ERROR;
         };
 
-        void OnFabricDeletedFromStorage(CompressedFabricId compressedId, FabricIndex fabricIndex) override
+        void OnFabricRemoved(const chip::FabricTable & fabricTable, FabricIndex fabricIndex) override
         {
-            if (mSessionManager != nullptr)
-            {
-                mSessionManager->FabricRemoved(fabricIndex);
-            }
+            (void) fabricTable;
             if (mGroupDataProvider != nullptr)
             {
                 mGroupDataProvider->RemoveFabric(fabricIndex);
             }
+            ClearCASEResumptionStateOnFabricChange(fabricIndex);
         };
 
-        void OnFabricRetrievedFromStorage(FabricInfo * fabricInfo) override { (void) fabricInfo; }
-
-        void OnFabricPersistedToStorage(FabricInfo * fabricInfo) override { (void) fabricInfo; }
+        void OnFabricUpdated(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override
+        {
+            (void) fabricTable;
+            ClearCASEResumptionStateOnFabricChange(fabricIndex);
+        }
 
     private:
-        SessionManager * mSessionManager                    = nullptr;
-        Credentials::GroupDataProvider * mGroupDataProvider = nullptr;
+        void ClearCASEResumptionStateOnFabricChange(chip::FabricIndex fabricIndex)
+        {
+            VerifyOrReturn(mSessionResumptionStorage != nullptr);
+            CHIP_ERROR err = mSessionResumptionStorage->DeleteAll(fabricIndex);
+            if (err != CHIP_NO_ERROR)
+            {
+                ChipLogError(Controller,
+                             "Warning, failed to delete session resumption state for fabric index 0x%x: %" CHIP_ERROR_FORMAT,
+                             static_cast<unsigned>(fabricIndex), err.Format());
+            }
+        }
+
+        Credentials::GroupDataProvider * mGroupDataProvider  = nullptr;
+        SessionResumptionStorage * mSessionResumptionStorage = nullptr;
     };
 
 private:
-    DeviceControllerFactory(){};
+    DeviceControllerFactory() {}
     void PopulateInitParams(ControllerInitParams & controllerParams, const SetupParams & params);
     CHIP_ERROR InitSystemState(FactoryInitParams params);
     CHIP_ERROR InitSystemState();
 
     uint16_t mListenPort;
-    DeviceControllerSystemState * mSystemState            = nullptr;
-    PersistentStorageDelegate * mFabricIndependentStorage = nullptr;
-    bool mEnableServerInteractions                        = false;
+    DeviceControllerSystemState * mSystemState              = nullptr;
+    PersistentStorageDelegate * mFabricIndependentStorage   = nullptr;
+    Crypto::OperationalKeystore * mOperationalKeystore      = nullptr;
+    Credentials::OperationalCertificateStore * mOpCertStore = nullptr;
+    bool mEnableServerInteractions                          = false;
 };
 
 } // namespace Controller

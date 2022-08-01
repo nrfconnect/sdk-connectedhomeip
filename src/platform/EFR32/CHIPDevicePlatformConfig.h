@@ -48,6 +48,14 @@
 
 #define CHIP_DEVICE_CONFIG_ENABLE_CHIP_TIME_SERVICE_TIME_SYNC 0
 
+#if defined(SL_WIFI)
+
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_IPV4
+#define CHIP_DEVICE_CONFIG_ENABLE_IPV4 0
+#endif /* CHIP_DEVICE_CONFIG_ENABLE_IPV4 */
+
+#endif /* SL_WIFI */
+
 // ========== Platform-specific Configuration =========
 
 // These are configuration options that are unique to the EFR32 platform.

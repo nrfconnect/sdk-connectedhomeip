@@ -27,24 +27,10 @@ class OTADownloader;
 
 namespace DeviceLayer {
 
-class FlashHandler
-{
-public:
-    enum class Action : uint8_t
-    {
-        WAKE_UP,
-        SLEEP
-    };
-    virtual ~FlashHandler() {}
-    virtual void DoAction(Action aAction);
-};
-
 class OTAImageProcessorImpl : public OTAImageProcessorInterface
 {
 public:
     static constexpr size_t kBufferSize = CONFIG_CHIP_OTA_REQUESTOR_BUFFER_SIZE;
-
-    OTAImageProcessorImpl(FlashHandler * flashHandler = nullptr) : mFlashHandler(flashHandler){};
 
     enum class ImageType : uint8_t
     {
@@ -68,7 +54,6 @@ public:
     CHIP_ERROR ProcessBlock(ByteSpan & aBlock) override;
     bool IsFirstImageRun() override;
     CHIP_ERROR ConfirmCurrentImage() override;
-    void TriggerFlashAction(FlashHandler::Action action);
 
 private:
     CHIP_ERROR PrepareDownloadImpl();
@@ -81,7 +66,30 @@ private:
     uint8_t mBuffer[kBufferSize];
     OTAImageContentHeader mContentHeader;
     OTAImage mCurrentImage;
-    FlashHandler * mFlashHandler;
+};
+
+class ExtFlashHandler
+{
+public:
+    enum class Action : uint8_t
+    {
+        WAKE_UP,
+        SLEEP
+    };
+    virtual ~ExtFlashHandler() {}
+    virtual void DoAction(Action aAction);
+};
+
+class OTAImageProcessorImplPMDevice : public OTAImageProcessorImpl
+{
+public:
+    explicit OTAImageProcessorImplPMDevice(ExtFlashHandler & aHandler);
+    CHIP_ERROR PrepareDownload() override;
+    CHIP_ERROR Abort() override;
+    CHIP_ERROR Apply() override;
+
+private:
+    ExtFlashHandler & mHandler;
 };
 
 } // namespace DeviceLayer

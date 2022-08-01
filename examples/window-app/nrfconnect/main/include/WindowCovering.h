@@ -36,12 +36,6 @@ public:
         NONE
     };
 
-    struct AttributeUpdateData
-    {
-        chip::EndpointId mEndpoint;
-        chip::AttributeId mAttributeId;
-    };
-
     WindowCovering();
     static WindowCovering & Instance()
     {
@@ -55,7 +49,6 @@ public:
     MoveType GetMoveType() { return mCurrentUIMoveType; }
     void PositionLEDUpdate(MoveType aMoveType);
 
-    static void SchedulePostAttributeChange(chip::EndpointId aEndpoint, chip::AttributeId aAttributeId);
     static constexpr chip::EndpointId Endpoint() { return 1; };
 
 private:
@@ -70,7 +63,6 @@ private:
     static void DriveCurrentLiftPosition(intptr_t);
     static void DriveCurrentTiltPosition(intptr_t);
     static void MoveTimerTimeoutCallback(k_timer * aTimer);
-    static void DoPostAttributeChange(intptr_t aArg);
 
     MoveType mCurrentUIMoveType;
     LEDWidget mLiftLED;

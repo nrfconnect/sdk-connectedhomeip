@@ -25,7 +25,6 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #define CHIP_SHELL_MAX_BUFFER_SIZE 128
 
@@ -37,27 +36,21 @@ namespace Shell {
 static CHIP_ERROR GetOnboardingQRCode(bool printHeader, chip::RendezvousInformationFlags aRendezvousFlags)
 {
     streamer_t * sout = streamer_get();
-
-    // Create buffer for QR code that can fit max size and null terminator.
-    char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
-    chip::MutableCharSpan QRCode(qrCodeBuffer);
+    std::string QRCode;
 
     if (printHeader)
     {
         streamer_printf(sout, "QRCode:            ");
     }
     ReturnErrorOnFailure(GetQRCode(QRCode, aRendezvousFlags));
-    streamer_printf(sout, "%s\r\n", QRCode.data());
+    streamer_printf(sout, "%s\r\n", QRCode.c_str());
     return CHIP_NO_ERROR;
 }
 
 static CHIP_ERROR GetOnboardingQRCodeUrl(bool printHeader, chip::RendezvousInformationFlags aRendezvousFlags)
 {
     streamer_t * sout = streamer_get();
-
-    // Create buffer for QR code that can fit max size and null terminator.
-    char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
-    chip::MutableCharSpan QRCode(qrCodeBuffer);
+    std::string QRCode;
 
     if (printHeader)
     {
@@ -65,27 +58,24 @@ static CHIP_ERROR GetOnboardingQRCodeUrl(bool printHeader, chip::RendezvousInfor
     }
     ReturnErrorOnFailure(GetQRCode(QRCode, aRendezvousFlags));
 
-    char qrCodeUrlBuffer[CHIP_SHELL_MAX_BUFFER_SIZE];
+    char qrCodeBuffer[CHIP_SHELL_MAX_BUFFER_SIZE];
 
-    ReturnErrorOnFailure(GetQRCodeUrl(qrCodeUrlBuffer, sizeof(qrCodeUrlBuffer), QRCode));
-    streamer_printf(sout, "%s\r\n", qrCodeUrlBuffer);
+    ReturnErrorOnFailure(GetQRCodeUrl(qrCodeBuffer, sizeof(qrCodeBuffer), QRCode));
+    streamer_printf(sout, "%s\r\n", qrCodeBuffer);
     return CHIP_NO_ERROR;
 }
 
 static CHIP_ERROR GetOnboardingManualPairingCode(bool printHeader, chip::RendezvousInformationFlags aRendezvousFlags)
 {
     streamer_t * sout = streamer_get();
-
-    // Create buffer for manual pariting code that can fit max size + check digit + null terminator.
-    char manualPairingCodeBuffer[chip::kManualSetupLongCodeCharLength + 1];
-    chip::MutableCharSpan manualPairingCode(manualPairingCodeBuffer);
+    std::string manualPairingCode;
 
     if (printHeader)
     {
         streamer_printf(sout, "ManualPairingCode: ");
     }
     ReturnErrorOnFailure(GetManualPairingCode(manualPairingCode, aRendezvousFlags));
-    streamer_printf(sout, "%s\r\n", manualPairingCode.data());
+    streamer_printf(sout, "%s\r\n", manualPairingCode.c_str());
     return CHIP_NO_ERROR;
 }
 

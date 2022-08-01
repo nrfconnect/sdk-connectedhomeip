@@ -38,7 +38,7 @@
 
 struct LinuxDeviceOptions
 {
-    chip::PayloadContents payload;
+    chip::SetupPayload payload;
     chip::Optional<uint16_t> discriminator;
     chip::Optional<std::vector<uint8_t>> spake2pVerifier;
     chip::Optional<std::vector<uint8_t>> spake2pSalt;

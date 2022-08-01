@@ -28,7 +28,6 @@
 #include "platform/ConfigurationManager.h"
 #include "platform/DiagnosticDataProvider.h"
 #include "platform/PlatformManager.h"
-#include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 namespace chip {
 namespace rpc {
@@ -147,12 +146,10 @@ public:
             snprintf(response.serial_number, sizeof(response.serial_number), CHIP_DEVICE_CONFIG_TEST_SERIAL_NUMBER);
         }
 
-        // Create buffer for QR code that can fit max size and null terminator.
-        char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
-        chip::MutableCharSpan qrCodeText(qrCodeBuffer);
+        std::string qrCodeText;
         if (GetQRCode(qrCodeText, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)) == CHIP_NO_ERROR)
         {
-            snprintf(response.pairing_info.qr_code, sizeof(response.pairing_info.qr_code), "%s", qrCodeText.data());
+            snprintf(response.pairing_info.qr_code, sizeof(response.pairing_info.qr_code), "%s", qrCodeText.c_str());
             GetQRCodeUrl(response.pairing_info.qr_code_url, sizeof(response.pairing_info.qr_code_url), qrCodeText);
             response.has_pairing_info = true;
         }

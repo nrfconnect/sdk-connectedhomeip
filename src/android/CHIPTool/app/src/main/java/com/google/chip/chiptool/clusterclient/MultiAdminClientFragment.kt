@@ -78,22 +78,22 @@ class MultiAdminClientFragment : Fragment() {
   }
 
   private suspend fun sendBasicCommissioningCommandClick() {
-    val windowDuration = 180
+    val testDuration = 100
     deviceController.openPairingWindow(
       ChipClient.getConnectedDevicePointer(
         requireContext(),
         addressUpdateFragment.deviceId
-      ), windowDuration
+      ), testDuration
     )
   }
 
   private suspend fun sendEnhancedCommissioningCommandClick() {
-    val windowDuration = 180
-    val spakeIterationCount = 1000
+    val testDuration = 100
+    val testIteration = 1000
     val devicePointer =
       ChipClient.getConnectedDevicePointer(requireContext(), addressUpdateFragment.deviceId)
     deviceController.openPairingWindowWithPIN(
-      devicePointer, windowDuration, spakeIterationCount.toLong(),
+      devicePointer, testDuration, testIteration.toLong(),
       discriminatorEd.text.toString().toInt(), setupPinCodeEd.text.toString().toULong().toLong()
     )
   }

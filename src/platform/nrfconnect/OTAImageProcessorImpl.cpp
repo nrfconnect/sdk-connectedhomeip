@@ -18,7 +18,6 @@
 #include "OTAImageProcessorImpl.h"
 
 #include <app/clusters/ota-requestor/OTADownloader.h>
-#include <app/clusters/ota-requestor/OTARequestorInterface.h>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <system/SystemError.h>
@@ -168,14 +167,7 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
 
 bool OTAImageProcessorImpl::IsFirstImageRun()
 {
-    OTARequestorInterface * requestor = GetRequestorInstance();
-    ReturnErrorCodeIf(requestor == nullptr, false);
-
-    uint32_t currentVersion;
-    ReturnErrorCodeIf(ConfigurationMgr().GetSoftwareVersion(currentVersion) != CHIP_NO_ERROR, false);
-
-    return requestor->GetCurrentUpdateState() == OTARequestorInterface::OTAUpdateStateEnum::kApplying &&
-        requestor->GetTargetVersion() == currentVersion;
+    return mcuboot_swap_type() == BOOT_SWAP_TYPE_REVERT;
 }
 
 CHIP_ERROR OTAImageProcessorImpl::ConfirmCurrentImage()

@@ -59,9 +59,6 @@ private:
     static void UpdateLedStateEventHandler(AppEvent * aEvent);
     static void FunctionTimerEventHandler(AppEvent * aEvent);
     static void FunctionHandler(AppEvent * aEvent);
-#ifdef CONFIG_NET_L2_OPENTHREAD
-    static void StartThreadHandler(AppEvent * aEvent);
-#endif
     static void LockActionEventHandler(AppEvent * aEvent);
     static void StartBLEAdvertisementHandler(AppEvent * aEvent);
 

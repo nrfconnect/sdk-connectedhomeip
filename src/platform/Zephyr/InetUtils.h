@@ -17,6 +17,9 @@
 
 #include <inet/InetInterface.h>
 
+struct in6_addr;
+struct net_if;
+
 namespace InetUtils {
 
 in6_addr ToZephyrAddr(const chip::Inet::IPAddress & address);

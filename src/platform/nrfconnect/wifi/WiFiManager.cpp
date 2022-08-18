@@ -95,12 +95,21 @@ const Map<uint16_t, uint8_t, 42> WiFiManager::sFreqChannelMap(
 
 CHIP_ERROR WiFiManager::Init()
 {
-    // wpa_supplicant instance should be initialized in dedicated supplicant thread
-    if (!wpa_s_0)
-    {
-        ChipLogError(DeviceLayer, "wpa_supplicant is not initialized!");
+    // wpa_supplicant instance is initialized in dedicated supplicant thread, so wait until
+    // the initialization is completed.
+    // TODO: fix thread-safety of the solution.
+    constexpr size_t kInitTimeoutMs = 5000;
+    const int64_t initStartTime     = k_uptime_get();
 
-        return CHIP_ERROR_INTERNAL;
+    while (!wpa_s_0)
+    {
+        if (k_uptime_get() > initStartTime + kInitTimeoutMs)
+        {
+            ChipLogError(DeviceLayer, "wpa_supplicant is not initialized!");
+            return CHIP_ERROR_INTERNAL;
+        }
+
+        k_msleep(200);
     }
 
     // TODO: consider moving these to ConnectivityManagerImpl to be prepared for handling multiple interfaces on a single device.

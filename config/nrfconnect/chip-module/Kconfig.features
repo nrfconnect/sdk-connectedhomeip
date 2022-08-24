@@ -63,6 +63,7 @@ config CHIP_SPI_NOR
 	imply SPI
 	imply SPI_NOR
 	imply MULTITHREADING
+	imply PM_OVERRIDE_EXTERNAL_DRIVER_CHECK
 	help
 		Enables SPI NOR with the set of options
 		configuring pages and buffer sizes.

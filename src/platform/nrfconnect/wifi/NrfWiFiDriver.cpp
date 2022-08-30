@@ -104,13 +104,6 @@ CHIP_ERROR NrfWiFiDriver::CommitConfiguration()
 
 CHIP_ERROR NrfWiFiDriver::RevertConfiguration()
 {
-    // Disconnection should happen automatically when WiFiManager::Connect() is called.
-    // Here we do it also explicitly to ping the Connectivity Manager which
-    // will send the disconnection event as a result.
-    // TODO: refactor when the callback-based supplicant API is incorporated
-    WiFiManager::Instance().DisconnectStation();
-    ConnectivityMgr().SetWiFiStationMode(ConnectivityManager::kWiFiStationMode_Disabled);
-
     LoadFromStorage();
 
     if (mStagingNetwork.IsConfigured())

@@ -473,8 +473,8 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
         }
         break;
     }
-    case app::Clusters::BridgedActions::Id: {
-        using namespace app::Clusters::BridgedActions;
+    case app::Clusters::Actions::Id: {
+        using namespace app::Clusters::Actions;
         switch (aPath.mEventId)
         {
         case Events::StateChanged::Id: {
@@ -505,17 +505,17 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
 
             jclass stateChangedStructClass;
             err = chip::JniReferences::GetInstance().GetClassRef(
-                env, "chip/devicecontroller/ChipEventStructs$BridgedActionsClusterStateChangedEvent", stateChangedStructClass);
+                env, "chip/devicecontroller/ChipEventStructs$ActionsClusterStateChangedEvent", stateChangedStructClass);
             if (err != CHIP_NO_ERROR)
             {
-                ChipLogError(Zcl, "Could not find class ChipEventStructs$BridgedActionsClusterStateChangedEvent");
+                ChipLogError(Zcl, "Could not find class ChipEventStructs$ActionsClusterStateChangedEvent");
                 return nullptr;
             }
             jmethodID stateChangedStructCtor =
                 env->GetMethodID(stateChangedStructClass, "<init>", "(Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Integer;)V");
             if (stateChangedStructCtor == nullptr)
             {
-                ChipLogError(Zcl, "Could not find ChipEventStructs$BridgedActionsClusterStateChangedEvent constructor");
+                ChipLogError(Zcl, "Could not find ChipEventStructs$ActionsClusterStateChangedEvent constructor");
                 return nullptr;
             }
 
@@ -558,17 +558,17 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
 
             jclass actionFailedStructClass;
             err = chip::JniReferences::GetInstance().GetClassRef(
-                env, "chip/devicecontroller/ChipEventStructs$BridgedActionsClusterActionFailedEvent", actionFailedStructClass);
+                env, "chip/devicecontroller/ChipEventStructs$ActionsClusterActionFailedEvent", actionFailedStructClass);
             if (err != CHIP_NO_ERROR)
             {
-                ChipLogError(Zcl, "Could not find class ChipEventStructs$BridgedActionsClusterActionFailedEvent");
+                ChipLogError(Zcl, "Could not find class ChipEventStructs$ActionsClusterActionFailedEvent");
                 return nullptr;
             }
             jmethodID actionFailedStructCtor = env->GetMethodID(
                 actionFailedStructClass, "<init>", "(Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Integer;Ljava/lang/Integer;)V");
             if (actionFailedStructCtor == nullptr)
             {
-                ChipLogError(Zcl, "Could not find ChipEventStructs$BridgedActionsClusterActionFailedEvent constructor");
+                ChipLogError(Zcl, "Could not find ChipEventStructs$ActionsClusterActionFailedEvent constructor");
                 return nullptr;
             }
 
@@ -1331,6 +1331,66 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
             }
 
             jobject value = env->NewObject(connectionStatusStructClass, connectionStatusStructCtor, value_connectionStatus);
+
+            return value;
+        }
+        case Events::NetworkFaultChange::Id: {
+            Events::NetworkFaultChange::DecodableType cppValue;
+            *aError = app::DataModel::Decode(aReader, cppValue);
+            if (*aError != CHIP_NO_ERROR)
+            {
+                return nullptr;
+            }
+            jobject value_current;
+            chip::JniReferences::GetInstance().CreateArrayList(value_current);
+
+            auto iter_value_current_0 = cppValue.current.begin();
+            while (iter_value_current_0.Next())
+            {
+                auto & entry_0 = iter_value_current_0.GetValue();
+                jobject newElement_0;
+                std::string newElement_0ClassName     = "java/lang/Integer";
+                std::string newElement_0CtorSignature = "(I)V";
+                chip::JniReferences::GetInstance().CreateBoxedObject<uint8_t>(
+                    newElement_0ClassName.c_str(), newElement_0CtorSignature.c_str(), static_cast<uint8_t>(entry_0), newElement_0);
+                chip::JniReferences::GetInstance().AddToList(value_current, newElement_0);
+            }
+
+            jobject value_previous;
+            chip::JniReferences::GetInstance().CreateArrayList(value_previous);
+
+            auto iter_value_previous_0 = cppValue.previous.begin();
+            while (iter_value_previous_0.Next())
+            {
+                auto & entry_0 = iter_value_previous_0.GetValue();
+                jobject newElement_0;
+                std::string newElement_0ClassName     = "java/lang/Integer";
+                std::string newElement_0CtorSignature = "(I)V";
+                chip::JniReferences::GetInstance().CreateBoxedObject<uint8_t>(
+                    newElement_0ClassName.c_str(), newElement_0CtorSignature.c_str(), static_cast<uint8_t>(entry_0), newElement_0);
+                chip::JniReferences::GetInstance().AddToList(value_previous, newElement_0);
+            }
+
+            jclass networkFaultChangeStructClass;
+            err = chip::JniReferences::GetInstance().GetClassRef(
+                env, "chip/devicecontroller/ChipEventStructs$ThreadNetworkDiagnosticsClusterNetworkFaultChangeEvent",
+                networkFaultChangeStructClass);
+            if (err != CHIP_NO_ERROR)
+            {
+                ChipLogError(Zcl, "Could not find class ChipEventStructs$ThreadNetworkDiagnosticsClusterNetworkFaultChangeEvent");
+                return nullptr;
+            }
+            jmethodID networkFaultChangeStructCtor =
+                env->GetMethodID(networkFaultChangeStructClass, "<init>", "(Ljava/util/ArrayList;Ljava/util/ArrayList;)V");
+            if (networkFaultChangeStructCtor == nullptr)
+            {
+                ChipLogError(Zcl,
+                             "Could not find ChipEventStructs$ThreadNetworkDiagnosticsClusterNetworkFaultChangeEvent constructor");
+                return nullptr;
+            }
+
+            jobject value =
+                env->NewObject(networkFaultChangeStructClass, networkFaultChangeStructCtor, value_current, value_previous);
 
             return value;
         }
@@ -3429,6 +3489,16 @@ jobject DecodeEventValue(const app::ConcreteEventPath & aPath, TLV::TLVReader & 
 
             return value;
         }
+        default:
+            *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
+            break;
+        }
+        break;
+    }
+    case app::Clusters::FaultInjection::Id: {
+        using namespace app::Clusters::FaultInjection;
+        switch (aPath.mEventId)
+        {
         default:
             *aError = CHIP_ERROR_IM_MALFORMED_EVENT_PATH_IB;
             break;

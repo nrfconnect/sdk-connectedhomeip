@@ -1240,7 +1240,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _level = @(0);
 
-        _transitionTime = @(0);
+        _transitionTime = nil;
 
         _optionsMask = @(0);
 
@@ -1279,7 +1279,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _moveMode = @(0);
 
-        _rate = @(0);
+        _rate = nil;
 
         _optionsMask = @(0);
 
@@ -1319,7 +1319,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _stepSize = @(0);
 
-        _transitionTime = @(0);
+        _transitionTime = nil;
 
         _optionsMask = @(0);
 
@@ -1391,7 +1391,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _level = @(0);
 
-        _transitionTime = @(0);
+        _transitionTime = nil;
 
         _optionsMask = @(0);
 
@@ -1430,7 +1430,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _moveMode = @(0);
 
-        _rate = @(0);
+        _rate = nil;
 
         _optionsMask = @(0);
 
@@ -1470,7 +1470,7 @@ NS_ASSUME_NONNULL_BEGIN
 
         _stepSize = @(0);
 
-        _transitionTime = @(0);
+        _transitionTime = nil;
 
         _optionsMask = @(0);
 
@@ -1563,7 +1563,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterInstantActionParams
+@implementation MTRActionsClusterInstantActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1578,7 +1578,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterInstantActionParams alloc] init];
+    auto other = [[MTRActionsClusterInstantActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1595,7 +1595,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterInstantActionWithTransitionParams
+@implementation MTRActionsClusterInstantActionWithTransitionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1612,7 +1612,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterInstantActionWithTransitionParams alloc] init];
+    auto other = [[MTRActionsClusterInstantActionWithTransitionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1630,7 +1630,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterStartActionParams
+@implementation MTRActionsClusterStartActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1645,7 +1645,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterStartActionParams alloc] init];
+    auto other = [[MTRActionsClusterStartActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1662,7 +1662,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterStartActionWithDurationParams
+@implementation MTRActionsClusterStartActionWithDurationParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1679,7 +1679,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterStartActionWithDurationParams alloc] init];
+    auto other = [[MTRActionsClusterStartActionWithDurationParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1697,7 +1697,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterStopActionParams
+@implementation MTRActionsClusterStopActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1712,7 +1712,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterStopActionParams alloc] init];
+    auto other = [[MTRActionsClusterStopActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1729,7 +1729,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterPauseActionParams
+@implementation MTRActionsClusterPauseActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1744,7 +1744,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterPauseActionParams alloc] init];
+    auto other = [[MTRActionsClusterPauseActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1761,7 +1761,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterPauseActionWithDurationParams
+@implementation MTRActionsClusterPauseActionWithDurationParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1778,7 +1778,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterPauseActionWithDurationParams alloc] init];
+    auto other = [[MTRActionsClusterPauseActionWithDurationParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1796,7 +1796,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterResumeActionParams
+@implementation MTRActionsClusterResumeActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1811,7 +1811,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterResumeActionParams alloc] init];
+    auto other = [[MTRActionsClusterResumeActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1828,7 +1828,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterEnableActionParams
+@implementation MTRActionsClusterEnableActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1843,7 +1843,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterEnableActionParams alloc] init];
+    auto other = [[MTRActionsClusterEnableActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1860,7 +1860,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterEnableActionWithDurationParams
+@implementation MTRActionsClusterEnableActionWithDurationParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1877,7 +1877,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterEnableActionWithDurationParams alloc] init];
+    auto other = [[MTRActionsClusterEnableActionWithDurationParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1895,7 +1895,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterDisableActionParams
+@implementation MTRActionsClusterDisableActionParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1910,7 +1910,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterDisableActionParams alloc] init];
+    auto other = [[MTRActionsClusterDisableActionParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1927,7 +1927,7 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
-@implementation MTRBridgedActionsClusterDisableActionWithDurationParams
+@implementation MTRActionsClusterDisableActionWithDurationParams
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -1944,7 +1944,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone;
 {
-    auto other = [[MTRBridgedActionsClusterDisableActionWithDurationParams alloc] init];
+    auto other = [[MTRActionsClusterDisableActionWithDurationParams alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -2939,6 +2939,41 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)description
 {
     NSString * descriptionString = [NSString stringWithFormat:@"<%@: >", NSStringFromClass([self class])];
+    return descriptionString;
+}
+
+@end
+@implementation MTRTimeSynchronizationClusterSetUtcTimeParams
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _utcTime = @(0);
+
+        _granularity = @(0);
+
+        _timeSource = nil;
+        _timedInvokeTimeoutMs = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(nullable NSZone *)zone;
+{
+    auto other = [[MTRTimeSynchronizationClusterSetUtcTimeParams alloc] init];
+
+    other.utcTime = self.utcTime;
+    other.granularity = self.granularity;
+    other.timeSource = self.timeSource;
+    other.timedInvokeTimeoutMs = self.timedInvokeTimeoutMs;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: utcTime:%@; granularity:%@; timeSource:%@; >",
+                                             NSStringFromClass([self class]), _utcTime, _granularity, _timeSource];
     return descriptionString;
 }
 
@@ -8077,6 +8112,83 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)description
 {
     NSString * descriptionString = [NSString stringWithFormat:@"<%@: arg1:%@; >", NSStringFromClass([self class]), _arg1];
+    return descriptionString;
+}
+
+@end
+@implementation MTRFaultInjectionClusterFailAtFaultParams
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _type = @(0);
+
+        _id = @(0);
+
+        _numCallsToSkip = @(0);
+
+        _numCallsToFail = @(0);
+
+        _takeMutex = @(0);
+        _timedInvokeTimeoutMs = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(nullable NSZone *)zone;
+{
+    auto other = [[MTRFaultInjectionClusterFailAtFaultParams alloc] init];
+
+    other.type = self.type;
+    other.id = self.id;
+    other.numCallsToSkip = self.numCallsToSkip;
+    other.numCallsToFail = self.numCallsToFail;
+    other.takeMutex = self.takeMutex;
+    other.timedInvokeTimeoutMs = self.timedInvokeTimeoutMs;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString =
+        [NSString stringWithFormat:@"<%@: type:%@; id:%@; numCallsToSkip:%@; numCallsToFail:%@; takeMutex:%@; >",
+                  NSStringFromClass([self class]), _type, _id, _numCallsToSkip, _numCallsToFail, _takeMutex];
+    return descriptionString;
+}
+
+@end
+@implementation MTRFaultInjectionClusterFailRandomlyAtFaultParams
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _type = @(0);
+
+        _id = @(0);
+
+        _percentage = @(0);
+        _timedInvokeTimeoutMs = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(nullable NSZone *)zone;
+{
+    auto other = [[MTRFaultInjectionClusterFailRandomlyAtFaultParams alloc] init];
+
+    other.type = self.type;
+    other.id = self.id;
+    other.percentage = self.percentage;
+    other.timedInvokeTimeoutMs = self.timedInvokeTimeoutMs;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString
+        stringWithFormat:@"<%@: type:%@; id:%@; percentage:%@; >", NSStringFromClass([self class]), _type, _id, _percentage];
     return descriptionString;
 }
 

@@ -342,7 +342,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@implementation MTRBridgedActionsClusterActionStruct
+@implementation MTRActionsClusterActionStruct
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -357,21 +357,21 @@ NS_ASSUME_NONNULL_BEGIN
 
         _supportedCommands = @(0);
 
-        _status = @(0);
+        _state = @(0);
     }
     return self;
 }
 
 - (id)copyWithZone:(nullable NSZone *)zone
 {
-    auto other = [[MTRBridgedActionsClusterActionStruct alloc] init];
+    auto other = [[MTRActionsClusterActionStruct alloc] init];
 
     other.actionID = self.actionID;
     other.name = self.name;
     other.type = self.type;
     other.endpointListID = self.endpointListID;
     other.supportedCommands = self.supportedCommands;
-    other.status = self.status;
+    other.state = self.state;
 
     return other;
 }
@@ -379,14 +379,14 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)description
 {
     NSString * descriptionString =
-        [NSString stringWithFormat:@"<%@: actionID:%@; name:%@; type:%@; endpointListID:%@; supportedCommands:%@; status:%@; >",
-                  NSStringFromClass([self class]), _actionID, _name, _type, _endpointListID, _supportedCommands, _status];
+        [NSString stringWithFormat:@"<%@: actionID:%@; name:%@; type:%@; endpointListID:%@; supportedCommands:%@; state:%@; >",
+                  NSStringFromClass([self class]), _actionID, _name, _type, _endpointListID, _supportedCommands, _state];
     return descriptionString;
 }
 
 @end
 
-@implementation MTRBridgedActionsClusterEndpointListStruct
+@implementation MTRActionsClusterEndpointListStruct
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -404,7 +404,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone
 {
-    auto other = [[MTRBridgedActionsClusterEndpointListStruct alloc] init];
+    auto other = [[MTRActionsClusterEndpointListStruct alloc] init];
 
     other.endpointListID = self.endpointListID;
     other.name = self.name;
@@ -423,7 +423,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@implementation MTRBridgedActionsClusterStateChangedEvent
+@implementation MTRActionsClusterStateChangedEvent
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -439,7 +439,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone
 {
-    auto other = [[MTRBridgedActionsClusterStateChangedEvent alloc] init];
+    auto other = [[MTRActionsClusterStateChangedEvent alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -457,7 +457,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@implementation MTRBridgedActionsClusterActionFailedEvent
+@implementation MTRActionsClusterActionFailedEvent
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -475,7 +475,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone
 {
-    auto other = [[MTRBridgedActionsClusterActionFailedEvent alloc] init];
+    auto other = [[MTRActionsClusterActionFailedEvent alloc] init];
 
     other.actionID = self.actionID;
     other.invokeID = self.invokeID;
@@ -1530,6 +1530,37 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+@implementation MTRThreadNetworkDiagnosticsClusterNetworkFaultChangeEvent
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _current = [NSArray array];
+
+        _previous = [NSArray array];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+    auto other = [[MTRThreadNetworkDiagnosticsClusterNetworkFaultChangeEvent alloc] init];
+
+    other.current = self.current;
+    other.previous = self.previous;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString =
+        [NSString stringWithFormat:@"<%@: current:%@; previous:%@; >", NSStringFromClass([self class]), _current, _previous];
+    return descriptionString;
+}
+
+@end
+
 @implementation MTRWiFiNetworkDiagnosticsClusterDisconnectionEvent
 - (instancetype)init
 {
@@ -1612,6 +1643,74 @@ NS_ASSUME_NONNULL_BEGIN
 {
     NSString * descriptionString =
         [NSString stringWithFormat:@"<%@: connectionStatus:%@; >", NSStringFromClass([self class]), _connectionStatus];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterDstOffsetType
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _offset = @(0);
+
+        _validStarting = @(0);
+
+        _validUntil = @(0);
+    }
+    return self;
+}
+
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterDstOffsetType alloc] init];
+
+    other.offset = self.offset;
+    other.validStarting = self.validStarting;
+    other.validUntil = self.validUntil;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString stringWithFormat:@"<%@: offset:%@; validStarting:%@; validUntil:%@; >",
+                                             NSStringFromClass([self class]), _offset, _validStarting, _validUntil];
+    return descriptionString;
+}
+
+@end
+
+@implementation MTRTimeSynchronizationClusterTimeZoneType
+- (instancetype)init
+{
+    if (self = [super init]) {
+
+        _offset = @(0);
+
+        _validAt = @(0);
+
+        _name = nil;
+    }
+    return self;
+}
+
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+    auto other = [[MTRTimeSynchronizationClusterTimeZoneType alloc] init];
+
+    other.offset = self.offset;
+    other.validAt = self.validAt;
+    other.name = self.name;
+
+    return other;
+}
+
+- (NSString *)description
+{
+    NSString * descriptionString = [NSString
+        stringWithFormat:@"<%@: offset:%@; validAt:%@; name:%@; >", NSStringFromClass([self class]), _offset, _validAt, _name];
     return descriptionString;
 }
 

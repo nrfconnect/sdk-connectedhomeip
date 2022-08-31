@@ -22,6 +22,7 @@ acdbc
 ACKed
 ACL
 ACLs
+actdiag
 AdapterAddress
 AdapterName
 adb
@@ -42,12 +43,14 @@ AdvSendAdvert
 AE
 aef
 AES
+AlarmCode
 algs
 alloc
-AlarmCode
 Ameba
 amebad
 amebaiot
+AmebaZ
+amebaz2
 announcementReason
 AnnounceOTAProvider
 AnnounceOtaProviderRequest
@@ -78,6 +81,7 @@ argc
 args
 argv
 armeabi
+armino
 ARMmbed
 armv
 ASAN
@@ -126,6 +130,7 @@ BDX
 BDXDownloader
 BeagleBone
 befc
+BEKEN
 betaprogram
 BinaryInputBasic
 Binfmt
@@ -139,6 +144,7 @@ BLEManagerImpl
 BlePlatformDelegate
 Blinls
 bloaty
+blockdiag
 blocklist
 blockquote
 bluetoothd
@@ -151,7 +157,6 @@ bouffalolab
 BRD
 breakpoint
 bredr
-BridgedActions
 BridgedDeviceBasic
 bridgedLightEndpoint
 bringup
@@ -227,6 +232,7 @@ ChlorineConcentrationMeasurement
 ChlorodibromomethaneConcentrationMeasurement
 ChloroformConcentrationMeasurement
 chmod
+chown
 chrpath
 CIPD
 CircleCI
@@ -284,8 +290,8 @@ connstring
 conntype
 const
 ContentApp
-ContentApp's
 ContentAppPlatform
+ContentApp's
 ContentLaunch
 ContentLauncher
 continuousHinting
@@ -378,6 +384,7 @@ DeviceCommissioner
 DeviceCommon
 DeviceController
 DeviceId
+DeviceInstanceInfoProvider
 DeviceLayer
 DeviceNetworkProvisioningDelegate
 DeviceNetworkProvisioningDelegateImpl
@@ -492,6 +499,7 @@ EthyleneOxideConcentrationMeasurement
 EvalCode
 EvalCodeWithName
 EvalFrameDefault
+EVB
 evk
 exceptfds
 ExchangeContext
@@ -865,6 +873,7 @@ multilib
 Multiprotocol
 multithreaded
 mutexes
+mv
 MX
 mydir
 MyPASSWORD
@@ -911,6 +920,7 @@ nullptr
 NUM
 NVM
 NVS
+nwdiag
 nwk
 NXP
 objcopy
@@ -1102,8 +1112,8 @@ REPL
 repo
 req
 Requestor
-Requestor's
 RequestorCanConsent
+Requestor's
 Requestors
 responder
 RestrictedEvent
@@ -1127,6 +1137,7 @@ rsn
 RSSI
 RST
 rsync
+rtd
 RTL
 rtld
 RTOS
@@ -1149,8 +1160,8 @@ SDB
 SDC
 SDHC
 SDK
-SDK's
 sdkconfig
+SDK's
 SDKs
 SDKTARGETSYSROOT
 sdl
@@ -1160,6 +1171,7 @@ semver
 SendButton
 SendNewInputEvent
 sendto
+seqdiag
 SERIALDEVICE
 SerialNumber
 ServiceId
@@ -1174,6 +1186,7 @@ SetRequestorInstance
 SetUpPINCode
 SetupQRCode
 sexualized
+sfv
 SHA
 ShadeConfiguration
 showDocumentation
@@ -1204,6 +1217,7 @@ SoftwareVersion
 softwareVersionStr
 SoftwareVersionString
 softwareVersionValid
+sphinxcontrib
 SPI
 spiflash
 spinel
@@ -1236,6 +1250,7 @@ submodules
 subprocess
 SubscribeResponse
 SubscriptionId
+substeps
 subtype
 sudo
 SulfateConcentrationMeasurement
@@ -1323,6 +1338,7 @@ trackFree
 TransferSession
 transitionTime
 TransportMgrBase
+TriggerEffect
 TRNG
 TrustedRootCertificates
 tsan
@@ -1462,6 +1478,7 @@ xFFFF
 xfffff
 xFFFFFFEFFFFFFFFF
 xtensa
+xvzf
 xwayland
 xyz
 xz
@@ -1482,6 +1499,7 @@ zclsubscribe
 zclwrite
 ZephyrConfig
 zephyrproject
+zhengyaohan
 Zigbee
 zigbeealliance
 zigbeethread

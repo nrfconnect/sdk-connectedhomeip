@@ -936,7 +936,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, copy) NSNumber * _Nonnull level;
 
-@property (nonatomic, copy) NSNumber * _Nonnull transitionTime;
+@property (nonatomic, copy) NSNumber * _Nullable transitionTime;
 
 @property (nonatomic, copy) NSNumber * _Nonnull optionsMask;
 
@@ -964,7 +964,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, copy) NSNumber * _Nonnull moveMode;
 
-@property (nonatomic, copy) NSNumber * _Nonnull rate;
+@property (nonatomic, copy) NSNumber * _Nullable rate;
 
 @property (nonatomic, copy) NSNumber * _Nonnull optionsMask;
 
@@ -994,7 +994,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, copy) NSNumber * _Nonnull stepSize;
 
-@property (nonatomic, copy) NSNumber * _Nonnull transitionTime;
+@property (nonatomic, copy) NSNumber * _Nullable transitionTime;
 
 @property (nonatomic, copy) NSNumber * _Nonnull optionsMask;
 
@@ -1046,7 +1046,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, copy) NSNumber * _Nonnull level;
 
-@property (nonatomic, copy) NSNumber * _Nonnull transitionTime;
+@property (nonatomic, copy) NSNumber * _Nullable transitionTime;
 
 @property (nonatomic, copy) NSNumber * _Nonnull optionsMask;
 
@@ -1074,7 +1074,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, copy) NSNumber * _Nonnull moveMode;
 
-@property (nonatomic, copy) NSNumber * _Nonnull rate;
+@property (nonatomic, copy) NSNumber * _Nullable rate;
 
 @property (nonatomic, copy) NSNumber * _Nonnull optionsMask;
 
@@ -1104,7 +1104,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, copy) NSNumber * _Nonnull stepSize;
 
-@property (nonatomic, copy) NSNumber * _Nonnull transitionTime;
+@property (nonatomic, copy) NSNumber * _Nullable transitionTime;
 
 @property (nonatomic, copy) NSNumber * _Nonnull optionsMask;
 
@@ -1174,7 +1174,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterInstantActionParams : NSObject <NSCopying>
+@interface MTRActionsClusterInstantActionParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1198,7 +1198,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterInstantActionWithTransitionParams : NSObject <NSCopying>
+@interface MTRActionsClusterInstantActionWithTransitionParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1224,7 +1224,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterStartActionParams : NSObject <NSCopying>
+@interface MTRActionsClusterStartActionParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1248,81 +1248,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterStartActionWithDurationParams : NSObject <NSCopying>
-
-@property (nonatomic, copy) NSNumber * _Nonnull actionID;
-
-@property (nonatomic, copy) NSNumber * _Nullable invokeID;
-
-@property (nonatomic, copy) NSNumber * _Nonnull duration;
-/**
- * Controls whether the command is a timed command (using Timed Invoke).
- *
- * If nil (the default value), a regular invoke is done for commands that do
- * not require a timed invoke and a timed invoke with some default timed request
- * timeout is done for commands that require a timed invoke.
- *
- * If not nil, a timed invoke is done, with the provided value used as the timed
- * request timeout.  The value should be chosen small enough to provide the
- * desired security properties but large enough that it will allow a round-trip
- * from the sever to the client (for the status response and actual invoke
- * request) within the timeout window.
- *
- */
-@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
-
-- (instancetype)init;
-- (id)copyWithZone:(nullable NSZone *)zone;
-@end
-@interface MTRBridgedActionsClusterStopActionParams : NSObject <NSCopying>
-
-@property (nonatomic, copy) NSNumber * _Nonnull actionID;
-
-@property (nonatomic, copy) NSNumber * _Nullable invokeID;
-/**
- * Controls whether the command is a timed command (using Timed Invoke).
- *
- * If nil (the default value), a regular invoke is done for commands that do
- * not require a timed invoke and a timed invoke with some default timed request
- * timeout is done for commands that require a timed invoke.
- *
- * If not nil, a timed invoke is done, with the provided value used as the timed
- * request timeout.  The value should be chosen small enough to provide the
- * desired security properties but large enough that it will allow a round-trip
- * from the sever to the client (for the status response and actual invoke
- * request) within the timeout window.
- *
- */
-@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
-
-- (instancetype)init;
-- (id)copyWithZone:(nullable NSZone *)zone;
-@end
-@interface MTRBridgedActionsClusterPauseActionParams : NSObject <NSCopying>
-
-@property (nonatomic, copy) NSNumber * _Nonnull actionID;
-
-@property (nonatomic, copy) NSNumber * _Nullable invokeID;
-/**
- * Controls whether the command is a timed command (using Timed Invoke).
- *
- * If nil (the default value), a regular invoke is done for commands that do
- * not require a timed invoke and a timed invoke with some default timed request
- * timeout is done for commands that require a timed invoke.
- *
- * If not nil, a timed invoke is done, with the provided value used as the timed
- * request timeout.  The value should be chosen small enough to provide the
- * desired security properties but large enough that it will allow a round-trip
- * from the sever to the client (for the status response and actual invoke
- * request) within the timeout window.
- *
- */
-@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
-
-- (instancetype)init;
-- (id)copyWithZone:(nullable NSZone *)zone;
-@end
-@interface MTRBridgedActionsClusterPauseActionWithDurationParams : NSObject <NSCopying>
+@interface MTRActionsClusterStartActionWithDurationParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1348,7 +1274,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterResumeActionParams : NSObject <NSCopying>
+@interface MTRActionsClusterStopActionParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1372,7 +1298,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterEnableActionParams : NSObject <NSCopying>
+@interface MTRActionsClusterPauseActionParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1396,7 +1322,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterEnableActionWithDurationParams : NSObject <NSCopying>
+@interface MTRActionsClusterPauseActionWithDurationParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1422,7 +1348,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterDisableActionParams : NSObject <NSCopying>
+@interface MTRActionsClusterResumeActionParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -1446,7 +1372,81 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)init;
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
-@interface MTRBridgedActionsClusterDisableActionWithDurationParams : NSObject <NSCopying>
+@interface MTRActionsClusterEnableActionParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull actionID;
+
+@property (nonatomic, copy) NSNumber * _Nullable invokeID;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+- (instancetype)init;
+- (id)copyWithZone:(nullable NSZone *)zone;
+@end
+@interface MTRActionsClusterEnableActionWithDurationParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull actionID;
+
+@property (nonatomic, copy) NSNumber * _Nullable invokeID;
+
+@property (nonatomic, copy) NSNumber * _Nonnull duration;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+- (instancetype)init;
+- (id)copyWithZone:(nullable NSZone *)zone;
+@end
+@interface MTRActionsClusterDisableActionParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull actionID;
+
+@property (nonatomic, copy) NSNumber * _Nullable invokeID;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+- (instancetype)init;
+- (id)copyWithZone:(nullable NSZone *)zone;
+@end
+@interface MTRActionsClusterDisableActionWithDurationParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull actionID;
 
@@ -2175,6 +2175,32 @@ NS_ASSUME_NONNULL_BEGIN
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
 @interface MTREthernetNetworkDiagnosticsClusterResetCountsParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+- (instancetype)init;
+- (id)copyWithZone:(nullable NSZone *)zone;
+@end
+@interface MTRTimeSynchronizationClusterSetUtcTimeParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull utcTime;
+
+@property (nonatomic, copy) NSNumber * _Nonnull granularity;
+
+@property (nonatomic, copy) NSNumber * _Nullable timeSource;
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *
@@ -6003,6 +6029,62 @@ NS_ASSUME_NONNULL_BEGIN
 @interface MTRTestClusterClusterTestEmitTestFabricScopedEventRequestParams : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSNumber * _Nonnull arg1;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+- (instancetype)init;
+- (id)copyWithZone:(nullable NSZone *)zone;
+@end
+@interface MTRFaultInjectionClusterFailAtFaultParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull type;
+
+@property (nonatomic, copy) NSNumber * _Nonnull id;
+
+@property (nonatomic, copy) NSNumber * _Nonnull numCallsToSkip;
+
+@property (nonatomic, copy) NSNumber * _Nonnull numCallsToFail;
+
+@property (nonatomic, copy) NSNumber * _Nonnull takeMutex;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+- (instancetype)init;
+- (id)copyWithZone:(nullable NSZone *)zone;
+@end
+@interface MTRFaultInjectionClusterFailRandomlyAtFaultParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull type;
+
+@property (nonatomic, copy) NSNumber * _Nonnull id;
+
+@property (nonatomic, copy) NSNumber * _Nonnull percentage;
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *

@@ -17,7 +17,7 @@
  */
 
 #pragma once
-#include <app/OperationalDeviceProxy.h>
+#include <app/OperationalSessionSetup.h>
 #include <controller/CommissioneeDeviceProxy.h>
 #include <credentials/attestation_verifier/DeviceAttestationDelegate.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
@@ -55,6 +55,7 @@ enum CommissioningStage : uint8_t
     // ScanNetworks can happen anytime after kArmFailsafe.
     // However, the circ tests fail if it is earlier in the list
     kScanNetworks,
+    kNeedsNetworkCreds,
 };
 
 const char * StageToString(CommissioningStage stage);
@@ -444,8 +445,8 @@ struct NocChain
 
 struct OperationalNodeFoundData
 {
-    OperationalNodeFoundData(OperationalDeviceProxy * proxy) : operationalProxy(proxy) {}
-    OperationalDeviceProxy * operationalProxy;
+    OperationalNodeFoundData(OperationalDeviceProxy proxy) : operationalProxy(proxy) {}
+    OperationalDeviceProxy operationalProxy;
 };
 
 struct NetworkClusterInfo

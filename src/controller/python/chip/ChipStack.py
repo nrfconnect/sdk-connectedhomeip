@@ -266,7 +266,7 @@ class ChipStack(object):
         self._persistentStorage = PersistentStorage(persistentStoragePath)
 
         # Initialize the chip stack.
-        res = self._ChipStackLib.pychip_DeviceController_StackInit()
+        res = self._ChipStackLib.pychip_DeviceController_StackInit(self._persistentStorage.GetSdkStorageObject())
         if res != 0:
             raise self.ErrorToException(res)
 
@@ -324,6 +324,7 @@ class ChipStack(object):
     def Shutdown(self):
         # Make sure PersistentStorage is destructed before chipStack
         # to avoid accessing builtins.chipStack after destruction.
+        self._persistentStorage.Shutdown()
         self._persistentStorage = None
         self.Call(lambda: self._ChipStackLib.pychip_DeviceController_StackShutdown())
 
@@ -338,6 +339,8 @@ class ChipStack(object):
         self._chipDLLPath = None
         self.devMgr = None
         self.callbackRes = None
+
+        delattr(builtins, "chipStack")
 
     def Call(self, callFunct, timeoutMs: int = None):
         '''Run a Python function on CHIP stack, and wait for the response.
@@ -437,7 +440,7 @@ class ChipStack(object):
             self._ChipStackLib = chip.native.GetLibraryHandle()
             self._chipDLLPath = chip.native.FindNativeLibraryPath()
 
-            self._ChipStackLib.pychip_DeviceController_StackInit.argtypes = []
+            self._ChipStackLib.pychip_DeviceController_StackInit.argtypes = [c_void_p]
             self._ChipStackLib.pychip_DeviceController_StackInit.restype = c_uint32
             self._ChipStackLib.pychip_DeviceController_StackShutdown.argtypes = []
             self._ChipStackLib.pychip_DeviceController_StackShutdown.restype = c_uint32

@@ -336,6 +336,8 @@ def HostTargets():
     yield target_native.Extend('tests-boringssl', app=HostApp.TESTS, crypto_library=HostCryptoLibrary.BORINGSSL).GlobBlacklist("Non-default test")
     yield target_native.Extend('tests-coverage', app=HostApp.TESTS, use_coverage=True).GlobBlacklist("Non-default test")
     yield target_native.Extend('tests-clang', app=HostApp.TESTS, use_clang=True).GlobBlacklist("Non-default test")
+    yield target_native.Extend('tests-clang-asan', app=HostApp.TESTS, use_clang=True, use_asan=True).GlobBlacklist("Non-default test")
+    yield target_native.Extend('tests-dmalloc', app=HostApp.TESTS, use_dmalloc=True).GlobBlacklist("Non-default test")
 
     test_target = Target(HostBoard.NATIVE.PlatformName(), HostBuilder)
     yield test_target.Extend(HostBoard.FAKE.BoardName() + '-tests', board=HostBoard.FAKE, app=HostApp.TESTS)
@@ -376,6 +378,7 @@ def Esp32Targets():
     yield devkitc.Extend('all-clusters-minimal-ipv6only', app=Esp32App.ALL_CLUSTERS_MINIMAL, enable_ipv4=False)
     yield devkitc.Extend('shell', app=Esp32App.SHELL)
     yield devkitc.Extend('light', app=Esp32App.LIGHT)
+    yield devkitc.Extend('light-rpc', app=Esp32App.LIGHT, enable_rpcs=True)
     yield devkitc.Extend('lock', app=Esp32App.LOCK)
     yield devkitc.Extend('bridge', app=Esp32App.BRIDGE)
     yield devkitc.Extend('temperature-measurement', app=Esp32App.TEMPERATURE_MEASUREMENT)
@@ -516,12 +519,19 @@ def MbedTargets():
 
 
 def InfineonTargets():
-    target = Target('infineon', InfineonBuilder)
+    builder = VariantBuilder()
+    builder.AppendVariant(name="ota", enable_ota_requestor=True)
+    builder.AppendVariant(name="updateimage", update_image=True)
 
-    yield target.Extend('p6-lock', board=InfineonBoard.P6BOARD, app=InfineonApp.LOCK)
-    yield target.Extend('p6-all-clusters', board=InfineonBoard.P6BOARD, app=InfineonApp.ALL_CLUSTERS)
-    yield target.Extend('p6-all-clusters-minimal', board=InfineonBoard.P6BOARD, app=InfineonApp.ALL_CLUSTERS_MINIMAL)
-    yield target.Extend('p6-light', board=InfineonBoard.P6BOARD, app=InfineonApp.LIGHT)
+    target = Target('infineon-psoc6', InfineonBuilder, board=InfineonBoard.PSOC6BOARD)
+
+    builder.targets.append(target.Extend('lock', app=InfineonApp.LOCK))
+    builder.targets.append(target.Extend('light', app=InfineonApp.LIGHT))
+    builder.targets.append(target.Extend('all-clusters', app=InfineonApp.ALL_CLUSTERS))
+    builder.targets.append(target.Extend('all-clusters-minimal', app=InfineonApp.ALL_CLUSTERS_MINIMAL))
+
+    for target in builder.AllVariants():
+        yield target
 
 
 def AmebaTargets():

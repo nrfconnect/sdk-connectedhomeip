@@ -101,33 +101,29 @@ CHIP_ERROR BindingManager::EstablishConnection(const ScopedNodeId & nodeId)
     VerifyOrReturnError(mInitParams.mCASESessionManager != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     mLastSessionEstablishmentError = CHIP_NO_ERROR;
-    mInitParams.mCASESessionManager->FindOrEstablishSession(nodeId, &mOnConnectedCallback, &mOnConnectionFailureCallback);
+    auto * connectionCallback      = Platform::New<ConnectionCallback>(*this);
+    mInitParams.mCASESessionManager->FindOrEstablishSession(nodeId, connectionCallback->GetOnDeviceConnected(),
+                                                            connectionCallback->GetOnDeviceConnectionFailure());
     if (mLastSessionEstablishmentError == CHIP_ERROR_NO_MEMORY)
     {
         // Release the least recently used entry
-        // TODO: Some reference counting mechanism shall be added the CASESessionManager
-        // so that other session clients don't get accidentally closed.
         ScopedNodeId peerToRemove;
         if (mPendingNotificationMap.FindLRUConnectPeer(peerToRemove) == CHIP_NO_ERROR)
         {
             mPendingNotificationMap.RemoveAllEntriesForNode(peerToRemove);
-            mInitParams.mCASESessionManager->ReleaseSession(peerToRemove);
 
             // Now retry
             mLastSessionEstablishmentError = CHIP_NO_ERROR;
-            mInitParams.mCASESessionManager->FindOrEstablishSession(nodeId, &mOnConnectedCallback, &mOnConnectionFailureCallback);
+            // At this point connectionCallback is null since it deletes itself when the callback is called.
+            connectionCallback = Platform::New<ConnectionCallback>(*this);
+            mInitParams.mCASESessionManager->FindOrEstablishSession(nodeId, connectionCallback->GetOnDeviceConnected(),
+                                                                    connectionCallback->GetOnDeviceConnectionFailure());
         }
     }
     return mLastSessionEstablishmentError;
 }
 
-void BindingManager::HandleDeviceConnected(void * context, OperationalDeviceProxy * device)
-{
-    BindingManager * manager = static_cast<BindingManager *>(context);
-    manager->HandleDeviceConnected(device);
-}
-
-void BindingManager::HandleDeviceConnected(OperationalDeviceProxy * device)
+void BindingManager::HandleDeviceConnected(Messaging::ExchangeManager & exchangeMgr, SessionHandle & sessionHandle)
 {
     FabricIndex fabricToRemove = kUndefinedFabricIndex;
     NodeId nodeToRemove        = kUndefinedNodeId;
@@ -138,29 +134,27 @@ void BindingManager::HandleDeviceConnected(OperationalDeviceProxy * device)
     {
         EmberBindingTableEntry entry = BindingTable::GetInstance().GetAt(pendingNotification.mBindingEntryId);
 
-        if (device->GetPeerId() == ScopedNodeId(entry.nodeId, entry.fabricIndex))
+        if (sessionHandle->GetPeer() == ScopedNodeId(entry.nodeId, entry.fabricIndex))
         {
             fabricToRemove = entry.fabricIndex;
             nodeToRemove   = entry.nodeId;
-            mBoundDeviceChangedHandler(entry, device, pendingNotification.mContext->GetContext());
+            OperationalDeviceProxy device(&exchangeMgr, sessionHandle);
+            mBoundDeviceChangedHandler(entry, &device, pendingNotification.mContext->GetContext());
         }
     }
 
     mPendingNotificationMap.RemoveAllEntriesForNode(ScopedNodeId(nodeToRemove, fabricToRemove));
 }
 
-void BindingManager::HandleDeviceConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
-{
-    BindingManager * manager = static_cast<BindingManager *>(context);
-    manager->HandleDeviceConnectionFailure(peerId, error);
-}
-
 void BindingManager::HandleDeviceConnectionFailure(const ScopedNodeId & peerId, CHIP_ERROR error)
 {
     // Simply release the entry, the connection will be re-established as needed.
     ChipLogError(AppServer, "Failed to establish connection to node 0x" ChipLogFormatX64, ChipLogValueX64(peerId.GetNodeId()));
-    mInitParams.mCASESessionManager->ReleaseSession(peerId);
     mLastSessionEstablishmentError = error;
+    // We don't release the entry when connection fails, because inside
+    // BindingManager::EstablishConnection we may try again the connection.
+    // TODO(#22173): The logic in there doesn't actually make any sense with how
+    // mPendingNotificationMap and CASESessionManager are implemented today.
 }
 
 void BindingManager::FabricRemoved(FabricIndex fabricIndex)
@@ -189,19 +183,10 @@ CHIP_ERROR BindingManager::NotifyBoundClusterChanged(EndpointId endpoint, Cluste
         {
             if (iter->type == EMBER_UNICAST_BINDING)
             {
-                OperationalDeviceProxy * peerDevice =
-                    mInitParams.mCASESessionManager->FindExistingSession(ScopedNodeId(iter->nodeId, iter->fabricIndex));
-                if (peerDevice != nullptr && peerDevice->IsConnected())
-                {
-                    // We already have an active connection
-                    mBoundDeviceChangedHandler(*iter, peerDevice, bindingContext->GetContext());
-                }
-                else
-                {
-                    mPendingNotificationMap.AddPendingNotification(iter.GetIndex(), bindingContext);
-                    error = EstablishConnection(ScopedNodeId(iter->nodeId, iter->fabricIndex));
-                    SuccessOrExit(error == CHIP_NO_ERROR);
-                }
+                error = mPendingNotificationMap.AddPendingNotification(iter.GetIndex(), bindingContext);
+                SuccessOrExit(error);
+                error = EstablishConnection(ScopedNodeId(iter->nodeId, iter->fabricIndex));
+                SuccessOrExit(error);
             }
             else if (iter->type == EMBER_MULTICAST_BINDING)
             {

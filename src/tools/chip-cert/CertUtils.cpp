@@ -240,27 +240,26 @@ exit:
 
 bool SetCertTimeField(ASN1_TIME * asn1Time, const struct tm & value)
 {
-    char timeStr[16];
+    char timeStr[ASN1UniversalTime::kASN1TimeStringMaxLength + 1];
+    MutableCharSpan timeSpan(timeStr);
+    ASN1UniversalTime val = { .Year   = static_cast<uint16_t>((value.tm_year == kX509NoWellDefinedExpirationDateYear)
+                                                                ? kX509NoWellDefinedExpirationDateYear
+                                                                : (value.tm_year + 1900)),
+                              .Month  = static_cast<uint8_t>(value.tm_mon + 1),
+                              .Day    = static_cast<uint8_t>(value.tm_mday),
+                              .Hour   = static_cast<uint8_t>(value.tm_hour),
+                              .Minute = static_cast<uint8_t>(value.tm_min),
+                              .Second = static_cast<uint8_t>(value.tm_sec) };
 
-    // Encode the time as a string in the form YYYYMMDDHHMMSSZ.
-    snprintf(timeStr, sizeof(timeStr), "%04d%02d%02d%02d%02d%02dZ",
-             (value.tm_year == kX509NoWellDefinedExpirationDateYear) ? kX509NoWellDefinedExpirationDateYear
-                                                                     : (static_cast<uint16_t>(value.tm_year + 1900) % 9999),
-             static_cast<uint8_t>(value.tm_mon) % kMonthsPerYear + 1, static_cast<uint8_t>(value.tm_mday) % (kMaxDaysPerMonth + 1),
-             static_cast<uint8_t>(value.tm_hour) % kHoursPerDay, static_cast<uint8_t>(value.tm_min) % kMinutesPerHour,
-             static_cast<uint8_t>(value.tm_sec) % kSecondsPerMinute);
+    if (val.ExportTo_ASN1_TIME_string(timeSpan) != CHIP_NO_ERROR)
+    {
+        fprintf(stderr, "ExportTo_ASN1_TIME_string() failed\n");
+        return false;
+    }
 
-    // X.509/RFC-5280 mandates that times before 2050 UTC must be encoded as ASN.1 UTCTime values, while
-    // times equal or greater than 2050 must be encoded as GeneralizedTime values.  The only difference
-    // between the two is the number of digits in the year -- 4 for GeneralizedTime, 2 for UTCTime.
-    //
-    // The OpenSSL ASN1_TIME_set_string() function DOES NOT handle picking the correct format based
-    // on the given year.  Thus the caller MUST pass a correctly formatted string or the resultant
-    // certificate will be malformed.
+    timeSpan.data()[timeSpan.size()] = '\0';
 
-    bool useUTCTime = ((value.tm_year + 1900) < 2050);
-
-    if (!ASN1_TIME_set_string(asn1Time, timeStr + (useUTCTime ? 2 : 0)))
+    if (!ASN1_TIME_set_string(asn1Time, timeStr))
     {
         fprintf(stderr, "OpenSSL ASN1_TIME_set_string() failed\n");
         return false;
@@ -509,51 +508,52 @@ exit:
     return res;
 }
 
-bool ReadCertPEM(const char * fileName, X509 * cert)
-{
-    bool res    = true;
-    FILE * file = nullptr;
-
-    res = OpenFile(fileName, file);
-    VerifyTrueOrExit(res);
-
-    if (PEM_read_X509(file, &cert, nullptr, nullptr) == nullptr)
-    {
-        ReportOpenSSLErrorAndExit("PEM_read_X509", res = false);
-    }
-
-exit:
-    CloseFile(file);
-    return res;
-}
-
 } // namespace
 
-bool ReadCert(const char * fileName, X509 * cert)
+bool ReadCert(const char * fileNameOrStr, X509 * cert)
 {
     CertFormat origCertFmt;
-    return ReadCert(fileName, cert, origCertFmt);
+    return ReadCert(fileNameOrStr, cert, origCertFmt);
 }
 
-bool ReadCert(const char * fileName, X509 * cert, CertFormat & certFmt)
+bool ReadCert(const char * fileNameOrStr, X509 * cert, CertFormat & certFmt)
 {
     bool res         = true;
     uint32_t certLen = 0;
     std::unique_ptr<uint8_t[]> certBuf;
 
-    res = ReadFileIntoMem(fileName, nullptr, certLen);
-    VerifyTrueOrExit(res);
-
-    certBuf = std::unique_ptr<uint8_t[]>(new uint8_t[certLen]);
-
-    res = ReadFileIntoMem(fileName, certBuf.get(), certLen);
-    VerifyTrueOrExit(res);
-
-    certFmt = DetectCertFormat(certBuf.get(), certLen);
-    if (certFmt == kCertFormat_Unknown)
+    // If fileNameOrStr is a file name
+    if (access(fileNameOrStr, R_OK) == 0)
     {
-        fprintf(stderr, "Unrecognized Cert Format in File: %s\n", fileName);
-        return false;
+        res = ReadFileIntoMem(fileNameOrStr, nullptr, certLen);
+        VerifyTrueOrExit(res);
+
+        certBuf = std::unique_ptr<uint8_t[]>(new uint8_t[certLen]);
+
+        res = ReadFileIntoMem(fileNameOrStr, certBuf.get(), certLen);
+        VerifyTrueOrExit(res);
+
+        certFmt = DetectCertFormat(certBuf.get(), certLen);
+        if (certFmt == kCertFormat_Unknown)
+        {
+            fprintf(stderr, "Unrecognized Cert Format in File: %s\n", fileNameOrStr);
+            return false;
+        }
+    }
+    // Otherwise, treat fileNameOrStr as a pointer to the certificate string
+    else
+    {
+        certLen = static_cast<uint32_t>(strlen(fileNameOrStr));
+
+        certFmt = DetectCertFormat(reinterpret_cast<const uint8_t *>(fileNameOrStr), certLen);
+        if (certFmt == kCertFormat_Unknown)
+        {
+            fprintf(stderr, "Unrecognized Cert Format in the Input Argument: %s\n", fileNameOrStr);
+            return false;
+        }
+
+        certBuf = std::unique_ptr<uint8_t[]>(new uint8_t[certLen]);
+        memcpy(certBuf.get(), fileNameOrStr, certLen);
     }
 
     if ((certFmt == kCertFormat_X509_Hex) || (certFmt == kCertFormat_Chip_Hex))
@@ -566,8 +566,15 @@ bool ReadCert(const char * fileName, X509 * cert, CertFormat & certFmt)
 
     if (certFmt == kCertFormat_X509_PEM)
     {
-        res = ReadCertPEM(fileName, cert);
-        VerifyTrueOrExit(res);
+        VerifyOrReturnError(chip::CanCastTo<int>(certLen), false);
+
+        std::unique_ptr<BIO, void (*)(BIO *)> certBIO(
+            BIO_new_mem_buf(static_cast<const void *>(certBuf.get()), static_cast<int>(certLen)), &BIO_free_all);
+
+        if (PEM_read_bio_X509(certBIO.get(), &cert, nullptr, nullptr) == nullptr)
+        {
+            ReportOpenSSLErrorAndExit("PEM_read_bio_X509", res = false);
+        }
     }
     else if ((certFmt == kCertFormat_X509_DER) || (certFmt == kCertFormat_X509_Hex))
     {
@@ -613,12 +620,12 @@ exit:
     return res;
 }
 
-bool ReadCertDERRaw(const char * fileName, MutableByteSpan & cert)
+bool ReadCertDER(const char * fileNameOrStr, MutableByteSpan & cert)
 {
     bool res = true;
     std::unique_ptr<X509, void (*)(X509 *)> certX509(X509_new(), &X509_free);
 
-    VerifyOrReturnError(ReadCertPEM(fileName, certX509.get()) == true, false);
+    VerifyOrReturnError(ReadCert(fileNameOrStr, certX509.get()), false);
 
     uint8_t * certPtr = cert.data();
     int certLen       = i2d_X509(certX509.get(), &certPtr);
@@ -661,14 +668,14 @@ exit:
     return res;
 }
 
-bool LoadChipCert(const char * fileName, bool isTrused, ChipCertificateSet & certSet, MutableByteSpan & chipCert)
+bool LoadChipCert(const char * fileNameOrStr, bool isTrused, ChipCertificateSet & certSet, MutableByteSpan & chipCert)
 {
     bool res = true;
     CHIP_ERROR err;
     BitFlags<CertDecodeFlags> decodeFlags;
     std::unique_ptr<X509, void (*)(X509 *)> cert(X509_new(), &X509_free);
 
-    res = ReadCert(fileName, cert.get());
+    res = ReadCert(fileNameOrStr, cert.get());
     VerifyTrueOrExit(res);
 
     res = X509ToChipCert(cert.get(), chipCert);
@@ -686,7 +693,7 @@ bool LoadChipCert(const char * fileName, bool isTrused, ChipCertificateSet & cer
     err = certSet.LoadCert(chipCert, decodeFlags);
     if (err != CHIP_NO_ERROR)
     {
-        fprintf(stderr, "Error reading %s\n%s\n", fileName, chip::ErrorStr(err));
+        fprintf(stderr, "Error reading %s\n%s\n", fileNameOrStr, chip::ErrorStr(err));
         ExitNow(res = false);
     }
 
@@ -748,8 +755,6 @@ bool WriteCert(const char * fileName, X509 * cert, CertFormat certFmt)
         ExitNow(res = false);
     }
 
-    printf("\r\n");
-
 exit:
     OPENSSL_free(derCert);
     CloseFile(file);
@@ -773,7 +778,7 @@ bool WriteChipCert(const char * fileName, const ByteSpan & chipCert, CertFormat 
 }
 
 bool MakeCert(uint8_t certType, const ToolChipDN * subjectDN, X509 * caCert, EVP_PKEY * caKey, const struct tm & validFrom,
-              uint32_t validDays, int pathLen, const FutureExtension * futureExts, uint8_t futureExtsCount, X509 * newCert,
+              uint32_t validDays, int pathLen, const FutureExtensionWithNID * futureExts, uint8_t futureExtsCount, X509 * newCert,
               EVP_PKEY * newKey, CertStructConfig & certConfig)
 {
     bool res  = true;
@@ -926,7 +931,7 @@ exit:
 }
 
 CHIP_ERROR MakeCertChipTLV(uint8_t certType, const ToolChipDN * subjectDN, X509 * caCert, EVP_PKEY * caKey,
-                           const struct tm & validFrom, uint32_t validDays, int pathLen, const FutureExtension * futureExts,
+                           const struct tm & validFrom, uint32_t validDays, int pathLen, const FutureExtensionWithNID * futureExts,
                            uint8_t futureExtsCount, X509 * x509Cert, EVP_PKEY * newKey, CertStructConfig & certConfig,
                            MutableByteSpan & chipCert)
 {

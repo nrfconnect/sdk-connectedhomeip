@@ -119,7 +119,13 @@ public:
 
     uint64_t GetDirtySetGeneration() const { return mDirtyGeneration; }
 
-    void ScheduleUrgentEventDeliverySync();
+    /**
+     * Schedule event delivery to happen immediately and run reporting to get
+     * those reports into messages and on the wire.  This can be done either for
+     * a specific fabric, identified by the provided FabricIndex, or across all
+     * fabrics if no FabricIndex is provided.
+     */
+    void ScheduleUrgentEventDeliverySync(Optional<FabricIndex> fabricIndex = NullOptional);
 
 #if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     size_t GetGlobalDirtySetSize() { return mGlobalDirtySet.Allocated(); }
@@ -164,12 +170,6 @@ private:
     bool IsClusterDataVersionMatch(const ObjectList<DataVersionFilter> * aDataVersionFilterList,
                                    const ConcreteReadAttributePath & aPath);
 
-    /**
-     * Check all active subscription, if the subscription has no paths that intersect with global dirty set,
-     * it would clear dirty flag for that subscription
-     *
-     */
-    void UpdateReadHandlerDirty(ReadHandler & aReadHandler);
     /**
      * Send Report via ReadHandler
      *

@@ -16,6 +16,7 @@
  *    limitations under the License.
  */
 #include "LockEndpoint.h"
+#include <app-common/zap-generated/attributes/Accessors.h>
 #include <cstring>
 
 using chip::to_underlying;
@@ -362,12 +363,29 @@ DlStatus LockEndpoint::SetSchedule(uint8_t holidayIndex, DlScheduleStatus status
 
 bool LockEndpoint::setLockState(DlLockState lockState, const Optional<chip::ByteSpan> & pin, DlOperationError & err)
 {
+    // Assume pin is required until told otherwise
+    bool requirePin = true;
+    chip::app::Clusters::DoorLock::Attributes::RequirePINforRemoteOperation::Get(mEndpointId, &requirePin);
+
+    // If a pin code is not given
     if (!pin.HasValue())
     {
-        ChipLogDetail(Zcl, "Lock App: PIN code is not specified, setting door lock state to \"%s\" [endpointId=%d]",
-                      lockStateToString(lockState), mEndpointId);
-        mLockState = lockState;
-        return true;
+        ChipLogDetail(Zcl, "Door Lock App: PIN code is not specified [endpointId=%d]", mEndpointId);
+
+        // If a pin code is not required
+        if (!requirePin)
+        {
+            ChipLogDetail(Zcl, "Door Lock App: setting door lock state to \"%s\" [endpointId=%d]", lockStateToString(lockState),
+                          mEndpointId);
+
+            DoorLockServer::Instance().SetLockState(mEndpointId, lockState);
+
+            return true;
+        }
+
+        ChipLogError(Zcl, "Door Lock App: PIN code is not specified, but it is required [endpointId=%d]", mEndpointId);
+
+        return false;
     }
 
     // Find the credential so we can make sure it is not absent right away
@@ -418,13 +436,14 @@ bool LockEndpoint::setLockState(DlLockState lockState, const Optional<chip::Byte
             return false;
         }
     }
-
     ChipLogDetail(
         Zcl,
         "Lock App: specified PIN code was found in the database, setting door lock state to \"%s\" [endpointId=%d,userIndex=%u]",
         lockStateToString(lockState), mEndpointId, userIndex);
 
     mLockState = lockState;
+    DoorLockServer::Instance().SetLockState(mEndpointId, mLockState);
+
     return true;
 }
 

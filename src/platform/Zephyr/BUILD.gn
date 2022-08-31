@@ -39,6 +39,8 @@ static_library("Zephyr") {
     "DiagnosticDataProviderImpl.cpp",
     "DiagnosticDataProviderImpl.h",
     "InetPlatformConfig.h",
+    "InetUtils.cpp",
+    "InetUtils.h",
     "KeyValueStoreManagerImpl.cpp",
     "KeyValueStoreManagerImpl.h",
     "Logging.cpp",

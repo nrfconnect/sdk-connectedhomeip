@@ -237,23 +237,6 @@ config NET_L2_OPENTHREAD
 
 if NET_L2_OPENTHREAD
 
-config OPENTHREAD_PANID
-    int
-    default 4660
-
-config OPENTHREAD_CHANNEL
-    int
-    default 15
-
-config OPENTHREAD_NETWORK_NAME
-    string
-    default "OpenThread"
-
-config OPENTHREAD_XPANID
-    string
-    default "11:11:11:11:22:22:22:22"
->>>>>>> a585abff7... [nrf noup] Initial Matter over WiFi implementation.
-
 # Increase the default RX stack size
 config IEEE802154_NRF5_RX_STACK_SIZE
     int

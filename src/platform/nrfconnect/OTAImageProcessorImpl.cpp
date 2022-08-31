@@ -17,8 +17,6 @@
 
 #include "OTAImageProcessorImpl.h"
 
-#include "Reboot.h"
-
 #include <app/clusters/ota-requestor/OTADownloader.h>
 #include <app/clusters/ota-requestor/OTARequestorInterface.h>
 #include <lib/support/CodeUtils.h>
@@ -37,6 +35,7 @@
 #include <dfu/mcuboot.h>
 #include <logging/log.h>
 #include <pm/device.h>
+#include <sys/reboot.h>
 
 #if CONFIG_CHIP_CERTIFICATION_DECLARATION_STORAGE
 // Cd globals are needed to be accessed from dfu image writer lambdas
@@ -124,7 +123,7 @@ CHIP_ERROR OTAImageProcessorImpl::Apply()
             [](System::Layer *, void * /* context */) {
                 PlatformMgr().HandleServerShuttingDown();
                 k_msleep(CHIP_DEVICE_CONFIG_SERVER_SHUTDOWN_ACTIONS_SLEEP_MS);
-                Reboot(SoftwareRebootReason::kSoftwareUpdate);
+                sys_reboot(SYS_REBOOT_WARM);
             },
             nullptr /* context */);
     }

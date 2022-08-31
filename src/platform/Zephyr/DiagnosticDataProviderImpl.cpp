@@ -31,9 +31,7 @@
 #include <drivers/hwinfo.h>
 #include <sys/util.h>
 
-#if CHIP_DEVICE_LAYER_TARGET_NRFCONNECT
-#include <platform/nrfconnect/Reboot.h>
-#elif defined(CONFIG_MCUBOOT_IMG_MANAGER)
+#ifdef CONFIG_MCUBOOT_IMG_MANAGER
 #include <dfu/mcuboot.h>
 #endif
 
@@ -90,12 +88,7 @@ BootReasonType DetermineBootReason()
 
     if (reason & RESET_SOFTWARE)
     {
-#if CHIP_DEVICE_LAYER_TARGET_NRFCONNECT
-        if (GetSoftwareRebootReason() == SoftwareRebootReason::kSoftwareUpdate)
-        {
-            return BootReasonType::kSoftwareUpdateCompleted;
-        }
-#elif defined(CONFIG_MCUBOOT_IMG_MANAGER)
+#ifdef CONFIG_MCUBOOT_IMG_MANAGER
         if (mcuboot_swap_type() == BOOT_SWAP_TYPE_REVERT)
         {
             return BootReasonType::kSoftwareUpdateCompleted;

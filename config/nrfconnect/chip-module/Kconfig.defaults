@@ -40,22 +40,6 @@ config LOG_DEFAULT_LEVEL
 
 endif
 
-config FLASH
-    bool
-    default y
-
-config SETTINGS
-    bool
-    default y
-
-config NVS
-    bool
-    default y
-
-config FLASH_MAP
-    bool
-    default y
-
 config PRINTK_SYNC
     bool
     default y
@@ -214,88 +198,20 @@ config NVS_LOOKUP_CACHE
     bool
     default y
 
-# Enable OpenThread
-
-config NET_L2_OPENTHREAD
-    bool
-    default y if !WIFI_NRF700X
-
-if NET_L2_OPENTHREAD
-
-config OPENTHREAD_PANID
-    int
-    default 4660
-
-config OPENTHREAD_CHANNEL
-    int
-    default 15
-
-config OPENTHREAD_NETWORK_NAME
-    string
-    default "OpenThread"
-
-config OPENTHREAD_XPANID
-    string
-    default "11:11:11:11:22:22:22:22"
-
 # Increase the default RX stack size
 config IEEE802154_NRF5_RX_STACK_SIZE
     int
     default 1024
 
-endif
+# Enable OpenThread
 
-if CHIP_WIFI
-
-config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
+config NET_L2_OPENTHREAD
     bool
-    default n
+    default y
 
-config SYSTEM_WORKQUEUE_STACK_SIZE
-    int
-    default 1120
-
-# align these numbers to match the OpenThread config
-config NET_IF_UNICAST_IPV6_ADDR_COUNT
-    int
-    default 6
-
-config NET_IF_MCAST_IPV6_ADDR_COUNT
-    int
-    default 8
-
-config NET_SOCKETS_POSIX_NAMES
-    bool
-    default n
-
-config MBEDTLS_SSL_OUT_CONTENT_LEN
-    int
-    default 900
-
-config CHIP_ENABLE_DNSSD_SRP
-    bool
-    default n
-
-# options managed by IP4/IP6 simultaneous support
-# aligned here to match OpenThread config
-config NET_MAX_ROUTERS
-    int
-    default 1
-
-config NET_MAX_CONN
-    int
-    default 4
-
-config SHELL_STACK_SIZE
-    int
-    default 2616
-
-config HEAP_MEM_POOL_SIZE
-    int
-    default 200000
-
-endif
-
+choice OPENTHREAD_STACK_VERSION
+	default OPENTHREAD_THREAD_VERSION_1_3
+endchoice
 
 # Enable mbedTLS from nrf_security library
 

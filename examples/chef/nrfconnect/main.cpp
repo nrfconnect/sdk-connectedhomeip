@@ -79,8 +79,7 @@ CHIP_ERROR main()
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
     ConnectivityManagerImpl().StartWiFiManagement();
 #endif
-
-#if defined(CHIP_ENABLE_OPENTHREAD)
+#if CHIP_ENABLE_OPENTHREAD
     err = ThreadStackMgr().InitThreadStack();
     if (err != CHIP_NO_ERROR)
     {
@@ -98,9 +97,7 @@ CHIP_ERROR main()
         ChipLogError(AppServer, "ConnectivityMgr().SetThreadDeviceType() failed");
         return err;
     }
-#elif !defined(CONFIG_WIFI_NRF700X)
-    return CHIP_ERROR_INTERNAL;
-#endif
+#endif /* CHIP_ENABLE_OPENTHREAD */
 
     // Device Attestation & Onboarding codes
     chip::Credentials::SetDeviceAttestationCredentialsProvider(chip::Credentials::Examples::GetExampleDACProvider());

@@ -36,7 +36,7 @@ extern "C" {
 #include <wpa_supplicant/config.h>
 #include <wpa_supplicant/driver_i.h>
 #include <wpa_supplicant/scan.h>
-#include <zephyr/net/wifi_mgmt.h>
+#include <zephyr_fmac_main.h>
 }
 
 extern struct wpa_global *global;
@@ -48,7 +48,7 @@ namespace DeviceLayer {
 
 namespace {
 
-NetworkCommissioning::WiFiScanResponse ToScanResponse(wifi_scan_result * result)
+NetworkCommissioning::WiFiScanResponse ToScanResponse(wifi_driver_scan_result * result)
 {
     NetworkCommissioning::WiFiScanResponse response = {};
 
@@ -187,19 +187,19 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanCallback callback)
     const device * dev = net_if_get_device(iface);
     VerifyOrReturnError(dev != nullptr, CHIP_ERROR_INTERNAL);
 
-    const net_wifi_mgmt_offload * ops = static_cast<const net_wifi_mgmt_offload *>(dev->api);
+    const wifi_nrf_dev_ops * ops = static_cast<const wifi_nrf_dev_ops *>(dev->api);
     VerifyOrReturnError(ops != nullptr, CHIP_ERROR_INTERNAL);
 
     mScanCallback = callback;
 
     // TODO: Use saner API once such exists.
     // TODO: Take 'ssid' into account.
-    VerifyOrReturnError(ops->scan(dev,
-                                  [](net_if *, int status, wifi_scan_result * result) {
-                                      VerifyOrReturn(Instance().mScanCallback != nullptr);
-                                      NetworkCommissioning::WiFiScanResponse response = ToScanResponse(result);
-                                      Instance().mScanCallback(status, result != nullptr ? &response : nullptr);
-                                  }) == 0,
+    VerifyOrReturnError(ops->off_api.disp_scan(dev,
+                                               [](net_if *, int status, wifi_driver_scan_result * result) {
+                                                   VerifyOrReturn(Instance().mScanCallback != nullptr);
+                                                   NetworkCommissioning::WiFiScanResponse response = ToScanResponse(result);
+                                                   Instance().mScanCallback(status, result != nullptr ? &response : nullptr);
+                                               }) == 0,
                         CHIP_ERROR_INTERNAL);
 
     return CHIP_NO_ERROR;

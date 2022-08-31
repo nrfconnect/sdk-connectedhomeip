@@ -52,7 +52,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
     GenericConnectivityManagerImpl_Thread<ConnectivityManagerImpl>::_Init();
 #endif
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-    ReturnErrorOnFailure(InitWiFi());
+    InitWiFi();
 #endif
     return CHIP_NO_ERROR;
 }

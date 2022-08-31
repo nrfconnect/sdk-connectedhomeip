@@ -39,9 +39,9 @@ extern "C" {
 #include <zephyr/net/wifi_mgmt.h>
 }
 
-extern struct wpa_global * global;
+extern struct wpa_global *global;
 
-static struct wpa_supplicant * wpa_s;
+static struct wpa_supplicant *wpa_s;
 
 namespace chip {
 namespace DeviceLayer {
@@ -103,7 +103,7 @@ CHIP_ERROR WiFiManager::Init()
     constexpr size_t kInitTimeoutMs = 5000;
     const int64_t initStartTime     = k_uptime_get();
     // TODO: Handle multiple VIFs
-    const char * ifname = "wlan0";
+    const char *ifname = "wlan0";
 
     while (!global || !(wpa_s = wpa_supplicant_get_iface(global, ifname)))
     {
@@ -162,9 +162,9 @@ CHIP_ERROR WiFiManager::AddNetwork(const ByteSpan & ssid, const ByteSpan & crede
         if (mpWpaNetwork->ssid)
         {
             memcpy(mpWpaNetwork->ssid, ssid.data(), ssid.size());
-            mpWpaNetwork->ssid_len    = ssid.size();
-            mpWpaNetwork->key_mgmt    = WPA_KEY_MGMT_NONE;
-            mpWpaNetwork->disabled    = 1;
+            mpWpaNetwork->ssid_len      = ssid.size();
+            mpWpaNetwork->key_mgmt      = WPA_KEY_MGMT_NONE;
+            mpWpaNetwork->disabled      = 1;
             wpa_s->conf->filter_ssids = 1;
 
             return AddPsk(credentials);
@@ -283,6 +283,8 @@ CHIP_ERROR WiFiManager::EnableStation(bool enable)
     else
     {
         wpa_supplicant_disable_network(wpa_s, mpWpaNetwork);
+        // TODO: wpa_supplicant_remove_network(wpa_s, ssid->id)??
+        // TODO: DisconnectStation()??
     }
 
     return CHIP_NO_ERROR;
@@ -291,6 +293,7 @@ CHIP_ERROR WiFiManager::EnableStation(bool enable)
 CHIP_ERROR WiFiManager::ClearStationProvisioningData()
 {
     VerifyOrReturnError(nullptr != wpa_s && nullptr != mpWpaNetwork, CHIP_ERROR_INTERNAL);
+    // TODO(?): wpa_supplicant_deauthenticate(wpa_s, 1); // 1 - unspecified reason (IEEE 802.11)
     wpa_supplicant_cancel_scan(wpa_s);
     wpa_clear_keys(wpa_s, mpWpaNetwork->bssid);
     str_clear_free(mpWpaNetwork->passphrase);
@@ -322,7 +325,6 @@ void WiFiManager::PollTimerCallback()
 
     if (WiFiManager::StationStatus::FULLY_PROVISIONED == GetStationStatus())
     {
-        retriesNumber = 0;
         OnConnectionSuccess();
     }
     else
@@ -335,7 +337,6 @@ void WiFiManager::PollTimerCallback()
         else
         {
             // connection timeout
-            retriesNumber = 0;
             OnConnectionFailed();
         }
     }

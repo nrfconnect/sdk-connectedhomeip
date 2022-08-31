@@ -39,9 +39,7 @@ extern "C" {
 #include <zephyr_fmac_main.h>
 }
 
-extern struct wpa_global *global;
-
-static struct wpa_supplicant *wpa_s;
+extern struct wpa_supplicant * wpa_s_0;
 
 namespace chip {
 namespace DeviceLayer {
@@ -102,10 +100,8 @@ CHIP_ERROR WiFiManager::Init()
     // TODO: fix thread-safety of the solution.
     constexpr size_t kInitTimeoutMs = 5000;
     const int64_t initStartTime     = k_uptime_get();
-    // TODO: Handle multiple VIFs
-    const char *ifname = "wlan0";
 
-    while (!global || !(wpa_s = wpa_supplicant_get_iface(global, ifname)))
+    while (!wpa_s_0)
     {
         if (k_uptime_get() > initStartTime + kInitTimeoutMs)
         {
@@ -153,7 +149,7 @@ CHIP_ERROR WiFiManager::Init()
 CHIP_ERROR WiFiManager::AddNetwork(const ByteSpan & ssid, const ByteSpan & credentials)
 {
     ChipLogDetail(DeviceLayer, "Adding WiFi network");
-    mpWpaNetwork = wpa_supplicant_add_network(wpa_s);
+    mpWpaNetwork = wpa_supplicant_add_network(wpa_s_0);
     if (mpWpaNetwork)
     {
         static constexpr size_t kMaxSsidLen{ 32 };
@@ -165,7 +161,7 @@ CHIP_ERROR WiFiManager::AddNetwork(const ByteSpan & ssid, const ByteSpan & crede
             mpWpaNetwork->ssid_len      = ssid.size();
             mpWpaNetwork->key_mgmt      = WPA_KEY_MGMT_NONE;
             mpWpaNetwork->disabled      = 1;
-            wpa_s->conf->filter_ssids = 1;
+            wpa_s_0->conf->filter_ssids = 1;
 
             return AddPsk(credentials);
         }
@@ -217,7 +213,7 @@ CHIP_ERROR WiFiManager::Connect(const ByteSpan & ssid, const ByteSpan & credenti
     if (CHIP_NO_ERROR == err)
     {
         EnableStation(true);
-        wpa_supplicant_select_network(wpa_s, mpWpaNetwork);
+        wpa_supplicant_select_network(wpa_s_0, mpWpaNetwork);
         WaitForConnectionAsync();
     }
     else
@@ -256,9 +252,9 @@ CHIP_ERROR WiFiManager::AddPsk(const ByteSpan & credentials)
 
 WiFiManager::StationStatus WiFiManager::GetStationStatus() const
 {
-    if (wpa_s)
+    if (wpa_s_0)
     {
-        return StatusFromWpaStatus(wpa_s->wpa_state);
+        return StatusFromWpaStatus(wpa_s_0->wpa_state);
     }
     else
     {
@@ -275,14 +271,14 @@ WiFiManager::StationStatus WiFiManager::StatusFromWpaStatus(const wpa_states & s
 
 CHIP_ERROR WiFiManager::EnableStation(bool enable)
 {
-    VerifyOrReturnError(nullptr != wpa_s && nullptr != mpWpaNetwork, CHIP_ERROR_INTERNAL);
+    VerifyOrReturnError(nullptr != wpa_s_0 && nullptr != mpWpaNetwork, CHIP_ERROR_INTERNAL);
     if (enable)
     {
-        wpa_supplicant_enable_network(wpa_s, mpWpaNetwork);
+        wpa_supplicant_enable_network(wpa_s_0, mpWpaNetwork);
     }
     else
     {
-        wpa_supplicant_disable_network(wpa_s, mpWpaNetwork);
+        wpa_supplicant_disable_network(wpa_s_0, mpWpaNetwork);
         // TODO: wpa_supplicant_remove_network(wpa_s, ssid->id)??
         // TODO: DisconnectStation()??
     }
@@ -292,22 +288,22 @@ CHIP_ERROR WiFiManager::EnableStation(bool enable)
 
 CHIP_ERROR WiFiManager::ClearStationProvisioningData()
 {
-    VerifyOrReturnError(nullptr != wpa_s && nullptr != mpWpaNetwork, CHIP_ERROR_INTERNAL);
-    // TODO(?): wpa_supplicant_deauthenticate(wpa_s, 1); // 1 - unspecified reason (IEEE 802.11)
-    wpa_supplicant_cancel_scan(wpa_s);
-    wpa_clear_keys(wpa_s, mpWpaNetwork->bssid);
+    VerifyOrReturnError(nullptr != wpa_s_0 && nullptr != mpWpaNetwork, CHIP_ERROR_INTERNAL);
+    // TODO(?): wpa_supplicant_deauthenticate(wpa_s_0, 1); // 1 - unspecified reason (IEEE 802.11)
+    wpa_supplicant_cancel_scan(wpa_s_0);
+    wpa_clear_keys(wpa_s_0, mpWpaNetwork->bssid);
     str_clear_free(mpWpaNetwork->passphrase);
     wpa_config_update_psk(mpWpaNetwork);
-    wpa_supplicant_set_state(wpa_s, WPA_INACTIVE);
+    wpa_supplicant_set_state(wpa_s_0, WPA_INACTIVE);
 
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR WiFiManager::DisconnectStation()
 {
-    VerifyOrReturnError(nullptr != wpa_s, CHIP_ERROR_INTERNAL);
-    wpa_supplicant_cancel_scan(wpa_s);
-    wpas_request_disconnection(wpa_s);
+    VerifyOrReturnError(nullptr != wpa_s_0, CHIP_ERROR_INTERNAL);
+    wpa_supplicant_cancel_scan(wpa_s_0);
+    wpas_request_disconnection(wpa_s_0);
 
     return CHIP_NO_ERROR;
 }
@@ -344,12 +340,12 @@ void WiFiManager::PollTimerCallback()
 
 CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
 {
-    VerifyOrReturnError(nullptr != wpa_s, CHIP_ERROR_INTERNAL);
+    VerifyOrReturnError(nullptr != wpa_s_0, CHIP_ERROR_INTERNAL);
 
     static uint8_t sBssid[ETH_ALEN];
     if (WiFiManager::StationStatus::CONNECTED <= GetStationStatus())
     {
-        memcpy(sBssid, wpa_s->bssid, ETH_ALEN);
+        memcpy(sBssid, wpa_s_0->bssid, ETH_ALEN);
         info.mBssId        = ByteSpan(sBssid, ETH_ALEN);
         info.mSecurityType = GetSecurityType();
         // TODO: this should reflect the real connection compliance
@@ -359,7 +355,7 @@ CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
         info.mWiFiVersion = EMBER_ZCL_WI_FI_VERSION_TYPE_802__11AX;
 
         wpa_signal_info signalInfo{};
-        if (0 == wpa_drv_signal_poll(wpa_s, &signalInfo))
+        if (0 == wpa_drv_signal_poll(wpa_s_0, &signalInfo))
         {
             info.mRssi    = signalInfo.current_signal; // dBm
             info.mChannel = FrequencyToChannel(signalInfo.frequency);

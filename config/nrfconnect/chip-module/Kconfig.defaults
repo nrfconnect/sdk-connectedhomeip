@@ -87,10 +87,6 @@ config CHIP_DEVICE_PRODUCT_ID
 	int
 	default 32768
 
-config NVS_LOOKUP_CACHE_SIZE
-	int
-	default 512
-
 # Disable certain parts of Zephyr IPv6 stack
 config NET_IPV6_NBR_CACHE
     bool

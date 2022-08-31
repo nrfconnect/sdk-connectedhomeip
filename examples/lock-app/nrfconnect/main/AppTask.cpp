@@ -20,6 +20,9 @@
 #include "AppConfig.h"
 #include "BoltLockManager.h"
 #include "LEDWidget.h"
+#ifdef CONFIG_NET_L2_OPENTHREAD
+#include "ThreadUtil.h"
+#endif
 
 #include <DeviceInfoProviderImpl.h>
 #include <app-common/zap-generated/attribute-id.h>
@@ -252,6 +255,16 @@ void AppTask::ButtonEventHandler(uint32_t button_state, uint32_t has_changed)
         sAppTask.PostEvent(&button_event);
     }
 
+#ifdef CONFIG_NET_L2_OPENTHREAD
+    if (THREAD_START_BUTTON_MASK & button_state & has_changed)
+    {
+        button_event.ButtonEvent.PinNo  = THREAD_START_BUTTON;
+        button_event.ButtonEvent.Action = BUTTON_PUSH_EVENT;
+        button_event.Handler            = StartThreadHandler;
+        sAppTask.PostEvent(&button_event);
+    }
+#endif
+
     if (BLE_ADVERTISEMENT_START_BUTTON_MASK & button_state & has_changed)
     {
         button_event.ButtonEvent.PinNo  = BLE_ADVERTISEMENT_START_BUTTON;
@@ -367,6 +380,24 @@ void AppTask::FunctionHandler(AppEvent * aEvent)
         }
     }
 }
+
+#ifdef CONFIG_NET_L2_OPENTHREAD
+void AppTask::StartThreadHandler(AppEvent * aEvent)
+{
+    if (aEvent->ButtonEvent.PinNo != THREAD_START_BUTTON)
+        return;
+
+    if (!ConnectivityMgr().IsThreadProvisioned())
+    {
+        StartDefaultThreadNetwork();
+        LOG_INF("Device is not commissioned to a Thread network. Starting with the default configuration.");
+    }
+    else
+    {
+        LOG_INF("Device is commissioned to a Thread network.");
+    }
+}
+#endif
 
 void AppTask::StartBLEAdvertisementHandler(AppEvent *)
 {

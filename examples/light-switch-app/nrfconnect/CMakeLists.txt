@@ -60,7 +60,8 @@ target_sources(app PRIVATE
                main/BindingHandler.cpp
                ${GEN_DIR}/light-switch-app/zap-generated/callback-stub.cpp
                ${GEN_DIR}/light-switch-app/zap-generated/IMClusterCommandHandler.cpp
-               ${NRFCONNECT_COMMON}/util/LEDWidget.cpp)
+               ${NRFCONNECT_COMMON}/util/LEDWidget.cpp
+               $<$<BOOL:${CONFIG_NET_L2_OPENTHREAD}>:${NRFCONNECT_COMMON}/util/ThreadUtil.cpp>)
 
 
 if(CONFIG_CHIP_OTA_REQUESTOR)

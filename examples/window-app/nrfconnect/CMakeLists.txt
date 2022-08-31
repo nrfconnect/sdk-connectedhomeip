@@ -61,7 +61,8 @@ target_sources(app PRIVATE
                ${GEN_DIR}/window-app/zap-generated/callback-stub.cpp
                ${GEN_DIR}/window-app/zap-generated/IMClusterCommandHandler.cpp
                ${NRFCONNECT_COMMON}/util/LEDWidget.cpp
-               ${NRFCONNECT_COMMON}/util/PWMDevice.cpp)
+               ${NRFCONNECT_COMMON}/util/PWMDevice.cpp
+               $<$<BOOL:${CONFIG_NET_L2_OPENTHREAD}>:${NRFCONNECT_COMMON}/util/ThreadUtil.cpp>)
 
 chip_configure_data_model(app
     INCLUDE_SERVER

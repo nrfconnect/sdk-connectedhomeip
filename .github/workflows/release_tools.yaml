@@ -47,12 +47,11 @@ jobs:
               uses: actions/checkout@v2
               with:
                   ref: "${{ github.event.inputs.commit }}"
-            - name: Checkout submodules
-              run: scripts/checkout_submodules.py --shallow --platform android linux
+                  submodules: true
             - name: Bootstrap
               timeout-minutes: 10
               run: scripts/build/gn_bootstrap.sh
-            - name: Install CHIP Tool dependencies
+            - name: Install Python CHIP Tool dependencies
               timeout-minutes: 10
               run: |
                   echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted" > /etc/apt/sources.list.d/arm64.list
@@ -60,17 +59,17 @@ jobs:
                   apt update
                   apt install -y --no-install-recommends -o APT::Immediate-Configure=false g++-aarch64-linux-gnu libgirepository1.0-dev
                   dpkg --add-architecture arm64
-                  apt install -y --no-install-recommends -o APT::Immediate-Configure=false libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64 libreadline-dev:arm64
+                  apt install -y --no-install-recommends -o APT::Immediate-Configure=false libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64
             - name: Build x64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |
-                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_debug --args='chip_mdns=\"platform\" symbol_level=0'"
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_debug --args='chip_mdns=\"platform\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_debug chip-tool"
                   mv out/chiptool_x64_debug/chip-tool out/chiptool_x64_debug/chip-tool-debug
             - name: Build x64 CHIP Tool with debug logs disabled
               timeout-minutes: 10
               run: |
-                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_release --args='chip_mdns=\"platform\" chip_detail_logging=false symbol_level=0'"
+                  scripts/run_in_build_env.sh "gn gen out/chiptool_x64_release --args='chip_mdns=\"platform\" chip_detail_logging=false'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_x64_release chip-tool"
                   mv out/chiptool_x64_release/chip-tool out/chiptool_x64_release/chip-tool-release
             - name: Build arm64 CHIP Tool with debug logs enabled
@@ -81,8 +80,7 @@ jobs:
                       target_cc=\"aarch64-linux-gnu-gcc\"
                       target_cxx=\"aarch64-linux-gnu-g++\"
                       target_ar=\"aarch64-linux-gnu-ar\"
-                      target_cpu=\"arm64\"
-                      symbol_level=0'"
+                      target_cpu=\"arm64\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_debug chip-tool"
                   mv out/chiptool_arm64_debug/chip-tool out/chiptool_arm64_debug/chip-tool-debug
             - name: Build arm64 CHIP Tool with debug logs disabled
@@ -94,16 +92,9 @@ jobs:
                       target_cc=\"aarch64-linux-gnu-gcc\"
                       target_cxx=\"aarch64-linux-gnu-g++\"
                       target_ar=\"aarch64-linux-gnu-ar\"
-                      target_cpu=\"arm64\"
-                      symbol_level=0'"
+                      target_cpu=\"arm64\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_release chip-tool"
                   mv out/chiptool_arm64_release/chip-tool out/chiptool_arm64_release/chip-tool-release
-            - name: Build x64 OTA Provider
-              timeout-minutes: 10
-              run: |
-                  scripts/run_in_build_env.sh "gn gen out/chipotaprovider_x64 --args='symbol_level=0' --root=examples/ota-provider-app/linux"
-                  scripts/run_in_build_env.sh "ninja -C out/chipotaprovider_x64 chip-ota-provider-app"
-                  mv out/chipotaprovider_x64/chip-ota-provider-app /tmp/output_binaries/chip-ota-provider-app-linux_x64
             - name: Create zip files for CHIP Tool debug and release packages
               timeout-minutes: 10
               run: |

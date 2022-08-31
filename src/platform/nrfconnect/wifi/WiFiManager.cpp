@@ -48,7 +48,7 @@ namespace DeviceLayer {
 
 namespace {
 
-NetworkCommissioning::WiFiScanResponse ToScanResponse(wifi_driver_scan_result * result)
+NetworkCommissioning::WiFiScanResponse ToScanResponse(wifi_scan_result * result)
 {
     NetworkCommissioning::WiFiScanResponse response = {};
 
@@ -195,7 +195,7 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanCallback callback)
     // TODO: Use saner API once such exists.
     // TODO: Take 'ssid' into account.
     VerifyOrReturnError(ops->off_api.disp_scan(dev,
-                                               [](net_if *, int status, wifi_driver_scan_result * result) {
+                                               [](net_if *, int status, wifi_scan_result * result) {
                                                    VerifyOrReturn(Instance().mScanCallback != nullptr);
                                                    NetworkCommissioning::WiFiScanResponse response = ToScanResponse(result);
                                                    Instance().mScanCallback(status, result != nullptr ? &response : nullptr);

@@ -210,7 +210,7 @@ Check the IPv6 connectivity with the device using the following steps:
 
 1. Tap **LIGHT ON/OFF & LEVEL CLUSTER**. The following screen appears:
 
-    ![CHIPTool device control screen](./images/CHIPTool_device_commissioned.jpg)
+    ![CHIPTool device control screen](./images/CHIPTool_device_commissioned.png)
 
     The two textboxes at the top contain **Fabric ID** and **Node ID** of the
     last commissioned device.

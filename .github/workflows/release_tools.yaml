@@ -28,7 +28,7 @@ on:
 jobs:
     tools:
         name: Build CHIP Tools
-        timeout-minutes: 60
+        timeout-minutes: 90
 
         runs-on: ubuntu-latest
 

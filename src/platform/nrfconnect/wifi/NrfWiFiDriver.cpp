@@ -32,6 +32,41 @@ namespace chip {
 namespace DeviceLayer {
 namespace NetworkCommissioning {
 
+size_t NrfWiFiDriver::WiFiNetworkIterator::Count()
+{
+    VerifyOrReturnValue(mDriver != nullptr, 0);
+    return mDriver->mStagingNetwork.IsConfigured() ? 1 : 0;
+}
+
+bool NrfWiFiDriver::WiFiNetworkIterator::Next(Network & item)
+{
+    // we assume only one network is actually supported
+    // TODO: verify if this can be extended
+    if (mExhausted || 0 == Count())
+    {
+        return false;
+    }
+
+    memcpy(item.networkID, mDriver->mStagingNetwork.ssid, mDriver->mStagingNetwork.ssidLen);
+    item.networkIDLen = mDriver->mStagingNetwork.ssidLen;
+    item.connected    = false;
+
+    mExhausted = true;
+
+    WiFiManager::WiFiInfo wifiInfo;
+    if (CHIP_NO_ERROR == WiFiManager::Instance().GetWiFiInfo(wifiInfo))
+    {
+        if (WiFiManager::StationStatus::CONNECTED <= WiFiManager::Instance().GetStationStatus())
+        {
+            if (wifiInfo.mSsidLen == item.networkIDLen && 0 == memcmp(wifiInfo.mSsid, item.networkID, wifiInfo.mSsidLen))
+            {
+                item.connected = true;
+            }
+        }
+    }
+    return true;
+}
+
 bool NrfWiFiScanResponseIterator::Next(WiFiScanResponse & item)
 {
     if (mResultId < mResultCount)

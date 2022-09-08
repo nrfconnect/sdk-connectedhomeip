@@ -122,6 +122,8 @@ public:
         uint8_t mWiFiVersion{};
         uint16_t mChannel{};
         int8_t mRssi{};
+        uint8_t mSsid[DeviceLayer::Internal::kMaxWiFiSSIDLength];
+        size_t mSsidLen{ 0 };
     };
 
     struct NetworkStatistics

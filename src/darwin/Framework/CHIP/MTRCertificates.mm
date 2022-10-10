@@ -31,17 +31,17 @@ using namespace chip::Credentials;
 
 @implementation MTRCertificates
 
-+ (nullable NSData *)generateRootCertificate:(id<MTRKeypair>)keypair
-                                    issuerId:(nullable NSNumber *)issuerId
-                                    fabricId:(nullable NSNumber *)fabricId
-                                       error:(NSError * __autoreleasing *)error
++ (MTRCertificateDERBytes * _Nullable)createRootCertificate:(id<MTRKeypair>)keypair
+                                                   issuerID:(NSNumber * _Nullable)issuerID
+                                                   fabricID:(NSNumber * _Nullable)fabricID
+                                                      error:(NSError * __autoreleasing *)error
 {
     NSLog(@"Generating root certificate");
 
     [MTRMemory ensureInit];
 
     NSData * rootCert = nil;
-    CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateRootCertificate(keypair, issuerId, fabricId, &rootCert);
+    CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateRootCertificate(keypair, issuerID, fabricID, &rootCert);
     if (error) {
         *error = [MTRError errorForCHIPErrorCode:err];
     }
@@ -53,12 +53,12 @@ using namespace chip::Credentials;
     return rootCert;
 }
 
-+ (nullable NSData *)generateIntermediateCertificate:(id<MTRKeypair>)rootKeypair
-                                     rootCertificate:(NSData *)rootCertificate
-                               intermediatePublicKey:(SecKeyRef)intermediatePublicKey
-                                            issuerId:(nullable NSNumber *)issuerId
-                                            fabricId:(nullable NSNumber *)fabricId
-                                               error:(NSError * __autoreleasing *)error
++ (MTRCertificateDERBytes * _Nullable)createIntermediateCertificate:(id<MTRKeypair>)rootKeypair
+                                                    rootCertificate:(MTRCertificateDERBytes *)rootCertificate
+                                              intermediatePublicKey:(SecKeyRef)intermediatePublicKey
+                                                           issuerID:(NSNumber * _Nullable)issuerID
+                                                           fabricID:(NSNumber * _Nullable)fabricID
+                                                              error:(NSError * __autoreleasing *)error
 {
     NSLog(@"Generating intermediate certificate");
 
@@ -66,7 +66,7 @@ using namespace chip::Credentials;
 
     NSData * intermediate = nil;
     CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateIntermediateCertificate(
-        rootKeypair, rootCertificate, intermediatePublicKey, issuerId, fabricId, &intermediate);
+        rootKeypair, rootCertificate, intermediatePublicKey, issuerID, fabricID, &intermediate);
     if (error) {
         *error = [MTRError errorForCHIPErrorCode:err];
     }
@@ -78,13 +78,13 @@ using namespace chip::Credentials;
     return intermediate;
 }
 
-+ (nullable NSData *)generateOperationalCertificate:(id<MTRKeypair>)signingKeypair
-                                 signingCertificate:(NSData *)signingCertificate
-                               operationalPublicKey:(SecKeyRef)operationalPublicKey
-                                           fabricId:(NSNumber *)fabricId
-                                             nodeId:(NSNumber *)nodeId
-                              caseAuthenticatedTags:(NSArray<NSNumber *> * _Nullable)caseAuthenticatedTags
-                                              error:(NSError * __autoreleasing _Nullable * _Nullable)error
++ (MTRCertificateDERBytes * _Nullable)createOperationalCertificate:(id<MTRKeypair>)signingKeypair
+                                                signingCertificate:(MTRCertificateDERBytes *)signingCertificate
+                                              operationalPublicKey:(SecKeyRef)operationalPublicKey
+                                                          fabricID:(NSNumber *)fabricID
+                                                            nodeID:(NSNumber *)nodeID
+                                             caseAuthenticatedTags:(NSArray<NSNumber *> * _Nullable)caseAuthenticatedTags
+                                                             error:(NSError * __autoreleasing _Nullable * _Nullable)error
 {
     NSLog(@"Generating operational certificate");
 
@@ -92,7 +92,7 @@ using namespace chip::Credentials;
 
     NSData * opcert = nil;
     CHIP_ERROR err = MTROperationalCredentialsDelegate::GenerateOperationalCertificate(
-        signingKeypair, signingCertificate, operationalPublicKey, fabricId, nodeId, caseAuthenticatedTags, &opcert);
+        signingKeypair, signingCertificate, operationalPublicKey, fabricID, nodeID, caseAuthenticatedTags, &opcert);
     if (error) {
         *error = [MTRError errorForCHIPErrorCode:err];
     }
@@ -127,7 +127,7 @@ using namespace chip::Credentials;
     return certKeySpan.data_equal(keypairKeySpan);
 }
 
-+ (BOOL)isCertificate:(NSData *)certificate1 equalTo:(NSData *)certificate2
++ (BOOL)isCertificate:(MTRCertificateDERBytes *)certificate1 equalTo:(MTRCertificateDERBytes *)certificate2
 {
     [MTRMemory ensureInit];
 
@@ -168,8 +168,8 @@ using namespace chip::Credentials;
     return subject1.IsEqual(subject2);
 }
 
-+ (nullable NSData *)generateCertificateSigningRequest:(id<MTRKeypair>)keypair
-                                                 error:(NSError * __autoreleasing _Nullable * _Nullable)error
++ (NSData * _Nullable)createCertificateSigningRequest:(id<MTRKeypair>)keypair
+                                                error:(NSError * __autoreleasing _Nullable * _Nullable)error
 {
     [MTRMemory ensureInit];
 
@@ -197,13 +197,13 @@ using namespace chip::Credentials;
     return nil;
 }
 
-+ (nullable NSData *)convertToCHIPCertFromX509Cert:(NSData *)x509Certificate
++ (MTRCertificateTLVBytes * _Nullable)convertX509Certificate:(MTRCertificateDERBytes *)x509Certificate
 {
 
-    chip::ByteSpan x509CertBytes = chip::ByteSpan((uint8_t *) x509Certificate.bytes, x509Certificate.length);
+    chip::ByteSpan x509CertBytes = AsByteSpan(x509Certificate);
 
-    NSMutableData * chipCertBuffer = [[NSMutableData alloc] initWithLength:chip::Credentials::kMaxCHIPCertLength];
-    chip::MutableByteSpan chipCertBytes((uint8_t *) chipCertBuffer.mutableBytes, chip::Credentials::kMaxCHIPCertLength);
+    uint8_t chipCertBuffer[chip::Credentials::kMaxCHIPCertLength];
+    chip::MutableByteSpan chipCertBytes(chipCertBuffer);
 
     CHIP_ERROR errorCode = chip::Credentials::ConvertX509CertToChipCert(x509CertBytes, chipCertBytes);
     MTR_LOG_ERROR("ConvertX509CertToChipCert: %{public}s", chip::ErrorStr(errorCode));
@@ -211,7 +211,7 @@ using namespace chip::Credentials;
     if (errorCode != CHIP_NO_ERROR)
         return nil;
 
-    return [NSData dataWithBytes:chipCertBytes.data() length:chipCertBytes.size()];
+    return AsData(chipCertBytes);
 }
 
 @end

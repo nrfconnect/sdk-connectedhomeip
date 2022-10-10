@@ -196,6 +196,10 @@ public:
     // This must be set before calling PerformCommissioningStep for the kAttestationVerification step.
     const Optional<ByteSpan> GetDAC() const { return mDAC; }
 
+    // Node ID when a matching fabric is found in the Node Operational Credentials cluster.
+    // In the AutoCommissioner, this is set from kReadCommissioningInfo stage.
+    const Optional<NodeId> GetRemoteNodeId() const { return mRemoteNodeId; }
+
     // Node vendor ID from the basic information cluster. In the AutoCommissioner, this is automatically set from report from the
     // kReadCommissioningInfo stage.
     // This must be set before calling PerformCommissioningStep for the kAttestationVerification step.
@@ -328,6 +332,11 @@ public:
         mDAC = MakeOptional(dac);
         return *this;
     }
+    CommissioningParameters & SetRemoteNodeId(NodeId id)
+    {
+        mRemoteNodeId = MakeOptional(id);
+        return *this;
+    }
     CommissioningParameters & SetRemoteVendorId(VendorId id)
     {
         mRemoteVendorId = MakeOptional(id);
@@ -378,6 +387,25 @@ public:
         return *this;
     }
 
+    // Only perform the PASE steps of commissioning.
+    // Commissioning will be completed by another admin on the network.
+    Optional<bool> GetSkipCommissioningComplete() const { return mSkipCommissioningComplete; }
+    CommissioningParameters & SetSkipCommissioningComplete(bool skipCommissioningComplete)
+    {
+        mSkipCommissioningComplete = MakeOptional(skipCommissioningComplete);
+        return *this;
+    }
+
+    // Check for matching fabric on target device by reading fabric list and looking for a
+    // fabricId and RootCert match. If a match is detected, then use GetNodeId() to
+    // access the nodeId for the device on the matching fabric.
+    bool GetCheckForMatchingFabric() const { return mCheckForMatchingFabric; }
+    CommissioningParameters & SetCheckForMatchingFabric(bool checkForMatchingFabric)
+    {
+        mCheckForMatchingFabric = checkForMatchingFabric;
+        return *this;
+    }
+
 private:
     // Items that can be set by the commissioner
     Optional<uint16_t> mFailsafeTimerSeconds;
@@ -398,6 +426,7 @@ private:
     Optional<ByteSpan> mAttestationSignature;
     Optional<ByteSpan> mPAI;
     Optional<ByteSpan> mDAC;
+    Optional<NodeId> mRemoteNodeId;
     Optional<VendorId> mRemoteVendorId;
     Optional<uint16_t> mRemoteProductId;
     Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationType> mDefaultRegulatoryLocation;
@@ -407,6 +436,8 @@ private:
         nullptr; // Delegate to handle device attestation failures during commissioning
     Optional<bool> mAttemptWiFiNetworkScan;
     Optional<bool> mAttemptThreadNetworkScan; // This automatically gets set to false when a ThreadOperationalDataset is set
+    Optional<bool> mSkipCommissioningComplete;
+    bool mCheckForMatchingFabric = false;
 };
 
 struct RequestedCertificate
@@ -481,6 +512,7 @@ struct ReadCommissioningInfo
     NetworkClusters network;
     BasicClusterInfo basic;
     GeneralCommissioningInfo general;
+    NodeId nodeId = kUndefinedNodeId;
 };
 
 struct AttestationErrorInfo

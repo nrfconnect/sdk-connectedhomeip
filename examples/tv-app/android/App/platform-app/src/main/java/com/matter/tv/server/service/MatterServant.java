@@ -31,8 +31,6 @@ import chip.platform.NsdManagerServiceResolver;
 import chip.platform.PreferencesConfigurationManager;
 import chip.platform.PreferencesKeyValueStoreManager;
 import com.matter.tv.server.MatterCommissioningPrompter;
-import com.matter.tv.server.handlers.ContentAppEndpointManagerImpl;
-import com.matter.tv.server.model.ContentApp;
 import com.matter.tv.server.tvapp.ChannelManagerStub;
 import com.matter.tv.server.tvapp.Clusters;
 import com.matter.tv.server.tvapp.ContentLaunchManagerStub;
@@ -117,7 +115,6 @@ public class MatterServant {
               }
             });
     mTvApp.setDACProvider(new DACProviderStub());
-    mTvApp.setUserPrompter(new MatterCommissioningPrompter(activity));
 
     mTvApp.setChipDeviceEventProvider(
         new DeviceEventProvider() {
@@ -144,8 +141,10 @@ public class MatterServant {
 
     chipAppServer = new ChipAppServer();
     chipAppServer.startApp();
+  }
 
-    mTvApp.postServerInit(new ContentAppEndpointManagerImpl(context));
+  public void initCommissioner() {
+    mTvApp.initializeCommissioner(new MatterCommissioningPrompter(activity));
   }
 
   public void restart() {
@@ -169,19 +168,5 @@ public class MatterServant {
 
   public void updateLevel(int value) {
     mTvApp.setCurrentLevel(mLevelEndpoint, value);
-  }
-
-  public int addContentApp(ContentApp app) {
-    return mTvApp.addContentApp(
-        app.getVendorName(),
-        app.getVendorId(),
-        app.getAppName(),
-        app.getProductId(),
-        "1.0",
-        new ContentAppEndpointManagerImpl(context));
-  }
-
-  public void sendTestMessage(int endpoint, String message) {
-    mTvApp.sendTestMessage(endpoint, message);
   }
 }

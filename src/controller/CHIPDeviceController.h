@@ -403,9 +403,11 @@ public:
      *
      * @param[in] remoteDeviceId        The remote device Id.
      * @param[in] setUpCode             The setup code for connecting to the device
+     * @param[in] discoveryType         The network discovery type, defaults to DiscoveryType::kAll.
      */
-    CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode);
-    CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode, const CommissioningParameters & CommissioningParameters);
+    CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode, DiscoveryType discoveryType = DiscoveryType::kAll);
+    CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode, const CommissioningParameters & CommissioningParameters,
+                          DiscoveryType discoveryType = DiscoveryType::kAll);
 
     /**
      * @brief
@@ -466,8 +468,10 @@ public:
      *
      * @param[in] remoteDeviceId        The remote device Id.
      * @param[in] setUpCode             The setup code for connecting to the device
+     * @param[in] discoveryType         The network discovery type, defaults to DiscoveryType::kAll.
      */
-    CHIP_ERROR EstablishPASEConnection(NodeId remoteDeviceId, const char * setUpCode);
+    CHIP_ERROR EstablishPASEConnection(NodeId remoteDeviceId, const char * setUpCode,
+                                       DiscoveryType discoveryType = DiscoveryType::kAll);
 
     /**
      * @brief
@@ -487,15 +491,14 @@ public:
     /**
      * @brief
      *   This function instructs the commissioner to proceed to the next stage of commissioning after
-     *   attestation failure is reported to an installed attestation delegate.
+     *   attestation is reported to an installed attestation delegate.
      *
      * @param[in] device                The device being commissioned.
      * @param[in] attestationResult     The attestation result to use instead of whatever the device
      *                                  attestation verifier came up with. May be a success or an error result.
      */
     CHIP_ERROR
-    ContinueCommissioningAfterDeviceAttestationFailure(DeviceProxy * device,
-                                                       Credentials::AttestationVerificationResult attestationResult);
+    ContinueCommissioningAfterDeviceAttestation(DeviceProxy * device, Credentials::AttestationVerificationResult attestationResult);
 
     CHIP_ERROR GetDeviceBeingCommissioned(NodeId deviceId, CommissioneeDeviceProxy ** device);
 
@@ -715,7 +718,8 @@ private:
     /* Callback when the previously sent CSR request results in failure */
     static void OnCSRFailureResponse(void * context, CHIP_ERROR error);
 
-    void ExtendArmFailSafeForFailedDeviceAttestation(Credentials::AttestationVerificationResult result);
+    void ExtendArmFailSafeForDeviceAttestation(const Credentials::DeviceAttestationVerifier::AttestationInfo & info,
+                                               Credentials::AttestationVerificationResult result);
     static void OnCertificateChainFailureResponse(void * context, CHIP_ERROR error);
     static void OnCertificateChainResponse(
         void * context, const app::Clusters::OperationalCredentials::Commands::CertificateChainResponse::DecodableType & response);
@@ -754,7 +758,9 @@ private:
     static void OnDeviceConnectedFn(void * context, Messaging::ExchangeManager & exchangeMgr, SessionHandle & sessionHandle);
     static void OnDeviceConnectionFailureFn(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
 
-    static void OnDeviceAttestationInformationVerification(void * context, Credentials::AttestationVerificationResult result);
+    static void OnDeviceAttestationInformationVerification(void * context,
+                                                           const Credentials::DeviceAttestationVerifier::AttestationInfo & info,
+                                                           Credentials::AttestationVerificationResult result);
 
     static void OnDeviceNOCChainGeneration(void * context, CHIP_ERROR status, const ByteSpan & noc, const ByteSpan & icac,
                                            const ByteSpan & rcac, Optional<AesCcm128KeySpan> ipk, Optional<NodeId> adminSubject);
@@ -779,9 +785,9 @@ private:
                                  const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
     static void OnDisarmFailsafeFailure(void * context, CHIP_ERROR error);
     void DisarmDone();
-    static void OnArmFailSafeExtendedForFailedDeviceAttestation(
+    static void OnArmFailSafeExtendedForDeviceAttestation(
         void * context, const chip::app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
-    static void OnFailedToExtendedArmFailSafeFailedDeviceAttestation(void * context, CHIP_ERROR error);
+    static void OnFailedToExtendedArmFailSafeDeviceAttestation(void * context, CHIP_ERROR error);
 
     /**
      * @brief
@@ -860,7 +866,8 @@ private:
     chip::Callback::Callback<OnDeviceConnected> mOnDeviceConnectedCallback;
     chip::Callback::Callback<OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;
 
-    chip::Callback::Callback<Credentials::OnAttestationInformationVerification> mDeviceAttestationInformationVerificationCallback;
+    chip::Callback::Callback<Credentials::DeviceAttestationVerifier::OnAttestationInformationVerification>
+        mDeviceAttestationInformationVerificationCallback;
 
     chip::Callback::Callback<OnNOCChainGeneration> mDeviceNOCChainCallback;
     SetUpCodePairer mSetUpCodePairer;
@@ -874,6 +881,7 @@ private:
     Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
     Platform::UniquePtr<app::ReadClient> mReadClient;
     Credentials::AttestationVerificationResult mAttestationResult;
+    Platform::UniquePtr<Credentials::DeviceAttestationVerifier::AttestationDeviceInfo> mAttestationDeviceInfo;
     Credentials::DeviceAttestationVerifier * mDeviceAttestationVerifier = nullptr;
 };
 

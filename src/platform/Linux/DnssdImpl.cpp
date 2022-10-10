@@ -616,7 +616,7 @@ void MdnsAvahi::HandleBrowse(AvahiServiceBrowser * browser, AvahiIfIndex interfa
     switch (event)
     {
     case AVAHI_BROWSER_FAILURE:
-        context->mCallback(context->mContext, nullptr, 0, CHIP_ERROR_INTERNAL);
+        context->mCallback(context->mContext, nullptr, 0, true, CHIP_ERROR_INTERNAL);
         avahi_service_browser_free(browser);
         chip::Platform::Delete(context);
         break;
@@ -642,7 +642,7 @@ void MdnsAvahi::HandleBrowse(AvahiServiceBrowser * browser, AvahiIfIndex interfa
         break;
     case AVAHI_BROWSER_ALL_FOR_NOW:
         ChipLogProgress(DeviceLayer, "Avahi browse: all for now");
-        context->mCallback(context->mContext, context->mServices.data(), context->mServices.size(), CHIP_NO_ERROR);
+        context->mCallback(context->mContext, context->mServices.data(), context->mServices.size(), true, CHIP_NO_ERROR);
         avahi_service_browser_free(browser);
         chip::Platform::Delete(context);
         break;

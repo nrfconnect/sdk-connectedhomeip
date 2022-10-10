@@ -16,7 +16,7 @@
  */
 
 #import "MTROTAProviderDelegateBridge.h"
-#import "MTRControllerFactory_Internal.h"
+#import "MTRDeviceControllerFactory_Internal.h"
 #import "NSDataSpanConversion.h"
 #import "NSStringSpanConversion.h"
 
@@ -128,7 +128,7 @@ private:
 
         auto fileDesignator = [[NSString alloc] initWithBytes:fd length:fdl encoding:NSUTF8StringEncoding];
         auto offset = @(mTransfer.GetStartOffset());
-        auto completionHandler = ^(NSError * error) {
+        auto completionHandler = ^(NSError * _Nullable error) {
             dispatch_async(mWorkQueue, ^{
                 if (error != nil) {
                     LogErrorOnFailure([MTRError errorToCHIPErrorCode:error]);
@@ -149,7 +149,7 @@ private:
             });
         };
 
-        auto * controller = [[MTRControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
+        auto * controller = [[MTRDeviceControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
         VerifyOrReturnError(controller != nil, CHIP_ERROR_INCORRECT_STATE);
         auto nodeId = @(mNodeId.Value());
 
@@ -159,7 +159,7 @@ private:
                                                         controller:controller
                                                     fileDesignator:fileDesignator
                                                             offset:offset
-                                                 completionHandler:completionHandler];
+                                                        completion:completionHandler];
         });
 
         return CHIP_NO_ERROR;
@@ -177,7 +177,7 @@ private:
             error = CHIP_ERROR_INTERNAL;
         }
 
-        auto * controller = [[MTRControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
+        auto * controller = [[MTRDeviceControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
         VerifyOrReturnError(controller != nil, CHIP_ERROR_INCORRECT_STATE);
         auto nodeId = @(mNodeId.Value());
 
@@ -227,7 +227,7 @@ private:
 
         // TODO Handle MaxLength
 
-        auto * controller = [[MTRControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
+        auto * controller = [[MTRDeviceControllerFactory sharedInstance] runningControllerForFabricIndex:mFabricIndex.Value()];
         VerifyOrReturnError(controller != nil, CHIP_ERROR_INCORRECT_STATE);
         auto nodeId = @(mNodeId.Value());
 
@@ -238,7 +238,7 @@ private:
                                           blockSize:blockSize
                                          blockIndex:blockIndex
                                         bytesToSkip:bytesToSkip
-                                  completionHandler:completionHandler];
+                                         completion:completionHandler];
         });
 
         return CHIP_NO_ERROR;
@@ -368,7 +368,7 @@ bool GetPeerNodeInfo(CommandHandler * commandHandler, const ConcreteCommandPath 
     }
 
     auto * controller =
-        [[MTRControllerFactory sharedInstance] runningControllerForFabricIndex:commandHandler->GetAccessingFabricIndex()];
+        [[MTRDeviceControllerFactory sharedInstance] runningControllerForFabricIndex:commandHandler->GetAccessingFabricIndex()];
     if (controller == nil) {
         commandHandler->AddStatus(commandPath, Status::Failure);
         return false;
@@ -377,6 +377,60 @@ bool GetPeerNodeInfo(CommandHandler * commandHandler, const ConcreteCommandPath 
     *outController = controller;
     *outNodeId = desc.subject;
     return true;
+}
+
+// Ensures we have a usable CommandHandler and do not have an error.
+//
+// When this function returns non-null, it's safe to go ahead and use the return
+// value to send a response.
+//
+// When this function returns null, the CommandHandler::Handle should not be
+// used anymore.
+CommandHandler * _Nullable EnsureValidState(
+    CommandHandler::Handle & handle, const ConcreteCommandPath & cachedCommandPath, const char * prefix, NSError * _Nullable error)
+{
+    CommandHandler * handler = handle.Get();
+    if (handler == nullptr) {
+        ChipLogError(Controller, "%s: no CommandHandler to send response", prefix);
+        return nullptr;
+    }
+
+    if (error != nil) {
+        auto * desc = [error description];
+        auto err = [MTRError errorToCHIPErrorCode:error];
+        ChipLogError(Controller, "%s: application returned error: '%s', sending error: '%s'", prefix,
+            [desc cStringUsingEncoding:NSUTF8StringEncoding], chip::ErrorStr(err));
+
+        handler->AddStatus(cachedCommandPath, StatusIB(err).mStatus);
+        handle.Release();
+        return nullptr;
+    }
+
+    return handler;
+}
+
+// Ensures we have a usable CommandHandler and that our args don't involve any
+// errors, for the case when we have data to send back.
+//
+// When this function returns non-null, it's safe to go ahead and use whatever
+// object "data" points to to add a response to the command.
+//
+// When this function returns null, the CommandHandler::Handle should not be
+// used anymore.
+CommandHandler * _Nullable EnsureValidState(CommandHandler::Handle & handle, const ConcreteCommandPath & cachedCommandPath,
+    const char * prefix, NSObject * _Nullable data, NSError * _Nullable error)
+{
+    CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, prefix, error);
+    VerifyOrReturnValue(handler != nullptr, nullptr);
+
+    if (data == nil) {
+        ChipLogError(Controller, "%s: no data to send as a response", prefix);
+        handler->AddStatus(cachedCommandPath, Protocols::InteractionModel::Status::Failure);
+        handle.Release();
+        return nullptr;
+    }
+
+    return handler;
 }
 } // anonymous namespace
 
@@ -389,7 +443,7 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
         return;
     }
 
-    auto * commandParams = [[MTROtaSoftwareUpdateProviderClusterQueryImageParams alloc] init];
+    auto * commandParams = [[MTROTASoftwareUpdateProviderClusterQueryImageParams alloc] init];
     CHIP_ERROR err = ConvertToQueryImageParams(commandData, commandParams);
     if (err != CHIP_NO_ERROR) {
         commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::InvalidCommand);
@@ -401,17 +455,20 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
     __block ConcreteCommandPath cachedCommandPath(commandPath.mEndpointId, commandPath.mClusterId, commandPath.mCommandId);
 
     auto completionHandler = ^(
-        MTROtaSoftwareUpdateProviderClusterQueryImageResponseParams * _Nullable data, NSError * _Nullable error) {
+        MTROTASoftwareUpdateProviderClusterQueryImageResponseParams * _Nullable data, NSError * _Nullable error) {
         dispatch_async(mWorkQueue, ^{
-            CommandHandler * handler = handle.Get();
+            CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, "QueryImage", data, error);
             VerifyOrReturn(handler != nullptr);
+
+            ChipLogDetail(Controller, "QueryImage: application responded with: %s",
+                [[data description] cStringUsingEncoding:NSUTF8StringEncoding]);
 
             Commands::QueryImageResponse::Type response;
             ConvertFromQueryImageResponseParms(data, response);
 
-            auto hasUpdate = [data.status isEqual:@(MTROtaSoftwareUpdateProviderOTAQueryStatusUpdateAvailable)];
+            auto hasUpdate = [data.status isEqual:@(MTROTASoftwareUpdateProviderOTAQueryStatusUpdateAvailable)];
             auto isBDXProtocolSupported =
-                [commandParams.protocolsSupported containsObject:@(MTROtaSoftwareUpdateProviderOTADownloadProtocolBDXSynchronous)];
+                [commandParams.protocolsSupported containsObject:@(MTROTASoftwareUpdateProviderOTADownloadProtocolBDXSynchronous)];
 
             if (hasUpdate && isBDXProtocolSupported) {
                 auto fabricIndex = handler->GetSubjectDescriptor().fabricIndex;
@@ -452,7 +509,7 @@ void MTROTAProviderDelegateBridge::HandleQueryImage(
         [strongDelegate handleQueryImageForNodeID:@(nodeId)
                                        controller:controller
                                            params:commandParams
-                                completionHandler:completionHandler];
+                                       completion:completionHandler];
     });
 }
 
@@ -470,10 +527,13 @@ void MTROTAProviderDelegateBridge::HandleApplyUpdateRequest(CommandHandler * com
     __block ConcreteCommandPath cachedCommandPath(commandPath.mEndpointId, commandPath.mClusterId, commandPath.mCommandId);
 
     auto completionHandler
-        = ^(MTROtaSoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error) {
+        = ^(MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams * _Nullable data, NSError * _Nullable error) {
               dispatch_async(mWorkQueue, ^{
-                  CommandHandler * handler = handle.Get();
+                  CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, "ApplyUpdateRequest", data, error);
                   VerifyOrReturn(handler != nullptr);
+
+                  ChipLogDetail(Controller, "ApplyUpdateRequest: application responded with: %s",
+                      [[data description] cStringUsingEncoding:NSUTF8StringEncoding]);
 
                   Commands::ApplyUpdateResponse::Type response;
                   ConvertFromApplyUpdateRequestResponseParms(data, response);
@@ -482,7 +542,7 @@ void MTROTAProviderDelegateBridge::HandleApplyUpdateRequest(CommandHandler * com
               });
           };
 
-    auto * commandParams = [[MTROtaSoftwareUpdateProviderClusterApplyUpdateRequestParams alloc] init];
+    auto * commandParams = [[MTROTASoftwareUpdateProviderClusterApplyUpdateRequestParams alloc] init];
     ConvertToApplyUpdateRequestParams(commandData, commandParams);
 
     auto strongDelegate = mDelegate;
@@ -490,7 +550,7 @@ void MTROTAProviderDelegateBridge::HandleApplyUpdateRequest(CommandHandler * com
         [strongDelegate handleApplyUpdateRequestForNodeID:@(nodeId)
                                                controller:controller
                                                    params:commandParams
-                                        completionHandler:completionHandler];
+                                               completion:completionHandler];
     });
 }
 
@@ -509,7 +569,7 @@ void MTROTAProviderDelegateBridge::HandleNotifyUpdateApplied(CommandHandler * co
 
     auto completionHandler = ^(NSError * _Nullable error) {
         dispatch_async(mWorkQueue, ^{
-            CommandHandler * handler = handle.Get();
+            CommandHandler * handler = EnsureValidState(handle, cachedCommandPath, "NotifyUpdateApplied", error);
             VerifyOrReturn(handler != nullptr);
 
             handler->AddStatus(cachedCommandPath, Protocols::InteractionModel::Status::Success);
@@ -517,7 +577,7 @@ void MTROTAProviderDelegateBridge::HandleNotifyUpdateApplied(CommandHandler * co
         });
     };
 
-    auto * commandParams = [[MTROtaSoftwareUpdateProviderClusterNotifyUpdateAppliedParams alloc] init];
+    auto * commandParams = [[MTROTASoftwareUpdateProviderClusterNotifyUpdateAppliedParams alloc] init];
     ConvertToNotifyUpdateAppliedParams(commandData, commandParams);
 
     auto strongDelegate = mDelegate;
@@ -525,12 +585,12 @@ void MTROTAProviderDelegateBridge::HandleNotifyUpdateApplied(CommandHandler * co
         [strongDelegate handleNotifyUpdateAppliedForNodeID:@(nodeId)
                                                 controller:controller
                                                     params:commandParams
-                                         completionHandler:completionHandler];
+                                                completion:completionHandler];
     });
 }
 
 CHIP_ERROR MTROTAProviderDelegateBridge::ConvertToQueryImageParams(
-    const Commands::QueryImage::DecodableType & commandData, MTROtaSoftwareUpdateProviderClusterQueryImageParams * commandParams)
+    const Commands::QueryImage::DecodableType & commandData, MTROTASoftwareUpdateProviderClusterQueryImageParams * commandParams)
 {
     commandParams.vendorId = [NSNumber numberWithUnsignedShort:commandData.vendorId];
     commandParams.productId = [NSNumber numberWithUnsignedShort:commandData.productId];
@@ -563,7 +623,7 @@ CHIP_ERROR MTROTAProviderDelegateBridge::ConvertToQueryImageParams(
 }
 
 void MTROTAProviderDelegateBridge::ConvertFromQueryImageResponseParms(
-    const MTROtaSoftwareUpdateProviderClusterQueryImageResponseParams * responseParams,
+    const MTROTASoftwareUpdateProviderClusterQueryImageResponseParams * responseParams,
     Commands::QueryImageResponse::Type & response)
 {
     response.status = static_cast<OTAQueryStatus>([responseParams.status intValue]);
@@ -599,14 +659,14 @@ void MTROTAProviderDelegateBridge::ConvertFromQueryImageResponseParms(
 
 void MTROTAProviderDelegateBridge::ConvertToApplyUpdateRequestParams(
     const Commands::ApplyUpdateRequest::DecodableType & commandData,
-    MTROtaSoftwareUpdateProviderClusterApplyUpdateRequestParams * commandParams)
+    MTROTASoftwareUpdateProviderClusterApplyUpdateRequestParams * commandParams)
 {
     commandParams.updateToken = AsData(commandData.updateToken);
     commandParams.newVersion = [NSNumber numberWithUnsignedLong:commandData.newVersion];
 }
 
 void MTROTAProviderDelegateBridge::ConvertFromApplyUpdateRequestResponseParms(
-    const MTROtaSoftwareUpdateProviderClusterApplyUpdateResponseParams * responseParams,
+    const MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams * responseParams,
     Commands::ApplyUpdateResponse::Type & response)
 {
     response.action = static_cast<OTAApplyUpdateAction>([responseParams.action intValue]);
@@ -615,7 +675,7 @@ void MTROTAProviderDelegateBridge::ConvertFromApplyUpdateRequestResponseParms(
 
 void MTROTAProviderDelegateBridge::ConvertToNotifyUpdateAppliedParams(
     const Commands::NotifyUpdateApplied::DecodableType & commandData,
-    MTROtaSoftwareUpdateProviderClusterNotifyUpdateAppliedParams * commandParams)
+    MTROTASoftwareUpdateProviderClusterNotifyUpdateAppliedParams * commandParams)
 {
     commandParams.updateToken = AsData(commandData.updateToken);
     commandParams.softwareVersion = [NSNumber numberWithUnsignedLong:commandData.softwareVersion];

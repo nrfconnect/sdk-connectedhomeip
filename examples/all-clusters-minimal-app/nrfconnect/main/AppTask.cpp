@@ -37,8 +37,8 @@
 #endif
 
 #include <dk_buttons_and_leds.h>
-#include <logging/log.h>
-#include <zephyr.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/kernel.h>
 
 using namespace ::chip;
 using namespace ::chip::Credentials;

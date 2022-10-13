@@ -246,10 +246,6 @@ endif
 
 if CHIP_WIFI
 
-config NRF_WIFI_LOW_POWER
-    bool
-    default n
-
 config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
     bool
     default n

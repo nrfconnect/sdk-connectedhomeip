@@ -94,9 +94,8 @@ public:
         SUCCESS = 0
     };
 
-    using ScanResultCallback = void (*)(const NetworkCommissioning::WiFiScanResponse &);
+    using ScanResultCallback = void (*)(NetworkCommissioning::WiFiScanResponse *);
     using ScanDoneCallback   = void (*)(WiFiRequestStatus);
-    using ConnectionCallback = void (*)();
 
     enum class StationStatus : uint8_t
     {
@@ -116,6 +115,8 @@ public:
         static WiFiManager sInstance;
         return sInstance;
     }
+
+    using ConnectionCallback = void (*)();
 
     struct ConnectionHandling
     {
@@ -144,22 +145,8 @@ public:
         uint32_t mOverruns{};
     };
 
-    struct WiFiNetwork
-    {
-        uint8_t ssid[DeviceLayer::Internal::kMaxWiFiSSIDLength];
-        size_t ssidLen = 0;
-        uint8_t pass[DeviceLayer::Internal::kMaxWiFiKeyLength];
-        size_t passLen = 0;
-
-        bool IsConfigured() const { return ssidLen > 0; }
-        ByteSpan GetSsidSpan() const { return ByteSpan(ssid, ssidLen); }
-        ByteSpan GetPassSpan() const { return ByteSpan(pass, passLen); }
-        void Clear() { ssidLen = 0; }
-    };
-
     CHIP_ERROR Init();
-    CHIP_ERROR Scan(const ByteSpan & ssid, ScanResultCallback resultCallback, ScanDoneCallback doneCallback,
-                    bool internalScan = false);
+    CHIP_ERROR Scan(const ByteSpan & ssid, ScanResultCallback resultCallback, ScanDoneCallback doneCallback);
     CHIP_ERROR Connect(const ByteSpan & ssid, const ByteSpan & credentials, const ConnectionHandling & handling);
     StationStatus GetStationStatus() const;
     CHIP_ERROR ClearStationProvisioningData();
@@ -168,33 +155,39 @@ public:
     CHIP_ERROR GetNetworkStatistics(NetworkStatistics & stats) const;
 
 private:
-    using NetEventHandler = void (*)(uint8_t *);
+    using ConnectionParams = wifi_connect_req_params;
+    using NetEventCallback = net_mgmt_event_callback;
+    using WiFiStatus       = wifi_status;
+    using NetEventHandler  = void (*)(NetEventCallback *);
 
-    struct ConnectionParams
+    struct NetworkEventData
     {
-        wifi_connect_req_params mParams;
-        int8_t mRssi{ std::numeric_limits<int8_t>::min() };
+        NetEventCallback * mCallback;
+        uint32_t mEvent;
     };
 
     constexpr static uint32_t kWifiManagementEvents = NET_EVENT_WIFI_SCAN_RESULT | NET_EVENT_WIFI_SCAN_DONE |
         NET_EVENT_WIFI_CONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_RESULT | NET_EVENT_WIFI_IFACE_STATUS;
 
+    CHIP_ERROR AddPsk(wifi_connect_req_params * params, const ByteSpan & credentials);
+    CHIP_ERROR EnableStation(bool enable);
+    CHIP_ERROR AddNetwork(const ByteSpan & ssid, const ByteSpan & credentials);
+    uint8_t GetSecurityType() const;
+
     // Event handling
-    static void WifiMgmtEventHandler(net_mgmt_event_callback * cb, uint32_t mgmtEvent, net_if * iface);
-    static void ScanResultHandler(uint8_t * data);
-    static void ScanDoneHandler(uint8_t * data);
-    static void ConnectHandler(uint8_t * data);
-    static void DisconnectHandler(uint8_t * data);
+    static void WifiMgmtEventHandler(NetEventCallback * cb, uint32_t mgmtEvent, struct net_if * iface);
+    static void ScanResultClbk(NetEventCallback * cb);
+    static void ScanDoneClbk(NetEventCallback * cb);
+    static void ConnectClbk(NetEventCallback * cb);
+    static void DisconnectClbk(NetEventCallback * cb);
     static void PostConnectivityStatusChange(ConnectivityChange changeType);
 
     ConnectionParams mWiFiParams{};
     ConnectionHandling mHandling;
     wifi_iface_state mWiFiState;
-    net_mgmt_event_callback mWiFiMgmtClbk{};
+    NetEventCallback mWiFiMgmtClbk{};
     ScanResultCallback mScanResultCallback{ nullptr };
     ScanDoneCallback mScanDoneCallback{ nullptr };
-    WiFiNetwork mWantedNetwork{};
-    bool mInternalScan{ false };
     static const Map<wifi_iface_state, StationStatus, 10> sStatusMap;
     static const Map<uint32_t, NetEventHandler, 4> sEventHandlerMap;
 };

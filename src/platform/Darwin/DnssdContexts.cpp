@@ -130,7 +130,7 @@ CHIP_ERROR GenericContext::Finalize(DNSServiceErrorType err)
         chip::Platform::Delete(this);
     }
 
-    return (kDNSServiceErr_NoError == err) ? CHIP_NO_ERROR : CHIP_ERROR_INTERNAL;
+    return Error::ToChipError(err);
 }
 
 MdnsContexts::~MdnsContexts()
@@ -157,7 +157,7 @@ CHIP_ERROR MdnsContexts::Add(GenericContext * context, DNSServiceRef sdRef)
     if (kDNSServiceErr_NoError != err)
     {
         chip::Platform::Delete(context);
-        return CHIP_ERROR_INTERNAL;
+        return Error::ToChipError(err);
     }
 
     context->serviceRef = sdRef;
@@ -264,7 +264,7 @@ RegisterContext::RegisterContext(const char * sType, const char * instanceName, 
 void RegisterContext::DispatchFailure(DNSServiceErrorType err)
 {
     ChipLogError(Discovery, "Mdns: Register failure (%s)", Error::ToString(err));
-    callback(context, nullptr, nullptr, CHIP_ERROR_INTERNAL);
+    callback(context, nullptr, nullptr, Error::ToChipError(err));
     MdnsContexts::GetInstance().Remove(this);
 }
 
@@ -272,6 +272,10 @@ void RegisterContext::DispatchSuccess()
 {
     std::string typeWithoutSubTypes = GetFullTypeWithoutSubTypes(mType);
     callback(context, typeWithoutSubTypes.c_str(), mInstanceName.c_str(), CHIP_NO_ERROR);
+
+    // Once a service has been properly published it is normally unreachable because the hostname has not yet been
+    // registered against the dns daemon. Register the records mapping the hostname to our IP.
+    mHostNameRegistrar.Register();
 }
 
 BrowseContext::BrowseContext(void * cbContext, DnssdBrowseCallback cb, DnssdServiceProtocol cbContextProtocol)
@@ -285,14 +289,20 @@ BrowseContext::BrowseContext(void * cbContext, DnssdBrowseCallback cb, DnssdServ
 void BrowseContext::DispatchFailure(DNSServiceErrorType err)
 {
     ChipLogError(Discovery, "Mdns: Browse failure (%s)", Error::ToString(err));
-    callback(context, nullptr, 0, CHIP_ERROR_INTERNAL);
+    callback(context, nullptr, 0, true, Error::ToChipError(err));
     MdnsContexts::GetInstance().Remove(this);
 }
 
 void BrowseContext::DispatchSuccess()
 {
-    callback(context, services.data(), services.size(), CHIP_NO_ERROR);
+    callback(context, services.data(), services.size(), true, CHIP_NO_ERROR);
     MdnsContexts::GetInstance().Remove(this);
+}
+
+void BrowseContext::DispatchPartialSuccess()
+{
+    callback(context, services.data(), services.size(), false, CHIP_NO_ERROR);
+    services.clear();
 }
 
 ResolveContext::ResolveContext(void * cbContext, DnssdResolveCallback cb, chip::Inet::IPAddressType cbAddressType)
@@ -308,7 +318,7 @@ ResolveContext::~ResolveContext() {}
 void ResolveContext::DispatchFailure(DNSServiceErrorType err)
 {
     ChipLogError(Discovery, "Mdns: Resolve failure (%s)", Error::ToString(err));
-    callback(context, nullptr, Span<Inet::IPAddress>(), CHIP_ERROR_INTERNAL);
+    callback(context, nullptr, Span<Inet::IPAddress>(), Error::ToChipError(err));
     MdnsContexts::GetInstance().Remove(this);
 }
 
@@ -408,7 +418,7 @@ void ResolveContext::OnNewInterface(uint32_t interfaceId, const char * fullname,
     }
 #endif // CHIP_DETAIL_LOGGING
     ChipLogDetail(Discovery, "Mdns : %s hostname:%s fullname:%s interface: %" PRIu32 " port: %u TXT:\"%s\"", __func__,
-                  hostnameWithDomain, fullname, interfaceId, port, txtString.c_str());
+                  hostnameWithDomain, fullname, interfaceId, ntohs(port), txtString.c_str());
 
     InterfaceInfo interface;
     interface.service.mPort = ntohs(port);

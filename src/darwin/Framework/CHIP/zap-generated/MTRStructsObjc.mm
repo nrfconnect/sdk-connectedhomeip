@@ -83,7 +83,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@implementation MTRDescriptorClusterDeviceType
+@implementation MTRDescriptorClusterDeviceTypeStruct
 - (instancetype)init
 {
     if (self = [super init]) {
@@ -97,7 +97,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)copyWithZone:(nullable NSZone *)zone
 {
-    auto other = [[MTRDescriptorClusterDeviceType alloc] init];
+    auto other = [[MTRDescriptorClusterDeviceTypeStruct alloc] init];
 
     other.type = self.type;
     other.revision = self.revision;
@@ -110,6 +110,19 @@ NS_ASSUME_NONNULL_BEGIN
     NSString * descriptionString =
         [NSString stringWithFormat:@"<%@: type:%@; revision:%@; >", NSStringFromClass([self class]), _type, _revision];
     return descriptionString;
+}
+
+@end
+
+@implementation MTRDescriptorClusterDeviceType
+
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+    auto other = [[MTRDescriptorClusterDeviceType alloc] init];
+    other.type = self.type;
+    other.revision = self.revision;
+
+    return other;
 }
 
 @end

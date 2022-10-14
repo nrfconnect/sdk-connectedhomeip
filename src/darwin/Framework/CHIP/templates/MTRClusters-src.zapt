@@ -106,7 +106,8 @@ using chip::SessionHandle;
 {{/chip_cluster_commands}}
 
 {{#chip_server_cluster_attributes}}
-{{#*inline "attribute"}}Attribute{{asUpperCamelCase name}}{{/inline}}
+{{!Backwards compat for now: Treat DeviceTypeList as DeviceList.  Ideally we would have both, not just DeviceList. }}
+{{#*inline "attribute"}}Attribute{{#if (isStrEqual (asUpperCamelCase parent.name) "Descriptor")}}{{#if (isStrEqual (asUpperCamelCase name) "DeviceTypeList")}}DeviceList{{else}}{{asUpperCamelCase name}}{{/if}}{{else}}{{asUpperCamelCase name}}{{/if}}{{/inline}}
 - (NSDictionary<NSString *, id> *)read{{>attribute}}WithParams:(MTRReadParams * _Nullable)params {
     return [self.device readAttributeWithEndpointID:@(_endpoint) clusterID:@(MTRCluster{{asUpperCamelCase parent.name}}ID) attributeID:@(MTRCluster{{asUpperCamelCase parent.name}}Attribute{{asUpperCamelCase name}}ID) params:params];
 }

@@ -28,6 +28,12 @@ MTRClusterGlobalAttribute{{asUpperCamelCase label}}ID = {{asMEI manufacturerCode
 {{/first}}
 {{#if clusterRef}}
 MTRCluster{{asUpperCamelCase parent.label}}Attribute{{asUpperCamelCase label}}ID = {{asMEI manufacturerCode code}},
+{{!Backwards compat for now: DeviceList as an alias for DeviceTypeList}}
+{{#if (isStrEqual (asUpperCamelCase parent.label) "Descriptor")}}
+{{#if (isStrEqual (asUpperCamelCase label) "DeviceTypeList")}}
+MTRClusterDescriptorAttributeDeviceListID = MTRClusterDescriptorAttributeDeviceTypeListID,
+{{/if}}
+{{/if}}
 {{else}}
 MTRCluster{{asUpperCamelCase parent.label}}Attribute{{asUpperCamelCase label}}ID = MTRClusterGlobalAttribute{{asUpperCamelCase label}}ID,
 {{/if}}

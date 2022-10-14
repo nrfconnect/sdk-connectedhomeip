@@ -15,30 +15,6 @@
  *    limitations under the License.
  */
 
-/**
- *
- *    Copyright (c) 2020 Silicon Labs
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- */
-/***************************************************************************/
-/**
- * @file
- * @brief Contains the per-endpoint configuration of
- *attribute tables.
- *******************************************************************************
- ******************************************************************************/
-
 #include "app/util/common.h"
 #include <app/AttributePersistenceProvider.h>
 #include <app/InteractionModelEngine.h>
@@ -129,7 +105,10 @@ static uint16_t findClusterEndpointIndex(EndpointId endpoint, ClusterId clusterI
 // Initial configuration
 void emberAfEndpointConfigure(void)
 {
-    uint8_t ep;
+    uint16_t ep;
+
+    static_assert(FIXED_ENDPOINT_COUNT <= std::numeric_limits<decltype(ep)>::max(),
+                  "FIXED_ENDPOINT_COUNT must not exceed the size of the endpoint data type");
 
 #if !defined(EMBER_SCRIPTED_TEST)
     uint16_t fixedEndpoints[]             = FIXED_ENDPOINT_ARRAY;
@@ -187,6 +166,11 @@ void emberAfSetDynamicEndpointCount(uint16_t dynamicEndpointCount)
 
 uint16_t emberAfGetDynamicIndexFromEndpoint(EndpointId id)
 {
+    if (id == kInvalidEndpointId)
+    {
+        return kEmberInvalidEndpointIndex;
+    }
+
     uint16_t index;
     for (index = FIXED_ENDPOINT_COUNT; index < MAX_ENDPOINT_COUNT; index++)
     {
@@ -831,6 +815,11 @@ static uint16_t findClusterEndpointIndex(EndpointId endpoint, ClusterId clusterI
         {
             break;
         }
+        if (emAfEndpoints[i].endpoint == kInvalidEndpointId)
+        {
+            // Not actually a configured endpoint.
+            continue;
+        }
         epi = static_cast<uint16_t>(
             epi + ((emberAfFindClusterIncludingDisabledEndpoints(emAfEndpoints[i].endpoint, clusterId, mask) != nullptr) ? 1 : 0));
     }
@@ -840,6 +829,11 @@ static uint16_t findClusterEndpointIndex(EndpointId endpoint, ClusterId clusterI
 
 static uint16_t findIndexFromEndpoint(EndpointId endpoint, bool ignoreDisabledEndpoints)
 {
+    if (endpoint == kInvalidEndpointId)
+    {
+        return kEmberInvalidEndpointIndex;
+    }
+
     uint16_t epi;
     for (epi = 0; epi < emberAfEndpointCount(); epi++)
     {

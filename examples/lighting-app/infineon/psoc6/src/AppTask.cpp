@@ -22,7 +22,6 @@
 #include "AppEvent.h"
 #include "ButtonHandler.h"
 #include "LEDWidget.h"
-#include "qrcodegen.h"
 #include <app-common/zap-generated/attribute-id.h>
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/cluster-id.h>
@@ -39,6 +38,7 @@
 #include <setup_payload/SetupPayload.h>
 
 #include <DeviceInfoProviderImpl.h>
+#include <app/clusters/identify-server/identify-server.h>
 #include <app/clusters/network-commissioning/network-commissioning.h>
 #include <platform/Infineon/PSOC6/NetworkCommissioningDriver.h>
 
@@ -119,6 +119,23 @@ void NetWorkCommissioningInstInit()
 {
     sWiFiNetworkCommissioningInstance.Init();
 }
+
+void OnIdentifyStart(Identify *)
+{
+    ChipLogProgress(Zcl, "OnIdentifyStart");
+}
+
+void OnIdentifyStop(Identify *)
+{
+    ChipLogProgress(Zcl, "OnIdentifyStop");
+}
+
+static Identify gIdentify1 = {
+    chip::EndpointId{ 1 },
+    OnIdentifyStart,
+    OnIdentifyStop,
+    EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_NONE,
+};
 
 static void InitServer(intptr_t context)
 {

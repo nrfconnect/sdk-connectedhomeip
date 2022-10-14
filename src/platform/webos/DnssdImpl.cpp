@@ -640,7 +640,7 @@ void MdnsAvahi::HandleBrowse(AvahiServiceBrowser * browser, AvahiIfIndex interfa
         break;
     case AVAHI_BROWSER_ALL_FOR_NOW:
         ChipLogProgress(DeviceLayer, "Avahi browse: all for now");
-        context->mCallback(context->mContext, context->mServices.data(), context->mServices.size(), CHIP_NO_ERROR);
+        context->mCallback(context->mContext, context->mServices.data(), context->mServices.size(), true, CHIP_NO_ERROR);
         avahi_service_browser_free(browser);
         chip::Platform::Delete(context);
         break;
@@ -847,9 +847,16 @@ CHIP_ERROR ChipDnssdFinalizeServiceUpdate()
 }
 
 CHIP_ERROR ChipDnssdBrowse(const char * type, DnssdServiceProtocol protocol, chip::Inet::IPAddressType addressType,
-                           chip::Inet::InterfaceId interface, DnssdBrowseCallback callback, void * context)
+                           chip::Inet::InterfaceId interface, DnssdBrowseCallback callback, void * context,
+                           intptr_t * browseIdentifier)
 {
+    *browseIdentifier = reinterpret_cast<intptr_t>(nullptr);
     return MdnsAvahi::GetInstance().Browse(type, protocol, addressType, interface, callback, context);
+}
+
+CHIP_ERROR ChipDnssdStopBrowse(intptr_t browseIdentifier)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
 }
 
 CHIP_ERROR ChipDnssdResolve(DnssdService * browseResult, chip::Inet::InterfaceId interface, DnssdResolveCallback callback,

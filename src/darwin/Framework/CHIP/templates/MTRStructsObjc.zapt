@@ -17,6 +17,13 @@ NS_ASSUME_NONNULL_BEGIN
 - (id)copyWithZone:(nullable NSZone *)zone;
 @end
 
+{{!Backwards compat for now: Add a DeviceType thing that inherits from DeviceTypeStruct. }}
+{{#if (isStrEqual (asUpperCamelCase parent.name) "Descriptor")}}
+{{#if (isStrEqual (asUpperCamelCase name) "DeviceTypeStruct")}}
+@interface MTRDescriptorClusterDeviceType : MTRDescriptorClusterDeviceTypeStruct <NSCopying>
+@end
+{{/if}}
+{{/if}}
 {{/zcl_structs}}
 
 {{#zcl_events}}

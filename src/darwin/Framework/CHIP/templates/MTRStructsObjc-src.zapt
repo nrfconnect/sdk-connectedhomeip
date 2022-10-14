@@ -36,6 +36,24 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+{{!Backwards compat for now: Add a DeviceType thing that inherits from DeviceTypeStruct. }}
+{{#if (isStrEqual (asUpperCamelCase parent.name) "Descriptor")}}
+{{#if (isStrEqual (asUpperCamelCase name) "DeviceTypeStruct")}}
+@implementation MTRDescriptorClusterDeviceType
+
+- (id)copyWithZone:(nullable NSZone *)zone
+{
+    auto other = [[MTRDescriptorClusterDeviceType alloc] init];
+    other.type = self.type;
+    other.revision = self.revision;
+
+    return other;
+}
+
+@end
+{{/if}}
+{{/if}}
+
 {{/zcl_structs}}
 
 {{#zcl_events}}

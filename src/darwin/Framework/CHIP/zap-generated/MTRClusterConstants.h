@@ -202,7 +202,8 @@ typedef NS_ENUM(uint32_t, MTRClusterAttributeIDType) {
     MTRClusterPulseWidthModulationAttributeClusterRevisionID = MTRClusterGlobalAttributeClusterRevisionID,
 
     // Cluster Descriptor attributes
-    MTRClusterDescriptorAttributeDeviceListID = 0x00000000,
+    MTRClusterDescriptorAttributeDeviceTypeListID = 0x00000000,
+    MTRClusterDescriptorAttributeDeviceListID = MTRClusterDescriptorAttributeDeviceTypeListID,
     MTRClusterDescriptorAttributeServerListID = 0x00000001,
     MTRClusterDescriptorAttributeClientListID = 0x00000002,
     MTRClusterDescriptorAttributePartsListID = 0x00000003,
@@ -879,7 +880,7 @@ typedef NS_ENUM(uint32_t, MTRClusterAttributeIDType) {
     MTRClusterColorControlAttributeCurrentYID = 0x00000004,
     MTRClusterColorControlAttributeDriftCompensationID = 0x00000005,
     MTRClusterColorControlAttributeCompensationTextID = 0x00000006,
-    MTRClusterColorControlAttributeColorTemperatureID = 0x00000007,
+    MTRClusterColorControlAttributeColorTemperatureMiredsID = 0x00000007,
     MTRClusterColorControlAttributeColorModeID = 0x00000008,
     MTRClusterColorControlAttributeOptionsID = 0x0000000F,
     MTRClusterColorControlAttributeNumberOfPrimariesID = 0x00000010,
@@ -1361,6 +1362,7 @@ typedef NS_ENUM(uint32_t, MTRClusterAttributeIDType) {
     MTRClusterTestClusterAttributeNullableRangeRestrictedInt8sID = 0x00004027,
     MTRClusterTestClusterAttributeNullableRangeRestrictedInt16uID = 0x00004028,
     MTRClusterTestClusterAttributeNullableRangeRestrictedInt16sID = 0x00004029,
+    MTRClusterTestClusterAttributeWriteOnlyInt8uID = 0x0000402A,
     MTRClusterTestClusterAttributeGeneratedCommandListID = MTRClusterGlobalAttributeGeneratedCommandListID,
     MTRClusterTestClusterAttributeAcceptedCommandListID = MTRClusterGlobalAttributeAcceptedCommandListID,
     MTRClusterTestClusterAttributeAttributeListID = MTRClusterGlobalAttributeAttributeListID,

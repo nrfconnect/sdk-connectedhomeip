@@ -51,8 +51,13 @@ class DeviceCommissioner;
 enum class SetupCodePairerBehaviour : uint8_t
 {
     kCommission,
-    kCommissionOnNetwork,
     kPaseOnly,
+};
+
+enum class DiscoveryType : uint8_t
+{
+    kDiscoveryNetworkOnly,
+    kAll,
 };
 
 class DLL_EXPORT SetUpCodePairer : public DevicePairingDelegate
@@ -62,7 +67,8 @@ public:
     virtual ~SetUpCodePairer() {}
 
     CHIP_ERROR PairDevice(chip::NodeId remoteId, const char * setUpCode,
-                          SetupCodePairerBehaviour connectionType = SetupCodePairerBehaviour::kCommission);
+                          SetupCodePairerBehaviour connectionType = SetupCodePairerBehaviour::kCommission,
+                          DiscoveryType discoveryType             = DiscoveryType::kAll);
 
     // Called by the DeviceCommissioner to notify that we have discovered a new device.
     void NotifyCommissionableDeviceDiscovered(const chip::Dnssd::DiscoveredNodeData & nodeData);
@@ -145,13 +151,22 @@ private:
 #endif // CONFIG_NETWORK_LAYER_BLE
 
     bool NodeMatchesCurrentFilter(const Dnssd::DiscoveredNodeData & nodeData) const;
-    Dnssd::DiscoveryFilter currentFilter;
+    static bool IdIsPresent(uint16_t vendorOrProductID);
+
+    Dnssd::DiscoveryFilter mCurrentFilter;
+    // The vendor id and product id from the SetupPayload.  They may be 0, which
+    // indicates "not available" (e.g. because the SetupPayload came from a
+    // short manual code).  In that case we should not filter on those values.
+    static constexpr uint16_t kNotAvailable = 0;
+    uint16_t mPayloadVendorID               = kNotAvailable;
+    uint16_t mPayloadProductID              = kNotAvailable;
 
     DeviceCommissioner * mCommissioner = nullptr;
     System::Layer * mSystemLayer       = nullptr;
     chip::NodeId mRemoteId;
     uint32_t mSetUpPINCode                   = 0;
     SetupCodePairerBehaviour mConnectionType = SetupCodePairerBehaviour::kCommission;
+    DiscoveryType mDiscoveryType             = DiscoveryType::kAll;
 
     // While we are trying to pair, we intercept the DevicePairingDelegate
     // notifications from mCommissioner.  We want to make sure we send them on

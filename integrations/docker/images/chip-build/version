@@ -1,1 +1,1 @@
-0.5.98 Version bump reason: Update Telink Docker
+0.6.03 Version bump reason: [Ameba] Replace C2 notify with indicate as required by Matter spec

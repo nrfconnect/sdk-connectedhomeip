@@ -45,6 +45,7 @@ static_library("nrfconnect") {
     "DeviceNetworkProvisioningDelegateImpl.h",
     "DiagnosticDataProviderImplNrf.cpp",
     "DiagnosticDataProviderImplNrf.h",
+    "ExternalFlashManager.h",
     "InetPlatformConfig.h",
     "KeyValueStoreManagerImpl.h",
     "PlatformManagerImpl.h",

@@ -85,6 +85,11 @@ config NEWLIB_LIBC_NANO
     bool
     default y
 
+# Warn a user if memory left for the heap is too small
+config NEWLIB_LIBC_MIN_REQUIRED_HEAP_SIZE
+    int
+    default 16384
+
 # Generic networking options
 config NET_SOCKETS_POSIX_NAMES
     bool

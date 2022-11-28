@@ -122,7 +122,7 @@ public:
     {
         ConnectionCallback mOnConnectionSuccess{};
         ConnectionCallback mOnConnectionFailed{};
-        System::Clock::Timeout mConnectionTimeoutMs{};
+        System::Clock::Seconds32 mConnectionTimeout{};
     };
 
     struct WiFiInfo

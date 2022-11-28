@@ -190,7 +190,7 @@ CHIP_ERROR WiFiManager::Connect(const ByteSpan & ssid, const ByteSpan & credenti
 
     mHandling.mOnConnectionSuccess = handling.mOnConnectionSuccess;
     mHandling.mOnConnectionFailed  = handling.mOnConnectionFailed;
-    mHandling.mConnectionTimeoutMs = handling.mConnectionTimeoutMs;
+    mHandling.mConnectionTimeout   = handling.mConnectionTimeout;
 
     mWiFiState = WIFI_STATE_ASSOCIATING;
 
@@ -308,7 +308,7 @@ void WiFiManager::ScanResultHandler(uint8_t * data)
                 Instance().mWiFiParams.mParams.psk = Instance().mWantedNetwork.pass;
             }
 
-            Instance().mWiFiParams.mParams.timeout = Instance().mHandling.mConnectionTimeoutMs.count();
+            Instance().mWiFiParams.mParams.timeout = Instance().mHandling.mConnectionTimeout.count();
             Instance().mWiFiParams.mParams.channel = scanResult->channel;
             Instance().mWiFiParams.mRssi           = scanResult->rssi;
         }

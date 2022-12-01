@@ -28,6 +28,7 @@
 #import "MTRCommandPayloadsObjc.h"
 #import "MTRDevice.h"
 #import "MTRDevice_Internal.h"
+#import "MTRLogging_Internal.h"
 #import "MTRStructsObjc.h"
 
 #include <lib/support/CHIPListUtils.h>

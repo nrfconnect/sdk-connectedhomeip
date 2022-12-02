@@ -265,16 +265,15 @@ CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
 
 CHIP_ERROR WiFiManager::GetNetworkStatistics(NetworkStatistics & stats) const
 {
-    // TODO: below will not work (result will be all zeros) until
-    // the get_stats handler is implemented in WiFi driver
-    net_stats_eth data{};
-    net_mgmt(NET_REQUEST_STATS_GET_ETHERNET, InetUtils::GetInterface(), &data, sizeof(data));
+    net_stats_wifi data{};
+    net_mgmt(NET_REQUEST_STATS_GET_WIFI, InetUtils::GetInterface(), &data, sizeof(data));
 
     stats.mPacketMulticastRxCount = data.multicast.rx;
     stats.mPacketMulticastTxCount = data.multicast.tx;
     stats.mPacketUnicastRxCount   = data.pkts.rx - data.multicast.rx - data.broadcast.rx;
     stats.mPacketUnicastTxCount   = data.pkts.tx - data.multicast.tx - data.broadcast.tx;
-    stats.mOverruns               = 0; // TODO: clarify if this can be queried from mgmt API (e.g. data.tx_dropped)
+    stats.mBeaconsSuccessCount    = data.sta_mgmt.beacons_rx;
+    stats.mBeaconsLostCount       = data.sta_mgmt.beacons_miss;
 
     return CHIP_NO_ERROR;
 }

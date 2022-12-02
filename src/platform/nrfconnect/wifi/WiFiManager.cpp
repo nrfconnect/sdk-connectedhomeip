@@ -73,6 +73,32 @@ NetworkCommissioning::WiFiScanResponse ToScanResponse(const wifi_scan_result * r
     return response;
 }
 
+// Matter expectations towards Wi-Fi version codes are unaligned with
+// what wpa_supplicant provides. This function maps supplicant codes
+// to the ones defined in the Matter spec (11.14.3.2. WiFiVersion enum)
+uint8_t MapToMatterWiFiVersionCode(wifi_link_mode wifiVersion)
+{
+    if (wifiVersion < WIFI_1 || wifiVersion > WIFI_6E)
+    {
+        ChipLogError(DeviceLayer, "Unsupported Wi-Fi version detected");
+        return EMBER_ZCL_WI_FI_VERSION_TYPE_802__11A; // let's return 'a' by default
+    }
+
+    switch (wifiVersion)
+    {
+    case WIFI_1:
+        return EMBER_ZCL_WI_FI_VERSION_TYPE_802__11B;
+    case WIFI_2:
+        return EMBER_ZCL_WI_FI_VERSION_TYPE_802__11A;
+    case WIFI_6E:
+        return EMBER_ZCL_WI_FI_VERSION_TYPE_802__11AX; // treat as 802.11ax
+    default:
+        break;
+    }
+
+    return (static_cast<uint8_t>(wifiVersion) - 1);
+}
+
 } // namespace
 
 const Map<wifi_iface_state, WiFiManager::StationStatus, 10>
@@ -164,6 +190,7 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     mInternalScan       = internalScan;
     mScanResultCallback = resultCallback;
     mScanDoneCallback   = doneCallback;
+    mCachedWiFiState    = mWiFiState;
     mWiFiState          = WIFI_STATE_SCANNING;
 
     if (net_mgmt(NET_REQUEST_WIFI_SCAN, iface, NULL, 0))
@@ -251,7 +278,7 @@ CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
                                reinterpret_cast<char *>(mac_string_buf), sizeof(mac_string_buf));
         info.mBssId        = ByteSpan(mac_string_buf, sizeof(mac_string_buf));
         info.mSecurityType = static_cast<uint8_t>(status.security);
-        info.mWiFiVersion  = static_cast<uint8_t>(status.link_mode);
+        info.mWiFiVersion  = MapToMatterWiFiVersionCode(status.link_mode);
         info.mRssi         = status.rssi;
         info.mChannel      = status.channel;
         info.mSsidLen      = status.ssid_len;
@@ -265,16 +292,15 @@ CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
 
 CHIP_ERROR WiFiManager::GetNetworkStatistics(NetworkStatistics & stats) const
 {
-    // TODO: below will not work (result will be all zeros) until
-    // the get_stats handler is implemented in WiFi driver
-    net_stats_eth data{};
-    net_mgmt(NET_REQUEST_STATS_GET_ETHERNET, InetUtils::GetInterface(), &data, sizeof(data));
+    net_stats_wifi data{};
+    net_mgmt(NET_REQUEST_STATS_GET_WIFI, InetUtils::GetInterface(), &data, sizeof(data));
 
     stats.mPacketMulticastRxCount = data.multicast.rx;
     stats.mPacketMulticastTxCount = data.multicast.tx;
     stats.mPacketUnicastRxCount   = data.pkts.rx - data.multicast.rx - data.broadcast.rx;
     stats.mPacketUnicastTxCount   = data.pkts.tx - data.multicast.tx - data.broadcast.tx;
-    stats.mOverruns               = 0; // TODO: clarify if this can be queried from mgmt API (e.g. data.tx_dropped)
+    stats.mBeaconsSuccessCount    = data.sta_mgmt.beacons_rx;
+    stats.mBeaconsLostCount       = data.sta_mgmt.beacons_miss;
 
     return CHIP_NO_ERROR;
 }
@@ -297,6 +323,7 @@ void WiFiManager::ScanResultHandler(uint8_t * data)
             Instance().mWiFiParams.mParams.security =
                 scanResult->security <= WIFI_SECURITY_TYPE_MAX ? scanResult->security : WIFI_SECURITY_TYPE_PSK;
             Instance().mWiFiParams.mParams.psk_length = Instance().mWantedNetwork.passLen;
+            Instance().mWiFiParams.mParams.mfp = (scanResult->mfp == WIFI_MFP_REQUIRED) ? WIFI_MFP_REQUIRED : WIFI_MFP_OPTIONAL;
 
             // If the security is none, WiFi driver expects the psk to be nullptr
             if (Instance().mWiFiParams.mParams.security == WIFI_SECURITY_TYPE_NONE)
@@ -325,39 +352,43 @@ void WiFiManager::ScanDoneHandler(uint8_t * data)
     const wifi_status * status      = reinterpret_cast<const wifi_status *>(data);
     WiFiRequestStatus requestStatus = static_cast<WiFiRequestStatus>(status->status);
 
-    if (Instance().mScanDoneCallback && !Instance().mInternalScan)
-    {
-        Instance().mScanDoneCallback(requestStatus);
-    }
-
     if (requestStatus == WiFiRequestStatus::FAILURE)
     {
-        ChipLogDetail(DeviceLayer, "Scan request failed (%d)", status->status);
+        ChipLogError(DeviceLayer, "Scan request failed (%d)", status->status);
     }
     else
     {
         ChipLogDetail(DeviceLayer, "Scan request done (%d)", status->status);
+    }
 
-        // Internal scan is supposed to be followed by connection request
-        if (Instance().mInternalScan)
+    if (Instance().mScanDoneCallback && !Instance().mInternalScan)
+    {
+        Instance().mScanDoneCallback(requestStatus);
+        // restore the connection state from before the scan request was issued
+        Instance().mWiFiState = Instance().mCachedWiFiState;
+        return;
+    }
+
+    // Internal scan is supposed to be followed by connection request
+    if (Instance().mInternalScan)
+    {
+        Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
+        net_if * iface        = InetUtils::GetInterface();
+        VerifyOrReturn(nullptr != iface, CHIP_ERROR_INTERNAL);
+
+        if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &(Instance().mWiFiParams.mParams), sizeof(wifi_connect_req_params)))
         {
-            Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
-            net_if * iface        = InetUtils::GetInterface();
-            VerifyOrReturn(nullptr != iface, CHIP_ERROR_INTERNAL);
-
-            if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &(Instance().mWiFiParams.mParams), sizeof(wifi_connect_req_params)))
+            ChipLogError(DeviceLayer, "Connection request failed");
+            if (Instance().mHandling.mOnConnectionFailed)
             {
-                ChipLogError(DeviceLayer, "Connection request failed");
-                if (Instance().mHandling.mOnConnectionFailed)
-                {
-                    Instance().mHandling.mOnConnectionFailed();
-                }
-                return;
+                Instance().mHandling.mOnConnectionFailed();
             }
-            ChipLogError(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
-                         Instance().mWiFiParams.mParams.ssid);
-            Instance().mInternalScan = false;
+            Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
+            return;
         }
+        ChipLogDetail(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
+                      Instance().mWiFiParams.mParams.ssid);
+        Instance().mInternalScan = false;
     }
 }
 

@@ -204,6 +204,7 @@ private:
     ConnectionParams mWiFiParams{};
     ConnectionHandling mHandling;
     wifi_iface_state mWiFiState;
+    wifi_iface_state mCachedWiFiState;
     net_mgmt_event_callback mWiFiMgmtClbk{};
     ScanResultCallback mScanResultCallback{ nullptr };
     ScanDoneCallback mScanDoneCallback{ nullptr };

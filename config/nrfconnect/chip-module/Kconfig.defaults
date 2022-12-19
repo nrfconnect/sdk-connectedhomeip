@@ -161,6 +161,11 @@ config BT_DEVICE_NAME_GATT_WRITABLE
 config CHIP_NFC_COMMISSIONING
     default y
 
+# Disable not needed NFC callback to save flash
+config NFC_THREAD_CALLBACK
+    bool
+    default n
+
 config CHIP_OTA_REQUESTOR
     default y
 

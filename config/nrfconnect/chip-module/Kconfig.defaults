@@ -69,11 +69,6 @@ config NEWLIB_LIBC_NANO
     bool
     default y
 
-# Warn a user if memory left for the heap is too small
-config NEWLIB_LIBC_MIN_REQUIRED_HEAP_SIZE
-    int
-    default 12288 # 12kB
-
 # Generic networking options
 config NET_SOCKETS_POSIX_NAMES
     bool
@@ -287,6 +282,9 @@ config SHELL_STACK_SIZE
 config HEAP_MEM_POOL_SIZE
     int
     default 200000
+
+config CHIP_MALLOC_SYS_HEAP_SIZE
+    default 28672 # 28 kB
 
 endif
 

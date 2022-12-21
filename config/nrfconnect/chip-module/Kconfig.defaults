@@ -252,6 +252,9 @@ config SHELL_STACK_SIZE
 config HEAP_MEM_POOL_SIZE
     default 200000
 
+config CHIP_MALLOC_SYS_HEAP_SIZE
+    default 28672 # 28 kB
+
 endif
 
 

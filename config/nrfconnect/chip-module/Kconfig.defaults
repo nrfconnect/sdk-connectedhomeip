@@ -413,6 +413,18 @@ config CLOCK_CONTROL_NRF_SHELL
 config FLASH_SHELL
     default n
 
+if MPSL_FEM
+
+config MPSL_FEM_NRF21540_RUNTIME_PA_GAIN_CONTROL
+	default y
+
+endif # MPSL_FEM
+
+config OPENTHREAD_DEFAULT_TX_POWER
+	default 20 if MPSL_FEM
+	default 3 if SOC_SERIES_NRF53X && !MPSL_FEM
+	default 8 if SOC_SERIES_NRF52X && !MPSL_FEM
+
 # SoC series related configuration
 
 if SOC_SERIES_NRF52X

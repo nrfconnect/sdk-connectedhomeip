@@ -32,6 +32,20 @@
 namespace chip {
 
 /**
+ *  @def CHIP_CONFIG_RUNTIME_MRP_OVERRIDE
+ *
+ *  @brief
+ *    Enable overriding MRP params at runtime.
+ *
+ *  This config enables overriding MRP params at runtime which can be useful when the intervals may be various in different networks.
+ *  (e.g. different values of DTIM and beacon intervals in Wi-Fi network)
+ *
+ */
+#ifndef CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
+#define CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE 0
+#endif
+
+/**
  *  @def CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL
  *
  *  @brief
@@ -156,13 +170,13 @@ ReliableMessageProtocolConfig GetDefaultMRPConfig();
  */
 Optional<ReliableMessageProtocolConfig> GetLocalMRPConfig();
 
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST || CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
 
 /**
  * @brief
  *
  * Overrides the local idle and active retransmission timeout parameters (which are usually set through compile
- * time defines). This is reserved for tests that need the ability to set these at runtime to make certain test scenarios possible.
+ * time defines).
  *
  */
 void OverrideLocalMRPConfig(System::Clock::Timeout idleRetransTimeout, System::Clock::Timeout activeRetransTimeout);

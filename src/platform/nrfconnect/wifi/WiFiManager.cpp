@@ -29,6 +29,10 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/Zephyr/InetUtils.h>
 
+#if CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
+#include <messaging/ReliableMessageProtocolConfig.h>
+#endif
+
 #include <zephyr/kernel.h>
 #include <zephyr/net/net_event.h>
 #include <zephyr/net/net_if.h>
@@ -45,10 +49,20 @@ extern "C" {
 extern char * net_sprint_ll_addr_buf(const uint8_t * ll, uint8_t ll_len, char * buf, int buflen);
 }
 
+// TODO When API for obtaining beacon interval and DTIM params is ready the following definitions can be removed
+#if CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
+// The default value of Delivery Traffic Indication Message, a multiplier of the beacon interval.
+#define DEFAULT_DTIM_INTERVAL (3)
+// The default value of the beacon interval in miliseconds
+#define DEFAULT_BEACON_INTERVAL_MS (100_ms32)
+#endif
+
 namespace chip {
 namespace DeviceLayer {
 
 namespace {
+
+using namespace chip::System::Clock::Literals;
 
 NetworkCommissioning::WiFiScanResponse ToScanResponse(const wifi_scan_result * result)
 {
@@ -432,6 +446,12 @@ void WiFiManager::ConnectHandler(uint8_t * data)
             System::Clock::Milliseconds32(chip::Crypto::GetRandU16() % kMaxInitialRouterSolicitationDelayMs),
             SendRouterSolicitation, nullptr);
 
+        // TODO: When API for obtaining beacon interval and DTIM params is ready replace
+        // the (DEFAULT_DTIM_INTERVAL * DEFAULT_BEACON_INTERVAL_MS) defines with proper getters.
+#if CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
+        OverrideLocalMRPConfig(CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL + (DEFAULT_DTIM_INTERVAL * DEFAULT_BEACON_INTERVAL_MS),
+                               CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL + DEFAULT_DTIM_INTERVAL * DEFAULT_BEACON_INTERVAL_MS);
+#endif
         ChipLogDetail(DeviceLayer, "Connected to WiFi network");
         Instance().mWiFiState = WIFI_STATE_COMPLETED;
         if (Instance().mHandling.mOnConnectionSuccess)

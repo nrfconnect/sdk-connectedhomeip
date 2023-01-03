@@ -95,6 +95,8 @@ static_library("nrfconnect") {
       "wifi/WiFiManager.cpp",
       "wifi/WiFiManager.h",
     ]
+
+    public_deps += [ "${chip_root}/src/messaging:messaging_mrp_config" ]
   }
 
   if (chip_enable_nfc) {

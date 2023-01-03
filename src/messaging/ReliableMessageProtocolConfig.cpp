@@ -31,7 +31,7 @@ namespace chip {
 
 using namespace System::Clock::Literals;
 
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST || CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
 static Optional<System::Clock::Timeout> idleRetransTimeoutOverride   = NullOptional;
 static Optional<System::Clock::Timeout> activeRetransTimeoutOverride = NullOptional;
 
@@ -72,7 +72,7 @@ Optional<ReliableMessageProtocolConfig> GetLocalMRPConfig()
     }
 #endif
 
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST  || CHIP_CONFIG_ALLOW_RUNTIME_MRP_OVERRIDE
     if (idleRetransTimeoutOverride.HasValue())
     {
         config.mIdleRetransTimeout = idleRetransTimeoutOverride.Value();

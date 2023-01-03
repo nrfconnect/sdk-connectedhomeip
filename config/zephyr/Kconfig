@@ -215,7 +215,7 @@ config CHIP_MALLOC_SYS_HEAP_OVERRIDE
 
 config CHIP_MALLOC_SYS_HEAP_SIZE
 	int "Heap size used by memory allocator based on Zephyr sys_heap"
-	default 10240 # 10kB
+	default 12288 # 12kB
 	help
 	  This value controls how much of the device RAM is reserved for the heap
 	  used by the memory allocation functions based on sys_heap from Zephyr

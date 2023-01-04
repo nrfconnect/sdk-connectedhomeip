@@ -60,6 +60,10 @@ config NEWLIB_LIBC_NANO
     bool
     default y
 
+config PTHREAD_IPC
+    bool
+    default n
+
 # Generic networking options
 config NET_SOCKETS_POSIX_NAMES
     default n

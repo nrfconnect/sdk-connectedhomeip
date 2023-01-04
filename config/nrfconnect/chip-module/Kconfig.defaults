@@ -308,6 +308,9 @@ config HEAP_MEM_POOL_SIZE
     int
     default 200000
 
+config CHIP_MALLOC_SYS_HEAP_SIZE
+    default 28672 # 28 kB
+
 endif
 
 

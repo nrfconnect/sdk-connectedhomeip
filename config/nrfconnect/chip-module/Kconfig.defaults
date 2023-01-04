@@ -352,6 +352,18 @@ config MBEDTLS_RSA_C
 
 # Disable not used shell modules
 
+config SHELL_WILDCARD
+    default n
+
+config SHELL_VT100_COLORS
+    default n
+
+config SHELL_STATS
+    default n
+
+config KERNEL_SHELL
+    default n
+
 config SENSOR_SHELL
     default n
 

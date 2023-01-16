@@ -109,6 +109,12 @@ static_library("nrfconnect") {
       "OTAImageProcessorImpl.cpp",
       "OTAImageProcessorImpl.h",
     ]
+      if (chip_multi_variant_ota) {
+        sources += [
+          "OTAMultiImageDownloader.cpp",
+          "OTAMultiImageDownloader.h",
+        ]
+      }
   }
 
   if (chip_malloc_sys_heap) {

@@ -222,6 +222,7 @@ chip_gn_arg_bool  ("chip_detail_logging"                    CONFIG_MATTER_LOG_LE
 chip_gn_arg_bool  ("chip_automation_logging"                "false")
 chip_gn_arg_bool  ("chip_malloc_sys_heap"                   CONFIG_CHIP_MALLOC_SYS_HEAP)
 chip_gn_arg_bool  ("chip_enable_wifi"                       CONFIG_WIFI_NRF700X)
+chip_gn_arg_bool  ("chip_multi_variant_ota"                 CONFIG_THREAD_WIFI_SWITCHING)
 
 if (CONFIG_CHIP_FACTORY_DATA)
     chip_gn_arg_bool  ("chip_use_transitional_commissionable_data_provider"  "false")

@@ -38,6 +38,10 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/pm/device.h>
 
+#ifdef CONFIG_THREAD_WIFI_SWITCHING
+#include "OTAMultiImageDownloader.h"
+#endif
+
 #if CONFIG_CHIP_CERTIFICATION_DECLARATION_STORAGE
 // Cd globals are needed to be accessed from dfu image writer lambdas
 namespace {
@@ -48,6 +52,25 @@ size_t sCdSavedBytes                                      = 0;
 
 namespace chip {
 namespace DeviceLayer {
+
+static int DefaultWriterInit(int id, size_t size)
+{
+    return dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, id, size, nullptr);
+}
+
+static int DefaultWriterWrite(const uint8_t * chunk, size_t chunk_size)
+{
+    return dfu_target_write(chunk, chunk_size);
+}
+
+static int DefaultWriterClose(bool success)
+{
+    return success ? dfu_target_done(success) : dfu_target_reset();
+}
+
+static dfu_image_open_t sImageOpenHandler   = DefaultWriterInit;
+static dfu_image_write_t sImageWriteHandler = DefaultWriterWrite;
+static dfu_image_close_t sImageCloseHandler = DefaultWriterClose;
 
 CHIP_ERROR OTAImageProcessorImpl::PrepareDownload()
 {
@@ -60,18 +83,25 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownload()
 
 CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
 {
+#ifdef CONFIG_THREAD_WIFI_SWITCHING
+    // set customized handlers for the dfu_multi_image
+    sImageOpenHandler  = &OTAMultiImageDownloaders::Open;
+    sImageWriteHandler = &OTAMultiImageDownloaders::Write;
+    sImageCloseHandler = &OTAMultiImageDownloaders::Close;
+#endif
+
     mHeaderParser.Init();
     mParams = {};
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_mcuboot_set_buf(mBuffer, sizeof(mBuffer))));
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_multi_image_init(mBuffer, sizeof(mBuffer))));
 
-    for (int image_id = 0; image_id < CONFIG_UPDATEABLE_IMAGE_NUMBER; ++image_id)
+    for (int image_id = 0; image_id < CONFIG_DFU_MULTI_IMAGE_MAX_IMAGE_COUNT; ++image_id)
     {
         dfu_image_writer writer;
         writer.image_id = image_id;
-        writer.open     = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, id, size, nullptr); };
-        writer.write    = [](const uint8_t * chunk, size_t chunk_size) { return dfu_target_write(chunk, chunk_size); };
-        writer.close    = [](bool success) { return success ? dfu_target_done(success) : dfu_target_reset(); };
+        writer.open     = sImageOpenHandler;
+        writer.write    = sImageWriteHandler;
+        writer.close    = sImageCloseHandler;
 
         ReturnErrorOnFailure(System::MapErrorZephyr(dfu_multi_image_register_writer(&writer)));
     };
@@ -179,7 +209,14 @@ bool OTAImageProcessorImpl::IsFirstImageRun()
 
 CHIP_ERROR OTAImageProcessorImpl::ConfirmCurrentImage()
 {
-    return System::MapErrorZephyr(boot_write_img_confirmed());
+    auto err = System::MapErrorZephyr(boot_write_img_confirmed());
+#ifdef CONFIG_THREAD_WIFI_SWITCHING
+    if (err == CHIP_NO_ERROR)
+    {
+        err = System::MapErrorZephyr(OTAMultiImageDownloaders::Apply());
+    }
+#endif
+    return err;
 }
 
 CHIP_ERROR OTAImageProcessorImpl::ProcessHeader(ByteSpan & aBlock)

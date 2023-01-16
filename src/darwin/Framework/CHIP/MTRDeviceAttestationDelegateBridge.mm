@@ -18,7 +18,6 @@
 #import "MTRDeviceAttestationDelegateBridge.h"
 #import "MTRDeviceAttestationDelegate_Internal.h"
 #import "MTRError_Internal.h"
-#import "MTRLogging_Internal.h"
 #import "NSDataSpanConversion.h"
 
 void MTRDeviceAttestationDelegateBridge::OnDeviceAttestationCompleted(chip::Controller::DeviceCommissioner * deviceCommissioner,
@@ -26,8 +25,7 @@ void MTRDeviceAttestationDelegateBridge::OnDeviceAttestationCompleted(chip::Cont
     chip::Credentials::AttestationVerificationResult attestationResult)
 {
     dispatch_async(mQueue, ^{
-        MTR_LOG_DEFAULT(
-            "MTRDeviceAttestationDelegateBridge::OnDeviceAttestationFailed completed with result: %hu", attestationResult);
+        NSLog(@"MTRDeviceAttestationDelegateBridge::OnDeviceAttestationFailed completed with result: %hu", attestationResult);
 
         mResult = attestationResult;
 

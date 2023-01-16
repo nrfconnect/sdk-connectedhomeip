@@ -17,7 +17,7 @@
 
 #import "MTRDeviceControllerXPCConnection.h"
 #import "MTRDeviceControllerOverXPC.h"
-#import "MTRLogging_Internal.h"
+#import "MTRLogging.h"
 
 #import <Foundation/Foundation.h>
 

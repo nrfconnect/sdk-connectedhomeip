@@ -17,8 +17,7 @@
  */
 
 #include "InteractiveCommands.h"
-
-#include <platform/logging/LogV.h>
+#import <Matter/Matter.h>
 
 #include <editline.h>
 #include <iomanip>

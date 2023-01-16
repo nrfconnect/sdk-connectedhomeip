@@ -1,5 +1,4 @@
 /**
- *
  *    Copyright (c) 2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,12 +14,19 @@
  *    limitations under the License.
  */
 
-#import <Foundation/Foundation.h>
+#import "MTRMemory.h"
 
-#define MTR_EXPORT __attribute__((visibility("default")))
+#include <lib/support/CHIPMem.h>
 
-#ifdef __cplusplus
-#define MTR_EXTERN extern "C" MTR_EXPORT
-#else
-#define MTR_EXTERN extern MTR_EXPORT
-#endif
+@implementation MTRMemory
+
++ (void)ensureInit
+{
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // The malloc version of MemoryInit never fails.
+        chip::Platform::MemoryInit();
+    });
+}
+
+@end

@@ -23,7 +23,7 @@
 #import "MTRDeviceControllerXPCConnection.h"
 #import "MTRError.h"
 #import "MTRError_Internal.h"
-#import "MTRLogging_Internal.h"
+#import "MTRLogging.h"
 
 #include <app/InteractionModelEngine.h>
 #include <lib/support/ErrorStr.h>

@@ -18,8 +18,6 @@
 
 #include "InteractiveCommands.h"
 
-#include <platform/logging/LogV.h>
-
 #include <editline.h>
 #include <iomanip>
 #include <sstream>

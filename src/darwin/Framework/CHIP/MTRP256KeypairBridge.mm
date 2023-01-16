@@ -18,11 +18,11 @@
 #import "MTRP256KeypairBridge.h"
 #import "NSDataSpanConversion.h"
 
-#import <Security/Security.h>
+#import <Security/SecKey.h>
 #include <string>
 
 #import "MTRKeypair.h"
-#import "MTRLogging_Internal.h"
+#import "MTRLogging.h"
 
 using namespace chip::Crypto;
 
@@ -31,7 +31,7 @@ CHIP_ERROR MTRP256KeypairBridge::Init(id<MTRKeypair> keypair)
     if (![keypair respondsToSelector:@selector(signMessageECDSA_DER:)]
         && ![keypair respondsToSelector:@selector(signMessageECDSA_RAW:)]) {
         // Not a valid MTRKeypair implementation.
-        MTR_LOG_ERROR("Keypair does not support message signing");
+        NSLog(@"Keypair does not support message signing");
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
 

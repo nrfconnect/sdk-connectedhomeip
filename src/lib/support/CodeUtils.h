@@ -254,12 +254,11 @@ constexpr inline const _T & max(const _T & a, const _T & b)
  *
  *  Example usage:
  *
- *  @code
+ * @code
  *    VerifyOrReturn(param != nullptr, LogError("param is nullptr"));
  *  @endcode
  *
  *  @param[in]  expr        A Boolean expression to be evaluated.
- *  @param[in]  ...         Statements to execute before returning. Optional.
  */
 #define VerifyOrReturn(expr, ...)                                                                                                  \
     do                                                                                                                             \
@@ -272,7 +271,7 @@ constexpr inline const _T & max(const _T & a, const _T & b)
     } while (false)
 
 /**
- *  @def VerifyOrReturnError(expr, code, ...)
+ *  @def VerifyOrReturnError(expr, code)
  *
  *  @brief
  *    Returns a specified error code if expression evaluates to false
@@ -285,12 +284,11 @@ constexpr inline const _T & max(const _T & a, const _T & b)
  *
  *  @param[in]  expr        A Boolean expression to be evaluated.
  *  @param[in]  code        A value to return if @a expr is false.
- *  @param[in]  ...         Statements to execute before returning. Optional.
  */
-#define VerifyOrReturnError(expr, code, ...) VerifyOrReturnValue(expr, code, ##__VA_ARGS__)
+#define VerifyOrReturnError(expr, code) VerifyOrReturnValue(expr, code)
 
 /**
- *  @def VerifyOrReturnValue(expr, value, ...)
+ *  @def VerifyOrReturnValue(expr, value)
  *
  *  @brief
  *    Returns a specified value if expression evaluates to false
@@ -303,14 +301,12 @@ constexpr inline const _T & max(const _T & a, const _T & b)
  *
  *  @param[in]  expr        A Boolean expression to be evaluated.
  *  @param[in]  value       A value to return if @a expr is false.
- *  @param[in]  ...         Statements to execute before returning. Optional.
  */
-#define VerifyOrReturnValue(expr, value, ...)                                                                                      \
+#define VerifyOrReturnValue(expr, value)                                                                                           \
     do                                                                                                                             \
     {                                                                                                                              \
         if (!(expr))                                                                                                               \
         {                                                                                                                          \
-            __VA_ARGS__;                                                                                                           \
             return (value);                                                                                                        \
         }                                                                                                                          \
     } while (false)
@@ -472,7 +468,9 @@ constexpr inline const _T & max(const _T & a, const _T & b)
  *  }
  *  @endcode
  *
- *  @param[in]  ...         Statements to execute. Optional.
+ *  @param[in]  ...         An optional expression or block to execute
+ *                          when the assertion fails.
+ *
  */
 // clang-format off
 #define ExitNow(...)                                                   \
@@ -624,7 +622,6 @@ inline void chipDie(void)
  *  @endcode
  *
  *  @param[in]  expr        A Boolean expression to be evaluated.
- *  @param[in]  ...         Statements to execute.
  */
 #define VerifyOrDo(expr, ...)                                                                                                      \
     do                                                                                                                             \

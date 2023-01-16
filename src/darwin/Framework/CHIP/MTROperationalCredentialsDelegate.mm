@@ -21,8 +21,10 @@
 
 #import <Security/Security.h>
 
+#include <Security/SecKey.h>
+
 #import "MTRCertificates.h"
-#import "MTRLogging_Internal.h"
+#import "MTRLogging.h"
 #import "NSDataSpanConversion.h"
 
 #include <controller/CommissioningDelegate.h>
@@ -92,12 +94,12 @@ CHIP_ERROR MTROperationalCredentialsDelegate::GenerateNOC(P256Keypair & signingK
     uint32_t validityStart, validityEnd;
 
     if (!ToChipEpochTime(0, validityStart)) {
-        MTR_LOG_ERROR("Failed in computing certificate validity start date");
+        NSLog(@"Failed in computing certificate validity start date");
         return CHIP_ERROR_INTERNAL;
     }
 
     if (!ToChipEpochTime(kCertificateValiditySecs, validityEnd)) {
-        MTR_LOG_ERROR("Failed in computing certificate validity end date");
+        NSLog(@"Failed in computing certificate validity end date");
         return CHIP_ERROR_INTERNAL;
     }
 
@@ -376,12 +378,12 @@ CHIP_ERROR MTROperationalCredentialsDelegate::GenerateRootCertificate(id<MTRKeyp
     uint32_t validityStart, validityEnd;
 
     if (!ToChipEpochTime(0, validityStart)) {
-        MTR_LOG_ERROR("Failed in computing certificate validity start date");
+        NSLog(@"Failed in computing certificate validity start date");
         return CHIP_ERROR_INTERNAL;
     }
 
     if (!ToChipEpochTime(kCertificateValiditySecs, validityEnd)) {
-        MTR_LOG_ERROR("Failed in computing certificate validity end date");
+        NSLog(@"Failed in computing certificate validity end date");
         return CHIP_ERROR_INTERNAL;
     }
 
@@ -426,12 +428,12 @@ CHIP_ERROR MTROperationalCredentialsDelegate::GenerateIntermediateCertificate(id
     uint32_t validityStart, validityEnd;
 
     if (!ToChipEpochTime(0, validityStart)) {
-        MTR_LOG_ERROR("Failed in computing certificate validity start date");
+        NSLog(@"Failed in computing certificate validity start date");
         return CHIP_ERROR_INTERNAL;
     }
 
     if (!ToChipEpochTime(kCertificateValiditySecs, validityEnd)) {
-        MTR_LOG_ERROR("Failed in computing certificate validity end date");
+        NSLog(@"Failed in computing certificate validity end date");
         return CHIP_ERROR_INTERNAL;
     }
 

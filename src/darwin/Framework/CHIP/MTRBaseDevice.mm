@@ -23,7 +23,7 @@
 #import "MTRCluster.h"
 #import "MTRError_Internal.h"
 #import "MTREventTLVValueDecoder_Internal.h"
-#import "MTRLogging_Internal.h"
+#import "MTRLogging.h"
 #import "MTRSetupPayload_Internal.h"
 
 #include "app/ConcreteAttributePath.h"

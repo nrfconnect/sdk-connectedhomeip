@@ -24,9 +24,8 @@
 #import "MTRDeviceControllerStartupParams.h"
 #import "MTRDeviceControllerStartupParams_Internal.h"
 #import "MTRDeviceController_Internal.h"
-#import "MTRError_Internal.h"
-#import "MTRFramework.h"
-#import "MTRLogging_Internal.h"
+#import "MTRLogging.h"
+#import "MTRMemory.h"
 #import "MTROTAProviderDelegateBridge.h"
 #import "MTRP256KeypairBridge.h"
 #import "MTRPersistentStorageDelegateBridge.h"
@@ -49,6 +48,7 @@ using namespace chip::Controller;
 static NSString * const kErrorPersistentStorageInit = @"Init failure while creating a persistent storage delegate";
 static NSString * const kErrorAttestationTrustStoreInit = @"Init failure while creating the attestation trust store";
 static NSString * const kErrorDACVerifierInit = @"Init failure while creating the device attestation verifier";
+static NSString * const kInfoFactoryShutdown = @"Shutting down the Matter controller factory";
 static NSString * const kErrorGroupProviderInit = @"Init failure while initializing group data provider";
 static NSString * const kErrorControllersInit = @"Init controllers array failure";
 static NSString * const kErrorControllerFactoryInit = @"Init failure while initializing controller factory";
@@ -83,11 +83,6 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
 
 @implementation MTRControllerFactory
 
-+ (void)initialize
-{
-    MTRFrameworkInit();
-}
-
 + (instancetype)sharedInstance
 {
     static MTRControllerFactory * factory = nil;
@@ -108,6 +103,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
     _isRunning = NO;
     _chipWorkQueue = DeviceLayer::PlatformMgrImpl().GetWorkQueue();
     _controllerFactory = &DeviceControllerFactory::GetInstance();
+    [MTRMemory ensureInit];
 
     _groupStorageDelegate = new chip::TestPersistentStorageDelegate();
     if ([self checkForInitError:(_groupStorageDelegate != nullptr) logMsg:kErrorGroupProviderInit]) {
@@ -336,7 +332,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
         [_controllers[0] shutdown];
     }
 
-    MTR_LOG_DEBUG("Shutting down the Matter controller factory");
+    MTR_LOG_DEBUG("%@", kInfoFactoryShutdown);
     _controllerFactory->Shutdown();
 
     [self cleanupStartupObjects];

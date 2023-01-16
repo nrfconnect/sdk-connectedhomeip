@@ -58,6 +58,7 @@ class HostApp(Enum):
     TV_CASTING = auto()
     BRIDGE = auto()
     DYNAMIC_BRIDGE = auto()
+    JAVA_MATTER_CONTROLLER = auto()
 
     def ExamplePath(self):
         if self == HostApp.ALL_CLUSTERS:
@@ -98,6 +99,8 @@ class HostApp(Enum):
             return 'bridge-app/linux'
         elif self == HostApp.DYNAMIC_BRIDGE:
             return 'dynamic-bridge-app/linux'
+        elif self == HostApp.JAVA_MATTER_CONTROLLER:
+            return 'java-matter-controller'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -168,6 +171,9 @@ class HostApp(Enum):
         elif self == HostApp.DYNAMIC_BRIDGE:
             yield 'dynamic-chip-bridge-app'
             yield 'dynamic-chip-bridge-app.map'
+        elif self == HostApp.JAVA_MATTER_CONTROLLER:
+            yield 'java-matter-controller'
+            yield 'java-matter-controller.map'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -216,7 +222,7 @@ class HostBuilder(GnBuilder):
 
     def __init__(self, root, runner, app: HostApp, board=HostBoard.NATIVE,
                  enable_ipv4=True, enable_ble=True, enable_wifi=True,
-                 enable_thread=True, use_tsan=False, use_asan=False,
+                 enable_thread=True, use_tsan=False, use_asan=False, use_ubsan=False,
                  separate_event_loop=True, use_libfuzzer=False, use_clang=False,
                  interactive_mode=True, extra_tests=False,
                  use_platform_mdns=False, enable_rpcs=False,
@@ -253,6 +259,9 @@ class HostBuilder(GnBuilder):
 
         if use_asan:
             self.extra_gn_options.append('is_asan=true')
+
+        if use_ubsan:
+            self.extra_gn_options.append('is_ubsan=true')
 
         if use_dmalloc:
             self.extra_gn_options.append('chip_config_memory_debug_checks=true')
@@ -357,6 +366,16 @@ class HostBuilder(GnBuilder):
         else:
             raise Exception('Unknown host board type: %r' % self)
 
+    def createJavaExecutable(self, java_program):
+        self._Execute(
+            [
+                "chmod",
+                "+x",
+                "%s/bin/%s" % (self.output_dir, java_program),
+            ],
+            title="Make Java program executable",
+        )
+
     def GnBuildEnv(self):
         if self.board == HostBoard.ARM64:
             self.build_env['PKG_CONFIG_PATH'] = os.path.join(
@@ -370,6 +389,22 @@ class HostBuilder(GnBuilder):
 
     def generate(self):
         super(HostBuilder, self).generate()
+        if 'JAVA_PATH' in os.environ:
+            self._Execute(
+                ["third_party/java_deps/set_up_java_deps.sh"],
+                title="Setting up Java deps",
+            )
+
+            exampleName = self.app.ExamplePath()
+            if exampleName == "java-matter-controller":
+                self._Execute(
+                    [
+                        "cp",
+                        os.path.join(self.root, "Manifest.txt"),
+                        self.output_dir,
+                    ],
+                    title="Copying Manifest.txt to " + self.output_dir,
+                )
 
         if self.app == HostApp.TESTS and self.use_coverage:
             self.coverage_dir = os.path.join(self.output_dir, 'coverage')
@@ -399,6 +434,9 @@ class HostBuilder(GnBuilder):
                            ], title="Final coverage info")
             self._Execute(['genhtml', os.path.join(self.coverage_dir, 'lcov_final.info'), '--output-directory',
                            os.path.join(self.coverage_dir, 'html')], title="HTML coverage")
+
+        if self.app == HostApp.JAVA_MATTER_CONTROLLER:
+            self.createJavaExecutable("java-matter-controller")
 
     def build_outputs(self):
         outputs = {}

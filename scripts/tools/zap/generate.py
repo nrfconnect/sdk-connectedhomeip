@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import tempfile
 import subprocess
 import sys
 import urllib.request
@@ -32,6 +33,7 @@ class CmdLineArgs:
     templateFile: str
     outputDir: str
     runBootstrap: bool
+    parallel: bool = True
 
 
 CHIP_ROOT_DIR = os.path.realpath(
@@ -103,6 +105,9 @@ def runArgumentsParser() -> CmdLineArgs:
                         help='Output directory for the generated files (default: automatically selected)')
     parser.add_argument('--run-bootstrap', default=None, action='store_true',
                         help='Automatically run ZAP bootstrap. By default the bootstrap is not triggered')
+    parser.add_argument('--parallel', action='store_true')
+    parser.add_argument('--no-parallel', action='store_false', dest='parallel')
+    parser.set_defaults(parallel=True)
     args = parser.parse_args()
 
     # By default, this script assumes that the global CHIP template is used with
@@ -149,10 +154,38 @@ def extractGeneratedIdl(output_dir, zap_config_path):
 
 
 def runGeneration(zap_file, zcl_file, templates_file, output_dir):
-    generator_dir = os.getenv('ZAP_PATH', getDirPath('third_party/zap/repo'))
-    os.chdir(generator_dir)
-    subprocess.check_call(['node', './src-script/zap-generate.js', '-z',
-                          zcl_file, '-g', templates_file, '-i', zap_file, '-o', output_dir])
+    # Accepted environment variables, in order:
+    #
+    # ZAP_DEVELOPMENT_PATH - the path to a zap development environment. This is
+    #                        a zap checkout, used for local development
+    # ZAP_INSTALL_PATH     - the path where zap-cli exists. This is if zap-cli
+    #                        is NOT in the current path
+
+    if 'ZAP_DEVELOPMENT_PATH' in os.environ:
+        generate_cmd = ['node', 'src-script/zap-start.js', 'generate']
+        working_directory = os.environ['ZAP_DEVELOPMENT_PATH']
+    elif 'ZAP_INSTALL_PATH' in os.environ:
+        generate_cmd = [os.path.join(os.environ['ZAP_INSTALL_PATH'], 'zap-cli'), 'generate']
+        working_directory = None
+    else:
+        generate_cmd = ['zap-cli', 'generate']
+        working_directory = None
+
+    try:
+        subprocess.check_call(generate_cmd + ['-z', zcl_file, '-g', templates_file,
+                              '-i', zap_file, '-o', output_dir], cwd=working_directory)
+    except FileNotFoundError as e:
+        print(f'FAILED TO EXECUTE ZAP GENERATION: {e.strerror} - "{e.filename}"')
+        print('*'*80)
+        print('* You may need to install zap. Please ensure one of these applies:')
+        print('* - `zap-cli` is in $PATH. Install from https://github.com/project-chip/zap/releases')
+        print('*   see docs/guides/BUILDING.md for details')
+        print('* - `zap-cli` is in $ZAP_INSTALL_PATH. Use this option if you')
+        print('*   installed zap but do not want to update $PATH')
+        print('* - Point $ZAP_DEVELOPMENT_PATH to your local copy of zap that you')
+        print('*   develop on (to use a developer build of zap)')
+        print('*'*80)
+        sys.exit(1)
 
     extractGeneratedIdl(output_dir, zap_file)
 
@@ -222,18 +255,32 @@ def runJavaPrettifier(templates_file, output_dir):
         print('google-java-format error:', err)
 
 
-def runBootstrap():
-    subprocess.check_call(getFilePath("scripts/tools/zap/zap_bootstrap.sh"), shell=True)
-
-
 def main():
     checkPythonVersion()
     cmdLineArgs = runArgumentsParser()
+
     if cmdLineArgs.runBootstrap:
-        runBootstrap()
+        subprocess.check_call(getFilePath("scripts/tools/zap/zap_bootstrap.sh"), shell=True)
+
     # The maximum memory usage is over 4GB (#15620)
     os.environ["NODE_OPTIONS"] = "--max-old-space-size=8192"
-    runGeneration(cmdLineArgs.zapFile, cmdLineArgs.zclFile, cmdLineArgs.templateFile, cmdLineArgs.outputDir)
+
+    if cmdLineArgs.parallel:
+        # Parallel-compatible runs will need separate state
+        os.environ["ZAP_TEMPSTATE"] = "1"
+
+    # `zap-cli` may extract things into a temporary directory. ensure extraction
+    # does not conflict.
+    with tempfile.TemporaryDirectory(prefix='zap') as temp_dir:
+        old_temp = os.environ['TEMP'] if 'TEMP' in os.environ else None
+        os.environ['TEMP'] = temp_dir
+
+        runGeneration(cmdLineArgs.zapFile, cmdLineArgs.zclFile, cmdLineArgs.templateFile, cmdLineArgs.outputDir)
+
+        if old_temp:
+            os.environ['TEMP'] = old_temp
+        else:
+            del os.environ['TEMP']
 
     prettifiers = [
         runClangPrettifier,

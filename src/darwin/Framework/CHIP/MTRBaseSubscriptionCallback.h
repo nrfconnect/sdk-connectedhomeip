@@ -55,12 +55,14 @@ typedef void (^DataReportCallback)(NSArray * value);
 typedef void (^ErrorCallback)(NSError * error);
 typedef void (^SubscriptionEstablishedHandler)(void);
 typedef void (^OnDoneHandler)(void);
+typedef void (^UnsolicitedMessageFromPublisherHandler)(void);
 
 class MTRBaseSubscriptionCallback : public chip::app::ClusterStateCache::Callback {
 public:
     MTRBaseSubscriptionCallback(DataReportCallback attributeReportCallback, DataReportCallback eventReportCallback,
         ErrorCallback errorCallback, MTRDeviceResubscriptionScheduledHandler _Nullable resubscriptionCallback,
-        SubscriptionEstablishedHandler _Nullable subscriptionEstablishedHandler, OnDoneHandler _Nullable onDoneHandler)
+        SubscriptionEstablishedHandler _Nullable subscriptionEstablishedHandler, OnDoneHandler _Nullable onDoneHandler,
+        UnsolicitedMessageFromPublisherHandler _Nullable unsolicitedMessageFromPublisherHandler = NULL)
         : mAttributeReportCallback(attributeReportCallback)
         , mEventReportCallback(eventReportCallback)
         , mErrorCallback(errorCallback)
@@ -68,6 +70,7 @@ public:
         , mSubscriptionEstablishedHandler(subscriptionEstablishedHandler)
         , mBufferedReadAdapter(*this)
         , mOnDoneHandler(onDoneHandler)
+        , mUnsolicitedMessageFromPublisherHandler(unsolicitedMessageFromPublisherHandler)
     {
     }
 
@@ -82,9 +85,9 @@ public:
 
     // We need to exist to get a ReadClient, so can't take this as a constructor argument.
     void AdoptReadClient(std::unique_ptr<chip::app::ReadClient> aReadClient) { mReadClient = std::move(aReadClient); }
-    void AdoptAttributeCache(std::unique_ptr<chip::app::ClusterStateCache> aAttributeCache)
+    void AdoptClusterStateCache(std::unique_ptr<chip::app::ClusterStateCache> aClusterStateCache)
     {
-        mAttributeCache = std::move(aAttributeCache);
+        mClusterStateCache = std::move(aClusterStateCache);
     }
 
 protected:
@@ -117,6 +120,8 @@ private:
 
     CHIP_ERROR OnResubscriptionNeeded(chip::app::ReadClient * apReadClient, CHIP_ERROR aTerminationCause) override;
 
+    void OnUnsolicitedMessageFromPublisher(chip::app::ReadClient * apReadClient) override;
+
     void ReportData();
 
 protected:
@@ -131,6 +136,7 @@ private:
     ErrorCallback _Nullable mErrorCallback = nil;
     MTRDeviceResubscriptionScheduledHandler _Nullable mResubscriptionCallback = nil;
     SubscriptionEstablishedHandler _Nullable mSubscriptionEstablishedHandler = nil;
+    UnsolicitedMessageFromPublisherHandler _Nullable mUnsolicitedMessageFromPublisherHandler = nil;
     chip::app::BufferedReadCallback mBufferedReadAdapter;
 
     // Our lifetime management is a little complicated.  On errors that don't
@@ -150,7 +156,7 @@ private:
     //    from OnDone or from an error callback but not both, by tracking whether
     //    we have a queued-up deletion.
     std::unique_ptr<chip::app::ReadClient> mReadClient;
-    std::unique_ptr<chip::app::ClusterStateCache> mAttributeCache;
+    std::unique_ptr<chip::app::ClusterStateCache> mClusterStateCache;
     bool mHaveQueuedDeletion = false;
     OnDoneHandler _Nullable mOnDoneHandler = nil;
 };

@@ -223,8 +223,8 @@ bool SetUpCodePairer::ConnectToDiscoveredDevice()
         // Remove it from the queue before we try to connect, in case the
         // connection attempt fails and calls right back into us to try the next
         // thing.
-        RendezvousParameters params(mDiscoveredParameters.front());
-        mDiscoveredParameters.pop();
+        SetUpCodePairerParameters params(mDiscoveredParameters.front());
+        mDiscoveredParameters.pop_front();
 
         params.SetSetupPINCode(mSetUpPINCode);
 
@@ -236,6 +236,11 @@ bool SetUpCodePairer::ConnectToDiscoveredDevice()
 
         // Handle possibly-sync call backs from attempts to establish PASE.
         ExpectPASEEstablishment();
+
+        if (params.GetPeerAddress().GetTransportType() == Transport::Type::kUdp)
+        {
+            mCurrentPASEParameters.SetValue(params);
+        }
 
         CHIP_ERROR err;
         if (mConnectionType == SetupCodePairerBehaviour::kCommission)
@@ -267,9 +272,13 @@ void SetUpCodePairer::OnDiscoveredDeviceOverBle(BLE_CONNECTION_OBJECT connObj)
 
     mWaitingForDiscovery[kBLETransport] = false;
 
-    Transport::PeerAddress peerAddress = Transport::PeerAddress::BLE();
-    mDiscoveredParameters.emplace();
-    mDiscoveredParameters.back().SetPeerAddress(peerAddress).SetConnectionObject(connObj);
+    // In order to not wait for all the possible addresses discovered over mdns to
+    // be tried before trying to connect over BLE, the discovered connection object is
+    // inserted at the beginning of the list.
+    //
+    // It makes it the 'next' thing to try to connect to if there are already some
+    // discovered parameters in the list.
+    mDiscoveredParameters.emplace_front(connObj);
     ConnectToDiscoveredDevice();
 }
 
@@ -338,12 +347,12 @@ void SetUpCodePairer::NotifyCommissionableDeviceDiscovered(const Dnssd::Discover
 
     ChipLogProgress(Controller, "Discovered device to be commissioned over DNS-SD");
 
-    Inet::InterfaceId interfaceId =
-        nodeData.resolutionData.ipAddress[0].IsIPv6LinkLocal() ? nodeData.resolutionData.interfaceId : Inet::InterfaceId::Null();
-    Transport::PeerAddress peerAddress =
-        Transport::PeerAddress::UDP(nodeData.resolutionData.ipAddress[0], nodeData.resolutionData.port, interfaceId);
-    mDiscoveredParameters.emplace();
-    mDiscoveredParameters.back().SetPeerAddress(peerAddress);
+    auto & resolutionData = nodeData.resolutionData;
+    for (size_t i = 0; i < resolutionData.numIPs; i++)
+    {
+        mDiscoveredParameters.emplace_back(nodeData.resolutionData, i);
+    }
+
     ConnectToDiscoveredDevice();
 }
 
@@ -396,9 +405,10 @@ void SetUpCodePairer::ResetDiscoveryState()
 
     while (!mDiscoveredParameters.empty())
     {
-        mDiscoveredParameters.pop();
+        mDiscoveredParameters.pop_front();
     }
 
+    mCurrentPASEParameters.ClearValue();
     mLastPASEError = CHIP_NO_ERROR;
 }
 
@@ -475,6 +485,21 @@ void SetUpCodePairer::OnPairingComplete(CHIP_ERROR error)
         return;
     }
 
+    // It may happen that there is a stale DNS entry. If so, ReconfirmRecord will flush
+    // the record from the daemon cache once it determines that it is invalid.
+    // It may not help for this particular resolve, but may help subsequent resolves.
+    if (CHIP_ERROR_TIMEOUT == error && mCurrentPASEParameters.HasValue())
+    {
+        const auto & params = mCurrentPASEParameters.Value();
+        auto & ip           = params.GetPeerAddress().GetIPAddress();
+        auto err            = Dnssd::Resolver::Instance().ReconfirmRecord(params.mHostName, ip, params.mInterfaceId);
+        if (CHIP_NO_ERROR != err && CHIP_ERROR_NOT_IMPLEMENTED != err)
+        {
+            ChipLogError(Controller, "Error when verifying the validity of an address: %" CHIP_ERROR_FORMAT, err.Format());
+        }
+    }
+    mCurrentPASEParameters.ClearValue();
+
     // We failed to establish PASE.  Try the next thing we have discovered, if
     // any.
     if (TryNextRendezvousParameters())
@@ -527,6 +552,33 @@ void SetUpCodePairer::OnDeviceDiscoveredTimeoutCallback(System::Layer * layer, v
         pairer->mCommissioner->OnSessionEstablishmentError(err);
     }
 }
+
+SetUpCodePairerParameters::SetUpCodePairerParameters(const Dnssd::CommonResolutionData & data, size_t index)
+{
+    mInterfaceId = data.interfaceId;
+    Platform::CopyString(mHostName, data.hostName);
+
+    auto & ip = data.ipAddress[index];
+    SetPeerAddress(Transport::PeerAddress::UDP(ip, data.port, ip.IsIPv6LinkLocal() ? data.interfaceId : Inet::InterfaceId::Null()));
+
+    if (data.mrpRetryIntervalIdle.HasValue())
+    {
+        SetIdleInterval(data.mrpRetryIntervalIdle.Value());
+    }
+
+    if (data.mrpRetryIntervalActive.HasValue())
+    {
+        SetActiveInterval(data.mrpRetryIntervalActive.Value());
+    }
+}
+
+#if CONFIG_NETWORK_LAYER_BLE
+SetUpCodePairerParameters::SetUpCodePairerParameters(BLE_CONNECTION_OBJECT connObj)
+{
+    Transport::PeerAddress peerAddress = Transport::PeerAddress::BLE();
+    SetPeerAddress(peerAddress).SetConnectionObject(connObj);
+}
+#endif // CONFIG_NETWORK_LAYER_BLE
 
 } // namespace Controller
 } // namespace chip

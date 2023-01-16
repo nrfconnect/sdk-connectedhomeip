@@ -1,13 +1,14 @@
 # Matter Controller Java App Example
 
-This is a Matter Controller Java app that can be used to uses Matter to send
-messages to a Matter server.
+This is a Matter Controller Java app that can be used to commission and control
+Matter accessory devices. It offers the following features: - Commission a
+Matter device - Send echo requests to the Matter echo server - Send on/off
+cluster requests to a Matter device
 
 <hr>
 
 -   [Matter Controller Java App Example](#matter-controller-java-app-example)
     -   [Requirements for building](#requirements-for-building)
-        -   [Gradle & JDK Version](#gradle--jdk-version)
     -   [Preparing for build](#preparing-for-build)
     -   [Building & Running the app](#building--running-the-app)
 
@@ -17,23 +18,41 @@ messages to a Matter server.
 
 ## Requirements for building
 
-You need Android SDK 21 & NDK downloaded to your machine. Set the
-`$ANDROID_HOME` environment variable to where the SDK is downloaded and the
-`$ANDROID_NDK_HOME` environment variable to point to where the NDK package is
-downloaded.
+You need to have the following two software installed on your Ubuntu system:
 
-<a name="jdk"></a>
+1. Java Runtime Environment (JRE)
+2. Java Development Kit (JDK)
 
-### Gradle & JDK Version
+```
+java -version
+```
 
-We are using Gradle 7.1.1 for all android project which does not support Java 17
-(https://docs.gradle.org/current/userguide/compatibility.html) while the default
-JDK version on MacOS for Apple Silicon is 'openjdk 17.0.1' or above.
+This will ensure either Java Runtime Environment is already installed on your
+system or not. In order to install the Java Runtime Environment on your system,
+run the following command as root:
 
-Using JDK bundled with Android Studio will help with that.
+```
+sudo apt install default-jre Install Java default JRE
+```
 
-```shell
-export JAVA_HOME=/Applications/Android\ Studio.app/Contents/jre/Contents/Home/
+After installing the JRE, let us check if we have the Java Development Kit
+installed on our system or not.
+
+```
+javac -version
+```
+
+The above output shows that I need to install the Java compiler or the JDK on my
+system. You can install it through the following command as root:
+
+```
+sudo apt install default-jdk
+```
+
+### Linux
+
+```
+export JAVA_PATH=[JDK path]
 ```
 
 <hr>
@@ -60,8 +79,14 @@ This is the simplest option. In the command line, run the following command from
 the top Matter directory:
 
 ```shell
-./scripts/build/build_examples.py --target android-x86-java-matter-controller build
+./scripts/build/build_examples.py --target linux-x64-java-matter-controller build
 ```
 
 The Java executable file `java-matter-controller` will be generated at
 `out/android-x86-java-matter-controller/bin/`
+
+Run the java-matter-controller
+
+```
+java -Djava.library.path=../lib/jni -jar java-matter-controller
+```

@@ -27,6 +27,15 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+static inline MTRTransportType MTRMakeTransportType(chip::Transport::Type type)
+{
+    static_assert(MTRTransportTypeUndefined == (uint8_t) chip::Transport::Type::kUndefined, "MTRTransportType != Transport::Type");
+    static_assert(MTRTransportTypeUDP == (uint8_t) chip::Transport::Type::kUdp, "MTRTransportType != Transport::Type");
+    static_assert(MTRTransportTypeBLE == (uint8_t) chip::Transport::Type::kBle, "MTRTransportType != Transport::Type");
+    static_assert(MTRTransportTypeTCP == (uint8_t) chip::Transport::Type::kTcp, "MTRTransportType != Transport::Type");
+    return static_cast<MTRTransportType>(type);
+}
+
 @interface MTRBaseDevice ()
 
 - (instancetype)initWithPASEDevice:(chip::DeviceProxy *)device controller:(MTRDeviceController *)controller;
@@ -56,19 +65,17 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) chip::NodeId nodeID;
 
 /**
- * Controllers are created via the MTRControllerFactory object.
- */
-- (instancetype)init NS_UNAVAILABLE;
-+ (instancetype)new NS_UNAVAILABLE;
-
-/**
  * Initialize the device object as a CASE device with the given node id and
  * controller.  This will always succeed, even if there is no such node id on
  * the controller's fabric, but attempts to actually use the MTRBaseDevice will
  * fail (asynchronously) in that case.
  */
-- (instancetype)initWithNodeID:(chip::NodeId)nodeID controller:(MTRDeviceController *)controller;
+- (instancetype)initWithNodeID:(NSNumber *)nodeID controller:(MTRDeviceController *)controller;
 
+@end
+
+@interface MTRClusterPath ()
+- (instancetype)initWithPath:(const chip::app::ConcreteClusterPath &)path;
 @end
 
 @interface MTRAttributePath ()
@@ -85,8 +92,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface MTRAttributeReport ()
 - (instancetype)initWithPath:(const chip::app::ConcreteDataAttributePath &)path
-                       value:(nullable id)value
-                       error:(nullable NSError *)error;
+                       value:(id _Nullable)value
+                       error:(NSError * _Nullable)error;
 @end
 
 @interface MTREventReport ()
@@ -94,8 +101,8 @@ NS_ASSUME_NONNULL_BEGIN
                  eventNumber:(NSNumber *)eventNumber
                     priority:(NSNumber *)priority
                    timestamp:(NSNumber *)timestamp
-                       value:(nullable id)value
-                       error:(nullable NSError *)error;
+                       value:(id _Nullable)value
+                       error:(NSError * _Nullable)error;
 @end
 
 // Exported utility function

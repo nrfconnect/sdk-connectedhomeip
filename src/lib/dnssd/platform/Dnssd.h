@@ -245,5 +245,22 @@ CHIP_ERROR ChipDnssdStopBrowse(intptr_t browseIdentifier);
 CHIP_ERROR ChipDnssdResolve(DnssdService * browseResult, chip::Inet::InterfaceId interface, DnssdResolveCallback callback,
                             void * context);
 
+/**
+ * This function notifies the implementation that a resolve result is no longer
+ * needed by some consumer, to allow implementations to stop unnecessary resolve
+ * work.
+ */
+void ChipDnssdResolveNoLongerNeeded(const char * instanceName);
+
+/**
+ * This function asks the mdns daemon to asynchronously reconfirm an address that appears to be out of date.
+ *
+ * @param[in] hostname      The hostname the address belongs to.
+ * @param[in] address       The address to reconfirm.
+ * @param[in] interfaceId   The interfaceId of the address.
+ *
+ */
+CHIP_ERROR ChipDnssdReconfirmRecord(const char * hostname, chip::Inet::IPAddress address, chip::Inet::InterfaceId interface);
+
 } // namespace Dnssd
 } // namespace chip

@@ -41,12 +41,23 @@
 
 #include <controller/DeviceDiscoveryDelegate.h>
 
-#include <queue>
+#include <deque>
 
 namespace chip {
 namespace Controller {
 
 class DeviceCommissioner;
+
+class SetUpCodePairerParameters : public RendezvousParameters
+{
+public:
+    SetUpCodePairerParameters(const Dnssd::CommonResolutionData & data, size_t index);
+#if CONFIG_NETWORK_LAYER_BLE
+    SetUpCodePairerParameters(BLE_CONNECTION_OBJECT connObj);
+#endif // CONFIG_NETWORK_LAYER_BLE
+    char mHostName[Dnssd::kHostNameMaxLength + 1] = {};
+    Inet::InterfaceId mInterfaceId;
+};
 
 enum class SetupCodePairerBehaviour : uint8_t
 {
@@ -177,10 +188,15 @@ private:
     // process happening via the relevant transport.
     bool mWaitingForDiscovery[kTransportTypeCount] = { false };
 
-    // Queue of things we have discovered but not tried connecting to yet.  The
+    // Double ended-queue of things we have discovered but not tried connecting to yet.  The
     // general discovery/pairing process will terminate once this queue is empty
     // and all the booleans in mWaitingForDiscovery are false.
-    std::queue<RendezvousParameters> mDiscoveredParameters;
+    std::deque<SetUpCodePairerParameters> mDiscoveredParameters;
+
+    // Current thing we are trying to connect to over UDP. If a PASE connection fails with
+    // a CHIP_ERROR_TIMEOUT, the discovered parameters will be used to ask the
+    // mdns daemon to invalidate the
+    Optional<SetUpCodePairerParameters> mCurrentPASEParameters;
 
     // mWaitingForPASE is true if we have called either
     // EstablishPASEConnection or PairDevice on mCommissioner and are now just

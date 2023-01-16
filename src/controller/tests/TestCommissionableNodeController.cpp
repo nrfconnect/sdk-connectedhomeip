@@ -36,13 +36,18 @@ public:
     void Shutdown() override {}
     void SetOperationalDelegate(OperationalResolveDelegate * delegate) override {}
     void SetCommissioningDelegate(CommissioningResolveDelegate * delegate) override {}
-    CHIP_ERROR ResolveNodeId(const PeerId & peerId, Inet::IPAddressType type) override { return ResolveNodeIdStatus; }
+    CHIP_ERROR ResolveNodeId(const PeerId & peerId) override { return ResolveNodeIdStatus; }
+    void NodeIdResolutionNoLongerNeeded(const PeerId & peerId) override {}
     CHIP_ERROR DiscoverCommissioners(DiscoveryFilter filter = DiscoveryFilter()) override { return DiscoverCommissionersStatus; }
     CHIP_ERROR DiscoverCommissionableNodes(DiscoveryFilter filter = DiscoveryFilter()) override
     {
         return CHIP_ERROR_NOT_IMPLEMENTED;
     }
     CHIP_ERROR StopDiscovery() override { return CHIP_ERROR_NOT_IMPLEMENTED; }
+    CHIP_ERROR ReconfirmRecord(const char * hostname, Inet::IPAddress address, Inet::InterfaceId interfaceId) override
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
 
     CHIP_ERROR InitStatus                  = CHIP_NO_ERROR;
     CHIP_ERROR ResolveNodeIdStatus         = CHIP_NO_ERROR;

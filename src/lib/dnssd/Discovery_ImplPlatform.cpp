@@ -22,6 +22,7 @@
 #include <crypto/RandUtils.h>
 #include <lib/core/CHIPConfig.h>
 #include <lib/core/CHIPSafeCasts.h>
+#include <lib/dnssd/IPAddressSorter.h>
 #include <lib/dnssd/ServiceNaming.h>
 #include <lib/dnssd/TxtFields.h>
 #include <lib/dnssd/platform/Dnssd.h>
@@ -52,6 +53,8 @@ static void HandleNodeResolve(void * context, DnssdService * result, const Span<
     Platform::CopyString(nodeData.commissionData.instanceName, result->mName);
 
     nodeData.resolutionData.interfaceId = result->mInterface;
+
+    IPAddressSorter::Sort(addresses, result->mInterface);
 
     size_t addressesFound = 0;
     for (auto & ip : addresses)
@@ -463,7 +466,8 @@ void DiscoveryImplPlatform::HandleDnssdPublish(void * context, const char * type
 {
     if (CHIP_NO_ERROR == error)
     {
-        ChipLogProgress(Discovery, "mDNS service published: %s; instance name: %s", type, instanceName);
+        ChipLogProgress(Discovery, "mDNS service published: %s; instance name: %s", StringOrNullMarker(type),
+                        StringOrNullMarker(instanceName));
     }
     else
     {
@@ -517,12 +521,13 @@ CHIP_ERROR DiscoveryImplPlatform::PublishService(const char * serviceType, TextE
 
     for (size_t i = 0; i < textEntrySize; i++)
     {
-        printf(" entry [%u] : %s %s\n", static_cast<unsigned int>(i), textEntries[i].mKey, (char *) (textEntries[i].mData));
+        printf(" entry [%u] : %s %s\n", static_cast<unsigned int>(i), StringOrNullMarker(textEntries[i].mKey),
+               StringOrNullMarker((char *) (textEntries[i].mData)));
     }
 
     for (size_t i = 0; i < subTypeSize; i++)
     {
-        printf(" type [%u] : %s\n", static_cast<unsigned int>(i), subTypes[i]);
+        printf(" type [%u] : %s\n", static_cast<unsigned int>(i), StringOrNullMarker(subTypes[i]));
     }
 #endif
 
@@ -614,10 +619,18 @@ CHIP_ERROR DiscoveryImplPlatform::FinalizeServiceUpdate()
     return ChipDnssdFinalizeServiceUpdate();
 }
 
-CHIP_ERROR DiscoveryImplPlatform::ResolveNodeId(const PeerId & peerId, Inet::IPAddressType type)
+CHIP_ERROR DiscoveryImplPlatform::ResolveNodeId(const PeerId & peerId)
 {
     ReturnErrorOnFailure(InitImpl());
-    return mResolverProxy.ResolveNodeId(peerId, type);
+    return mResolverProxy.ResolveNodeId(peerId);
+}
+
+void DiscoveryImplPlatform::NodeIdResolutionNoLongerNeeded(const PeerId & peerId)
+{
+    char name[Common::kInstanceNameMaxLength + 1];
+    ReturnOnFailure(MakeInstanceName(name, sizeof(name), peerId));
+
+    ChipDnssdResolveNoLongerNeeded(name);
 }
 
 CHIP_ERROR DiscoveryImplPlatform::DiscoverCommissionableNodes(DiscoveryFilter filter)
@@ -638,6 +651,12 @@ CHIP_ERROR DiscoveryImplPlatform::StopDiscovery()
     return mResolverProxy.StopDiscovery();
 }
 
+CHIP_ERROR DiscoveryImplPlatform::ReconfirmRecord(const char * hostname, Inet::IPAddress address, Inet::InterfaceId interfaceId)
+{
+    ReturnErrorOnFailure(InitImpl());
+    return mResolverProxy.ReconfirmRecord(hostname, address, interfaceId);
+}
+
 DiscoveryImplPlatform & DiscoveryImplPlatform::GetInstance()
 {
     return sManager;
@@ -653,22 +672,36 @@ Resolver & chip::Dnssd::Resolver::Instance()
     return DiscoveryImplPlatform::GetInstance();
 }
 
-CHIP_ERROR ResolverProxy::ResolveNodeId(const PeerId & peerId, Inet::IPAddressType type)
+CHIP_ERROR ResolverProxy::ResolveNodeId(const PeerId & peerId)
 {
     VerifyOrReturnError(mDelegate != nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     ChipLogProgress(Discovery, "Resolving " ChipLogFormatX64 ":" ChipLogFormatX64 " ...",
                     ChipLogValueX64(peerId.GetCompressedFabricId()), ChipLogValueX64(peerId.GetNodeId()));
 
-    mDelegate->Retain();
-
     DnssdService service;
 
     ReturnErrorOnFailure(MakeInstanceName(service.mName, sizeof(service.mName), peerId));
     Platform::CopyString(service.mType, kOperationalServiceName);
     service.mProtocol    = DnssdServiceProtocol::kDnssdProtocolTcp;
-    service.mAddressType = type;
-    return ChipDnssdResolve(&service, Inet::InterfaceId::Null(), HandleNodeIdResolve, mDelegate);
+    service.mAddressType = Inet::IPAddressType::kAny;
+
+    mDelegate->Retain();
+
+    CHIP_ERROR err = ChipDnssdResolve(&service, Inet::InterfaceId::Null(), HandleNodeIdResolve, mDelegate);
+    if (err != CHIP_NO_ERROR)
+    {
+        mDelegate->Release();
+    }
+    return err;
+}
+
+void ResolverProxy::NodeIdResolutionNoLongerNeeded(const PeerId & peerId)
+{
+    char name[Common::kInstanceNameMaxLength + 1];
+    ReturnOnFailure(MakeInstanceName(name, sizeof(name), peerId));
+
+    ChipDnssdResolveNoLongerNeeded(name);
 }
 
 ResolverProxy::~ResolverProxy()
@@ -745,6 +778,11 @@ CHIP_ERROR ResolverProxy::StopDiscovery()
     CHIP_ERROR err = ChipDnssdStopBrowse(mDiscoveryContext.Value());
     mDiscoveryContext.ClearValue();
     return err;
+}
+
+CHIP_ERROR ResolverProxy::ReconfirmRecord(const char * hostname, Inet::IPAddress address, Inet::InterfaceId interfaceId)
+{
+    return ChipDnssdReconfirmRecord(hostname, address, interfaceId);
 }
 
 } // namespace Dnssd

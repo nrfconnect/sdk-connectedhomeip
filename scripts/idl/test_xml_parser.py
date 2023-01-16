@@ -53,7 +53,7 @@ class TestXmlParser(unittest.TestCase):
             <!-- Comments should be supported -->
             <configurator>
               <cluster>
-                <name>Test Cluster</name>
+                <name>Test</name>
                 <code>0x1234</code>
 
                 <attribute side="server" code="11" type="INT32U" min="0" max="2" isNullable="true" reportable="true" writable="false">SomeIntAttribute</attribute>
@@ -83,7 +83,7 @@ class TestXmlParser(unittest.TestCase):
                          Idl(clusters=[
                              Cluster(
                                  side=ClusterSide.CLIENT,
-                                 name='TestCluster',
+                                 name='Test',
                                  code=0x1234,
                                  attributes=[
                                      Attribute(definition=Field(data_type=DataType(name='INT32U'), code=11, name='SomeIntAttribute',
@@ -97,15 +97,15 @@ class TestXmlParser(unittest.TestCase):
                                  structs=[
                                      Struct(name='GetSomeDataRequest',
                                             fields=[
-                                                Field(data_type=DataType(name='INT8U'), code=1, name='firstInput'),
-                                                Field(data_type=DataType(name='INT16U'), code=2, name='secondInput')
+                                                Field(data_type=DataType(name='INT8U'), code=0, name='firstInput'),
+                                                Field(data_type=DataType(name='INT16U'), code=1, name='secondInput')
                                             ],
                                             tag=StructTag.REQUEST),
                                      Struct(name='GetSomeDataResponse',
                                             fields=[
-                                                Field(data_type=DataType(name='INT8U'), code=1,
+                                                Field(data_type=DataType(name='INT8U'), code=0,
                                                       name='dataPoint1'),
-                                                Field(data_type=DataType(name='INT8U'), code=2, name='dataPoint2',
+                                                Field(data_type=DataType(name='INT8U'), code=1, name='dataPoint2',
                                                       qualities=FieldQuality.OPTIONAL)
                                             ],
                                             tag=StructTag.RESPONSE, code=0x44)
@@ -150,7 +150,7 @@ class TestXmlParser(unittest.TestCase):
         idl = XmlToIdl('''<?xml version="1.0"?>
             <configurator>
               <cluster>
-                <name>Test Cluster</name>
+                <name>Test</name>
                 <code>0x0001</code>
 
                 <event side="server" code="0x1234" name="FabricEvent" priority="info" isFabricSensitive="true" optional="false">
@@ -173,7 +173,7 @@ class TestXmlParser(unittest.TestCase):
         ''')
         self.assertEqual(idl,
                          Idl(clusters=[Cluster(side=ClusterSide.CLIENT,
-                                               name='TestCluster',
+                                               name='Test',
                                                code=1,
                                                events=[Event(priority=EventPriority.INFO,
                                                              name='FabricEvent',
@@ -226,8 +226,8 @@ class TestXmlParser(unittest.TestCase):
             name='SomeStruct',
             qualities=StructQuality.FABRIC_SCOPED,
             fields=[
-                Field(data_type=DataType(name='int16u'), code=1, name='FirstMember'),
-                Field(data_type=DataType(name='int32u'), code=2, name='SecondMember')
+                Field(data_type=DataType(name='int16u'), code=0, name='FirstMember'),
+                Field(data_type=DataType(name='int32u'), code=1, name='SecondMember')
             ]
         )
         self.assertEqual(idl,

@@ -23,27 +23,18 @@
 #include "ButtonManager.h"
 #include "LEDWidget.h"
 #include "binding-handler.h"
-#include <app/server/OnboardingCodesUtil.h>
-#include <app/server/Server.h>
-
-#include <DeviceInfoProviderImpl.h>
 
 #include "ThreadUtil.h"
 
+#include <DeviceInfoProviderImpl.h>
 #include <app-common/zap-generated/attribute-id.h>
 #include <app-common/zap-generated/attribute-type.h>
-#include <app-common/zap-generated/cluster-id.h>
 #include <app/clusters/identify-server/identify-server.h>
-#include <app/util/attribute-storage.h>
-
+#include <app/server/OnboardingCodesUtil.h>
+#include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
-
-#include <platform/CHIPDeviceLayer.h>
-
 #include <lib/support/ErrorStr.h>
-#include <setup_payload/QRCodeSetupPayloadGenerator.h>
-#include <setup_payload/SetupPayload.h>
 #include <system/SystemClock.h>
 
 #if CONFIG_CHIP_OTA_REQUESTOR
@@ -57,11 +48,21 @@
 
 LOG_MODULE_DECLARE(app);
 
+using namespace ::chip;
+using namespace ::chip::app;
+using namespace ::chip::Credentials;
+using namespace ::chip::DeviceLayer;
+
 namespace {
 
 constexpr int kAppEventQueueSize      = 10;
 constexpr uint8_t kButtonPushEvent    = 1;
 constexpr uint8_t kButtonReleaseEvent = 0;
+
+// NOTE! This key is for test/certification only and should not be available in production devices!
+// If CONFIG_CHIP_FACTORY_DATA is enabled, this value is read from the factory data.
+uint8_t sTestEventTriggerEnableKey[TestEventTriggerDelegate::kEnableKeyLength] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                                                                                   0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
 
 K_MSGQ_DEFINE(sAppEventQueue, sizeof(AppEvent), kAppEventQueueSize, alignof(AppEvent));
 
@@ -112,18 +113,13 @@ Identify sIdentify = {
 
 } // namespace
 
-using namespace ::chip::Credentials;
-using namespace ::chip::DeviceLayer;
-using namespace ::chip::DeviceLayer::Internal;
-
 AppTask AppTask::sAppTask;
 
 CHIP_ERROR AppTask::Init()
 {
-    CHIP_ERROR ret;
+    CHIP_ERROR err;
 
-    LOG_INF("Current Software Version: %u, %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION,
-            CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
+    LOG_INF("SW Version: %u, %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION, CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
 
     // Initialize status LED
     LEDWidget::InitGpio(SYSTEM_STATE_LED_PORT);
@@ -133,15 +129,30 @@ CHIP_ERROR AppTask::Init()
 
     InitButtons();
 
-    // Init ZCL Data Model and start server
-    static chip::CommonCaseDeviceServerInitParams initParams;
-    (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    chip::Server::GetInstance().Init(initParams);
-
-    // Initialize device attestation config
+    // Initialize CHIP server
+#if CONFIG_CHIP_FACTORY_DATA
+    ReturnErrorOnFailure(mFactoryDataProvider.Init());
+    SetDeviceInstanceInfoProvider(&mFactoryDataProvider);
+    SetDeviceAttestationCredentialsProvider(&mFactoryDataProvider);
+    SetCommissionableDataProvider(&mFactoryDataProvider);
+    // Read EnableKey from the factory data.
+    MutableByteSpan enableKey(sTestEventTriggerEnableKey);
+    err = mFactoryDataProvider.GetEnableKey(enableKey);
+    if (err != CHIP_NO_ERROR)
+    {
+        LOG_ERR("mFactoryDataProvider.GetEnableKey() failed. Could not delegate a test event trigger");
+        memset(sTestEventTriggerEnableKey, 0, sizeof(sTestEventTriggerEnableKey));
+    }
+#else
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
+#endif
 
-    gExampleDeviceInfoProvider.SetStorageDelegate(&chip::Server::GetInstance().GetPersistentStorage());
+    static CommonCaseDeviceServerInitParams initParams;
+    // static OTATestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
+    (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    // initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+    ReturnErrorOnFailure(chip::Server::GetInstance().Init(initParams));
+    gExampleDeviceInfoProvider.SetStorageDelegate(&Server::GetInstance().GetPersistentStorage());
     chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
 
 #if CONFIG_CHIP_OTA_REQUESTOR
@@ -151,11 +162,11 @@ CHIP_ERROR AppTask::Init()
     ConfigurationMgr().LogDeviceConfig();
 
     // Configure Bindings
-    ret = InitBindingHandler();
-    if (ret != CHIP_NO_ERROR)
+    err = InitBindingHandler();
+    if (err != CHIP_NO_ERROR)
     {
-        LOG_ERR("InitBindingHandler() failed");
-        return ret;
+        LOG_ERR("InitBindingHandler fail");
+        return err;
     }
 
     PrintOnboardingCodes(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
@@ -165,14 +176,13 @@ CHIP_ERROR AppTask::Init()
     // between the main and the CHIP threads.
     PlatformMgr().AddEventHandler(ChipEventHandler, 0);
 
-    ret = ConnectivityMgr().SetBLEDeviceName("TelinkSwitch");
-    if (ret != CHIP_NO_ERROR)
+    err = ConnectivityMgr().SetBLEDeviceName("TelinkSwitch");
+    if (err != CHIP_NO_ERROR)
     {
-        LOG_ERR("Fail to set BLE device name");
-        return ret;
+        LOG_ERR("SetBLEDeviceName fail");
     }
 
-    return CHIP_NO_ERROR;
+    return err;
 }
 
 CHIP_ERROR AppTask::StartApp()
@@ -181,7 +191,7 @@ CHIP_ERROR AppTask::StartApp()
 
     if (err != CHIP_NO_ERROR)
     {
-        LOG_ERR("AppTask.Init() failed");
+        LOG_ERR("AppTask Init fail");
         return err;
     }
 
@@ -235,7 +245,7 @@ void AppTask::FactoryResetButtonEventHandler(void)
 
 void AppTask::FactoryResetHandler(AppEvent * aEvent)
 {
-    LOG_INF("Factory Reset triggered.");
+    LOG_INF("FactoryResetHandler");
     chip::Server::GetInstance().ScheduleFactoryReset();
 }
 
@@ -251,18 +261,17 @@ void AppTask::StartThreadButtonEventHandler(void)
 
 void AppTask::StartThreadHandler(AppEvent * aEvent)
 {
-
+    LOG_INF("StartThreadHandler");
     if (!chip::DeviceLayer::ConnectivityMgr().IsThreadProvisioned())
     {
         // Switch context from BLE to Thread
-        BLEManagerImpl sInstance;
+        Internal::BLEManagerImpl sInstance;
         sInstance.SwitchToIeee802154();
         StartDefaultThreadNetwork();
-        LOG_INF("Device is not commissioned to a Thread network. Starting with the default configuration.");
     }
     else
     {
-        LOG_INF("Device is commissioned to a Thread network.");
+        LOG_INF("Device already commissioned");
     }
 }
 
@@ -278,24 +287,24 @@ void AppTask::StartBleAdvButtonEventHandler(void)
 
 void AppTask::StartBleAdvHandler(AppEvent * aEvent)
 {
-    LOG_INF("BLE advertising start button pressed");
+    LOG_INF("StartBleAdvHandler");
 
     // Don't allow on starting Matter service BLE advertising after Thread provisioning.
     if (ConnectivityMgr().IsThreadProvisioned())
     {
-        LOG_INF("Matter service BLE advertising not started - device is commissioned to a Thread network.");
+        LOG_INF("Device already commissioned");
         return;
     }
 
     if (ConnectivityMgr().IsBLEAdvertisingEnabled())
     {
-        LOG_INF("BLE advertising is already enabled");
+        LOG_INF("BLE adv already enabled");
         return;
     }
 
     if (chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() != CHIP_NO_ERROR)
     {
-        LOG_ERR("OpenBasicCommissioningWindow() failed");
+        LOG_ERR("OpenBasicCommissioningWindow fail");
     }
 }
 
@@ -359,7 +368,7 @@ void AppTask::PostEvent(AppEvent * aEvent)
 {
     if (k_msgq_put(&sAppEventQueue, aEvent, K_NO_WAIT) != 0)
     {
-        LOG_INF("Failed to post event to app task event queue");
+        LOG_INF("PostEvent fail");
     }
 }
 
@@ -371,7 +380,7 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     }
     else
     {
-        LOG_INF("Event received with no handler. Dropping event.");
+        LOG_INF("Dropping event without handler");
     }
 }
 

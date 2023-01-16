@@ -51,8 +51,8 @@ void DFUOverSMP::Init(DFUOverSMPRestartAdvertisingHandler startAdvertisingCb)
 
     bt_conn_cb_register(&mBleConnCallbacks);
 
-    k_work_init(&mFlashSleepWork, [](k_work *) { GetFlashHandler().DoAction(ExternalFlashManager::Action::SLEEP); });
-    k_work_init(&mFlashWakeUpWork, [](k_work *) { GetFlashHandler().DoAction(ExternalFlashManager::Action::WAKE_UP); });
+    k_work_init(&mFlashSleepWork, [](k_work *) { GetFlashHandler().DoAction(FlashHandler::Action::SLEEP); });
+    k_work_init(&mFlashWakeUpWork, [](k_work *) { GetFlashHandler().DoAction(FlashHandler::Action::WAKE_UP); });
 
     restartAdvertisingCallback = startAdvertisingCb;
 

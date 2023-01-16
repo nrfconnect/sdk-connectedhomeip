@@ -134,15 +134,15 @@ macro(matter_build target)
         BUILD_COMMAND           ${CMAKE_COMMAND} -E echo "Starting Matter library build in ${CMAKE_CURRENT_BINARY_DIR}"
         COMMAND                 ${Python3_EXECUTABLE} ${CHIP_ROOT}/config/common/cmake/make_gn_args.py @args.tmp > args.gn.tmp
         # Replace the config only if it has changed to avoid triggering unnecessary rebuilds
-        COMMAND                 "${CMAKE_COMMAND}" -E copy_if_different "args.gn.tmp" "args.gn"
+        COMMAND                 ${CMAKE_COMMAND} -E compare_files args.gn.tmp args.gn || ${CMAKE_COMMAND} -E rename args.gn.tmp args.gn 
         # Regenerate the ninja build system
         COMMAND                 ${GN_EXECUTABLE}
                                     --root=${CHIP_ROOT}
                                     --root-target=${GN_ROOT_TARGET}
                                     --dotfile=${GN_ROOT_TARGET}/.gn
                                     --script-executable=${Python3_EXECUTABLE}
-                                    gen --check --fail-on-unused-args --add-export-compile-commands=*
-                                    ${CMAKE_CURRENT_BINARY_DIR}
+                                    gen --check --fail-on-unused-args ${CMAKE_CURRENT_BINARY_DIR}
+                                    --export-compile-commands
         COMMAND                 ninja
         COMMAND                 ${CMAKE_COMMAND} -E echo "Matter library build complete"
         INSTALL_COMMAND         ""

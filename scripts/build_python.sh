@@ -325,6 +325,8 @@ if [[ "$enable_ccache" == "yes" ]]; then
     fi
 fi
 
+gn --root="$CHIP_ROOT" gen "$output_root" --args="$tracing_options chip_detail_logging=$chip_detail_logging chip_project_config_include_dirs=[\"//config/python\"] $chip_mdns_arg $chip_case_retry_arg $pregen_dir_arg chip_config_network_layer_ble=$enable_ble chip_enable_ble=$enable_ble chip_inet_config_enable_ipv4=$enable_ipv4 chip_device_config_enable_wifipaf=$enable_wifi_paf chip_crypto=\"boringssl\" symbol_level=0 is_debug=false $all_extra_gn_args"
+
 # Compile Python wheels
 ninja -C "$output_root" python_wheels
 

@@ -248,10 +248,6 @@ endif
 
 if CHIP_WIFI
 
-config NRF700X_REV_A # we need this config until the revB RPU is supported
-    bool
-    default y
-
 config NRF_WIFI_LOW_POWER
     bool
     default n

@@ -42,9 +42,6 @@ struct FactoryData
     uint16_t product_id;
     struct FactoryDataString vendor_name;
     struct FactoryDataString product_name;
-    struct FactoryDataString part_number;
-    struct FactoryDataString product_url;
-    struct FactoryDataString product_label;
     uint16_t hw_ver;
     struct FactoryDataString hw_ver_str;
     struct FactoryDataString rd_uid;

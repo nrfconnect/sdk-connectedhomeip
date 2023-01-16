@@ -52,10 +52,6 @@
 #include <rtos/Mutex.h>
 #endif // CHIP_SYSTEM_CONFIG_MBED_LOCKING
 
-#if CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
-#include <zephyr/kernel.h>
-#endif
-
 namespace chip {
 namespace System {
 
@@ -73,7 +69,8 @@ namespace System {
 class DLL_EXPORT Mutex
 {
 public:
-    Mutex() = default;
+    Mutex();
+    ~Mutex();
 
     static CHIP_ERROR Init(Mutex & aMutex);
 #if CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
@@ -104,13 +101,12 @@ private:
     rtos::Mutex mMbedMutex;
 #endif // CHIP_SYSTEM_CONFIG_MBED_LOCKING
 
-#if CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
-    k_mutex mZephyrMutex;
-#endif // CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
-
     Mutex(const Mutex &) = delete;
     Mutex & operator=(const Mutex &) = delete;
 };
+
+inline Mutex::Mutex() {}
+inline Mutex::~Mutex() {}
 
 #if CHIP_SYSTEM_CONFIG_NO_LOCKING
 inline CHIP_ERROR Init(Mutex & aMutex)
@@ -158,23 +154,6 @@ inline void Mutex::Unlock(void)
     return mMbedMutex.unlock();
 }
 #endif // CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
-
-#if CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
-inline CHIP_ERROR Mutex::Init(Mutex & aMutex)
-{
-    return System::MapErrorZephyr(k_mutex_init(&aMutex.mZephyrMutex));
-}
-
-inline void Mutex::Lock()
-{
-    k_mutex_lock(&mZephyrMutex, K_FOREVER);
-}
-
-inline void Mutex::Unlock(void)
-{
-    k_mutex_unlock(&mZephyrMutex);
-}
-#endif // CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
 
 } // namespace System
 } // namespace chip

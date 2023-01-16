@@ -80,6 +80,15 @@ config SHELL
     bool
     default y
 
+# Enable getting reboot reasons information
+config HWINFO
+    bool
+    default y
+
+config NEWLIB_LIBC_NANO
+    bool
+    default y
+
 # Generic networking options
 config NET_SOCKETS_POSIX_NAMES
     bool
@@ -94,10 +103,13 @@ config INIT_STACKS
     bool
     default y
 
-# Disable certain parts of Zephyr IPv6 stack
-config NET_IPV6_NBR_CACHE
-    bool
-    default n
+config CHIP_DEVICE_VENDOR_ID
+	int
+	default 65521
+
+config CHIP_DEVICE_PRODUCT_ID
+	int
+	default 32768
 
 config NET_IPV6_MLD
     bool

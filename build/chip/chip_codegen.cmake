@@ -63,6 +63,9 @@ function(chip_codegen TARGET_NAME)
             list(APPEND OUT_NAMES "${GEN_FOLDER}/${NAME}")
         endforeach()
 
+        # Python is expected to be in the path
+        #
+        find_package(Python3 REQUIRED)
         add_custom_command(
             OUTPUT ${OUT_NAMES}
             COMMAND "${Python3_EXECUTABLE}" -X utf8 "${CHIP_ROOT}/scripts/codegen.py"

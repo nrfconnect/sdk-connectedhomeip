@@ -43,7 +43,7 @@
 
 #include <dk_buttons_and_leds.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 using namespace ::chip;
 using namespace ::chip::app;

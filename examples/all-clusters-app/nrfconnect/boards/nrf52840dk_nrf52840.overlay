@@ -37,6 +37,9 @@
 &uart1 {
 	status = "disabled";
 };
+&gpio1 {
+	status = "disabled";
+};
 &i2c0 {
 	status = "disabled";
 };

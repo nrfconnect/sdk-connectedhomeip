@@ -24,7 +24,7 @@
 
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 LOG_MODULE_DECLARE(app, CONFIG_MATTER_LOG_LEVEL);
 

@@ -41,7 +41,7 @@
 
 #include <dk_buttons_and_leds.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #define FACTORY_RESET_TRIGGER_TIMEOUT 3000
 #define FACTORY_RESET_CANCEL_WINDOW_TIMEOUT 3000

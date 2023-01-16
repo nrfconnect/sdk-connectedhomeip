@@ -142,8 +142,7 @@ public:
         uint32_t mPacketMulticastTxCount{};
         uint32_t mPacketUnicastRxCount{};
         uint32_t mPacketUnicastTxCount{};
-        uint32_t mBeaconsSuccessCount{};
-        uint32_t mBeaconsLostCount{};
+        uint32_t mOverruns{};
     };
 
     struct WiFiNetwork

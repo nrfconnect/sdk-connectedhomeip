@@ -16,6 +16,10 @@
 
 set(CHIP_APP_BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
+if (NOT CHIP_ROOT)
+    get_filename_component(CHIP_ROOT ${CHIP_APP_BASE_DIR}/../.. REALPATH)
+endif()
+
 if (NOT CHIP_APP_ZAP_DIR)
     get_filename_component(CHIP_APP_ZAP_DIR ${CHIP_ROOT}/zzz_generated/app-common REALPATH)
 endif()
@@ -62,35 +66,20 @@ endfunction()
 #
 # Configure ${APP_TARGET} based on the selected data model configuration.
 # Available options are:
-# SCOPE             CMake scope keyword that defines the scope of included sources.
-# The default is PRIVATE scope.
-# ZAP_FILE          Path to the ZAP file, used to determine the list of clusters
-# supported by the application.
-# IDL               .matter IDL file to use for codegen. Inferred from ZAP_FILE
-# if not provided
-# EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
-# will not be used nor required for these clusters.
-# Format: MY_CUSTOM_CLUSTER'.
-# ZCL_PATH          [OPTIONAL] Path to a custom ZCL JSON file.
-#                   This maps to the '--zcl' argument in the "scripts/tools/zap/generate.py" script.
-#                   By default, generate.py attempts to autodetect the ZCL path from the .zap 
-#                   file which is often a relative path. When the .zap file is relocated or symlinked,
-#                   these relative paths become invalid, causing the build to fail.
-#                   Passing ZCL_PATH explicitly via CMake ensures the build remains robust and portable.
-#                   If ZCL_PATH is not provided, the default behavior is preserved unless CHIP_ENABLE_ZCL_ARG
-#                   is enabled, in which case the default path "src/app/zap-templates/zcl/zcl.json" is 
-#                   automatically injected to simplify usage.
-#
-# Example usage:
-# chip_configure_data_model(
-#     APP_TARGET app
-#     ZAP_FILE "some_file.zap"
-#     ZCL_PATH "path/to/custom/zcl.json"  # Optional: override default ZCL path
-# )
+#   SCOPE           CMake scope keyword that defines the scope of included sources.
+#                   The default is PRIVATE scope.
+#   BYPASS_IDL      Bypass code generation from .matter IDL file.
+#   ZAP_FILE        Path to the ZAP file, used to determine the list of clusters
+#                   supported by the application.
+#   IDL             .matter IDL file to use for codegen. Inferred from ZAP_FILE
+#                   if not provided
+#   EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
+#                   will not be used nor required for these clusters.
+#                   Format: MY_CUSTOM_CLUSTER'.
 #
 function(chip_configure_data_model APP_TARGET)
     set(SCOPE PRIVATE)
-    cmake_parse_arguments(ARG "" "SCOPE;ZAP_FILE;IDL;ZCL_PATH" "EXTERNAL_CLUSTERS" ${ARGN})
+    cmake_parse_arguments(ARG "BYPASS_IDL" "SCOPE;ZAP_FILE;GEN_DIR;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
 
     if(ARG_SCOPE)
         set(SCOPE ${ARG_SCOPE})
@@ -121,7 +110,7 @@ function(chip_configure_data_model APP_TARGET)
         endif()
     endif()
 
-    if(ARG_IDL)
+    if (ARG_IDL)
         chip_codegen(${APP_TARGET}-codegen
             INPUT "${ARG_IDL}"
             GENERATOR "cpp-app"
@@ -136,40 +125,66 @@ function(chip_configure_data_model APP_TARGET)
 
         target_include_directories(${APP_TARGET} ${SCOPE} "${APP_GEN_DIR}")
         add_dependencies(${APP_TARGET} ${APP_TARGET}-codegen)
-    else()
-        set(APP_GEN_FILES)
+
+        if (NOT ARG_BYPASS_IDL)
+            chip_zapgen(${APP_TARGET}-zapgen
+                INPUT "${ARG_ZAP_FILE}"
+                GENERATOR "app-templates"
+                OUTPUTS
+                "zap-generated/access.h"
+                "zap-generated/CHIPClientCallbacks.h"
+                "zap-generated/endpoint_config.h"
+                "zap-generated/gen_config.h"
+                "zap-generated/IMClusterCommandHandler.cpp"
+                OUTPUT_PATH APP_TEMPLATES_GEN_DIR
+                OUTPUT_FILES APP_TEMPLATES_GEN_FILES
+            )
+            target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
+            add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
+        else ()
+            target_compile_definitions(${APP_TARGET} PRIVATE CHIP_BYPASS_IDL)
+            target_include_directories(${APP_TARGET} ${SCOPE} ${ARG_GEN_DIR})
+            set(APP_GEN_FILES
+                ${ARG_GEN_DIR}/callback-stub.cpp
+                ${ARG_GEN_DIR}/IMClusterCommandHandler.cpp
+            )
+        endif()
     endif()
 
-    chip_zapgen(${APP_TARGET}-zapgen
-        INPUT "${ARG_ZAP_FILE}"
-        GENERATOR "app-templates"
-        OUTPUTS
-        "zap-generated/access.h"
-        "zap-generated/endpoint_config.h"
-        "zap-generated/gen_config.h"
-        "zap-generated/IMClusterCommandHandler.cpp"
-        "zap-generated/CodeDrivenInitShutdown.cpp"
-        "zap-generated/CodeDrivenCallback.h"
-        OUTPUT_PATH APP_TEMPLATES_GEN_DIR
-        OUTPUT_FILES APP_TEMPLATES_GEN_FILES
-        ZCL_PATH ${ARG_ZCL_PATH}
+    # These are:
+    #   //src/app/icd/server:notfier
+    #   //src/app/icd/server:monitoring-table
+    #   //src/app/icd/server:configuration-data
+    #
+    # TODO: ideally we would avoid duplication and would link gn-built items. In this case
+    #       it may be slightly harder because these are source_sets rather than libraries.
+    target_sources(${APP_TARGET} ${SCOPE}
+        ${CHIP_APP_BASE_DIR}/icd/server/ICDMonitoringTable.cpp
+        ${CHIP_APP_BASE_DIR}/icd/server/ICDNotifier.cpp
+        ${CHIP_APP_BASE_DIR}/icd/server/ICDConfigurationData.cpp
     )
-    target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
-    target_include_directories(${APP_TARGET} ${SCOPE} "${CHIP_APP_BASE_DIR}/zzz_generated")
-    add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
+
+    # This is:
+    #    //src/app/common:cluster-objects
+    #
+    # TODO: ideally we would avoid duplication and would link gn-built items
+    target_sources(${APP_TARGET} ${SCOPE}
+        ${CHIP_APP_BASE_DIR}/../../zzz_generated/app-common/app-common/zap-generated/cluster-objects.cpp
+    )
 
     target_sources(${APP_TARGET} ${SCOPE}
         ${CHIP_APP_ZAP_DIR}/app-common/zap-generated/attributes/Accessors.cpp
         ${CHIP_APP_BASE_DIR}/reporting/reporting.cpp
         ${CHIP_APP_BASE_DIR}/util/attribute-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/attribute-table.cpp
+        ${CHIP_APP_BASE_DIR}/util/binding-table.cpp
         ${CHIP_APP_BASE_DIR}/util/DataModelHandler.cpp
         ${CHIP_APP_BASE_DIR}/util/ember-io-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/generic-callback-stubs.cpp
         ${CHIP_APP_BASE_DIR}/util/privilege-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/util.cpp
-        ${CHIP_APP_BASE_DIR}/persistence/AttributePersistenceProviderInstance.cpp
-        ${CHIP_APP_BASE_DIR}/persistence/DefaultAttributePersistenceProvider.cpp
+        ${CHIP_APP_BASE_DIR}/util/persistence/AttributePersistenceProvider.cpp
+        ${CHIP_APP_BASE_DIR}/util/persistence/DefaultAttributePersistenceProvider.cpp
         ${CODEGEN_DATA_MODEL_SOURCES}
         ${APP_GEN_FILES}
         ${APP_TEMPLATES_GEN_FILES}

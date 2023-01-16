@@ -344,7 +344,6 @@ void WiFiManager::PollTimerCallback()
 CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
 {
     VerifyOrReturnError(nullptr != wpa_s, CHIP_ERROR_INTERNAL);
-    VerifyOrReturnError(nullptr != mpWpaNetwork, CHIP_ERROR_INTERNAL);
 
     static uint8_t sBssid[ETH_ALEN];
     if (WiFiManager::StationStatus::CONNECTED <= GetStationStatus())
@@ -370,10 +369,6 @@ CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
             info.mRssi    = std::numeric_limits<decltype(info.mRssi)>::min();
             info.mChannel = std::numeric_limits<decltype(info.mChannel)>::min();
         }
-
-        memcpy(info.mSsid, mpWpaNetwork->ssid, mpWpaNetwork->ssid_len);
-        info.mSsidLen = mpWpaNetwork->ssid_len;
-
         return CHIP_NO_ERROR;
     }
 

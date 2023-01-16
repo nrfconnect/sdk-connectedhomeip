@@ -52,14 +52,13 @@ public:
     {
     public:
         WiFiNetworkIterator(NrfWiFiDriver * aDriver) : mDriver(aDriver) {}
-        size_t Count() override;
-        bool Next(Network & item) override;
+        size_t Count() override { return 0; };
+        bool Next(Network & item) override { return true; }
         void Release() override { delete this; }
         ~WiFiNetworkIterator() = default;
 
     private:
         NrfWiFiDriver * mDriver;
-        bool mExhausted{ false };
     };
 
     struct WiFiNetwork

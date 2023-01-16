@@ -1,0 +1,9 @@
+{{> header}}
+
+#pragma once
+
+{{#chip_server_clusters}}
+void Matter{{asUpperCamelCase name}}Plugin{{asUpperCamelCase side}}InitCallback();
+{{/chip_server_clusters}}
+
+#define MATTER_PLUGINS_INIT {{#chip_server_clusters}}Matter{{asUpperCamelCase name}}Plugin{{asUpperCamelCase side}}InitCallback(); {{/chip_server_clusters}}

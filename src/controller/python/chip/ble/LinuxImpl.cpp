@@ -2,6 +2,7 @@
 #include <lib/support/CHIPMem.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/Linux/bluez/AdapterIterator.h>
+#include <platform/Linux/bluez/MainLoop.h>
 #include <platform/internal/BLEManager.h>
 
 using namespace chip::DeviceLayer::Internal;
@@ -57,7 +58,7 @@ extern "C" void * pychip_ble_adapter_list_get_raw_adapter(void * adapterIterator
 
 namespace {
 
-// To avoid python compatibility issues on inc/dec references,
+// To avoid pythoon compatibility issues on inc/dec references,
 // code assumes an abstract type and leaves it up to python to keep track of
 // reference counts
 struct PyObject;

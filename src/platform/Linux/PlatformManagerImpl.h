@@ -23,13 +23,10 @@
 
 #pragma once
 
-#include <condition_variable>
-#include <mutex>
-
 #include <platform/PlatformManager.h>
 #include <platform/internal/GenericPlatformManagerImpl_POSIX.h>
 
-#if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
+#if CHIP_WITH_GIO
 #include <gio/gio.h>
 #endif
 
@@ -53,28 +50,8 @@ class PlatformManagerImpl final : public PlatformManager, public Internal::Gener
 
 public:
     // ===== Platform-specific members that may be accessed directly by the application.
-
-#if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP && CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
-
-    /**
-     * @brief Executes a callback in the GLib main loop thread.
-     *
-     * @param[in] callback The callback to execute.
-     * @param[in] userData User data to pass to the callback.
-     * @param[in] wait If true, the function will block until the callback has been executed.
-     * @returns CHIP_NO_ERROR if the callback was successfully executed.
-     */
-    CHIP_ERROR RunOnGLibMainLoopThread(GSourceFunc callback, void * userData, bool wait = false);
-
-    /**
-     * @brief Convenience method to require less casts to void pointers.
-     */
-    template <class T>
-    CHIP_ERROR ScheduleOnGLibMainLoopThread(int (*callback)(T *), T * userData, bool wait = false)
-    {
-        return RunOnGLibMainLoopThread(G_SOURCE_FUNC(callback), userData, wait);
-    }
-
+#if CHIP_WITH_GIO
+    GDBusConnection * GetGDBusConnection();
 #endif
 
     System::Clock::Timestamp GetStartTime() { return mStartTime; }
@@ -95,36 +72,18 @@ private:
 
     static PlatformManagerImpl sInstance;
 
-#if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
+    // The temporary hack for getting IP address change on linux for network provisioning in the rendezvous session.
+    // This should be removed or find a better place once we depercate the rendezvous session.
+    static void WiFIIPChangeListener();
 
-    class CallbackIndirection
+#if CHIP_WITH_GIO
+    struct GDBusConnectionDeleter
     {
-    public:
-        CallbackIndirection(GSourceFunc callback, void * userData) : mCallback(callback), mUserData(userData) {}
-        void Wait(std::unique_lock<std::mutex> & lock);
-        static gboolean Callback(CallbackIndirection * self);
-
-    private:
-        GSourceFunc mCallback;
-        void * mUserData;
-        // Sync primitives to wait for the callback to be executed.
-        std::condition_variable mDoneCond;
-        bool mDone = false;
+        void operator()(GDBusConnection * conn) { g_object_unref(conn); }
     };
-
-    // XXX: Mutex for guarding access to glib main event loop callback indirection
-    //      synchronization primitives. This is a workaround to suppress TSAN warnings.
-    //      TSAN does not know that from the thread synchronization perspective the
-    //      g_source_attach() function should be treated as pthread_create(). Memory
-    //      access to shared data before the call to g_source_attach() without mutex
-    //      is not a race condition - the callback will not be executed on glib main
-    //      event loop thread before the call to g_source_attach().
-    std::mutex mGLibMainLoopCallbackIndirectionMutex;
-
-    GMainLoop * mGLibMainLoop;
-    GThread * mGLibMainLoopThread;
-
-#endif // CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
+    using UniqueGDBusConnection = std::unique_ptr<GDBusConnection, GDBusConnectionDeleter>;
+    UniqueGDBusConnection mpGDBusConnection;
+#endif
 };
 
 /**

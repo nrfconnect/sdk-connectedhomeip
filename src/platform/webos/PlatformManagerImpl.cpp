@@ -24,17 +24,6 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <errno.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <unistd.h>
-
-#include <thread>
-
 #include <app-common/zap-generated/enums.h>
 #include <app-common/zap-generated/ids/Events.h>
 #include <lib/support/CHIPMem.h>
@@ -46,6 +35,22 @@
 #include <platform/webos/DeviceInstanceInfoProviderImpl.h>
 #include <platform/webos/DiagnosticDataProviderImpl.h>
 
+#include <thread>
+
+#include <arpa/inet.h>
+#include <dirent.h>
+#include <errno.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ < 30
+#include <sys/syscall.h>
+#define gettid() syscall(SYS_gettid)
+#endif
+
 using namespace ::chip::app::Clusters;
 
 namespace chip {
@@ -55,18 +60,19 @@ PlatformManagerImpl PlatformManagerImpl::sInstance;
 
 namespace {
 
-#if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
-void * GLibMainLoopThread(void * loop)
+#if CHIP_WITH_GIO
+void GDBus_Thread()
 {
-    g_main_loop_run(static_cast<GMainLoop *>(loop));
-    return nullptr;
+    GMainLoop * loop = g_main_loop_new(nullptr, false);
+
+    g_main_loop_run(loop);
+    g_main_loop_unref(loop);
 }
 #endif
-
 } // namespace
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-void PlatformManagerImpl::WiFiIPChangeListener()
+void PlatformManagerImpl::WiFIIPChangeListener()
 {
     int sock;
     if ((sock = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) == -1)
@@ -142,13 +148,17 @@ void PlatformManagerImpl::WiFiIPChangeListener()
 
 CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 {
-#if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
-    mGLibMainLoop       = g_main_loop_new(nullptr, FALSE);
-    mGLibMainLoopThread = g_thread_new("gmain-matter", GLibMainLoopThread, mGLibMainLoop);
+#if CHIP_WITH_GIO
+    GError * error = nullptr;
+
+    this->mpGDBusConnection = UniqueGDBusConnection(g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, &error));
+
+    std::thread gdbusThread(GDBus_Thread);
+    gdbusThread.detach();
 #endif
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-    std::thread wifiIPThread(WiFiIPChangeListener);
+    std::thread wifiIPThread(WiFIIPChangeListener);
     wifiIPThread.detach();
 #endif
 
@@ -191,13 +201,14 @@ void PlatformManagerImpl::_Shutdown()
     }
 
     Internal::GenericPlatformManagerImpl_POSIX<PlatformManagerImpl>::_Shutdown();
-
-#if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
-    g_main_loop_quit(mGLibMainLoop);
-    g_main_loop_unref(mGLibMainLoop);
-    g_thread_join(mGLibMainLoopThread);
-#endif
 }
+
+#if CHIP_WITH_GIO
+GDBusConnection * PlatformManagerImpl::GetGDBusConnection()
+{
+    return this->mpGDBusConnection.get();
+}
+#endif
 
 } // namespace DeviceLayer
 } // namespace chip

@@ -190,7 +190,6 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     mInternalScan       = internalScan;
     mScanResultCallback = resultCallback;
     mScanDoneCallback   = doneCallback;
-    mCachedWiFiState    = mWiFiState;
     mWiFiState          = WIFI_STATE_SCANNING;
 
     if (net_mgmt(NET_REQUEST_WIFI_SCAN, iface, NULL, 0))
@@ -351,43 +350,39 @@ void WiFiManager::ScanDoneHandler(uint8_t * data)
     const wifi_status * status      = reinterpret_cast<const wifi_status *>(data);
     WiFiRequestStatus requestStatus = static_cast<WiFiRequestStatus>(status->status);
 
+    if (Instance().mScanDoneCallback && !Instance().mInternalScan)
+    {
+        Instance().mScanDoneCallback(requestStatus);
+    }
+
     if (requestStatus == WiFiRequestStatus::FAILURE)
     {
-        ChipLogError(DeviceLayer, "Scan request failed (%d)", status->status);
+        ChipLogDetail(DeviceLayer, "Scan request failed (%d)", status->status);
     }
     else
     {
         ChipLogDetail(DeviceLayer, "Scan request done (%d)", status->status);
-    }
 
-    if (Instance().mScanDoneCallback && !Instance().mInternalScan)
-    {
-        Instance().mScanDoneCallback(requestStatus);
-        // restore the connection state from before the scan request was issued
-        Instance().mWiFiState = Instance().mCachedWiFiState;
-        return;
-    }
-
-    // Internal scan is supposed to be followed by connection request
-    if (Instance().mInternalScan)
-    {
-        Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
-        net_if * iface        = InetUtils::GetInterface();
-        VerifyOrReturn(nullptr != iface, CHIP_ERROR_INTERNAL);
-
-        if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &(Instance().mWiFiParams.mParams), sizeof(wifi_connect_req_params)))
+        // Internal scan is supposed to be followed by connection request
+        if (Instance().mInternalScan)
         {
-            ChipLogError(DeviceLayer, "Connection request failed");
-            if (Instance().mHandling.mOnConnectionFailed)
+            Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
+            net_if * iface        = InetUtils::GetInterface();
+            VerifyOrReturn(nullptr != iface, CHIP_ERROR_INTERNAL);
+
+            if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &(Instance().mWiFiParams.mParams), sizeof(wifi_connect_req_params)))
             {
-                Instance().mHandling.mOnConnectionFailed();
+                ChipLogError(DeviceLayer, "Connection request failed");
+                if (Instance().mHandling.mOnConnectionFailed)
+                {
+                    Instance().mHandling.mOnConnectionFailed();
+                }
+                return;
             }
-            Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
-            return;
+            ChipLogError(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
+                         Instance().mWiFiParams.mParams.ssid);
+            Instance().mInternalScan = false;
         }
-        ChipLogDetail(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
-                      Instance().mWiFiParams.mParams.ssid);
-        Instance().mInternalScan = false;
     }
 }
 

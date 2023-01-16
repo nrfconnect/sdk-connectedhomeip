@@ -194,11 +194,6 @@ config CHIP_NFC_COMMISSIONING
     bool
     default y
 
-# Disable not needed NFC callback to save flash
-config NFC_THREAD_CALLBACK
-    bool
-    default n
-
 config CHIP_OTA_REQUESTOR
     bool
     default y

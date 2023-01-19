@@ -186,7 +186,7 @@ public:
     CHIP_ERROR GetNetworkStatistics(NetworkStatistics & stats) const;
 
 private:
-    using NetEventHandler = void (*)(uint8_t *);
+    using NetEventHandler = void (*)(Platform::UniquePtr<uint8_t>);
 
     struct ConnectionParams
     {
@@ -199,10 +199,10 @@ private:
 
     // Event handling
     static void WifiMgmtEventHandler(net_mgmt_event_callback * cb, uint32_t mgmtEvent, net_if * iface);
-    static void ScanResultHandler(uint8_t * data);
-    static void ScanDoneHandler(uint8_t * data);
-    static void ConnectHandler(uint8_t * data);
-    static void DisconnectHandler(uint8_t * data);
+    static void ScanResultHandler(Platform::UniquePtr<uint8_t> data);
+    static void ScanDoneHandler(Platform::UniquePtr<uint8_t> data);
+    static void ConnectHandler(Platform::UniquePtr<uint8_t> data);
+    static void DisconnectHandler(Platform::UniquePtr<uint8_t> data);
     static void PostConnectivityStatusChange(ConnectivityChange changeType);
     static void SendRouterSolicitation(System::Layer * layer, void * param);
 
@@ -216,6 +216,7 @@ private:
     WiFiNetwork mWantedNetwork{};
     bool mInternalScan{ false };
     uint8_t mRouterSolicitationCounter = 0;
+
     static const Map<wifi_iface_state, StationStatus, 10> sStatusMap;
     static const Map<uint32_t, NetEventHandler, 4> sEventHandlerMap;
 };

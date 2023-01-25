@@ -336,7 +336,7 @@ void WiFiManager::ScanResultHandler(uint8_t * data)
             }
 
             Instance().mWiFiParams.mParams.timeout = Instance().mHandling.mConnectionTimeout.count();
-            Instance().mWiFiParams.mParams.channel = scanResult->channel;
+            Instance().mWiFiParams.mParams.channel = WIFI_CHANNEL_ANY; // use generic channel scanning mechanism
             Instance().mWiFiParams.mRssi           = scanResult->rssi;
         }
     }

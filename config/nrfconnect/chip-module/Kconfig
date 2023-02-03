@@ -172,6 +172,51 @@ config CHIP_FACTORY_RESET_ERASE_NVS
 	bool
 	default y if CHIP_FACTORY_DATA || CHIP_FACTORY_DATA_CUSTOM_BACKEND
 
+config CHIP_WIFI_CONNECTION_RECOVERY_MINIMUM_INTERVAL
+	int "Define the minimum connection recovery time interval in milliseconds"
+	depends on CHIP_WIFI
+	default 500
+	help
+	  Specifies the minimum connection recovery interval (in milliseconds).
+
+config CHIP_WIFI_CONNECTION_RECOVERY_MAXIMUM_INTERVAL
+	int "Define the maximum connection recovery time interval in milliseconds"
+	depends on CHIP_WIFI
+	default 3600000 # 1 hour
+	help
+	  Specifies the maximum connection recovery interval (in milliseconds).
+
+config CHIP_WIFI_CONNECTION_RECOVERY_MAX_RETRIES_NUMBER
+	int "Define maximum amount of connection recovery occurrences"
+	depends on CHIP_WIFI
+	default 0
+	help
+	  Specifies the maximum connection recovery attempts. 
+	  If set to 0, no limitation is applied and the connect retry is performed endlessly.
+
+config CHIP_WIFI_CONNECTION_RECOVERY_JITTER
+	int "Define the connection recovery jitter in milliseconds"
+	depends on CHIP_WIFI
+	default 2000
+	help
+	  Specifies the maximum connection recovery jitter interval (in milliseconds).
+	  Once the wait time reaches the maximum value a random jitter interval is
+	  added to it to avoid periodicity. The random jitter is selected
+	  within range [-JITTER; +JITTER]. The random jitter value is added only
+	  when connection recovery interval reaches the maximum value.
+
+config CHIP_WIFI_CONNECTION_RECOVERY_RESET_DELAY
+	int "Define the delay between resetting connection recovery interval"
+	depends on CHIP_WIFI
+	default 0
+	help
+	  Specifies the delay after a successful connection recovery.
+	  The 0 value means that the connection recovery interval will be cleared
+	  immediately after the connection recovery.
+	  A non-zero value delays the interval reset, which is helpful in the situation
+	  where a link quality to a WiFi access point is poor and device disconnects 
+	  frequently.
+
 endif
 
 config CHIP_LOG_SIZE_OPTIMIZATION

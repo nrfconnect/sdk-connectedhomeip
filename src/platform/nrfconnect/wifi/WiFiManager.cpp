@@ -174,11 +174,12 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     net_if * iface = InetUtils::GetInterface();
     VerifyOrReturnError(nullptr != iface, CHIP_ERROR_INTERNAL);
 
-    mInternalScan       = internalScan;
-    mScanResultCallback = resultCallback;
-    mScanDoneCallback   = doneCallback;
-    mCachedWiFiState    = mWiFiState;
-    mWiFiState          = WIFI_STATE_SCANNING;
+    mInternalScan         = internalScan;
+    mScanResultCallback   = resultCallback;
+    mScanDoneCallback     = doneCallback;
+    mCachedWiFiState      = mWiFiState;
+    mWiFiState            = WIFI_STATE_SCANNING;
+    Instance().mSsidFound = false;
 
     if (net_mgmt(NET_REQUEST_WIFI_SCAN, iface, NULL, 0))
     {
@@ -215,6 +216,8 @@ CHIP_ERROR WiFiManager::Connect(const ByteSpan & ssid, const ByteSpan & credenti
     memcpy(mWantedNetwork.pass, credentials.data(), credentials.size());
     mWantedNetwork.ssidLen = ssid.size();
     mWantedNetwork.passLen = credentials.size();
+
+    Instance().mSsidFound = false;
 
     return Scan(ssid, nullptr, nullptr, true /* internal scan */);
 }
@@ -326,6 +329,7 @@ void WiFiManager::ScanResultHandler(Platform::UniquePtr<uint8_t> data)
             Instance().mWiFiParams.mParams.timeout = Instance().mHandling.mConnectionTimeout.count();
             Instance().mWiFiParams.mParams.channel = WIFI_CHANNEL_ANY;
             Instance().mWiFiParams.mRssi           = scanResult->rssi;
+            Instance().mSsidFound                  = true;
         }
     }
 
@@ -355,6 +359,12 @@ void WiFiManager::ScanDoneHandler(Platform::UniquePtr<uint8_t> data)
             Instance().mScanDoneCallback(requestStatus);
             // restore the connection state from before the scan request was issued
             Instance().mWiFiState = Instance().mCachedWiFiState;
+            return;
+        }
+
+        if (!Instance().mSsidFound)
+        {
+            DeviceLayer::SystemLayer().StartTimer(Instance().GetNextRecoveryTime(), Recover, nullptr);
             return;
         }
 
@@ -422,6 +432,8 @@ void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
             if (Instance().mHandling.mOnConnectionFailed)
             {
                 Instance().mHandling.mOnConnectionFailed();
+                // Reset the connection recover interval to the minimum value after the defined delay
+                DeviceLayer::SystemLayer().StartTimer(System::Clock::Milliseconds32(kConnectionRecoveryDelayToReset), ResetRecoveryTime, nullptr);
             }
         }
         else
@@ -472,6 +484,57 @@ void WiFiManager::PostConnectivityStatusChange(ConnectivityChange changeType)
     networkEvent.Type                          = DeviceEventType::kWiFiConnectivityChange;
     networkEvent.WiFiConnectivityChange.Result = changeType;
     PlatformMgr().PostEventOrDie(&networkEvent);
+}
+
+System::Clock::Milliseconds32 WiFiManager::GetNextRecoveryTime()
+{
+
+    if (mConnectionRecoveryTimeMs >= kConnectionRecoveryMaxIntervalMs)
+    {
+        // find the new random jitter value in range [-jitter, +jitter]
+        int32_t jitter            = chip::Crypto::GetRandU32() % (2 * jitter + 1) - jitter;
+        mConnectionRecoveryTimeMs = kConnectionRecoveryMaxIntervalMs + jitter;
+    }
+    else
+    {
+        mConnectionRecoveryTimeMs = mConnectionRecoveryTimeMs * 2;
+    }
+    return System::Clock::Milliseconds32(mConnectionRecoveryTimeMs);
+}
+
+void WiFiManager::Recover(System::Layer *, void *)
+{
+    // If kConnectionRecoveryMaxOverallInterval has a non-zero value prevent re-scan endless.
+    if (0 != kConnectionRecoveryMaxRetries && (++Instance().mConnectionRecoveryCounter >= kConnectionRecoveryMaxRetries))
+    {
+        Instance().AbortConnectionRecovery();
+    }
+
+    // Prevent executing Scan if it has been aborted by the failsafe timer occurrence.
+    if (!Instance().mRecoveryTimerAborted)
+    {
+        ChipLogProgress(DeviceLayer, "Connection recover re-scanning... (next attempt in %d ms)",
+                        Instance().GetNextRecoveryTime().count());
+        Instance().Scan(Instance().mWantedNetwork.GetSsidSpan(), nullptr, nullptr, true /* internal scan */);
+    }
+    Instance().mRecoveryTimerAborted = false;
+}
+
+void WiFiManager::ResetRecoveryTime(System::Layer *, void *)
+{
+    if (WIFI_STATE_COMPLETED == Instance().mWiFiState)
+    {
+        Instance().mConnectionRecoveryTimeMs  = kConnectionRecoveryMinIntervalMs;
+        Instance().mConnectionRecoveryCounter = 0;
+    }
+}
+
+void WiFiManager::AbortConnectionRecovery()
+{
+    DeviceLayer::SystemLayer().CancelTimer(Recover, nullptr);
+    Instance().mConnectionRecoveryTimeMs  = kConnectionRecoveryMinIntervalMs;
+    Instance().mConnectionRecoveryCounter = 0;
+    Instance().mRecoveryTimerAborted      = true;
 }
 
 } // namespace DeviceLayer

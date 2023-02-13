@@ -226,7 +226,7 @@ config SYSTEM_WORKQUEUE_STACK_SIZE
     default 2048
 
 config NET_MGMT_EVENT_STACK_SIZE
-    default 1024
+    default 4096
 
 # align these numbers to match the OpenThread config
 config NET_IF_UNICAST_IPV6_ADDR_COUNT
@@ -237,6 +237,9 @@ config NET_IF_MCAST_IPV6_ADDR_COUNT
 
 config NET_SOCKETS_POSIX_NAMES
     default n
+
+config NET_SOCKETS_POLL_MAX
+    default 4
 
 config MBEDTLS_SSL_OUT_CONTENT_LEN
     default 900

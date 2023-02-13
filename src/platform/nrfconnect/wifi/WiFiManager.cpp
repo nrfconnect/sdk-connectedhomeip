@@ -453,6 +453,12 @@ void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
                 Instance().mHandling.mOnConnectionSuccess();
             }
             Instance().PostConnectivityStatusChange(kConnectivity_Established);
+
+            // Workaround needed to re-initialize mDNS server after Wi-Fi interface is operative 
+            chip::DeviceLayer::ChipDeviceEvent event;
+            event.Type = chip::DeviceLayer::DeviceEventType::kDnssdPlatformInitialized;
+
+            CHIP_ERROR error = chip::DeviceLayer::PlatformMgr().PostEvent(&event);
         }
         // Ensure fresh recovery for future connection requests.
         Instance().ResetRecoveryTime();

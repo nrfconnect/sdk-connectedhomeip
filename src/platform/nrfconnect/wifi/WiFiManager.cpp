@@ -99,6 +99,27 @@ uint8_t MapToMatterWiFiVersionCode(wifi_link_mode wifiVersion)
     return (static_cast<uint8_t>(wifiVersion) - 1);
 }
 
+// Matter expectations towards Wi-Fi security type codes are unaligned with
+// what wpa_supplicant provides. This function maps supplicant codes
+// to the ones defined in the Matter spec (11.14.3.1. SecurityType enum)
+uint8_t MapToMatterSecurityType(wifi_security_type securityType)
+{
+    switch (securityType)
+    {
+    case WIFI_SECURITY_TYPE_NONE:
+        return EMBER_ZCL_SECURITY_TYPE_NONE;
+    case WIFI_SECURITY_TYPE_PSK:
+    case WIFI_SECURITY_TYPE_PSK_SHA256:
+        return EMBER_ZCL_SECURITY_TYPE_WPA2;
+    case WIFI_SECURITY_TYPE_SAE:
+        return EMBER_ZCL_SECURITY_TYPE_WPA3;
+    default:
+        break;
+    }
+
+    return EMBER_ZCL_SECURITY_TYPE_UNSPECIFIED;
+}
+
 } // namespace
 
 const Map<wifi_iface_state, WiFiManager::StationStatus, 10>
@@ -265,7 +286,7 @@ CHIP_ERROR WiFiManager::GetWiFiInfo(WiFiInfo & info) const
         net_sprint_ll_addr_buf(reinterpret_cast<const uint8_t *>(status.bssid), WIFI_MAC_ADDR_LEN,
                                reinterpret_cast<char *>(mac_string_buf), sizeof(mac_string_buf));
         info.mBssId        = ByteSpan(mac_string_buf, sizeof(mac_string_buf));
-        info.mSecurityType = static_cast<uint8_t>(status.security);
+        info.mSecurityType = MapToMatterSecurityType(status.security);
         info.mWiFiVersion  = MapToMatterWiFiVersionCode(status.link_mode);
         info.mRssi         = status.rssi;
         info.mChannel      = status.channel;

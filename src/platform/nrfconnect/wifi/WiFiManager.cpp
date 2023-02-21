@@ -415,8 +415,8 @@ void WiFiManager::ScanDoneHandler(Platform::UniquePtr<uint8_t> data)
                 Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
                 return;
             }
-            ChipLogProgress(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
-                            Instance().mWiFiParams.mParams.ssid);
+            ChipLogProgress(DeviceLayer, "Connection to %*s requested [RSSI=%d]", Instance().mWiFiParams.mParams.ssid_length,
+                            Instance().mWiFiParams.mParams.ssid, Instance().mWiFiParams.mRssi);
             Instance().mInternalScan = false;
         }
     });

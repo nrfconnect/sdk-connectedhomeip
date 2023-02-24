@@ -62,6 +62,7 @@ endfunction()
 #   SCOPE             CMake scope keyword that defines the scope of included sources.
 #                     The default is PRIVATE scope.
 #   INCLUDE_SERVER    Include source files from src/app/server directory.
+#   BYPASS_IDL        Bypass code generation from .matter IDL file.
 #   ZAP_FILE          Path to the ZAP file, used to determine the list of clusters
 #                     supported by the application.
 #   IDL               .matter IDL file to use for codegen. Inferred from ZAP_FILE
@@ -72,7 +73,7 @@ endfunction()
 #
 function(chip_configure_data_model APP_TARGET)
     set(SCOPE PRIVATE)
-    cmake_parse_arguments(ARG "INCLUDE_SERVER" "SCOPE;ZAP_FILE;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
+    cmake_parse_arguments(ARG "INCLUDE_SERVER;BYPASS_IDL" "SCOPE;ZAP_FILE;GEN_DIR;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
 
     if (ARG_SCOPE)
         set(SCOPE ${ARG_SCOPE})
@@ -101,7 +102,7 @@ function(chip_configure_data_model APP_TARGET)
         endif()
     endif()
 
-    if (ARG_IDL)
+    if (ARG_IDL AND NOT ARG_BYPASS_IDL)
         chip_codegen(${APP_TARGET}-codegen
           INPUT     "${ARG_IDL}"
           GENERATOR "cpp-app"
@@ -114,24 +115,30 @@ function(chip_configure_data_model APP_TARGET)
 
         target_include_directories(${APP_TARGET} ${SCOPE} "${APP_GEN_DIR}")
         add_dependencies(${APP_TARGET} ${APP_TARGET}-codegen)
-    else()
-        set(APP_GEN_FILES)
-    endif()
 
-    chip_zapgen(${APP_TARGET}-zapgen
-        INPUT     "${ARG_ZAP_FILE}"
-        GENERATOR "app-templates"
-        OUTPUTS
-              "zap-generated/access.h"
-              "zap-generated/CHIPClusters.h"
-              "zap-generated/endpoint_config.h"
-              "zap-generated/gen_config.h"
-              "zap-generated/IMClusterCommandHandler.cpp"
-        OUTPUT_PATH   APP_TEMPLATES_GEN_DIR
-        OUTPUT_FILES  APP_TEMPLATES_GEN_FILES
-    )
-    target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
-    add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
+        chip_zapgen(${APP_TARGET}-zapgen
+            INPUT "${ARG_ZAP_FILE}"
+            GENERATOR "app-templates"
+            OUTPUTS
+            "zap-generated/access.h"
+            "zap-generated/CHIPClientCallbacks.h"
+            "zap-generated/CHIPClusters.h"
+            "zap-generated/endpoint_config.h"
+            "zap-generated/gen_config.h"
+            "zap-generated/IMClusterCommandHandler.cpp"
+            OUTPUT_PATH APP_TEMPLATES_GEN_DIR
+            OUTPUT_FILES APP_TEMPLATES_GEN_FILES
+        )
+        target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
+        add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
+    else()
+        target_compile_definitions(${APP_TARGET} PRIVATE CHIP_BYPASS_IDL)
+        target_include_directories(${APP_TARGET} ${SCOPE} ${ARG_GEN_DIR})
+        set(APP_GEN_FILES
+            ${ARG_GEN_DIR}/callback-stub.cpp
+            ${ARG_GEN_DIR}/IMClusterCommandHandler.cpp
+        )
+    endif()
 
     target_sources(${APP_TARGET} ${SCOPE}
         ${CHIP_APP_BASE_DIR}/../../zzz_generated/app-common/app-common/zap-generated/attributes/Accessors.cpp

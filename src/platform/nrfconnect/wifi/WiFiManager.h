@@ -192,6 +192,7 @@ public:
     CHIP_ERROR GetWiFiInfo(WiFiInfo & info) const;
     CHIP_ERROR GetNetworkStatistics(NetworkStatistics & stats) const;
     void AbortConnectionRecovery();
+    CHIP_ERROR SetLowPowerMode(bool onoff);
 
 private:
     using NetEventHandler = void (*)(Platform::UniquePtr<uint8_t>);

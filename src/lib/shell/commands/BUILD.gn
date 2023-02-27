@@ -55,15 +55,19 @@ source_set("commands") {
       chip_device_platform != "linux" && chip_device_platform != "darwin") {
     sources += [ "Ota.cpp" ]
 
-    # TODO: the ota commands in shell should use the interfaces in /src/app/clusters/ota-requestor
-    #
-    # Awkward dependencies below say:
-    #   - codegen via zap the CHIPClusters.h (which is the CLIENT SIDE)
-    #   - ensure include path can see zap-generated/CHIPClusters.h
-    deps = [ "${chip_root}/src/controller/data_model:data_model_zapgen_files" ]
+    # This weird dependency results in trying to dynamically generate controller files, what doesn't allow to bypass
+    # the zap-cli usage in nRF Connect samples.
+    if (chip_device_platform != "nrfconnect") {
+      # TODO: the ota commands in shell should use the interfaces in /src/app/clusters/ota-requestor
+      #
+      # Awkward dependencies below say:
+      #   - codegen via zap the CHIPClusters.h (which is the CLIENT SIDE)
+      #   - ensure include path can see zap-generated/CHIPClusters.h
+      deps = [ "${chip_root}/src/controller/data_model:data_model_zapgen_files" ]
 
-    configs +=
-        [ "${chip_root}/src/controller/data_model:data_model_zapgen_config" ]
+      configs +=
+          [ "${chip_root}/src/controller/data_model:data_model_zapgen_config" ]
+    }
   }
 
   if (chip_device_platform != "none") {

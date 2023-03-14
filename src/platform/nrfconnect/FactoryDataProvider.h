@@ -21,7 +21,7 @@
 #include <platform/CommissionableDataProvider.h>
 #include <platform/DeviceInstanceInfoProvider.h>
 
-#include <zephyr/drivers/flash.h>
+#include <drivers/flash.h>
 #include <fprotect.h>
 #include <pm_config.h>
 #include <system/SystemError.h>

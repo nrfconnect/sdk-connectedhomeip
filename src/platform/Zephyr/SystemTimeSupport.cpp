@@ -26,7 +26,7 @@
 
 #include <system/SystemError.h>
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #if !CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
 

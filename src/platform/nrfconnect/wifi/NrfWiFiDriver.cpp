@@ -147,11 +147,6 @@ CHIP_ERROR NrfWiFiDriver::CommitConfiguration()
 
 CHIP_ERROR NrfWiFiDriver::RevertConfiguration()
 {
-    if (WiFiManager::StationStatus::CONNECTING <= WiFiManager::Instance().GetStationStatus())
-    {
-        WiFiManager::Instance().Disconnect();
-    }
-
     LoadFromStorage();
 
     if (mStagingNetwork.IsConfigured())
@@ -176,7 +171,6 @@ Status NrfWiFiDriver::AddOrUpdateNetwork(ByteSpan ssid, ByteSpan credentials, Mu
     VerifyOrReturnError(ssid.size() <= sizeof(mStagingNetwork.ssid), Status::kOutOfRange);
     VerifyOrReturnError(credentials.size() <= sizeof(mStagingNetwork.pass), Status::kOutOfRange);
 
-    mStagingNetwork.Erase();
     memcpy(mStagingNetwork.ssid, ssid.data(), ssid.size());
     memcpy(mStagingNetwork.pass, credentials.data(), credentials.size());
     mStagingNetwork.ssidLen = ssid.size();

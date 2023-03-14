@@ -23,58 +23,37 @@
 
 #pragma once
 
-#include <platform/Zephyr/BLEAdvertisingArbiter.h>
+#include <platform/CHIPDeviceLayer.h>
 
-#include <array>
+#include <zephyr/kernel.h>
 
-/**
- * @brief DFU over SMP helper class
- *
- * The purpose of this class is to enable Device Firmware Upgrade mechanism
- * using Simple Management Protocol (SMP) over Bluetooth LE. Besides
- * facilitating initialization of the SMP server, it is capable of requesting
- * BLE advertising in a way that is compatible with other application components
- * that use BLE, such as Matter BLE layer.
- */
+typedef void (*DFUOverSMPRestartAdvertisingHandler)(void);
+
 class DFUOverSMP
 {
 public:
-    /**
-     * @brief Initialize DFU over SMP utility
-     *
-     * Initialize internal structures and register necessary commands in the SMP
-     * server.
-     */
-    void Init();
-
-    /**
-     * @brief Confirm the current firmware image
-     *
-     * In case the current image is run tentatively after performing the
-     * firmware update, approve it to prevent the system from restoring the
-     * previous image on the next boot.
-     */
+    void Init(DFUOverSMPRestartAdvertisingHandler startAdvertisingCb);
     void ConfirmNewImage();
-
-    /**
-     * @brief Start BLE SMP server
-     *
-     * Register SMP BLE service that supports image management commands and
-     * request BLE advertising. The BLE advertising may begin immediately, or be
-     * deferred if another component with higher priority uses BLE.
-     */
     void StartServer();
+    void StartBLEAdvertising();
+    bool IsEnabled() { return mIsEnabled; }
 
 private:
-    bool mIsStarted                                                       = false;
-    chip::DeviceLayer::BLEAdvertisingArbiter::Request mAdvertisingRequest = {};
-    std::array<bt_data, 2> mAdvertisingItems;
+    friend DFUOverSMP & GetDFUOverSMP(void);
 
-    friend DFUOverSMP & GetDFUOverSMP();
+    static int UploadConfirmHandler(const struct img_mgmt_upload_req req, const struct img_mgmt_upload_action action);
+    static void OnBleDisconnect(bt_conn * conn, uint8_t reason);
+    static void ChipEventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t arg);
+
+    bool mIsEnabled;
+    bool mIsAdvertisingEnabled;
+    bt_conn_cb mBleConnCallbacks;
+    DFUOverSMPRestartAdvertisingHandler restartAdvertisingCallback;
+
     static DFUOverSMP sDFUOverSMP;
 };
 
-inline DFUOverSMP & GetDFUOverSMP()
+inline DFUOverSMP & GetDFUOverSMP(void)
 {
     return DFUOverSMP::sDFUOverSMP;
 }

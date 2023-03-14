@@ -34,6 +34,7 @@ enum class AppEventType : uint8_t
     UpdateLedState,
     IdentifyStart,
     IdentifyStop,
+    StartSMPAdvertising
 };
 
 enum class FunctionEvent : uint8_t

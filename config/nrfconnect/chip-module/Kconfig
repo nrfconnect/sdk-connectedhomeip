@@ -90,7 +90,7 @@ config CHIP_DEBUG_SYMBOLS
 	  Build the application with debug symbols.
 
 config CHIP_MALLOC_SYS_HEAP
-	default y if !ARCH_POSIX
+	default y
 
 config CHIP_FACTORY_DATA
 	bool "Enable Factory Data support"

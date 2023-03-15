@@ -150,10 +150,6 @@ def extractGeneratedIdl(output_dir, zap_config_path):
         # multiple extensions. This is to work with existing codebase only
         raise Error("Unexpected input zap file  %s" % self.zap_config)
 
-    # If the ".matter" already exists in this location, some OS (e.g. Windows) will not allow to simply overwrite it.
-    if os.path.exists(target_path):
-        os.remove(target_path)
-
     os.rename(idl_path, target_path)
 
 

@@ -95,7 +95,7 @@ config CHIP_MALLOC_SYS_HEAP
 config CHIP_FACTORY_DATA
 	bool "Enable Factory Data support"
 	select ZCBOR
-	imply FPROTECT
+	select FPROTECT
 	help
 	  Enables support for reading factory data from flash memory partition.
 	  It requires factory_data partition to exist in the partition manager 
@@ -127,20 +127,6 @@ config CHIP_FACTORY_DATA_VERSION
 	  After moving to the next version of the factory data set, change the default value. 
 	  This config is used to validate the version of a factory data set on a device-side 
 	  with the version of factory data saved in the Flash memory.
-
-config CHIP_FACTORY_DATA_WRITE_PROTECT
-	bool "Enable Factory Data write protection"
-	select FPROTECT
-	depends on CHIP_FACTORY_DATA
-	default y if CHIP_FACTORY_DATA
-	help
-		Enables the write protection of the Factory Data partition in the flash memory.
-		This is a recommended feature, but it requires the Settings partition size to be
-		a multiple of FPROTECT_BLOCK_SIZE and the Factory Data partition to be placed
-		right after the application partition in the address space (the Factory Data
-		partition offset must be equal to the last address of the application partition).
-		The second requirement is valid only when the FPROTECT_BLOCK_SIZE is bigger than
-		the flash memory page size.
 
 if CHIP_FACTORY_DATA_BUILD
 

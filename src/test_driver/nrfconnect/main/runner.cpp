@@ -27,7 +27,7 @@ using namespace ::chip::DeviceLayer;
 
 LOG_MODULE_REGISTER(runner, CONFIG_MATTER_LOG_LEVEL);
 
-extern "C" void main(void)
+void main(void)
 {
     VerifyOrDie(settings_subsys_init() == 0);
 

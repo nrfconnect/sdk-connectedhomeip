@@ -76,6 +76,10 @@ private:
 
     static void LockStateChanged(BoltLockManager::State state, BoltLockManager::OperationSource source);
 
+#ifdef CONFIG_MCUMGR_SMP_BT
+    static void RequestSMPAdvertisingStart(void);
+#endif
+
     FunctionEvent mFunction   = FunctionEvent::NoneSelected;
     bool mFunctionTimerActive = false;
 

@@ -50,11 +50,16 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiBssId(ByteSpan & value)
     return err;
 }
 
-CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiSecurityType(uint8_t & securityType)
+CHIP_ERROR
+DiagnosticDataProviderImplNrf::GetWiFiSecurityType(app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum & securityType)
 {
+    using app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum;
+
     WiFiManager::WiFiInfo info;
     CHIP_ERROR err = WiFiManager::Instance().GetWiFiInfo(info);
-    securityType   = info.mSecurityType;
+    // TODO: The values here are probably wrong.  See
+    // https://github.com/project-chip/connectedhomeip/issues/25096
+    securityType = static_cast<SecurityTypeEnum>(info.mSecurityType);
     return err;
 }
 
@@ -71,9 +76,7 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiChannelNumber(uint16_t & channe
     WiFiManager::WiFiInfo info;
     CHIP_ERROR err = WiFiManager::Instance().GetWiFiInfo(info);
     channelNumber  = info.mChannel;
-    (void) err;
-    // above will return 0 until the wpa_supplicant driver API implementation is refined
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+    return err;
 }
 
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiRssi(int8_t & rssi)
@@ -81,9 +84,7 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiRssi(int8_t & rssi)
     WiFiManager::WiFiInfo info;
     CHIP_ERROR err = WiFiManager::Instance().GetWiFiInfo(info);
     rssi           = info.mRssi;
-    (void) err;
-    // above will return -128 until the wpa_supplicant driver API implementation is refined
-    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+    return err;
 }
 
 // below will be implemented when the WiFi driver exposes Zephyr NET_STATISTICS API

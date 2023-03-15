@@ -337,7 +337,7 @@ CHIP_ERROR AdvertiserMinMdns::Init(chip::Inet::EndPointManager<chip::Inet::UDPEn
     // is true.  But we don't handle updates to our set of interfaces right now,
     // so rely on the logic in this function to shut down and restart the
     // GlobalMinimalMdnsServer to handle that.
-    GlobalMinimalMdnsServer::Server().Shutdown();
+    GlobalMinimalMdnsServer::Server().ShutdownEndpoints();
 
     if (!mIsInitialized)
     {
@@ -878,6 +878,7 @@ void AdvertiserMinMdns::AdvertiseRecords(BroadcastAdvertiseType type)
     }
 
     UniquePtr<ListenIterator> allInterfaces = GetAddressPolicy()->GetListenEndpoints();
+    VerifyOrDieWithMsg(allInterfaces != nullptr, Discovery, "Failed to allocate memory for endpoints.");
 
     chip::Inet::InterfaceId interfaceId;
     chip::Inet::IPAddressType addressType;
@@ -885,6 +886,7 @@ void AdvertiserMinMdns::AdvertiseRecords(BroadcastAdvertiseType type)
     while (allInterfaces->Next(&interfaceId, &addressType))
     {
         UniquePtr<IpAddressIterator> allIps = GetAddressPolicy()->GetIpAddressesForEndpoint(interfaceId, addressType);
+        VerifyOrDieWithMsg(allIps != nullptr, Discovery, "Failed to allocate memory for ip addresses.");
 
         Inet::IPAddress ipAddress;
         while (allIps->Next(ipAddress))

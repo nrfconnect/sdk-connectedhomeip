@@ -28,6 +28,7 @@
 #include <credentials/GroupDataProviderImpl.h>
 #include <credentials/PersistentStorageOpCertStore.h>
 #include <credentials/attestation_verifier/DacOnlyPartialAttestationVerifier.h>
+#include <crypto/RawKeySessionKeystore.h>
 #include <lib/support/TimeUtils.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 
@@ -35,10 +36,12 @@
 #include <controller/ExampleOperationalCredentialsIssuer.h>
 #include <controller/ExamplePersistentStorage.h>
 #else
-#include "AndroidOperationalCredentialsIssuer.h"
 #include <platform/android/AndroidChipPlatform-JNI.h>
 #include <platform/android/CHIPP256KeypairBridge.h>
 #endif // JAVA_MATTER_CONTROLLER_TEST
+
+#include "AndroidOperationalCredentialsIssuer.h"
+#include "DeviceAttestationDelegateBridge.h"
 
 /**
  * This class contains all relevant information for the JNI view of CHIPDeviceController
@@ -178,6 +181,22 @@ public:
         return mOpCredsIssuer.get();
     }
 
+    void SetDeviceAttestationDelegateBridge(DeviceAttestationDelegateBridge * deviceAttestationDelegateBridge)
+    {
+        mDeviceAttestationDelegateBridge = deviceAttestationDelegateBridge;
+    }
+
+    DeviceAttestationDelegateBridge * GetDeviceAttestationDelegateBridge() { return mDeviceAttestationDelegateBridge; }
+
+    void ClearDeviceAttestationDelegateBridge()
+    {
+        if (mDeviceAttestationDelegateBridge != nullptr)
+        {
+            delete mDeviceAttestationDelegateBridge;
+            mDeviceAttestationDelegateBridge = nullptr;
+        }
+    }
+
 private:
     using ChipDeviceControllerPtr = std::unique_ptr<chip::Controller::DeviceCommissioner>;
 
@@ -187,6 +206,8 @@ private:
     chip::Credentials::GroupDataProviderImpl mGroupDataProvider;
     // TODO: This may need to be injected as an OperationalCertificateStore *
     chip::Credentials::PersistentStorageOpCertStore mOpCertStore;
+    // TODO: This may need to be injected as a SessionKeystore*
+    chip::Crypto::RawKeySessionKeystore mSessionKeystore;
 
     JavaVM * mJavaVM       = nullptr;
     jobject mJavaObjectRef = nullptr;
@@ -213,6 +234,8 @@ private:
     chip::Controller::AutoCommissioner mAutoCommissioner;
 
     chip::Credentials::PartialDACVerifier mPartialDACVerifier;
+
+    DeviceAttestationDelegateBridge * mDeviceAttestationDelegateBridge = nullptr;
 
     AndroidDeviceControllerWrapper(ChipDeviceControllerPtr controller,
 #ifdef JAVA_MATTER_CONTROLLER_TEST

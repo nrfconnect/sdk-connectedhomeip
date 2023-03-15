@@ -23,9 +23,13 @@ from .builder import Builder
 class TelinkApp(Enum):
     ALL_CLUSTERS = auto()
     ALL_CLUSTERS_MINIMAL = auto()
+    CONTACT_SENSOR = auto()
     LIGHT = auto()
     SWITCH = auto()
+    LOCK = auto()
     OTA_REQUESTOR = auto()
+    PUMP = auto()
+    PUMP_CONTROLLER = auto()
     THERMOSTAT = auto()
 
     def ExampleName(self):
@@ -33,12 +37,20 @@ class TelinkApp(Enum):
             return 'all-clusters-app'
         elif self == TelinkApp.ALL_CLUSTERS_MINIMAL:
             return 'all-clusters-minimal-app'
+        elif self == TelinkApp.CONTACT_SENSOR:
+            return 'contact-sensor-app'
         elif self == TelinkApp.LIGHT:
             return 'lighting-app'
         elif self == TelinkApp.SWITCH:
             return 'light-switch-app'
+        elif self == TelinkApp.LOCK:
+            return 'lock-app'
         elif self == TelinkApp.OTA_REQUESTOR:
             return 'ota-requestor-app'
+        elif self == TelinkApp.PUMP:
+            return 'pump-app'
+        elif self == TelinkApp.PUMP_CONTROLLER:
+            return 'pump-controller-app'
         elif self == TelinkApp.THERMOSTAT:
             return 'thermostat'
         else:
@@ -49,12 +61,20 @@ class TelinkApp(Enum):
             return 'chip-telink-all-clusters-example'
         elif self == TelinkApp.ALL_CLUSTERS_MINIMAL:
             return 'chip-telink-all-clusters-minimal-example'
+        elif self == TelinkApp.CONTACT_SENSOR:
+            return 'chip-telink-contact-sensor-example'
         elif self == TelinkApp.LIGHT:
             return 'chip-telink-lighting-example'
         elif self == TelinkApp.SWITCH:
             return 'chip-telink-light-switch-example'
+        elif self == TelinkApp.LOCK:
+            return 'chip-telink-lock-example'
         elif self == TelinkApp.OTA_REQUESTOR:
             return 'chip-telink-ota-requestor-example'
+        elif self == TelinkApp.PUMP:
+            return 'chip-telink-pump-example'
+        elif self == TelinkApp.PUMP_CONTROLLER:
+            return 'chip-telink-pump-controller-example'
         elif self == TelinkApp.THERMOSTAT:
             return 'chip-telink-thermostat-example'
         else:

@@ -31,7 +31,7 @@
 #include <controller/CHIPDeviceControllerFactory.h>
 #include <credentials/attestation_verifier/DefaultDeviceAttestationVerifier.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
-#include <lib/core/CHIPTLV.h>
+#include <lib/core/TLV.h>
 #include <lib/support/PersistentStorageMacros.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/ScopedBuffer.h>
@@ -61,6 +61,12 @@ AndroidDeviceControllerWrapper::~AndroidDeviceControllerWrapper()
         mKeypairBridge = nullptr;
     }
 #endif // JAVA_MATTER_CONTROLLER_TEST
+
+    if (mDeviceAttestationDelegateBridge != nullptr)
+    {
+        delete mDeviceAttestationDelegateBridge;
+        mDeviceAttestationDelegateBridge = nullptr;
+    }
 }
 
 void AndroidDeviceControllerWrapper::SetJavaObjectRef(JavaVM * vm, jobject obj)
@@ -171,8 +177,10 @@ AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(
     setupParams.operationalCredentialsDelegate = opCredsIssuer;
     setupParams.defaultCommissioner            = &wrapper->mAutoCommissioner;
     initParams.fabricIndependentStorage        = wrapperStorage;
+    initParams.sessionKeystore                 = &wrapper->mSessionKeystore;
 
     wrapper->mGroupDataProvider.SetStorageDelegate(wrapperStorage);
+    wrapper->mGroupDataProvider.SetSessionKeystore(initParams.sessionKeystore);
 
     CommissioningParameters params = wrapper->mAutoCommissioner.GetCommissioningParameters();
     params.SetFailsafeTimerSeconds(failsafeTimerSeconds);

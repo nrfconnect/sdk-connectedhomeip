@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2022 Project CHIP Authors
+ *   Copyright (c) 2022-2023 Project CHIP Authors
  *   All rights reserved.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,8 +60,10 @@ public class Main {
         new PairCodeWifiCommand(controller, credentialsIssuer);
     PairCodeThreadCommand pairCodeThreadCommand =
         new PairCodeThreadCommand(controller, credentialsIssuer);
-    PairEthernetCommand pairEthernetCommand =
-        new PairEthernetCommand(controller, credentialsIssuer);
+    PairAddressPaseCommand pairAddressPaseCommand =
+        new PairAddressPaseCommand(controller, credentialsIssuer);
+    PairAlreadyDiscoveredCommand pairAlreadyDiscoveredCommand =
+        new PairAlreadyDiscoveredCommand(controller, credentialsIssuer);
     PairOnNetworkCommand pairOnNetworkCommand =
         new PairOnNetworkCommand(controller, credentialsIssuer);
     PairOnNetworkShortCommand pairOnNetworkShortCommand =
@@ -83,7 +85,8 @@ public class Main {
     clusterCommands.add(pairCodePaseCommand);
     clusterCommands.add(pairCodeWifiCommand);
     clusterCommands.add(pairCodeThreadCommand);
-    clusterCommands.add(pairEthernetCommand);
+    clusterCommands.add(pairAddressPaseCommand);
+    clusterCommands.add(pairAlreadyDiscoveredCommand);
     clusterCommands.add(pairOnNetworkCommand);
     clusterCommands.add(pairOnNetworkShortCommand);
     clusterCommands.add(pairOnNetworkLongCommand);
@@ -102,6 +105,7 @@ public class Main {
             ControllerParams.newBuilder()
                 .setUdpListenPort(0)
                 .setControllerVendorId(0xFFF1)
+                .setCountryCode("US")
                 .build());
 
     CredentialsIssuer credentialsIssuer = new CredentialsIssuer();
@@ -112,10 +116,9 @@ public class Main {
 
     try {
       commandManager.run(args);
-    } catch (IllegalArgumentException e) {
-      logger.log(Level.INFO, "Arguments init failed with exception: " + e.getMessage());
     } catch (Exception e) {
       logger.log(Level.INFO, "Run command failed with exception: " + e.getMessage());
+      System.exit(1);
     }
     controller.shutdownCommissioning();
   }

@@ -84,6 +84,26 @@ public class ChipDeviceController {
     nocChainIssuer = issuer;
   }
 
+  /**
+   * If DeviceAttestationDelegate is setted, then it will always be called when device attestation
+   * completes. In case the device attestation fails, the client can decide to continue or stop the
+   * commissioning.
+   *
+   * <p>When {@link DeviceAttestationDelegate#onDeviceAttestationCompleted(long, long,
+   * AttestationInfo, int)} is received, {@link #continueCommissioning(long, boolean)} must be
+   * called.
+   *
+   * @param failSafeExpiryTimeoutSecs the value to set for the fail-safe timer before
+   *     onDeviceAttestationCompleted is invoked. The unit is seconds.
+   * @param deviceAttestationDelegate the delegate for device attestation completed with device info
+   *     for additional verification.
+   */
+  public void setDeviceAttestationDelegate(
+      int failSafeExpiryTimeoutSecs, DeviceAttestationDelegate deviceAttestationDelegate) {
+    setDeviceAttestationDelegate(
+        deviceControllerPtr, failSafeExpiryTimeoutSecs, deviceAttestationDelegate);
+  }
+
   public void pairDevice(
       BluetoothGatt bleServer,
       int connId,
@@ -199,6 +219,17 @@ public class ChipDeviceController {
   }
 
   /**
+   * This function instructs the commissioner to proceed to the next stage of commissioning after
+   * attestation is reported.
+   *
+   * @param devicePtr a pointer to the device which is being commissioned.
+   * @param ignoreAttestationFailure whether to ignore device attestation failure.
+   */
+  public void continueCommissioning(long devicePtr, boolean ignoreAttestationFailure) {
+    continueCommissioning(deviceControllerPtr, devicePtr, ignoreAttestationFailure);
+  }
+
+  /**
    * When a NOCChainIssuer is set for this controller, then onNOCChainGenerationNeeded will be
    * called when the NOC CSR needs to be signed. This allows for custom credentials issuer
    * implementations, for example, when a proprietary cloud API will perform the CSR signing.
@@ -236,6 +267,10 @@ public class ChipDeviceController {
 
   public void unpairDevice(long deviceId) {
     unpairDevice(deviceControllerPtr, deviceId);
+  }
+
+  public void unpairDeviceCallback(long deviceId, UnpairDeviceCallback callback) {
+    unpairDeviceCallback(deviceControllerPtr, deviceId, callback);
   }
 
   /**
@@ -510,7 +545,8 @@ public class ChipDeviceController {
       int maxInterval,
       boolean keepSubscriptions,
       boolean isFabricFiltered) {
-    // TODO: pass resubscriptionAttemptCallback to ReportCallbackJni since jni layer is not ready
+    // TODO: pass resubscriptionAttemptCallback to ReportCallbackJni since jni layer
+    // is not ready
     // for auto-resubscribe
     ReportCallbackJni jniCallback =
         new ReportCallbackJni(subscriptionEstablishedCallback, reportCallback, null);
@@ -612,6 +648,9 @@ public class ChipDeviceController {
 
   private native long newDeviceController(ControllerParams params);
 
+  private native void setDeviceAttestationDelegate(
+      long deviceControllerPtr, int failSafeExpiryTimeoutSecs, DeviceAttestationDelegate delegate);
+
   private native void pairDevice(
       long deviceControllerPtr,
       long deviceId,
@@ -641,7 +680,13 @@ public class ChipDeviceController {
       @Nullable byte[] csrNonce,
       @Nullable NetworkCredentials networkCredentials);
 
+  private native void continueCommissioning(
+      long deviceControllerPtr, long devicePtr, boolean ignoreAttestationFailure);
+
   private native void unpairDevice(long deviceControllerPtr, long deviceId);
+
+  private native void unpairDeviceCallback(
+      long deviceControllerPtr, long deviceId, UnpairDeviceCallback callback);
 
   private native long getDeviceBeingCommissionedPointer(long deviceControllerPtr, long nodeId);
 

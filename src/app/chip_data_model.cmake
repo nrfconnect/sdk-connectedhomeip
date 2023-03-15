@@ -55,14 +55,13 @@ endfunction()
 # Configure ${APP_TARGET} based on the selected data model configuration.
 # Available options are:
 #   INCLUDE_SERVER  Include source files from src/app/server directory
-#   BYPASS_IDL      Bypass code generation from .matter IDL file.
 #   ZAP_FILE        Path to the ZAP file, used to determine the list of clusters
 #                   supported by the application.
 #   IDL             .matter IDL file to use for codegen. Inferred from ZAP_FILE
 #                   if not provided
 #
 function(chip_configure_data_model APP_TARGET)
-    cmake_parse_arguments(ARG "INCLUDE_SERVER;BYPASS_IDL" "ZAP_FILE;GEN_DIR;IDL" "" ${ARGN})
+    cmake_parse_arguments(ARG "INCLUDE_SERVER" "ZAP_FILE;GEN_DIR;IDL" "" ${ARGN})
 
     if (ARG_INCLUDE_SERVER)
         target_sources(${APP_TARGET} PRIVATE
@@ -85,7 +84,7 @@ function(chip_configure_data_model APP_TARGET)
         endif()
     endif()
 
-    if (ARG_IDL AND NOT ARG_BYPASS_IDL)
+    if (ARG_IDL)
         chip_codegen(${APP_TARGET}-codegen
           INPUT     "${ARG_IDL}"
           GENERATOR "cpp-app"
@@ -99,7 +98,6 @@ function(chip_configure_data_model APP_TARGET)
         target_include_directories(${APP_TARGET} PRIVATE "${APP_GEN_DIR}")
         add_dependencies(${APP_TARGET} ${APP_TARGET}-codegen)
     else()
-        target_compile_definitions(${APP_TARGET} PRIVATE CHIP_BYPASS_IDL)
         set(APP_GEN_FILES)
     endif()
 

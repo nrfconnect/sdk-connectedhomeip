@@ -169,13 +169,6 @@ public:
     static constexpr uint16_t kRouterSolicitationIntervalMs        = 4000;
     static constexpr uint16_t kMaxInitialRouterSolicitationDelayMs = 1000;
     static constexpr uint8_t kRouterSolicitationMaxCount           = 3;
-    static constexpr uint32_t kConnectionRecoveryMinIntervalMs     = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MINIMUM_INTERVAL;
-    static constexpr uint32_t kConnectionRecoveryMaxIntervalMs     = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MAXIMUM_INTERVAL;
-    static constexpr uint32_t kConnectionRecoveryJitterMs          = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_JITTER;
-    static constexpr uint32_t kConnectionRecoveryMaxRetries        = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MAX_RETRIES_NUMBER;
-
-    static_assert(kConnectionRecoveryMinIntervalMs < kConnectionRecoveryMaxIntervalMs);
-    static_assert(kConnectionRecoveryJitterMs <= kConnectionRecoveryMaxIntervalMs);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_SED
     static constexpr uint8_t kDefaultDTIMInterval = 3;
@@ -191,7 +184,6 @@ public:
     CHIP_ERROR Disconnect();
     CHIP_ERROR GetWiFiInfo(WiFiInfo & info) const;
     CHIP_ERROR GetNetworkStatistics(NetworkStatistics & stats) const;
-    void AbortConnectionRecovery();
 
 private:
     using NetEventHandler = void (*)(Platform::UniquePtr<uint8_t>);
@@ -214,19 +206,6 @@ private:
     static void PostConnectivityStatusChange(ConnectivityChange changeType);
     static void SendRouterSolicitation(System::Layer * layer, void * param);
 
-    // Connection Recovery feature
-    // This feature allows re-scanning and re-connecting the connection to the known network after
-    // a reboot or when a connection is lost. The following attempts will occur with increasing interval.
-    // The connection recovery interval starts from kConnectionRecoveryMinIntervalMs and is doubled
-    // with each occurrence until reaching kConnectionRecoveryMaxIntervalMs.
-    // When the connection recovery interval reaches the maximum value the randomized kConnectionRecoveryJitterMs
-    // from the range [-jitter, +jitter] is added to the value to avoid the periodicity.
-    // To avoid frequent recovery attempts when the signal to an access point is poor quality
-    // The connection recovery interval will be cleared after the defined delay in kConnectionRecoveryDelayToReset.
-    static void Recover(System::Layer * layer, void * param);
-    void ResetRecoveryTime();
-    System::Clock::Milliseconds32 CalculateNextRecoveryTime();
-
     ConnectionParams mWiFiParams{};
     ConnectionHandling mHandling;
     wifi_iface_state mWiFiState;
@@ -237,10 +216,6 @@ private:
     WiFiNetwork mWantedNetwork{};
     bool mInternalScan{ false };
     uint8_t mRouterSolicitationCounter = 0;
-    bool mSsidFound{ false };
-    uint32_t mConnectionRecoveryCounter{ 0 };
-    uint32_t mConnectionRecoveryTimeMs{ kConnectionRecoveryMinIntervalMs };
-    bool mRecoveryTimerAborted{ false };
 
     static const Map<wifi_iface_state, StationStatus, 10> sStatusMap;
     static const Map<uint32_t, NetEventHandler, 4> sEventHandlerMap;

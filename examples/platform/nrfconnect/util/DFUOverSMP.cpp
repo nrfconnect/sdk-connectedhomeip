@@ -68,6 +68,9 @@ void DFUOverSMP::Init()
         }
     };
 
+    os_mgmt_register_group();
+    img_mgmt_register_group();
+
     img_mgmt_set_upload_cb([](const img_mgmt_upload_req req, const img_mgmt_upload_action action) {
         ChipLogProgress(SoftwareUpdate, "DFU over SMP progress: %u/%u B of image %u", static_cast<unsigned>(req.off),
                         static_cast<unsigned>(action.size), static_cast<unsigned>(req.image));
@@ -108,6 +111,7 @@ void DFUOverSMP::ConfirmNewImage()
 void DFUOverSMP::StartServer()
 {
     VerifyOrReturn(!mIsStarted, ChipLogProgress(SoftwareUpdate, "DFU over SMP was already started"));
+    smp_bt_register();
 
     // Synchronize access to the advertising arbiter that normally runs on the CHIP thread.
     PlatformMgr().LockChipStack();

@@ -14,15 +14,22 @@
 
 name: 62.3.1. [TC-PS-3.1] Attributes with client as DUT
 
+PICS:
+    - PS.C
+    - PS.C.AM-READ
+    - PS.C.AO-READ
+    - PS.C.AM-WRITE
+    - PS.C.AO-WRITE
+
 config:
     nodeId: 0x12344321
     cluster: "Power Source"
     endpoint: 0
 
 tests:
-    - label: "Wait for the device to be commissioned"
-      cluster: "DelayCommands"
-      command: "WaitForCommissioning"
+    #- label: "Wait for the device to be commissioned"
+    #  cluster: "DelayCommands"
+    #  command: "WaitForCommissioning"
 
     - label: "Read attribute: Status"
       wait: "readAttribute"

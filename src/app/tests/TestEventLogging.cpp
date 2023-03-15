@@ -30,9 +30,9 @@
 #include <app/ObjectList.h>
 #include <app/tests/AppTestContext.h>
 #include <lib/core/CHIPCore.h>
-#include <lib/core/CHIPTLV.h>
-#include <lib/core/CHIPTLVDebug.hpp>
-#include <lib/core/CHIPTLVUtilities.hpp>
+#include <lib/core/TLV.h>
+#include <lib/core/TLVDebug.h>
+#include <lib/core/TLVUtilities.h>
 #include <lib/support/CHIPCounter.h>
 #include <lib/support/EnforceFormat.h>
 #include <lib/support/ErrorStr.h>
@@ -115,12 +115,8 @@ void ENFORCE_FORMAT(1, 2) SimpleDumpWriter(const char * aFormat, ...)
 void PrintEventLog()
 {
     chip::TLV::TLVReader reader;
-    size_t elementCount;
     chip::app::CircularEventBufferWrapper bufWrapper;
-    chip::app::EventManagement::GetInstance().GetEventReader(reader, chip::app::PriorityLevel::Debug, &bufWrapper);
-
-    chip::TLV::Utilities::Count(reader, elementCount, false);
-    printf("Found %u elements\n", static_cast<unsigned int>(elementCount));
+    chip::app::EventManagement::GetInstance().GetEventReader(reader, chip::app::PriorityLevel::Critical, &bufWrapper);
     chip::TLV::Debug::Dump(reader, SimpleDumpWriter);
 }
 

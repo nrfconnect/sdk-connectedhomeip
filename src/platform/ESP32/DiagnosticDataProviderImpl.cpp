@@ -50,34 +50,35 @@ using namespace ::chip::app::Clusters::GeneralDiagnostics;
 
 namespace {
 
-InterfaceType GetInterfaceType(const char * if_desc)
+InterfaceTypeEnum GetInterfaceType(const char * if_desc)
 {
     if (strncmp(if_desc, "ap", strnlen(if_desc, 2)) == 0 || strncmp(if_desc, "sta", strnlen(if_desc, 3)) == 0)
-        return InterfaceType::EMBER_ZCL_INTERFACE_TYPE_WI_FI;
+        return InterfaceTypeEnum::EMBER_ZCL_INTERFACE_TYPE_ENUM_WI_FI;
     if (strncmp(if_desc, "openthread", strnlen(if_desc, 10)) == 0)
-        return InterfaceType::EMBER_ZCL_INTERFACE_TYPE_THREAD;
+        return InterfaceTypeEnum::EMBER_ZCL_INTERFACE_TYPE_ENUM_THREAD;
     if (strncmp(if_desc, "eth", strnlen(if_desc, 3)) == 0)
-        return InterfaceType::EMBER_ZCL_INTERFACE_TYPE_ETHERNET;
-    return InterfaceType::EMBER_ZCL_INTERFACE_TYPE_UNSPECIFIED;
+        return InterfaceTypeEnum::EMBER_ZCL_INTERFACE_TYPE_ENUM_ETHERNET;
+    return InterfaceTypeEnum::EMBER_ZCL_INTERFACE_TYPE_ENUM_UNSPECIFIED;
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-uint8_t MapAuthModeToSecurityType(wifi_auth_mode_t authmode)
+app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum MapAuthModeToSecurityType(wifi_auth_mode_t authmode)
 {
+    using app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum;
     switch (authmode)
     {
     case WIFI_AUTH_OPEN:
-        return 1;
+        return SecurityTypeEnum::kNone;
     case WIFI_AUTH_WEP:
-        return 2;
+        return SecurityTypeEnum::kWep;
     case WIFI_AUTH_WPA_PSK:
-        return 3;
+        return SecurityTypeEnum::kWpa;
     case WIFI_AUTH_WPA2_PSK:
-        return 4;
+        return SecurityTypeEnum::kWpa2;
     case WIFI_AUTH_WPA3_PSK:
-        return 5;
+        return SecurityTypeEnum::kWpa3;
     default:
-        return 0;
+        return SecurityTypeEnum::kUnspecified;
     }
 }
 
@@ -277,9 +278,11 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBssId(ByteSpan & BssId)
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(uint8_t & securityType)
+CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum & securityType)
 {
-    securityType = 0;
+    using app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum;
+
+    securityType = SecurityTypeEnum::kUnspecified;
     wifi_ap_record_t ap_info;
     esp_err_t err;
 

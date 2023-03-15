@@ -161,7 +161,7 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
         /* Update Network Interface list */
         ifp->name                            = CharSpan::fromCharString(net_interface->name);
         ifp->isOperational                   = net_interface->flags & NETIF_FLAG_LINK_UP;
-        ifp->type                            = EMBER_ZCL_INTERFACE_TYPE_WI_FI;
+        ifp->type                            = EMBER_ZCL_INTERFACE_TYPE_ENUM_WI_FI;
         ifp->offPremiseServicesReachableIPv4 = mipv4_offpremise;
         ifp->offPremiseServicesReachableIPv6 = mipv6_offpremise;
         ifp->hardwareAddress                 = ByteSpan(net_interface->hwaddr, net_interface->hwaddr_len);
@@ -202,8 +202,10 @@ exit:
     return err;
 }
 
-CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(uint8_t & securityType)
+CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum & securityType)
 {
+    using app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum;
+
     cy_wcm_associated_ap_info_t ap_info;
     cy_rslt_t result = CY_RSLT_SUCCESS;
     CHIP_ERROR err   = CHIP_NO_ERROR;
@@ -216,27 +218,27 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiSecurityType(uint8_t & securityTyp
     }
     if (ap_info.security == CY_WCM_SECURITY_OPEN)
     {
-        securityType = EMBER_ZCL_SECURITY_TYPE_NONE;
+        securityType = SecurityTypeEnum::kNone;
     }
     else if (ap_info.security & WPA3_SECURITY)
     {
-        securityType = EMBER_ZCL_SECURITY_TYPE_WPA3;
+        securityType = SecurityTypeEnum::kWpa3;
     }
     else if (ap_info.security & WPA2_SECURITY)
     {
-        securityType = EMBER_ZCL_SECURITY_TYPE_WPA2;
+        securityType = SecurityTypeEnum::kWpa2;
     }
     else if (ap_info.security & WPA_SECURITY)
     {
-        securityType = EMBER_ZCL_SECURITY_TYPE_WPA;
+        securityType = SecurityTypeEnum::kWpa;
     }
     else if (ap_info.security & WEP_ENABLED)
     {
-        securityType = EMBER_ZCL_SECURITY_TYPE_WEP;
+        securityType = SecurityTypeEnum::kWep;
     }
     else
     {
-        securityType = EMBER_ZCL_SECURITY_TYPE_UNSPECIFIED;
+        securityType = SecurityTypeEnum::kUnspecified;
     }
 
 exit:
@@ -260,17 +262,17 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiVersion(uint8_t & wiFiVersion)
     /* VHT Capable */
     if (bss_info.vht_cap)
     {
-        wiFiVersion = EMBER_ZCL_WI_FI_VERSION_TYPE_802__11AC;
+        wiFiVersion = to_underlying(app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum::kAc);
     }
     /* HT Capable */
     else if (bss_info.n_cap)
     {
-        wiFiVersion = EMBER_ZCL_WI_FI_VERSION_TYPE_802__11N;
+        wiFiVersion = to_underlying(app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum::kN);
     }
     /* 11g Capable */
     else
     {
-        wiFiVersion = EMBER_ZCL_WI_FI_VERSION_TYPE_802__11G;
+        wiFiVersion = to_underlying(app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum::kG);
     }
 
 exit:

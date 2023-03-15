@@ -18,6 +18,7 @@
  */
 #include "AppTask.h"
 #include "AppEvent.h"
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <lib/support/ErrorStr.h>
 
@@ -30,8 +31,7 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 
-#include <app-common/zap-generated/attribute-id.h>
-#include <app-common/zap-generated/attribute-type.h>
+#include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/util/attribute-storage.h>
 
@@ -70,9 +70,8 @@ static LEDWidget sStatusLED;
 static LEDWidget sContactSensorLED;
 #endif
 
-static bool sIsThreadProvisioned        = false;
-static bool sHaveBLEConnections         = false;
-static bool sIsDnssdPlatformInitialized = false;
+static bool sIsThreadProvisioned = false;
+static bool sHaveBLEConnections  = false;
 
 static uint32_t eventMask = 0;
 
@@ -133,12 +132,10 @@ CHIP_ERROR AppTask::Init()
 // Initialize device attestation config
 #if CONFIG_CHIP_K32W0_REAL_FACTORY_DATA
     // Initialize factory data provider
-    ReturnErrorOnFailure(K32W0FactoryDataProvider::GetDefaultInstance().Init());
-#if CHIP_DEVICE_CONFIG_ENABLE_DEVICE_INSTANCE_INFO_PROVIDER
-    SetDeviceInstanceInfoProvider(&K32W0FactoryDataProvider::GetDefaultInstance());
-#endif
-    SetDeviceAttestationCredentialsProvider(&K32W0FactoryDataProvider::GetDefaultInstance());
-    SetCommissionableDataProvider(&K32W0FactoryDataProvider::GetDefaultInstance());
+    ReturnErrorOnFailure(AppTask::FactoryDataProvider::GetDefaultInstance().Init());
+    SetDeviceInstanceInfoProvider(&AppTask::FactoryDataProvider::GetDefaultInstance());
+    SetDeviceAttestationCredentialsProvider(&AppTask::FactoryDataProvider::GetDefaultInstance());
+    SetCommissionableDataProvider(&AppTask::FactoryDataProvider::GetDefaultInstance());
 #else
 #ifdef ENABLE_HSM_DEVICE_ATTESTATION
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleSe05xDACProvider());
@@ -147,7 +144,7 @@ CHIP_ERROR AppTask::Init()
 #endif
 
     // QR code will be used with CHIP Tool
-    PrintOnboardingCodes(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
+    AppTask::PrintOnboardingInfo();
 #endif
 
     /* HW init leds */
@@ -189,23 +186,11 @@ CHIP_ERROR AppTask::Init()
         K32W_LOG("Get version error");
         assert(err == CHIP_NO_ERROR);
     }
+    uint32_t currentVersion;
+    err = ConfigurationMgr().GetSoftwareVersion(currentVersion);
 
-    K32W_LOG("Current Software Version: %s", currentSoftwareVer);
+    K32W_LOG("Current Software Version: %s, %" PRIu32, currentSoftwareVer, currentVersion);
 
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-    if (gImageProcessor.IsFirstImageRun())
-    {
-        // If DNS-SD initialization was captured by MatterEventHandler, then
-        // OTA initialization will be started as soon as possible. Otherwise,
-        // a periodic timer is started until the DNS-SD initialization event
-        // is received. Configurable delay: CHIP_DEVICE_CONFIG_INIT_OTA_DELAY
-        AppTask::OnScheduleInitOTA(nullptr, nullptr);
-    }
-    else
-    {
-        PlatformMgr().ScheduleWork(AppTask::InitOTA, 0);
-    }
-#endif
     return err;
 }
 
@@ -237,6 +222,18 @@ void AppTask::InitServer(intptr_t arg)
     nativeParams.openThreadInstancePtr = chip::DeviceLayer::ThreadStackMgrImpl().OTInstance();
     initParams.endpointNativeParams    = static_cast<void *>(&nativeParams);
     VerifyOrDie((chip::Server::GetInstance().Init(initParams)) == CHIP_NO_ERROR);
+}
+
+void AppTask::PrintOnboardingInfo()
+{
+    chip::PayloadContents payload;
+    CHIP_ERROR err = GetPayloadContents(payload, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "GetPayloadContents() failed: %" CHIP_ERROR_FORMAT, err.Format());
+    }
+    payload.commissioningFlow = chip::CommissioningFlow::kUserActionRequired;
+    PrintOnboardingCodes(payload);
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
@@ -566,32 +563,6 @@ void AppTask::StartOTAQuery(intptr_t arg)
 {
     GetRequestorInstance()->TriggerImmediateQuery();
 }
-
-void AppTask::PostOTAResume()
-{
-    AppEvent event;
-    event.Type    = AppEvent::kOTAResume;
-    event.Handler = OTAResumeEventHandler;
-    sAppTask.PostEvent(&event);
-}
-
-void AppTask::OnScheduleInitOTA(chip::System::Layer * systemLayer, void * appState)
-{
-    if (sIsDnssdPlatformInitialized)
-    {
-        PlatformMgr().ScheduleWork(AppTask::InitOTA, 0);
-    }
-    else
-    {
-        CHIP_ERROR error = chip::DeviceLayer::SystemLayer().StartTimer(
-            chip::System::Clock::Milliseconds32(CHIP_DEVICE_CONFIG_INIT_OTA_DELAY), AppTask::OnScheduleInitOTA, nullptr);
-
-        if (error != CHIP_NO_ERROR)
-        {
-            K32W_LOG("Failed to schedule OTA initialization timer.");
-        }
-    }
-}
 #endif
 
 void AppTask::BleHandler(void * aGenericEvent)
@@ -652,15 +623,10 @@ void AppTask::MatterEventHandler(const ChipDeviceEvent * event, intptr_t)
     }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-    if (event->Type == DeviceEventType::kOtaStateChanged && event->OtaStateChanged.newState == kOtaSpaceAvailable)
-    {
-        sAppTask.PostOTAResume();
-    }
-
-    if (event->Type == DeviceEventType::kDnssdPlatformInitialized)
+    if (event->Type == DeviceEventType::kDnssdInitialized)
     {
         K32W_LOG("Dnssd platform initialized.");
-        sIsDnssdPlatformInitialized = true;
+        PlatformMgr().ScheduleWork(AppTask::InitOTA, 0);
     }
 #endif
 
@@ -786,20 +752,6 @@ void AppTask::PostContactActionRequest(ContactSensorManager::Action aAction)
     PostEvent(&event);
 }
 
-void AppTask::OTAResumeEventHandler(void * aGenericEvent)
-{
-    AppEvent * aEvent = (AppEvent *) aGenericEvent;
-    if (aEvent->Type == AppEvent::kOTAResume)
-    {
-#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-        if (gDownloader.GetState() == OTADownloader::State::kInProgress)
-        {
-            gImageProcessor.TriggerNewRequestForData();
-        }
-#endif
-    }
-}
-
 void AppTask::PostEvent(const AppEvent * aEvent)
 {
     portBASE_TYPE taskToWake = pdFALSE;
@@ -854,8 +806,7 @@ void AppTask::UpdateClusterStateInternal(intptr_t arg)
     uint8_t newValue = ContactSensorMgr().IsContactClosed();
 
     // write the new on/off value
-    EmberAfStatus status = emberAfWriteAttribute(1, app::Clusters::BooleanState::Id, ZCL_STATE_VALUE_ATTRIBUTE_ID,
-                                                 (uint8_t *) &newValue, ZCL_BOOLEAN_ATTRIBUTE_TYPE);
+    EmberAfStatus status = app::Clusters::BooleanState::Attributes::StateValue::Set(1, newValue);
     if (status != EMBER_ZCL_STATUS_SUCCESS)
     {
         ChipLogError(NotSpecified, "ERR: updating boolean status value %x", status);
@@ -873,8 +824,7 @@ void AppTask::UpdateDeviceStateInternal(intptr_t arg)
     bool stateValueAttrValue = 0;
 
     /* get onoff attribute value */
-    (void) emberAfReadAttribute(1, app::Clusters::BooleanState::Id, ZCL_STATE_VALUE_ATTRIBUTE_ID, (uint8_t *) &stateValueAttrValue,
-                                1);
+    (void) app::Clusters::BooleanState::Attributes::StateValue::Get(1, &stateValueAttrValue);
 #if !cPWR_UsePowerDownMode
     /* set the device state */
     sContactSensorLED.Set(stateValueAttrValue);

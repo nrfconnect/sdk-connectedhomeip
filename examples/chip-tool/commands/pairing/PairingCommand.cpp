@@ -33,6 +33,21 @@ using namespace ::chip::Controller;
 CHIP_ERROR PairingCommand::RunCommand()
 {
     CurrentCommissioner().RegisterPairingDelegate(this);
+    // Clear the CATs in OperationalCredentialsIssuer
+    mCredIssuerCmds->SetCredentialIssuerCATValues(kUndefinedCATs);
+
+    if (mCASEAuthTags.HasValue() && mCASEAuthTags.Value().size() <= kMaxSubjectCATAttributeCount)
+    {
+        CATValues cats = kUndefinedCATs;
+        for (size_t index = 0; index < mCASEAuthTags.Value().size(); ++index)
+        {
+            cats.values[index] = mCASEAuthTags.Value()[index];
+        }
+        if (cats.AreValid())
+        {
+            mCredIssuerCmds->SetCredentialIssuerCATValues(cats);
+        }
+    }
     return RunInternal(mNodeId);
 }
 
@@ -60,7 +75,7 @@ CHIP_ERROR PairingCommand::RunInternal(NodeId remoteId)
     case PairingMode::SoftAP:
         err = Pair(remoteId, PeerAddress::UDP(mRemoteAddr.address, mRemotePort, mRemoteAddr.interfaceId));
         break;
-    case PairingMode::Ethernet:
+    case PairingMode::AlreadyDiscovered:
         err = Pair(remoteId, PeerAddress::UDP(mRemoteAddr.address, mRemotePort, mRemoteAddr.interfaceId));
         break;
     }
@@ -72,6 +87,10 @@ CommissioningParameters PairingCommand::GetCommissioningParameters()
 {
     auto params = CommissioningParameters();
     params.SetSkipCommissioningComplete(mSkipCommissioningComplete.ValueOr(false));
+    if (mBypassAttestationVerifier.ValueOr(false))
+    {
+        params.SetDeviceAttestationDelegate(this);
+    }
 
     switch (mNetworkType)
     {
@@ -81,7 +100,6 @@ CommissioningParameters PairingCommand::GetCommissioningParameters()
     case PairingNetworkType::Thread:
         params.SetThreadOperationalDataset(mOperationalDataset);
         break;
-    case PairingNetworkType::Ethernet:
     case PairingNetworkType::None:
         break;
     }
@@ -91,8 +109,17 @@ CommissioningParameters PairingCommand::GetCommissioningParameters()
 
 CHIP_ERROR PairingCommand::PaseWithCode(NodeId remoteId)
 {
-    DiscoveryType discoveryType =
-        mUseOnlyOnNetworkDiscovery.ValueOr(false) ? DiscoveryType::kDiscoveryNetworkOnly : DiscoveryType::kAll;
+    auto discoveryType = DiscoveryType::kAll;
+    if (mUseOnlyOnNetworkDiscovery.ValueOr(false))
+    {
+        discoveryType = DiscoveryType::kDiscoveryNetworkOnly;
+    }
+
+    if (mDiscoverOnce.ValueOr(false))
+    {
+        discoveryType = DiscoveryType::kDiscoveryNetworkOnlyWithoutPASEAutoRetry;
+    }
+
     return CurrentCommissioner().EstablishPASEConnection(remoteId, mOnboardingPayload, discoveryType);
 }
 
@@ -108,7 +135,17 @@ CHIP_ERROR PairingCommand::PairWithCode(NodeId remoteId)
         auto wiFiCredentials   = commissioningParams.GetWiFiCredentials();
         mUseOnlyOnNetworkDiscovery.SetValue(!threadCredentials.HasValue() && !wiFiCredentials.HasValue());
     }
-    DiscoveryType discoveryType = mUseOnlyOnNetworkDiscovery.Value() ? DiscoveryType::kDiscoveryNetworkOnly : DiscoveryType::kAll;
+
+    auto discoveryType = DiscoveryType::kAll;
+    if (mUseOnlyOnNetworkDiscovery.ValueOr(false))
+    {
+        discoveryType = DiscoveryType::kDiscoveryNetworkOnly;
+    }
+
+    if (mDiscoverOnce.ValueOr(false))
+    {
+        discoveryType = DiscoveryType::kDiscoveryNetworkOnlyWithoutPASEAutoRetry;
+    }
 
     return CurrentCommissioner().PairDevice(remoteId, mOnboardingPayload, commissioningParams, discoveryType);
 }
@@ -161,9 +198,8 @@ CHIP_ERROR PairingCommand::PairWithMdns(NodeId remoteId)
 
 CHIP_ERROR PairingCommand::Unpair(NodeId remoteId)
 {
-    CHIP_ERROR err = CurrentCommissioner().UnpairDevice(remoteId);
-    SetCommandExitStatus(err);
-    return err;
+    mCurrentFabricRemover = Platform::MakeUnique<Controller::CurrentFabricRemover>(&CurrentCommissioner());
+    return mCurrentFabricRemover->RemoveCurrentFabric(remoteId, &mCurrentFabricRemoveCallback);
 }
 
 void PairingCommand::OnStatusUpdate(DevicePairingDelegate::Status status)
@@ -177,17 +213,6 @@ void PairingCommand::OnStatusUpdate(DevicePairingDelegate::Status status)
     case DevicePairingDelegate::Status::SecurePairingFailed:
         ChipLogError(chipTool, "Secure Pairing Failed");
         SetCommandExitStatus(CHIP_ERROR_INCORRECT_STATE);
-        break;
-    case DevicePairingDelegate::Status::SecurePairingDiscoveringMoreDevices:
-        if (IsDiscoverOnce())
-        {
-            ChipLogError(chipTool, "Secure Pairing Failed");
-            SetCommandExitStatus(CHIP_ERROR_INCORRECT_STATE);
-        }
-        else
-        {
-            ChipLogProgress(chipTool, "Secure Pairing Discovering More Devices");
-        }
         break;
     }
 }
@@ -264,4 +289,37 @@ void PairingCommand::OnDiscoveredDevice(const chip::Dnssd::DiscoveredNodeData & 
     {
         SetCommandExitStatus(err);
     }
+}
+
+void PairingCommand::OnCurrentFabricRemove(void * context, NodeId nodeId, CHIP_ERROR err)
+{
+    PairingCommand * command = reinterpret_cast<PairingCommand *>(context);
+    VerifyOrReturn(command != nullptr, ChipLogError(chipTool, "OnCurrentFabricRemove: context is null"));
+
+    if (err == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(chipTool, "Device unpair completed with success: " ChipLogFormatX64, ChipLogValueX64(nodeId));
+    }
+    else
+    {
+        ChipLogProgress(chipTool, "Device unpair Failure: " ChipLogFormatX64 " %s", ChipLogValueX64(nodeId), ErrorStr(err));
+    }
+
+    command->SetCommandExitStatus(err);
+}
+
+chip::Optional<uint16_t> PairingCommand::FailSafeExpiryTimeoutSecs() const
+{
+    // We don't need to set additional failsafe timeout as we don't ask the final user if he wants to continue
+    return chip::Optional<uint16_t>();
+}
+
+void PairingCommand::OnDeviceAttestationCompleted(chip::Controller::DeviceCommissioner * deviceCommissioner,
+                                                  chip::DeviceProxy * device,
+                                                  const chip::Credentials::DeviceAttestationVerifier::AttestationDeviceInfo & info,
+                                                  chip::Credentials::AttestationVerificationResult attestationResult)
+{
+    // Bypass attestation verification, continue with success
+    deviceCommissioner->ContinueCommissioningAfterDeviceAttestation(device,
+                                                                    chip::Credentials::AttestationVerificationResult::kSuccess);
 }

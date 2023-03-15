@@ -25,13 +25,14 @@
 #include "DeviceCallbacks.h"
 
 #include "CHIPDeviceManager.h"
-#include <app-common/zap-generated/attribute-id.h>
+#include <app-common/zap-generated/ids/Attributes.h>
 #include <app/CommandHandler.h>
 #include <app/server/Dnssd.h>
 #include <app/util/af.h>
 #include <app/util/basic-types.h>
 #include <app/util/util.h>
 #include <lib/dnssd/Advertiser.h>
+#include <route_hook/ameba_route_hook.h>
 #include <support/CodeUtils.h>
 #include <support/logging/CHIPLogging.h>
 #include <support/logging/Constants.h>
@@ -71,6 +72,18 @@ void DeviceCallbacks::DeviceEventCallback(const ChipDeviceEvent * event, intptr_
         OnInternetConnectivityChange(event);
         break;
 
+    case DeviceEventType::kCHIPoBLEConnectionEstablished:
+        ChipLogProgress(DeviceLayer, "CHIPoBLE Connection Established");
+        break;
+
+    case DeviceEventType::kCHIPoBLEConnectionClosed:
+        ChipLogProgress(DeviceLayer, "CHIPoBLE Connection Closed");
+        break;
+
+    case DeviceEventType::kCHIPoBLEAdvertisingChange:
+        ChipLogProgress(DeviceLayer, "CHIPoBLE advertising has changed");
+        break;
+
     case DeviceEventType::kInterfaceIpAddressChanged:
         if ((event->InterfaceIpAddressChanged.Type == InterfaceIpChangeType::kIpV4_Assigned) ||
             (event->InterfaceIpAddressChanged.Type == InterfaceIpChangeType::kIpV6_Assigned))
@@ -81,6 +94,15 @@ void DeviceCallbacks::DeviceEventCallback(const ChipDeviceEvent * event, intptr_
             // newly selected address.
             chip::app::DnssdServer::Instance().StartServer();
         }
+        if (event->InterfaceIpAddressChanged.Type == InterfaceIpChangeType::kIpV6_Assigned)
+        {
+            ChipLogProgress(DeviceLayer, "Initializing route hook...");
+            ameba_route_hook_init();
+        }
+        break;
+
+    case DeviceEventType::kCommissioningComplete:
+        ChipLogProgress(DeviceLayer, "Commissioning Complete");
         break;
     }
 }
@@ -154,7 +176,7 @@ void IdentifyTimerHandler(Layer * systemLayer, void * appState, CHIP_ERROR error
 
 void DeviceCallbacks::OnIdentifyPostAttributeChangeCallback(EndpointId endpointId, AttributeId attributeId, uint8_t * value)
 {
-    VerifyOrExit(attributeId == ZCL_IDENTIFY_TIME_ATTRIBUTE_ID,
+    VerifyOrExit(attributeId == Identify::Attributes::IdentifyTime::Id,
                  ChipLogError(DeviceLayer, "[%s] Unhandled Attribute ID: '0x%04x", TAG, attributeId));
     VerifyOrExit(endpointId == 1, ChipLogError(DeviceLayer, "[%s] Unexpected EndPoint ID: `0x%02x'", TAG, endpointId));
 
@@ -164,10 +186,4 @@ void DeviceCallbacks::OnIdentifyPostAttributeChangeCallback(EndpointId endpointI
     identifyTimerCount = (*value) * 4;
 exit:
     return;
-}
-
-bool emberAfBasicClusterMfgSpecificPingCallback(chip::app::CommandHandler * commandObj)
-{
-    emberAfSendDefaultResponse(emberAfCurrentCommand(), EMBER_ZCL_STATUS_SUCCESS);
-    return true;
 }

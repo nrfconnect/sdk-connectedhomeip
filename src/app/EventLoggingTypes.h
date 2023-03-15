@@ -22,8 +22,8 @@
 #include <app/ObjectList.h>
 #include <app/util/basic-types.h>
 #include <lib/core/CHIPCore.h>
-#include <lib/core/CHIPTLV.h>
 #include <lib/core/Optional.h>
+#include <lib/core/TLV.h>
 #include <system/SystemPacketBuffer.h>
 
 constexpr size_t kNumPriorityLevel = 3;
@@ -101,7 +101,6 @@ struct Timestamp
         kEpoch
     };
     Timestamp() {}
-    Timestamp(Type aType) : mType(aType) { mValue = 0; }
     Timestamp(Type aType, uint64_t aValue) : mType(aType), mValue(aValue) {}
     Timestamp(System::Clock::Timestamp aValue) : mType(Type::kSystem), mValue(aValue.count()) {}
     static Timestamp Epoch(System::Clock::Timestamp aValue)

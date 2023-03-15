@@ -40,9 +40,12 @@
 #include <credentials/attestation_verifier/DefaultDeviceAttestationVerifier.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
 #include <crypto/PersistentStorageOperationalKeystore.h>
+#include <crypto/RawKeySessionKeystore.h>
 #include <lib/support/Pool.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
 #include <platform/PlatformManager.h>
+
+#include <cstdlib>
 
 using namespace chip;
 using namespace chip::Controller;
@@ -57,6 +60,10 @@ static NSString * const kErrorKeystoreInit = @"Init failure while initializing p
 static NSString * const kErrorCertStoreInit = @"Init failure while initializing persistent storage operational certificate store";
 static NSString * const kErrorCDCertStoreInit = @"Init failure while initializing Certificate Declaration Signing Keys store";
 static NSString * const kErrorOtaProviderInit = @"Init failure while creating an OTA provider delegate";
+static NSString * const kErrorSessionKeystoreInit = @"Init failure while initializing session keystore";
+
+static bool sExitHandlerRegistered = false;
+static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stopControllerFactory]; }
 
 @interface MTRDeviceControllerFactory ()
 
@@ -65,6 +72,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
 @property (readonly) MTRPersistentStorageDelegateBridge * persistentStorageDelegateBridge;
 @property (readonly) MTRAttestationTrustStoreBridge * attestationTrustStoreBridge;
 @property (readonly) MTROTAProviderDelegateBridge * otaProviderDelegateBridge;
+@property (readonly) Crypto::RawKeySessionKeystore * sessionKeystore;
 // We use TestPersistentStorageDelegate just to get an in-memory store to back
 // our group data provider impl.  We initialize this store correctly on every
 // controller startup, so don't need to actually persist it.
@@ -89,7 +97,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
     MTRFrameworkInit();
 }
 
-+ (instancetype)sharedInstance
++ (MTRDeviceControllerFactory *)sharedInstance
 {
     static MTRDeviceControllerFactory * factory = nil;
     static dispatch_once_t onceToken;
@@ -110,6 +118,11 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
     _chipWorkQueue = DeviceLayer::PlatformMgrImpl().GetWorkQueue();
     _controllerFactory = &DeviceControllerFactory::GetInstance();
 
+    _sessionKeystore = new chip::Crypto::RawKeySessionKeystore();
+    if ([self checkForInitError:(_sessionKeystore != nullptr) logMsg:kErrorSessionKeystoreInit]) {
+        return nil;
+    }
+
     _groupStorageDelegate = new chip::TestPersistentStorageDelegate();
     if ([self checkForInitError:(_groupStorageDelegate != nullptr) logMsg:kErrorGroupProviderInit]) {
         return nil;
@@ -122,6 +135,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
     }
 
     _groupDataProvider->SetStorageDelegate(_groupStorageDelegate);
+    _groupDataProvider->SetSessionKeystore(_sessionKeystore);
     CHIP_ERROR errorCode = _groupDataProvider->Init();
     if ([self checkForInitError:(CHIP_NO_ERROR == errorCode) logMsg:kErrorGroupProviderInit]) {
         return nil;
@@ -180,6 +194,11 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
     if (_groupStorageDelegate) {
         delete _groupStorageDelegate;
         _groupStorageDelegate = nullptr;
+    }
+
+    if (_sessionKeystore) {
+        delete _sessionKeystore;
+        _sessionKeystore = nullptr;
     }
 }
 
@@ -370,6 +389,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
         }
 
         params.groupDataProvider = _groupDataProvider;
+        params.sessionKeystore = _sessionKeystore;
         params.fabricIndependentStorage = _persistentStorageDelegateBridge;
         params.operationalKeystore = _keystore;
         params.opCertStore = _opCertStore;
@@ -382,7 +402,14 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
         // This needs to happen after DeviceControllerFactory::Init,
         // because that creates (lazily, by calling functions with
         // static variables in them) some static-lifetime objects.
-        chip::HeapObjectPoolExitHandling::IgnoreLeaksOnExit();
+        if (!sExitHandlerRegistered) {
+            int ret = atexit(ShutdownOnExit);
+            if (ret != 0) {
+                MTR_LOG_ERROR("Error registering exit handler: %d", ret);
+                return;
+            }
+        }
+        HeapObjectPoolExitHandling::IgnoreLeaksOnExit();
 
         // Make sure we don't leave a system state running while we have no
         // controllers started.  This is working around the fact that a system
@@ -788,7 +815,7 @@ static NSString * const kErrorOtaProviderInit = @"Init failure while creating an
     return [[MTRDeviceControllerFactory sharedInstance] isRunning];
 }
 
-+ (instancetype)sharedInstance
++ (MTRControllerFactory *)sharedInstance
 {
     // We could try to delegate to MTRDeviceControllerFactory's sharedInstance
     // here, but then we would have to add the backwards-compar selectors to

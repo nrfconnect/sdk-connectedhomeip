@@ -131,6 +131,7 @@
     <string name="basic_cluster_serial_number_text">SerialNumber</string>
     <string name="basic_cluster_local_config_disabled_text">LocalConfigDisabled</string>
     <string name="basic_cluster_reachable_text">Reachable</string>
+    <string name="basic_cluster_unique_id_text">UniqueID</string>
     <string name="basic_cluster_cluster_revision_text">ClusterRevision</string>
 
     <string name="read_dialog_title_text">Read</string>
@@ -174,4 +175,6 @@
     <string name="select_a_cluster">Select a cluster</string>
     <string name="endpoint_name">Endpoint: </string>
     <string name="wifi_connect_btn_text">Connect</string>
+
+    <string name="unpair_device_btn_text">Unpair</string>
 </resources>

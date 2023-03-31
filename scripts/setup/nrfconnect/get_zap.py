@@ -128,6 +128,22 @@ def unzip_zap_package(location, package_name):
         remove_zip(location, package_name)
 
 
+def print_paths_warning(paths_to_print):
+    messages = ["Please add the following location(s) to the system PATH:"] + paths_to_print
+
+    longest_message = max(messages, key=len)
+
+    for item in range(len(messages)):
+        messages[item] = f"# {messages[item]}{(len(longest_message)-len(messages[item]))*' '} #"
+
+    frame_message = f"{(len(longest_message)+4)*'#'}"
+
+    print(f"\33[33m{frame_message}\x1b[0m")
+    for message in messages:
+        print(f"\33[33m{message}\x1b[0m")
+    print(f"\33[33m{frame_message}\x1b[0m")
+
+
 def install_zap_package(version, location, overwrite):
     current_os = platform.system()
     if current_os == 'Linux':
@@ -140,7 +156,7 @@ def install_zap_package(version, location, overwrite):
         zap_cli_executable = 'zap-cli.exe'
     elif current_os == 'Darwin':
         package = 'zap-mac'
-        zap_executable = 'zap'
+        zap_executable = 'zap.app/Contents/MacOS/zap'
         zap_cli_executable = 'zap-cli'
     else:
         raise RuntimeError(f"Couldn't find the proper ZAP tool package for the currently used operating system: {current_os}")
@@ -149,11 +165,13 @@ def install_zap_package(version, location, overwrite):
     unzip_zap_package(location, package)
     set_executable(location, package, zap_executable)
     set_executable(location, package, zap_cli_executable)
+
     print("ZAP tool package was downloaded and extracted in the given location.")
-    instruction_message = f"# Please add the following location to the system PATH: {os.path.join(location, package)} #"
-    print(f"\33[33m{len(instruction_message)*'#'}\x1b[0m")
-    print(f"\33[33m{instruction_message}\x1b[0m")
-    print(f"\33[33m{len(instruction_message)*'#'}\x1b[0m")
+
+    if current_os == 'Darwin':
+        print_paths_warning([os.path.join(location, package, zap_executable), os.path.join(location, package)])
+    else:
+        print_paths_warning([os.path.join(location, package)])
 
 
 def main():

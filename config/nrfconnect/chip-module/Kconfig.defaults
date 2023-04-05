@@ -37,7 +37,7 @@ config CHIP_APP_LOG_LEVEL
     default 4 # debug
 
 config LOG_DEFAULT_LEVEL
-    default 2 # warning
+    default 1 # error
 
 config CHIP_LOG_SIZE_OPTIMIZATION
     default y
@@ -215,6 +215,10 @@ config IEEE802154_NRF5_RX_STACK_SIZE
 endif
 
 if CHIP_WIFI
+
+choice WPA_SUPP_LOG_LEVEL_CHOICE
+	default WPA_SUPP_LOG_LEVEL_ERR
+endchoice
 
 config NRF_WIFI_LOW_POWER
     default n

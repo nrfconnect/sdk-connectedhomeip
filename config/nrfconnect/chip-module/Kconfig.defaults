@@ -227,7 +227,7 @@ config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
     default n
 
 config SYSTEM_WORKQUEUE_STACK_SIZE
-    default 2048
+    default 2560
 
 config NET_MGMT_EVENT_STACK_SIZE
     default 4096

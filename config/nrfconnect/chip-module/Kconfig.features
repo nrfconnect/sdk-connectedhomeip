@@ -78,7 +78,6 @@ config CHIP_NUS
 	select BT_NUS
 	select BT_SMP
 	select BT_NUS_AUTHEN
-	select BT_SETTINGS
 	help
 	  Enables Nordic UART service (NUS) for Matter samples.
 	  Using NUS service you can control a Matter sample using pre-defined BLE commands 
@@ -86,6 +85,10 @@ config CHIP_NUS
 	  with a smart home device when a connection within Matter network is lost.
 
 if CHIP_NUS
+
+# Requires providing a PIN for each pair request
+config BT_BONDABLE
+	default n
 
 config BT_RX_STACK_SIZE
 	default 1536

@@ -173,6 +173,7 @@ public:
     static constexpr uint32_t kConnectionRecoveryMaxIntervalMs     = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MAXIMUM_INTERVAL;
     static constexpr uint32_t kConnectionRecoveryJitterMs          = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_JITTER;
     static constexpr uint32_t kConnectionRecoveryMaxRetries        = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MAX_RETRIES_NUMBER;
+    static constexpr uint32_t kSupplicantReconnectionTimeoutMs     = 60000;
 
     static_assert(kConnectionRecoveryMinIntervalMs < kConnectionRecoveryMaxIntervalMs);
     static_assert(kConnectionRecoveryJitterMs <= kConnectionRecoveryMaxIntervalMs);
@@ -241,7 +242,8 @@ private:
     bool mSsidFound{ false };
     uint32_t mConnectionRecoveryCounter{ 0 };
     uint32_t mConnectionRecoveryTimeMs{ kConnectionRecoveryMinIntervalMs };
-    bool mRecoveryTimerAborted{ false };
+    bool mRecoveryArmed{ false };
+    bool mDisconnectRequested{ false };
 
     static const Map<wifi_iface_state, StationStatus, 10> sStatusMap;
     static const Map<uint32_t, NetEventHandler, 4> sEventHandlerMap;

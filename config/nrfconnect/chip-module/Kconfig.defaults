@@ -50,6 +50,12 @@ config PRINTK_SYNC
 config ASSERT
     default y
 
+config ASSERT_NO_COND_INFO
+    default y
+
+config ASSERT_NO_MSG_INFO
+    default y
+
 config HW_STACK_PROTECTION
     default y
 

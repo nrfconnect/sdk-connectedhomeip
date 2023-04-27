@@ -45,9 +45,13 @@ DiagnosticDataProviderImplNrf & DiagnosticDataProviderImplNrf::GetDefaultInstanc
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiBssId(ByteSpan & value)
 {
     WiFiManager::WiFiInfo info;
-    CHIP_ERROR err = WiFiManager::Instance().GetWiFiInfo(info);
-    value          = info.mBssId;
-    return err;
+    ReturnErrorOnFailure(WiFiManager::Instance().GetWiFiInfo(info));
+    ReturnErrorCodeIf(sizeof(info.mBssId) >= value.size(), CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    memcpy(value.data(), info.mBssId, sizeof(info.mBssId));
+    value.reduce_size(sizeof(info.mBssId));
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR
@@ -90,7 +94,7 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiRssi(int8_t & rssi)
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiBeaconLostCount(uint32_t & beaconLostCount)
 {
     WiFiManager::NetworkStatistics stats;
-    CHIP_ERROR err = WiFiManager::Instance().GetNetworkStatistics(stats);
+    CHIP_ERROR err  = WiFiManager::Instance().GetNetworkStatistics(stats);
     beaconLostCount = stats.mBeaconsLostCount;
     return err;
 }
@@ -99,14 +103,14 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiBeaconRxCount(uint32_t & beacon
 {
     WiFiManager::NetworkStatistics stats;
     CHIP_ERROR err = WiFiManager::Instance().GetNetworkStatistics(stats);
-    beaconRxCount = stats.mBeaconsSuccessCount;
+    beaconRxCount  = stats.mBeaconsSuccessCount;
     return err;
 }
 
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketMulticastRxCount(uint32_t & packetMulticastRxCount)
 {
     WiFiManager::NetworkStatistics stats;
-    CHIP_ERROR err = WiFiManager::Instance().GetNetworkStatistics(stats);
+    CHIP_ERROR err         = WiFiManager::Instance().GetNetworkStatistics(stats);
     packetMulticastRxCount = stats.mPacketMulticastRxCount;
     return err;
 }
@@ -114,7 +118,7 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketMulticastRxCount(uint32_t
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketMulticastTxCount(uint32_t & packetMulticastTxCount)
 {
     WiFiManager::NetworkStatistics stats;
-    CHIP_ERROR err = WiFiManager::Instance().GetNetworkStatistics(stats);
+    CHIP_ERROR err         = WiFiManager::Instance().GetNetworkStatistics(stats);
     packetMulticastTxCount = stats.mPacketMulticastTxCount;
     return err;
 }
@@ -122,7 +126,7 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketMulticastTxCount(uint32_t
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketUnicastRxCount(uint32_t & packetUnicastRxCount)
 {
     WiFiManager::NetworkStatistics stats;
-    CHIP_ERROR err = WiFiManager::Instance().GetNetworkStatistics(stats);
+    CHIP_ERROR err       = WiFiManager::Instance().GetNetworkStatistics(stats);
     packetUnicastRxCount = stats.mPacketUnicastRxCount;
     return err;
 }
@@ -130,7 +134,7 @@ CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketUnicastRxCount(uint32_t &
 CHIP_ERROR DiagnosticDataProviderImplNrf::GetWiFiPacketUnicastTxCount(uint32_t & packetUnicastTxCount)
 {
     WiFiManager::NetworkStatistics stats;
-    CHIP_ERROR err = WiFiManager::Instance().GetNetworkStatistics(stats);
+    CHIP_ERROR err       = WiFiManager::Instance().GetNetworkStatistics(stats);
     packetUnicastTxCount = stats.mPacketUnicastTxCount;
     return err;
 }

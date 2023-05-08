@@ -1,6 +1,5 @@
 name: "Validate Gradle Wrapper"
-on:
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
   validation:

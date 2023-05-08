@@ -126,7 +126,20 @@ void WiFiManager::WifiMgmtEventHandler(net_mgmt_event_callback * cb, uint32_t mg
         Platform::UniquePtr<uint8_t> eventData(new uint8_t[cb->info_length]);
         VerifyOrReturn(eventData);
         memcpy(eventData.get(), cb->info, cb->info_length);
-        sEventHandlerMap[mgmtEvent](std::move(eventData));
+        CHIP_ERROR status = SystemLayer().ScheduleLambda([data = eventData.get(), mgmtEvent]() {
+            if (data)
+            {
+                sEventHandlerMap[mgmtEvent](data);
+                // cleanup
+                delete[] data;
+            }
+        });
+
+        if (CHIP_NO_ERROR == status)
+        {
+            // the ownership has been transferred to the worker thread - release the buffer
+            eventData.release();
+        }
     }
 }
 
@@ -292,10 +305,9 @@ CHIP_ERROR WiFiManager::GetNetworkStatistics(NetworkStatistics & stats) const
     return CHIP_NO_ERROR;
 }
 
-void WiFiManager::ScanResultHandler(Platform::UniquePtr<uint8_t> data)
+void WiFiManager::ScanResultHandler(uint8_t * data)
 {
-    // Contrary to other handlers, offload accumulating of the scan results from the CHIP thread to the caller's thread
-    const struct wifi_scan_result * scanResult = reinterpret_cast<const struct wifi_scan_result *>(data.get());
+    const struct wifi_scan_result * scanResult = reinterpret_cast<const struct wifi_scan_result *>(data);
 
     if (Instance().mInternalScan &&
         Instance().mWantedNetwork.GetSsidSpan().data_equal(ByteSpan(scanResult->ssid, scanResult->ssid_length)))
@@ -324,7 +336,7 @@ void WiFiManager::ScanResultHandler(Platform::UniquePtr<uint8_t> data)
             }
 
             Instance().mWiFiParams.mParams.timeout = Instance().mHandling.mConnectionTimeout.count();
-            Instance().mWiFiParams.mParams.channel = WIFI_CHANNEL_ANY;
+            Instance().mWiFiParams.mParams.channel = scanResult->channel;
             Instance().mWiFiParams.mRssi           = scanResult->rssi;
         }
     }
@@ -335,58 +347,48 @@ void WiFiManager::ScanResultHandler(Platform::UniquePtr<uint8_t> data)
     }
 }
 
-void WiFiManager::ScanDoneHandler(Platform::UniquePtr<uint8_t> data)
+void WiFiManager::ScanDoneHandler(uint8_t * data)
 {
-    CHIP_ERROR err = SystemLayer().ScheduleLambda([rawData = data.get()] {
-        const wifi_status * status      = reinterpret_cast<const wifi_status *>(rawData);
-        WiFiRequestStatus requestStatus = static_cast<WiFiRequestStatus>(status->status);
+    const wifi_status * status      = reinterpret_cast<const wifi_status *>(data);
+    WiFiRequestStatus requestStatus = static_cast<WiFiRequestStatus>(status->status);
 
-        if (requestStatus == WiFiRequestStatus::FAILURE)
-        {
-            ChipLogError(DeviceLayer, "Scan request failed (%d)", status->status);
-        }
-        else
-        {
-            ChipLogDetail(DeviceLayer, "Scan request done (%d)", status->status);
-        }
+    if (requestStatus == WiFiRequestStatus::FAILURE)
+    {
+        ChipLogError(DeviceLayer, "Scan request failed (%d)", status->status);
+    }
+    else
+    {
+        ChipLogDetail(DeviceLayer, "Scan request done (%d)", status->status);
+    }
 
-        if (Instance().mScanDoneCallback && !Instance().mInternalScan)
+    if (Instance().mScanDoneCallback && !Instance().mInternalScan)
+    {
+        Instance().mScanDoneCallback(requestStatus);
+        // restore the connection state from before the scan request was issued
+        Instance().mWiFiState = Instance().mCachedWiFiState;
+        return;
+    }
+
+    // Internal scan is supposed to be followed by connection request
+    if (Instance().mInternalScan)
+    {
+        Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
+        net_if * iface        = InetUtils::GetInterface();
+        VerifyOrReturn(nullptr != iface, CHIP_ERROR_INTERNAL);
+
+        if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &(Instance().mWiFiParams.mParams), sizeof(wifi_connect_req_params)))
         {
-            Instance().mScanDoneCallback(requestStatus);
-            // restore the connection state from before the scan request was issued
-            Instance().mWiFiState = Instance().mCachedWiFiState;
+            ChipLogError(DeviceLayer, "Connection request failed");
+            if (Instance().mHandling.mOnConnectionFailed)
+            {
+                Instance().mHandling.mOnConnectionFailed();
+            }
+            Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
             return;
         }
-
-        // Internal scan is supposed to be followed by connection request
-        if (Instance().mInternalScan)
-        {
-            Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
-            net_if * iface        = InetUtils::GetInterface();
-            VerifyOrReturn(nullptr != iface, CHIP_ERROR_INTERNAL);
-
-            if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &(Instance().mWiFiParams.mParams), sizeof(wifi_connect_req_params)))
-            {
-                ChipLogError(DeviceLayer, "Connection request failed");
-                if (Instance().mHandling.mOnConnectionFailed)
-                {
-                    Instance().mHandling.mOnConnectionFailed();
-                }
-                Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
-                return;
-            }
-            ChipLogDetail(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
-                          Instance().mWiFiParams.mParams.ssid);
-            Instance().mInternalScan = false;
-        }
-
-        delete[] rawData;
-    });
-
-    if (CHIP_NO_ERROR == err)
-    {
-        // the ownership has been transferred to the worker thread - release the buffer
-        data.release();
+        ChipLogDetail(DeviceLayer, "Connection to %*s requested", Instance().mWiFiParams.mParams.ssid_length,
+                      Instance().mWiFiParams.mParams.ssid);
+        Instance().mInternalScan = false;
     }
 }
 
@@ -409,56 +411,44 @@ void WiFiManager::SendRouterSolicitation(System::Layer * layer, void * param)
     }
 }
 
-void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
+void WiFiManager::ConnectHandler(uint8_t * data)
 {
-    CHIP_ERROR err = SystemLayer().ScheduleLambda([rawData = data.get()] {
-        const wifi_status * status      = reinterpret_cast<const wifi_status *>(rawData);
-        WiFiRequestStatus requestStatus = static_cast<WiFiRequestStatus>(status->status);
+    const wifi_status * status      = reinterpret_cast<const wifi_status *>(data);
+    WiFiRequestStatus requestStatus = static_cast<WiFiRequestStatus>(status->status);
 
-        if (requestStatus == WiFiRequestStatus::FAILURE || requestStatus == WiFiRequestStatus::TERMINATED)
-        {
-            ChipLogDetail(DeviceLayer, "Connection to WiFi network failed or was terminated by another request");
-            Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
-            if (Instance().mHandling.mOnConnectionFailed)
-            {
-                Instance().mHandling.mOnConnectionFailed();
-            }
-        }
-        else
-        {
-            // Workaround needed until sending Router Solicitation after connect will be done by the driver.
-            DeviceLayer::SystemLayer().StartTimer(
-                System::Clock::Milliseconds32(chip::Crypto::GetRandU16() % kMaxInitialRouterSolicitationDelayMs),
-                SendRouterSolicitation, nullptr);
-
-            ChipLogDetail(DeviceLayer, "Connected to WiFi network");
-            Instance().mWiFiState = WIFI_STATE_COMPLETED;
-            if (Instance().mHandling.mOnConnectionSuccess)
-            {
-                Instance().mHandling.mOnConnectionSuccess();
-            }
-            Instance().PostConnectivityStatusChange(kConnectivity_Established);
-        }
-        // cleanup the provisioning data as it is configured per each connect request
-        Instance().ClearStationProvisioningData();
-
-        delete[] rawData;
-    });
-
-    if (CHIP_NO_ERROR == err)
+    if (requestStatus == WiFiRequestStatus::FAILURE || requestStatus == WiFiRequestStatus::TERMINATED)
     {
-        // the ownership has been transferred to the worker thread - release the buffer
-        data.release();
+        ChipLogDetail(DeviceLayer, "Connection to WiFi network failed or was terminated by another request");
+        Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
+        if (Instance().mHandling.mOnConnectionFailed)
+        {
+            Instance().mHandling.mOnConnectionFailed();
+        }
     }
+    else
+    {
+        // Workaround needed until sending Router Solicitation after connect will be done by the driver.
+        DeviceLayer::SystemLayer().StartTimer(
+            System::Clock::Milliseconds32(chip::Crypto::GetRandU16() % kMaxInitialRouterSolicitationDelayMs),
+            SendRouterSolicitation, nullptr);
+
+        ChipLogDetail(DeviceLayer, "Connected to WiFi network");
+        Instance().mWiFiState = WIFI_STATE_COMPLETED;
+        if (Instance().mHandling.mOnConnectionSuccess)
+        {
+            Instance().mHandling.mOnConnectionSuccess();
+        }
+        Instance().PostConnectivityStatusChange(kConnectivity_Established);
+    }
+    // cleanup the provisioning data as it is configured per each connect request
+    Instance().ClearStationProvisioningData();
 }
 
-void WiFiManager::DisconnectHandler(Platform::UniquePtr<uint8_t>)
+void WiFiManager::DisconnectHandler(uint8_t * data)
 {
-    SystemLayer().ScheduleLambda([] {
-        ChipLogDetail(DeviceLayer, "WiFi station disconnected");
-        Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
-        Instance().PostConnectivityStatusChange(kConnectivity_Lost);
-    });
+    ChipLogDetail(DeviceLayer, "WiFi station disconnected");
+    Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
+    Instance().PostConnectivityStatusChange(kConnectivity_Lost);
 }
 
 WiFiManager::StationStatus WiFiManager::GetStationStatus() const

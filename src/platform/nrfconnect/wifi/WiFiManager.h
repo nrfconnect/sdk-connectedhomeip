@@ -142,8 +142,7 @@ public:
         uint32_t mPacketMulticastTxCount{};
         uint32_t mPacketUnicastRxCount{};
         uint32_t mPacketUnicastTxCount{};
-        uint32_t mBeaconsSuccessCount{};
-        uint32_t mBeaconsLostCount{};
+        uint32_t mOverruns{};
     };
 
     struct WiFiNetwork
@@ -209,7 +208,6 @@ private:
     ConnectionParams mWiFiParams{};
     ConnectionHandling mHandling;
     wifi_iface_state mWiFiState;
-    wifi_iface_state mCachedWiFiState;
     net_mgmt_event_callback mWiFiMgmtClbk{};
     ScanResultCallback mScanResultCallback{ nullptr };
     ScanDoneCallback mScanDoneCallback{ nullptr };

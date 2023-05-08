@@ -98,9 +98,7 @@ jobs:
               continue-on-error: true
             - name: Run unit tests of factory data generation script
               timeout-minutes: 15
-              run: |
-                  scripts/run_in_build_env.sh 'pip3 install -r scripts/setup/requirements.nrfconnect.txt'
-                  scripts/run_in_build_env.sh "./scripts/tools/nrfconnect/tests/test_generate_factory_data.py"
+              run: scripts/run_in_build_env.sh "./scripts/tools/nrfconnect/tests/test_generate_factory_data.py"
             - name: Build example nRF Connect SDK Lock App on nRF52840 DK
               if: github.event_name == 'push' || steps.changed_paths.outputs.nrfconnect == 'true'
               timeout-minutes: 15

@@ -38,12 +38,8 @@
 #include <unistd.h>
 
 #if !CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE
-#if CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
-#include <zephyr/posix/sys/eventfd.h>
-#else
 #include <sys/eventfd.h>
 #endif
-#endif // !CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE
 
 namespace chip {
 namespace System {
@@ -126,42 +122,6 @@ CHIP_ERROR WakeEvent::Notify() const
 
 #else // CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE
 
-namespace {
-
-#if CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
-
-int ReadEvent(int eventFd)
-{
-    eventfd_t value;
-
-    return eventfd_read(eventFd, &value);
-}
-
-int WriteEvent(int eventFd)
-{
-    return eventfd_write(eventFd, 1);
-}
-
-#else
-
-int ReadEvent(int eventFd)
-{
-    uint64_t value;
-
-    return ::read(eventFd, &value, sizeof(value));
-}
-
-int WriteEvent(int eventFd)
-{
-    uint64_t value = 1;
-
-    return ::write(mReadFD, &value, sizeof(value));
-}
-
-#endif
-
-} // namespace
-
 CHIP_ERROR WakeEvent::Open(LayerSockets & systemLayer)
 {
     mReadFD = ::eventfd(0, 0);
@@ -186,7 +146,9 @@ void WakeEvent::Close(LayerSockets & systemLayer)
 
 void WakeEvent::Confirm() const
 {
-    if (ReadEvent(mReadFD) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+    uint64_t value;
+
+    if (::read(mReadFD, &value, sizeof(value)) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
     {
         ChipLogError(chipSystemLayer, "System wake event confirm failed: %" CHIP_ERROR_FORMAT, CHIP_ERROR_POSIX(errno).Format());
     }
@@ -194,7 +156,9 @@ void WakeEvent::Confirm() const
 
 CHIP_ERROR WakeEvent::Notify() const
 {
-    if (WriteEvent(mReadFD) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+    uint64_t value = 1;
+
+    if (::write(mReadFD, &value, sizeof(value)) < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
     {
         return CHIP_ERROR_POSIX(errno);
     }

@@ -93,6 +93,12 @@ config BT_RX_STACK_SIZE
 config SYSTEM_WORKQUEUE_STACK_SIZE
 	default 2048
 
+config BT_MAX_CONN
+	default 2
+
+config BT_MAX_PAIRED
+	default 2
+
 config BT_DEVICE_APPEARANCE
 	default 833
 

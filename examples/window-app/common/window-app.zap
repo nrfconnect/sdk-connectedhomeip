@@ -1,5 +1,5 @@
 {
-  "featureLevel": 92,
+  "featureLevel": 96,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -2167,7 +2167,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "HourFormat",
+              "type": "HourFormatEnum",
               "included": 1,
               "storageOption": "NVM",
               "singleton": 0,
@@ -2183,7 +2183,7 @@
               "code": 1,
               "mfgCode": null,
               "side": "server",
-              "type": "CalendarType",
+              "type": "CalendarTypeEnum",
               "included": 1,
               "storageOption": "NVM",
               "singleton": 0,
@@ -4804,6 +4804,16 @@
           "define": "WIFI_NETWORK_DIAGNOSTICS_CLUSTER",
           "side": "client",
           "enabled": 0,
+          "commands": [
+            {
+              "name": "ResetCounts",
+              "code": 0,
+              "mfgCode": null,
+              "source": "client",
+              "incoming": 1,
+              "outgoing": 0
+            }
+          ],
           "attributes": [
             {
               "name": "ClusterRevision",
@@ -9335,5 +9345,6 @@
       "endpointVersion": 2,
       "deviceIdentifier": 514
     }
-  ]
+  ],
+  "log": []
 }

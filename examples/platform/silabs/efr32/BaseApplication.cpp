@@ -37,7 +37,7 @@
 #endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
 
-#include "EFR32DeviceDataProvider.h"
+#include "SilabsDeviceDataProvider.h"
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -73,7 +73,7 @@
 #define EXAMPLE_VENDOR_ID 0xcafe
 
 #if defined(ENABLE_WSTK_LEDS) && defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)
-#define SYSTEM_STATE_LED &sl_led_led0
+#define SYSTEM_STATE_LED 0
 #endif // ENABLE_WSTK_LEDS
 #ifdef SL_CATALOG_SIMPLE_BUTTON_PRESENT
 #define APP_FUNCTION_BUTTON &sl_button_btn0
@@ -103,13 +103,12 @@ app::Clusters::NetworkCommissioning::Instance
     sWiFiNetworkCommissioningInstance(0 /* Endpoint Id */, &(NetworkCommissioning::SlWiFiDriver::GetInstance()));
 #endif /* SL_WIFI */
 
-#if !(defined(CHIP_DEVICE_CONFIG_ENABLE_SED) && CHIP_DEVICE_CONFIG_ENABLE_SED)
+bool sIsProvisioned = false;
 
-bool sIsProvisioned      = false;
+#if !(defined(CHIP_DEVICE_CONFIG_ENABLE_SED) && CHIP_DEVICE_CONFIG_ENABLE_SED)
 bool sIsEnabled          = false;
 bool sIsAttached         = false;
 bool sHaveBLEConnections = false;
-
 #endif // CHIP_DEVICE_CONFIG_ENABLE_SED
 
 EmberAfIdentifyEffectIdentifier sIdentifyEffect = EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT;
@@ -174,17 +173,20 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     SILABS_LOG("APP: Wait WiFi Init");
     while (!wfx_hw_ready())
     {
-        vTaskDelay(10);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     SILABS_LOG("APP: Done WiFi Init");
     /* We will init server when we get IP */
 
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
     sWiFiNetworkCommissioningInstance.Init();
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
 #endif
 
     // Create FreeRTOS sw timer for Function Selection.
     sFunctionTimer = xTimerCreate("FnTmr",                  // Just a text name, not used by the RTOS kernel
-                                  1,                        // == default timer period (mS)
+                                  pdMS_TO_TICKS(1),         // == default timer period
                                   false,                    // no timer reload (==one-shot)
                                   (void *) this,            // init timer id = app task obj context
                                   FunctionTimerEventHandler // timer callback handler
@@ -197,7 +199,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
 
     // Create FreeRTOS sw timer for LED Management.
     sLightTimer = xTimerCreate("LightTmr",            // Text Name
-                               10,                    // Default timer period (mS)
+                               pdMS_TO_TICKS(10),     // Default timer period
                                true,                  // reload timer
                                (void *) this,         // Timer Id
                                LightTimerEventHandler // Timer callback handler
@@ -208,7 +210,8 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
         appError(APP_ERROR_CREATE_TIMER_FAILED);
     }
 
-    SILABS_LOG("Current Software Version: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
+    SILABS_LOG("Current Software Version String: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
+    SILABS_LOG("Current Software Version: %d", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION);
 
 #if defined(ENABLE_WSTK_LEDS) && defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)
     LEDWidget::InitGpio();
@@ -221,7 +224,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
     chip::MutableCharSpan QRCode(qrCodeBuffer);
 
-    if (EFR32::EFR32DeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
+    if (Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
     {
         // Print setup info on LCD if available
 #ifdef QR_CODE_ENABLED
@@ -235,6 +238,9 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     {
         SILABS_LOG("Getting QR code failed!");
     }
+
+    PlatformMgr().AddEventHandler(OnPlatformEvent, 0);
+    sIsProvisioned = ConnectivityMgr().IsThreadProvisioned();
 
     return err;
 }
@@ -287,7 +293,7 @@ void BaseApplication::FunctionEventHandler(AppEvent * aEvent)
         StopStatusLEDTimer();
 #endif // CHIP_DEVICE_CONFIG_ENABLE_SED
 
-        chip::Server::GetInstance().ScheduleFactoryReset();
+        ScheduleFactoryReset();
     }
 }
 
@@ -307,9 +313,8 @@ void BaseApplication::LightEventHandler()
         sIsAttached    = ConnectivityMgr().IsWiFiStationConnected();
 #endif /* SL_WIFI */
 #if CHIP_ENABLE_OPENTHREAD
-        sIsProvisioned = ConnectivityMgr().IsThreadProvisioned();
-        sIsEnabled     = ConnectivityMgr().IsThreadEnabled();
-        sIsAttached    = ConnectivityMgr().IsThreadAttached();
+        sIsEnabled  = ConnectivityMgr().IsThreadEnabled();
+        sIsAttached = ConnectivityMgr().IsThreadAttached();
 #endif /* CHIP_ENABLE_OPENTHREAD */
         sHaveBLEConnections = (ConnectivityMgr().NumBLEConnections() != 0);
         PlatformMgr().UnlockChipStack();
@@ -427,7 +432,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
 #ifdef SL_WIFI
             if (!ConnectivityMgr().IsWiFiStationProvisioned())
 #else
-            if (!ConnectivityMgr().IsThreadProvisioned())
+            if (!sIsProvisioned)
 #endif /* !SL_WIFI */
             {
                 // Open Basic CommissioningWindow. Will start BLE advertisements
@@ -462,7 +467,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
 #endif
 void BaseApplication::CancelFunctionTimer()
 {
-    if (xTimerStop(sFunctionTimer, 0) == pdFAIL)
+    if (xTimerStop(sFunctionTimer, pdMS_TO_TICKS(0)) == pdFAIL)
     {
         SILABS_LOG("app timer stop() failed");
         appError(APP_ERROR_STOP_TIMER_FAILED);
@@ -480,9 +485,9 @@ void BaseApplication::StartFunctionTimer(uint32_t aTimeoutInMs)
     }
 
     // timer is not active, change its period to required value (== restart).
-    // FreeRTOS- Block for a maximum of 100 ticks if the change period command
+    // FreeRTOS- Block for a maximum of 100 ms if the change period command
     // cannot immediately be sent to the timer command queue.
-    if (xTimerChangePeriod(sFunctionTimer, aTimeoutInMs / portTICK_PERIOD_MS, 100) != pdPASS)
+    if (xTimerChangePeriod(sFunctionTimer, pdMS_TO_TICKS(aTimeoutInMs), pdMS_TO_TICKS(100)) != pdPASS)
     {
         SILABS_LOG("app timer start() failed");
         appError(APP_ERROR_START_TIMER_FAILED);
@@ -493,7 +498,7 @@ void BaseApplication::StartFunctionTimer(uint32_t aTimeoutInMs)
 
 void BaseApplication::StartStatusLEDTimer()
 {
-    if (pdPASS != xTimerStart(sLightTimer, 0))
+    if (pdPASS != xTimerStart(sLightTimer, pdMS_TO_TICKS(0)))
     {
         SILABS_LOG("Light Time start failed");
         appError(APP_ERROR_START_TIMER_FAILED);
@@ -506,7 +511,7 @@ void BaseApplication::StopStatusLEDTimer()
     sStatusLED.Set(false);
 #endif // ENABLE_WSTK_LEDS
 
-    if (xTimerStop(sLightTimer, 100) != pdPASS)
+    if (xTimerStop(sLightTimer, pdMS_TO_TICKS(100)) != pdPASS)
     {
         SILABS_LOG("Light Time start failed");
         appError(APP_ERROR_START_TIMER_FAILED);
@@ -568,5 +573,21 @@ void BaseApplication::DispatchEvent(AppEvent * aEvent)
     else
     {
         SILABS_LOG("Event received with no handler. Dropping event.");
+    }
+}
+
+void BaseApplication::ScheduleFactoryReset()
+{
+    PlatformMgr().ScheduleWork([](intptr_t) {
+        PlatformMgr().HandleServerShuttingDown();
+        ConfigurationMgr().InitiateFactoryReset();
+    });
+}
+
+void BaseApplication::OnPlatformEvent(const ChipDeviceEvent * event, intptr_t)
+{
+    if (event->Type == DeviceEventType::kServiceProvisioningChange)
+    {
+        sIsProvisioned = event->ServiceProvisioningChange.IsServiceProvisioned;
     }
 }

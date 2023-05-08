@@ -25,9 +25,7 @@
 #include "AppEvent.h"
 #include "AppTask.h"
 
-#ifdef ENABLE_WSTK_LEDS
 #include "LEDWidget.h"
-#endif // ENABLE_WSTK_LEDS
 
 #ifdef DISPLAY_ENABLED
 #include "lcd.h"
@@ -36,7 +34,7 @@
 #endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
 
-#include "SiWx917DeviceDataProvider.h"
+#include "SilabsDeviceDataProvider.h"
 #include "rsi_board.h"
 #include "rsi_chip.h"
 #include "siwx917_utils.h"
@@ -68,9 +66,7 @@
 #define APP_TASK_PRIORITY 2
 #define APP_EVENT_QUEUE_SIZE 10
 #define EXAMPLE_VENDOR_ID 0xcafe
-#ifdef ENABLE_WSTK_LEDS
 #define APP_STATE_LED 0
-#endif // ENABLE_WSTK_LEDS
 
 using namespace chip;
 using namespace ::chip::DeviceLayer;
@@ -87,9 +83,7 @@ TimerHandle_t sLightTimer;
 TaskHandle_t sAppTaskHandle;
 QueueHandle_t sAppEventQueue;
 
-#ifdef ENABLE_WSTK_LEDS
 LEDWidget sStatusLED;
-#endif // ENABLE_WSTK_LEDS
 
 #ifdef SL_WIFI
 app::Clusters::NetworkCommissioning::Instance
@@ -172,12 +166,15 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     SILABS_LOG("APP: Done WiFi Init");
     /* We will init server when we get IP */
 
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
     sWiFiNetworkCommissioningInstance.Init();
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+
 #endif
 
     // Create FreeRTOS sw timer for Function Selection.
     sFunctionTimer = xTimerCreate("FnTmr",                  // Just a text name, not used by the RTOS kernel
-                                  1,                        // == default timer period (mS)
+                                  pdMS_TO_TICKS(1),         // == default timer period
                                   false,                    // no timer reload (==one-shot)
                                   (void *) this,            // init timer id = app task obj context
                                   FunctionTimerEventHandler // timer callback handler
@@ -190,7 +187,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
 
     // Create FreeRTOS sw timer for LED Management.
     sLightTimer = xTimerCreate("LightTmr",            // Text Name
-                               10,                    // Default timer period (mS)
+                               pdMS_TO_TICKS(10),     // Default timer period
                                true,                  // reload timer
                                (void *) this,         // Timer Id
                                LightTimerEventHandler // Timer callback handler
@@ -201,11 +198,10 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
         appError(APP_ERROR_CREATE_TIMER_FAILED);
     }
 
-    SILABS_LOG("Current Software Version: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
+    SILABS_LOG("Current Software Version String: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
+    SILABS_LOG("Current Software Version: %d", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION);
 
-#ifdef ENABLE_WSTK_LEDS
     sStatusLED.Init(APP_STATE_LED);
-#endif // ENABLE_WSTK_LEDS
 
     ConfigurationMgr().LogDeviceConfig();
 
@@ -213,7 +209,7 @@ CHIP_ERROR BaseApplication::Init(Identify * identifyObj)
     char qrCodeBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
     chip::MutableCharSpan QRCode(qrCodeBuffer);
 
-    if (SIWx917::SIWx917DeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
+    if (Silabs::SilabsDeviceDataProvider::GetDeviceDataProvider().GetSetupPayload(QRCode) == CHIP_NO_ERROR)
     {
         // Print setup info on LCD if available
 #ifdef QR_CODE_ENABLED
@@ -301,7 +297,6 @@ void BaseApplication::LightEventHandler()
     // the LEDs at an even rate of 100ms.
     //
     // Otherwise, blink the LED ON for a very short time.
-#ifdef ENABLE_WSTK_LEDS
     if (mFunction != kFunction_FactoryReset)
     {
         if ((gIdentifyptr != nullptr) && (gIdentifyptr->mActive))
@@ -347,7 +342,6 @@ void BaseApplication::LightEventHandler()
     }
 
     sStatusLED.Animate();
-#endif // ENABLE_WSTK_LEDS
 }
 
 void BaseApplication::ButtonHandler(AppEvent * aEvent)
@@ -381,13 +375,10 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
             break;
         }
 
-#ifdef ENABLE_WSTK_LEDS
         // Turn off status LED before starting blink to make sure blink is
         // co-ordinated.
         sStatusLED.Set(false);
         sStatusLED.Blink(500);
-#endif // ENABLE_WSTK_LEDS
-
         SILABS_LOG("Factory reset triggering in %d sec release button to cancel", count--);
 
         // Delay of 1sec before checking the button status again
@@ -396,9 +387,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
 
     if (count > 0)
     {
-#ifdef ENABLE_WSTK_LEDS
         sStatusLED.Set(false);
-#endif
         SILABS_LOG("Factory Reset has been Canceled"); // button held past Timeout wait till button is released
     }
 
@@ -426,7 +415,7 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
 
 void BaseApplication::CancelFunctionTimer()
 {
-    if (xTimerStop(sFunctionTimer, 0) == pdFAIL)
+    if (xTimerStop(sFunctionTimer, pdMS_TO_TICKS(0)) == pdFAIL)
     {
         SILABS_LOG("app timer stop() failed");
         appError(APP_ERROR_STOP_TIMER_FAILED);
@@ -444,9 +433,9 @@ void BaseApplication::StartFunctionTimer(uint32_t aTimeoutInMs)
     }
 
     // timer is not active, change its period to required value (== restart).
-    // FreeRTOS- Block for a maximum of 100 ticks if the change period command
+    // FreeRTOS- Block for a maximum of 100 ms if the change period command
     // cannot immediately be sent to the timer command queue.
-    if (xTimerChangePeriod(sFunctionTimer, aTimeoutInMs / portTICK_PERIOD_MS, 100) != pdPASS)
+    if (xTimerChangePeriod(sFunctionTimer, pdMS_TO_TICKS(aTimeoutInMs), pdMS_TO_TICKS(100)) != pdPASS)
     {
         SILABS_LOG("app timer start() failed");
         appError(APP_ERROR_START_TIMER_FAILED);
@@ -457,7 +446,7 @@ void BaseApplication::StartFunctionTimer(uint32_t aTimeoutInMs)
 
 void BaseApplication::StartStatusLEDTimer()
 {
-    if (pdPASS != xTimerStart(sLightTimer, 0))
+    if (pdPASS != xTimerStart(sLightTimer, pdMS_TO_TICKS(0)))
     {
         SILABS_LOG("Light Time start failed");
         appError(APP_ERROR_START_TIMER_FAILED);
@@ -466,11 +455,9 @@ void BaseApplication::StartStatusLEDTimer()
 
 void BaseApplication::StopStatusLEDTimer()
 {
-#ifdef ENABLE_WSTK_LEDS
     sStatusLED.Set(false);
-#endif // ENABLE_WSTK_LEDS
 
-    if (xTimerStop(sLightTimer, 100) != pdPASS)
+    if (xTimerStop(sLightTimer, pdMS_TO_TICKS(100)) != pdPASS)
     {
         SILABS_LOG("Light Time start failed");
         appError(APP_ERROR_START_TIMER_FAILED);

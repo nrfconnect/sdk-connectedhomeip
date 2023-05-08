@@ -20,8 +20,9 @@
 
 #include "commands/common/Commands.h"
 #include "commands/pairing/CloseSessionCommand.h"
-#include "commands/pairing/CommissionedListCommand.h"
 #include "commands/pairing/GetCommissionerNodeIdCommand.h"
+#include "commands/pairing/GetCommissionerRootCertificateCommand.h"
+#include "commands/pairing/IssueNOCChainCommand.h"
 #include "commands/pairing/OpenCommissioningWindowCommand.h"
 #include "commands/pairing/PairingCommand.h"
 
@@ -181,6 +182,24 @@ public:
     {}
 };
 
+class PairAlreadyDiscoveredByIndex : public PairingCommand
+{
+public:
+    PairAlreadyDiscoveredByIndex(CredentialIssuerCommands * credsIssuerConfig) :
+        PairingCommand("already-discovered-by-index", PairingMode::AlreadyDiscoveredByIndex, PairingNetworkType::None,
+                       credsIssuerConfig)
+    {}
+};
+
+class PairAlreadyDiscoveredByIndexWithWiFi : public PairingCommand
+{
+public:
+    PairAlreadyDiscoveredByIndexWithWiFi(CredentialIssuerCommands * credsIssuerConfig) :
+        PairingCommand("already-discovered-by-index-with-wifi", PairingMode::AlreadyDiscoveredByIndex, PairingNetworkType::WiFi,
+                       credsIssuerConfig)
+    {}
+};
+
 class StartUdcServerCommand : public CHIPCommand
 {
 public:
@@ -208,6 +227,8 @@ void registerCommandsPairing(Commands & commands, CredentialIssuerCommands * cre
         make_unique<PairBleThread>(credsIssuerConfig),
         make_unique<PairSoftAP>(credsIssuerConfig),
         make_unique<PairAlreadyDiscovered>(credsIssuerConfig),
+        make_unique<PairAlreadyDiscoveredByIndex>(credsIssuerConfig),
+        make_unique<PairAlreadyDiscoveredByIndexWithWiFi>(credsIssuerConfig),
         make_unique<PairOnNetwork>(credsIssuerConfig),
         make_unique<PairOnNetworkShort>(credsIssuerConfig),
         make_unique<PairOnNetworkLong>(credsIssuerConfig),
@@ -222,6 +243,8 @@ void registerCommandsPairing(Commands & commands, CredentialIssuerCommands * cre
         make_unique<OpenCommissioningWindowCommand>(credsIssuerConfig),
         make_unique<CloseSessionCommand>(credsIssuerConfig),
         make_unique<GetCommissionerNodeIdCommand>(credsIssuerConfig),
+        make_unique<GetCommissionerRootCertificateCommand>(credsIssuerConfig),
+        make_unique<IssueNOCChainCommand>(credsIssuerConfig),
     };
 
     commands.Register(clusterName, clusterCommands);

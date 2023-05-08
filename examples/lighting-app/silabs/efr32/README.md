@@ -100,7 +100,7 @@ Silicon Labs platform.
 *   Build the example application:
 
           cd ~/connectedhomeip
-          ./scripts/examples/gn_efr32_example.sh ./examples/lighting-app/silabs/efr32/ ./out/lighting-app BRD4161A
+          ./scripts/examples/gn_efr32_example.sh ./examples/lighting-app/silabs/efr32/ ./out/lighting-app BRD4187C
 
 -   To delete generated executable, libraries and object files use:
 
@@ -112,7 +112,7 @@ Silicon Labs platform.
           $ cd ~/connectedhomeip/examples/lighting-app/silabs/efr32
           $ git submodule update --init
           $ source third_party/connectedhomeip/scripts/activate.sh
-          $ export silabs_board=BRD4161A
+          $ export SILABS_BOARD=BRD4187C
           $ gn gen out/debug
           $ ninja -C out/debug
 
@@ -123,22 +123,22 @@ Silicon Labs platform.
 
 *   Build the example as Sleepy End Device (SED)
 
-          $ ./scripts/examples/gn_efr32_example.sh ./examples/lighting-app/silabs/efr32/ ./out/lighting-app_SED BRD4161A --sed
+          $ ./scripts/examples/gn_efr32_example.sh ./examples/lighting-app/silabs/efr32/ ./out/lighting-app_SED BRD4187C --sed
 
     or use gn as previously mentioned but adding the following arguments:
 
-          $ gn gen out/debug '--args=silabs_board="BRD4161A" enable_sleepy_device=true chip_openthread_ftd=false'
+          $ gn gen out/debug '--args=SILABS_BOARD="BRD4187C" enable_sleepy_device=true chip_openthread_ftd=false'
 
 *   Build the example with pigweed RPC
 
-          $ ./scripts/examples/gn_efr32_example.sh examples/lighting-app/silabs/efr32/ out/lighting_app_rpc BRD4161A 'import("//with_pw_rpc.gni")'
+          $ ./scripts/examples/gn_efr32_example.sh examples/lighting-app/silabs/efr32/ out/lighting_app_rpc BRD4187C 'import("//with_pw_rpc.gni")'
 
     or use GN/Ninja Directly
 
           $ cd ~/connectedhomeip/examples/lighting-app/silabs/efr32
           $ git submodule update --init
           $ source third_party/connectedhomeip/scripts/activate.sh
-          $ export silabs_board=BRD4161A
+          $ export SILABS_BOARD=BRD4187C
           $ gn gen out/debug --args='import("//with_pw_rpc.gni")'
           $ ninja -C out/debug
 
@@ -157,6 +157,11 @@ arguments
           $ python3 out/debug/chip-efr32-lighting-example.flash.py
 
 -   Or with the Ozone debugger, just load the .out file.
+
+All EFR32 boards require a bootloader, see Silicon Labs documentation for more
+info. Pre-built bootloader binaries are available in the Assets section of the
+Releases page on
+[Silabs Matter Github](https://github.com/SiliconLabs/matter/releases) .
 
 ## Viewing Logging Output
 

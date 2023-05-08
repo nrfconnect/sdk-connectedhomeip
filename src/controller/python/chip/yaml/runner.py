@@ -15,7 +15,6 @@
 #    limitations under the License.
 #
 
-import asyncio as asyncio
 import logging
 import queue
 from abc import ABC, abstractmethod
@@ -29,7 +28,7 @@ from chip.ChipDeviceCtrl import ChipDeviceController, discovery
 from chip.clusters.Attribute import (AttributeStatus, EventReadResult, SubscriptionTransaction, TypedAttributePath,
                                      ValueDecodeFailure)
 from chip.exceptions import ChipStackError
-from chip.yaml.errors import ParsingError, UnexpectedParsingError
+from chip.yaml.errors import ActionCreationError, UnexpectedActionCreationError
 from matter_yamltests.pseudo_clusters.clusters.delay_commands import DelayCommands
 from matter_yamltests.pseudo_clusters.clusters.log_commands import LogCommands
 from matter_yamltests.pseudo_clusters.clusters.system_commands import SystemCommands
@@ -116,7 +115,7 @@ class BaseAction(ABC):
         return self._pics_enabled
 
     @abstractmethod
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         pass
 
 
@@ -125,10 +124,10 @@ class DefaultPseudoCluster(BaseAction):
         super().__init__(test_step)
         self._test_step = test_step
         if not _PSEUDO_CLUSTERS.supports(test_step):
-            raise ParsingError(f'Default cluster {test_step.cluster} {test_step.command}, not supported')
+            raise ActionCreationError(f'Default cluster {test_step.cluster} {test_step.command}, not supported')
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
-        resp = asyncio.run(_PSEUDO_CLUSTERS.execute(self._test_step))
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+        resp = await _PSEUDO_CLUSTERS.execute(self._test_step)
         return _ActionResult(status=_ActionStatus.SUCCESS, response=None)
 
 
@@ -143,9 +142,11 @@ class InvokeAction(BaseAction):
           'cluster': Name of cluster which to invoke action is targeting.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          ParsingError: Raised if there is a benign error, and there is currently no
-            action to perform for this write attribute.
-          UnexpectedParsingError: Raised if there is an unexpected parsing error.
+          ActionCreationError: Raised if there is a benign error. This occurs when we
+            cannot find the action to invoke for the provided cluster. When this happens
+            it is expected that the action to invoke and the provided cluster is an action
+            to be invoked on a pseudo cluster.
+          UnexpectedActionCreationError: Raised if there is an unexpected parsing error.
         '''
         super().__init__(test_step)
         self._busy_wait_ms = test_step.busy_wait_ms
@@ -159,13 +160,14 @@ class InvokeAction(BaseAction):
         self._group_id = test_step.group_id
 
         if self._node_id is None and self._group_id is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 'Both node_id and group_id are None, at least one needs to be provided')
 
         command = context.data_model_lookup.get_command(self._cluster, self._command_name)
 
         if command is None:
-            raise ParsingError(
+            # If we have not found a command it could me that it is a pseudo cluster command.
+            raise ActionCreationError(
                 f'Failed to find cluster:{self._cluster} Command:{self._command_name}')
 
         command_object = command()
@@ -177,25 +179,23 @@ class InvokeAction(BaseAction):
                 request_data = Converter.convert_to_data_model_type(
                     request_data_as_dict, type(command_object))
             except ValueError:
-                # TODO after allowing out of bounds enums to be written this should be changed to
-                # UnexpectedParsingError.
-                raise ParsingError('Could not covert yaml type')
+                raise UnexpectedActionCreationError('Could not covert yaml type')
 
             self._request_object = command_object.FromDict(request_data)
         else:
             self._request_object = command_object
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
             if self._group_id:
                 resp = dev_ctrl.SendGroupCommand(
                     self._group_id, self._request_object,
                     busyWaitMs=self._busy_wait_ms)
             else:
-                resp = asyncio.run(dev_ctrl.SendCommand(
+                resp = await dev_ctrl.SendCommand(
                     self._node_id, self._endpoint, self._request_object,
                     timedRequestTimeoutMs=self._interation_timeout_ms,
-                    busyWaitMs=self._busy_wait_ms))
+                    busyWaitMs=self._busy_wait_ms)
         except chip.interaction_model.InteractionModelError as error:
             return _ActionResult(status=_ActionStatus.ERROR, response=error)
 
@@ -214,9 +214,7 @@ class ReadAttributeAction(BaseAction):
           'cluster': Name of cluster read attribute action is targeting.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          ParsingError: Raised if there is a benign error, and there is currently no
-            action to perform for this read attribute.
-          UnexpectedParsingError: Raised if there is an unexpected parsing error.
+          UnexpectedActionCreationError: Raised if there is an unexpected parsing error.
         '''
         super().__init__(test_step)
         self._attribute_name = stringcase.pascalcase(test_step.attribute)
@@ -232,29 +230,29 @@ class ReadAttributeAction(BaseAction):
 
         self._cluster_object = context.data_model_lookup.get_cluster(self._cluster)
         if self._cluster_object is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'ReadAttribute failed to find cluster object:{self._cluster}')
 
         self._request_object = context.data_model_lookup.get_attribute(
             self._cluster, self._attribute_name)
         if self._request_object is None:
-            raise ParsingError(
+            raise UnexpectedActionCreationError(
                 f'ReadAttribute failed to find cluster:{self._cluster} '
                 f'Attribute:{self._attribute_name}')
 
         if test_step.arguments:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'ReadAttribute should not contain arguments. {self.label}')
 
         if self._request_object.attribute_type is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'ReadAttribute doesnt have valid attribute_type. {self.label}')
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
-            raw_resp = asyncio.run(dev_ctrl.ReadAttribute(self._node_id,
-                                                          [(self._endpoint, self._request_object)],
-                                                          fabricFiltered=self._fabric_filtered))
+            raw_resp = await dev_ctrl.ReadAttribute(self._node_id,
+                                                    [(self._endpoint, self._request_object)],
+                                                    fabricFiltered=self._fabric_filtered)
         except chip.interaction_model.InteractionModelError as error:
             return _ActionResult(status=_ActionStatus.ERROR, response=error)
         except ChipStackError as error:
@@ -293,7 +291,7 @@ class ReadEventAction(BaseAction):
           'cluster': Name of cluster read event action is targeting.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          UnexpectedParsingError: Raised if there is an unexpected parsing error.
+          UnexpectedActionCreationError: Raised if there is an unexpected parsing error.
         '''
         super().__init__(test_step)
         self._event_name = stringcase.pascalcase(test_step.event)
@@ -311,19 +309,19 @@ class ReadEventAction(BaseAction):
         self._request_object = context.data_model_lookup.get_event(self._cluster,
                                                                    self._event_name)
         if self._request_object is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'ReadEvent failed to find cluster:{self._cluster} Event:{self._event_name}')
 
         if test_step.arguments:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'ReadEvent should not contain arguments. {self.label}')
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
             urgent = 0
             request = [(self._endpoint, self._request_object, urgent)]
-            resp = asyncio.run(dev_ctrl.ReadEvent(self._node_id, events=request, eventNumberFilter=self._event_number_filter,
-                                                  fabricFiltered=self._fabric_filtered))
+            resp = await dev_ctrl.ReadEvent(self._node_id, events=request, eventNumberFilter=self._event_number_filter,
+                                            fabricFiltered=self._fabric_filtered)
         except chip.interaction_model.InteractionModelError as error:
             return _ActionResult(status=_ActionStatus.ERROR, response=error)
 
@@ -359,7 +357,7 @@ class WaitForCommissioneeAction(BaseAction):
             # Timeout is provided in seconds we need to conver to milliseconds.
             self._timeout_ms = request_data_as_dict['timeout'] * 1000
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
             if self._expire_existing_session:
                 dev_ctrl.ExpireSessions(self._node_id)
@@ -424,28 +422,25 @@ class SubscribeAttributeAction(ReadAttributeAction):
           'cluster': Name of cluster write attribute action is targeting.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          ParsingError: Raised if there is a benign error, and there is currently no
-            action to perform for this write attribute.
-          UnexpectedParsingError: Raised if there is an unexpected parsing error.
+          UnexpectedActionCreationError: Raised if there is an unexpected parsing error.
         '''
         super().__init__(test_step, cluster, context)
         self._context = context
         if test_step.min_interval is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'SubscribeAttribute action does not have min_interval {self.label}')
         self._min_interval = test_step.min_interval
 
         if test_step.max_interval is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'SubscribeAttribute action does not have max_interval {self.label}')
         self._max_interval = test_step.max_interval
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
-            subscription = asyncio.run(
-                dev_ctrl.ReadAttribute(self._node_id, [(self._endpoint, self._request_object)],
-                                       reportInterval=(self._min_interval, self._max_interval),
-                                       keepSubscriptions=False))
+            subscription = await dev_ctrl.ReadAttribute(self._node_id, [(self._endpoint, self._request_object)],
+                                                        reportInterval=(self._min_interval, self._max_interval),
+                                                        keepSubscriptions=False)
         except chip.interaction_model.InteractionModelError as error:
             return _ActionResult(status=_ActionStatus.ERROR, response=error)
 
@@ -479,30 +474,27 @@ class SubscribeEventAction(ReadEventAction):
           'cluster': Name of cluster subscribe event action is targeting.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          ParsingError: Raised if there is a benign error, and there is currently no
-            action to perform for this subscribe event.
-          UnexpectedParsingError: Raised if there is an unexpected parsing error.
+          UnexpectedActionCreationError: Raised if there is an unexpected parsing error.
         '''
         super().__init__(test_step, cluster, context)
         self._context = context
         if test_step.min_interval is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'SubscribeEvent action does not have min_interval {self.label}')
         self._min_interval = test_step.min_interval
 
         if test_step.max_interval is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'SubscribeEvent action does not have max_interval {self.label}')
         self._max_interval = test_step.max_interval
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
             urgent = 0
             request = [(self._endpoint, self._request_object, urgent)]
-            subscription = asyncio.run(
-                dev_ctrl.ReadEvent(self._node_id, events=request, eventNumberFilter=self._event_number_filter,
-                                   reportInterval=(self._min_interval, self._max_interval),
-                                   keepSubscriptions=False))
+            subscription = await dev_ctrl.ReadEvent(self._node_id, events=request, eventNumberFilter=self._event_number_filter,
+                                                    reportInterval=(self._min_interval, self._max_interval),
+                                                    keepSubscriptions=False)
         except chip.interaction_model.InteractionModelError as error:
             return _ActionResult(status=_ActionStatus.ERROR, response=error)
 
@@ -536,9 +528,7 @@ class WriteAttributeAction(BaseAction):
           'cluster': Name of cluster write attribute action is targeting.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          ParsingError: Raised if there is a benign error, and there is currently no
-            action to perform for this write attribute.
-          UnexpectedParsingError: Raised if there is an unexpected parsing error.
+          UnexpectedActionCreationError: Raised if there is an unexpected parsing error.
         '''
         super().__init__(test_step)
         self._attribute_name = stringcase.pascalcase(test_step.attribute)
@@ -551,43 +541,42 @@ class WriteAttributeAction(BaseAction):
         self._request_object = None
 
         if self._node_id is None and self._group_id is None:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 'Both node_id and group_id are None, at least one needs to be provided')
 
         attribute = context.data_model_lookup.get_attribute(
             self._cluster, self._attribute_name)
         if attribute is None:
-            raise ParsingError(
+            raise UnexpectedActionCreationError(
                 f'WriteAttribute failed to find cluster:{self._cluster} '
                 f'Attribute:{self._attribute_name}')
 
         if not test_step.arguments:
-            raise UnexpectedParsingError(f'WriteAttribute action does have arguments {self.label}')
+            raise UnexpectedActionCreationError(f'WriteAttribute action does have arguments {self.label}')
 
         args = test_step.arguments['values']
         if len(args) != 1:
-            raise UnexpectedParsingError(f'WriteAttribute is trying to write multiple values')
+            raise UnexpectedActionCreationError(f'WriteAttribute is trying to write multiple values')
         request_data_as_dict = args[0]
         try:
             # TODO this is an ugly hack
             request_data = Converter.convert_to_data_model_type(
                 request_data_as_dict['value'], attribute.attribute_type.Type)
         except ValueError:
-            raise ParsingError('Could not covert yaml type')
+            raise UnexpectedActionCreationError('Could not covert yaml type')
 
         # Create a cluster object for the request from the provided YAML data.
         self._request_object = attribute(request_data)
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
             if self._group_id:
                 resp = dev_ctrl.WriteGroupAttribute(self._group_id, [(self._request_object,)],
                                                     busyWaitMs=self._busy_wait_ms)
             else:
-                resp = asyncio.run(
-                    dev_ctrl.WriteAttribute(self._node_id, [(self._endpoint, self._request_object)],
-                                            timedRequestTimeoutMs=self._interation_timeout_ms,
-                                            busyWaitMs=self._busy_wait_ms))
+                resp = await dev_ctrl.WriteAttribute(self._node_id, [(self._endpoint, self._request_object)],
+                                                     timedRequestTimeoutMs=self._interation_timeout_ms,
+                                                     busyWaitMs=self._busy_wait_ms)
         except chip.interaction_model.InteractionModelError as error:
             return _ActionResult(status=_ActionStatus.ERROR, response=error)
 
@@ -616,7 +605,7 @@ class WaitForReportAction(BaseAction):
           'test_step': Step containing information required to run wait for report action.
           'context': Contains test-wide common objects such as DataModelLookup instance.
         Raises:
-          UnexpectedParsingError: Raised if the expected queue does not exist.
+          UnexpectedActionCreationError: Raised if the expected queue does not exist.
         '''
         super().__init__(test_step)
         if test_step.attribute is not None:
@@ -624,14 +613,14 @@ class WaitForReportAction(BaseAction):
         elif test_step.event is not None:
             queue_name = stringcase.pascalcase(test_step.event)
         else:
-            raise UnexpectedParsingError(
+            raise UnexpectedActionCreationError(
                 f'WaitForReport needs to wait on either attribute or event, neither were provided')
 
         self._output_queue = context.subscription_callback_result_queue.get(queue_name, None)
         if self._output_queue is None:
-            raise UnexpectedParsingError(f'Could not find output queue')
+            raise UnexpectedActionCreationError(f'Could not find output queue')
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         try:
             # While there should be a timeout here provided by the test, the current codegen version
             # of YAML tests doesn't have a per test step timeout, only a global timeout for the
@@ -654,7 +643,7 @@ class CommissionerCommandAction(BaseAction):
         Args:
           'test_step': Step containing information required to run wait for report action.
         Raises:
-          UnexpectedParsingError: Raised if the expected queue does not exist.
+          UnexpectedActionCreationError: Raised if the expected queue does not exist.
         '''
         super().__init__(test_step)
         self._command = test_step.command
@@ -667,9 +656,9 @@ class CommissionerCommandAction(BaseAction):
             self._setup_payload = request_data_as_dict['payload']
             self._node_id = request_data_as_dict['nodeId']
         else:
-            raise UnexpectedParsingError(f'Unexpected CommisionerCommand {test_step.command}')
+            raise UnexpectedActionCreationError(f'Unexpected CommisionerCommand {test_step.command}')
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         if self._command == 'GetCommissionerNodeId':
             return _ActionResult(status=_ActionStatus.SUCCESS, response=_GetCommissionerNodeIdResult(dev_ctrl.nodeId))
 
@@ -714,13 +703,13 @@ class DiscoveryCommandAction(BaseAction):
         if test_step.command == 'FindCommissionableByVendorId':
             return discovery.FilterType.VENDOR_ID, filter
 
-        raise UnexpectedParsingError(f'Invalid command: {test_step.command}')
+        raise UnexpectedActionCreationError(f'Invalid command: {test_step.command}')
 
     def __init__(self, test_step):
         super().__init__(test_step)
         self.filterType, self.filter = DiscoveryCommandAction._filter_for_step(test_step)
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         devices = dev_ctrl.DiscoverCommissionableNodes(
             filterType=self.filterType, filter=self.filter, stopOnFirst=True, timeoutSecond=5)
 
@@ -744,7 +733,7 @@ class NotImplementedAction(BaseAction):
         self.cluster = cluster
         self.command = command
 
-    def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         raise Exception(f"NOT YET IMPLEMENTED: {self.cluster}::{self.command}")
 
 
@@ -760,7 +749,8 @@ class ReplTestRunner:
         self._certificate_authority_manager = certificate_authority_manager
         self._dev_ctrls = {}
 
-        alpha_dev_ctrl.InitGroupTestingData()
+        if alpha_dev_ctrl is not None:
+            alpha_dev_ctrl.InitGroupTestingData()
         self._dev_ctrls['alpha'] = alpha_dev_ctrl
 
     def _invoke_action_factory(self, test_step, cluster: str):
@@ -776,7 +766,7 @@ class ReplTestRunner:
         '''
         try:
             return InvokeAction(test_step, cluster, self._context)
-        except ParsingError:
+        except ActionCreationError:
             return None
 
     def _attribute_read_action_factory(self, test_step, cluster: str):
@@ -788,10 +778,7 @@ class ReplTestRunner:
         Returns:
           ReadAttributeAction if 'test_step' is a valid read attribute to be executed.
         '''
-        try:
-            return ReadAttributeAction(test_step, cluster, self._context)
-        except ParsingError:
-            return None
+        return ReadAttributeAction(test_step, cluster, self._context)
 
     def _event_read_action_factory(self, test_step, cluster: str):
         return ReadEventAction(test_step, cluster, self._context)
@@ -807,13 +794,7 @@ class ReplTestRunner:
           None if we were unable to use the provided 'test_step' for a known reason that is not
           fatal to test execution.
         '''
-        try:
-            return SubscribeAttributeAction(test_step, cluster, self._context)
-        except ParsingError:
-            # TODO For now, ParsingErrors are largely issues that will be addressed soon. Once this
-            # runner has matched parity of the codegen YAML test, this exception should be
-            # propogated.
-            return None
+        return SubscribeAttributeAction(test_step, cluster, self._context)
 
     def _attribute_subscribe_event_factory(self, test_step, cluster: str):
         '''Creates subscribe event command from TestStep provided.
@@ -837,39 +818,21 @@ class ReplTestRunner:
           None if we were unable to use the provided 'test_step' for a known reason that is not
           fatal to test execution.
         '''
-        try:
-            return WriteAttributeAction(test_step, cluster, self._context)
-        except ParsingError:
-            return None
+        return WriteAttributeAction(test_step, cluster, self._context)
 
     def _wait_for_commissionee_action_factory(self, test_step):
-        try:
-            return WaitForCommissioneeAction(test_step)
-        except ParsingError:
-            # TODO For now, ParsingErrors are largely issues that will be addressed soon. Once this
-            # runner has matched parity of the codegen YAML test, this exception should be
-            # propogated.
-            return None
+        return WaitForCommissioneeAction(test_step)
 
     def _wait_for_report_action_factory(self, test_step):
-        try:
-            return WaitForReportAction(test_step, self._context)
-        except ParsingError:
-            # TODO For now, ParsingErrors are largely issues that will be addressed soon. Once this
-            # runner has matched parity of the codegen YAML test, this exception should be
-            # propogated.
-            return None
+        return WaitForReportAction(test_step, self._context)
 
     def _commissioner_command_action_factory(self, test_step):
-        try:
-            return CommissionerCommandAction(test_step)
-        except ParsingError:
-            return None
+        return CommissionerCommandAction(test_step)
 
     def _default_pseudo_cluster(self, test_step):
         try:
             return DefaultPseudoCluster(test_step)
-        except ParsingError:
+        except ActionCreationError:
             return None
 
     def encode(self, request) -> BaseAction:
@@ -1046,9 +1009,9 @@ class ReplTestRunner:
 
         return dev_ctrl
 
-    def execute(self, action: BaseAction):
+    async def execute(self, action: BaseAction):
         dev_ctrl = self._get_dev_ctrl(action)
-        return action.run_action(dev_ctrl)
+        return await action.run_action(dev_ctrl)
 
     def shutdown(self):
         for subscription in self._context.subscriptions:

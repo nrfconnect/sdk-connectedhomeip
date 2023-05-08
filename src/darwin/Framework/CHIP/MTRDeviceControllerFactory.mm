@@ -25,9 +25,11 @@
 #import "MTRDeviceControllerStartupParams_Internal.h"
 #import "MTRDeviceController_Internal.h"
 #import "MTRError_Internal.h"
+#import "MTRFabricInfo_Internal.h"
 #import "MTRFramework.h"
 #import "MTRLogging_Internal.h"
 #import "MTROTAProviderDelegateBridge.h"
+#import "MTROperationalBrowser.h"
 #import "MTRP256KeypairBridge.h"
 #import "MTRPersistentStorageDelegateBridge.h"
 #import "NSDataSpanConversion.h"
@@ -81,7 +83,9 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
 @property (readonly) NSMutableArray<MTRDeviceController *> * controllers;
 @property (readonly) PersistentStorageOperationalKeystore * keystore;
 @property (readonly) Credentials::PersistentStorageOpCertStore * opCertStore;
+@property (readonly) MTROperationalBrowser * operationalBrowser;
 @property () chip::Credentials::DeviceAttestationVerifier * deviceAttestationVerifier;
+@property (readonly) BOOL advertiseOperational;
 
 - (BOOL)findMatchingFabric:(FabricTable &)fabricTable
                     params:(MTRDeviceControllerStartupParams *)params
@@ -237,6 +241,54 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
     }
 }
 
+- (nullable NSArray<MTRFabricInfo *> *)knownFabrics
+{
+    if (!self.isRunning) {
+        return nil;
+    }
+
+    __block NSMutableArray<MTRFabricInfo *> * fabricList;
+    __block BOOL listFilled = NO;
+    auto fillListBlock = ^{
+        FabricTable fabricTable;
+        CHIP_ERROR err = fabricTable.Init({ .storage = self->_persistentStorageDelegateBridge,
+            .operationalKeystore = self->_keystore,
+            .opCertStore = self->_opCertStore });
+        if (err != CHIP_NO_ERROR) {
+            MTR_LOG_ERROR("Can't initialize fabric table when getting known fabrics: %s", err.AsString());
+            return;
+        }
+
+        fabricList = [NSMutableArray<MTRFabricInfo *> arrayWithCapacity:fabricTable.FabricCount()];
+        for (const auto & fabricInfo : fabricTable) {
+            auto * info = [[MTRFabricInfo alloc] initWithFabricTable:fabricTable fabricInfo:fabricInfo];
+            if (info == nil) {
+                // Failed to read one of our fabrics.
+                return;
+            }
+
+            [fabricList addObject:info];
+        }
+
+        listFilled = YES;
+    };
+
+    if ([_controllers count] > 0) {
+        // We have a controller running already, so our task queue is live.
+        // Make sure we run on that queue so we don't race against it.
+        dispatch_sync(_chipWorkQueue, fillListBlock);
+    } else {
+        // Not currently running the task queue; just run the block directly.
+        fillListBlock();
+    }
+
+    if (listFilled == NO) {
+        return nil;
+    }
+
+    return [NSArray arrayWithArray:fabricList];
+}
+
 - (BOOL)startControllerFactory:(MTRDeviceControllerFactoryParams *)startupParams error:(NSError * __autoreleasing *)error;
 {
     if ([self isRunning]) {
@@ -384,9 +436,7 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
         if (startupParams.port != nil) {
             params.listenPort = [startupParams.port unsignedShortValue];
         }
-        if (startupParams.shouldStartServer == YES) {
-            params.enableServerInteractions = true;
-        }
+        params.enableServerInteractions = startupParams.shouldStartServer;
 
         params.groupDataProvider = _groupDataProvider;
         params.sessionKeystore = _sessionKeystore;
@@ -419,6 +469,7 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
         _controllerFactory->RetainSystemState();
         _controllerFactory->ReleaseSystemState();
 
+        self->_advertiseOperational = startupParams.shouldStartServer;
         self->_running = YES;
     });
 
@@ -515,6 +566,7 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
         params = [[MTRDeviceControllerStartupParamsInternal alloc] initForExistingFabric:fabricTable
                                                                              fabricIndex:fabric->GetFabricIndex()
                                                                                 keystore:_keystore
+                                                                    advertiseOperational:self.advertiseOperational
                                                                                   params:startupParams];
         if (params == nil) {
             fabricError = CHIP_ERROR_NO_MEMORY;
@@ -598,6 +650,7 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
 
         params = [[MTRDeviceControllerStartupParamsInternal alloc] initForNewFabric:fabricTable
                                                                            keystore:_keystore
+                                                               advertiseOperational:self.advertiseOperational
                                                                              params:startupParams];
         if (params == nil) {
             fabricError = CHIP_ERROR_NO_MEMORY;
@@ -643,6 +696,9 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
         // Bringing up the first controller.  Start the event loop now.  If we
         // fail to bring it up, its cleanup will stop the event loop again.
         chip::DeviceLayer::PlatformMgrImpl().StartEventLoopTask();
+        dispatch_sync(_chipWorkQueue, ^{
+            self->_operationalBrowser = new MTROperationalBrowser(self, self->_chipWorkQueue);
+        });
     }
 
     // Add the controller to _controllers now, so if we fail partway through its
@@ -742,6 +798,10 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
     [_controllers removeObject:controller];
 
     if ([_controllers count] == 0) {
+        dispatch_sync(_chipWorkQueue, ^{
+            delete self->_operationalBrowser;
+            self->_operationalBrowser = nullptr;
+        });
         // That was our last controller.  Stop the event loop before it
         // shuts down, because shutdown of the last controller will tear
         // down most of the world.
@@ -775,6 +835,21 @@ static void ShutdownOnExit() { [[MTRDeviceControllerFactory sharedInstance] stop
     }
 
     return nil;
+}
+
+- (void)operationalInstanceAdded:(chip::PeerId &)operationalID
+{
+    for (MTRDeviceController * controller in _controllers) {
+        auto * compressedFabricId = controller.compressedFabricID;
+        if (compressedFabricId != nil && compressedFabricId.unsignedLongLongValue == operationalID.GetCompressedFabricId()) {
+            ChipLogProgress(Controller, "Notifying controller at fabric index %u about new operational node 0x" ChipLogFormatX64,
+                controller.fabricIndex, ChipLogValueX64(operationalID.GetNodeId()));
+            [controller operationalInstanceAdded:operationalID.GetNodeId()];
+        }
+
+        // Keep going: more than one controller might match a given compressed
+        // fabric id, though the chances are low.
+    }
 }
 
 - (MTRPersistentStorageDelegateBridge *)storageDelegateBridge

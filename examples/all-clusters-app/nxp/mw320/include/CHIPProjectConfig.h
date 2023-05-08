@@ -175,6 +175,13 @@
 #define CHIP_CONFIG_EVENT_LOGGING_WDM_OFFLOAD 1
 
 /**
+ * CHIP_DEVICE_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS
+ *
+ * Enable recording UTC timestamps.
+ */
+#define CHIP_DEVICE_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS 1
+
+/**
  * CHIP_DEVICE_CONFIG_EVENT_LOGGING_DEBUG_BUFFER_SIZE
  *
  * A size, in bytes, of the individual debug event logging buffer.
@@ -195,3 +202,7 @@
 #endif // BUILD_RELEASE
 
 #define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION 1
+
+// All clusters app has 3 group endpoints. This needs to defined here so that
+// CHIP_CONFIG_MAX_GROUPS_PER_FABRIC is properly configured.
+#define CHIP_CONFIG_MAX_GROUP_ENDPOINTS_PER_FABRIC 3

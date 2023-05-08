@@ -238,6 +238,13 @@ tests:
       PICS: OO.S.C00.Rsp
       command: "Off"
 
+    - label: "TH reads the OnOff attribute from the DUT"
+      PICS: OO.S.A0000
+      command: "readAttribute"
+      attribute: "OnOff"
+      response:
+          value: 0
+
     - label: "Reboot target device"
       PICS: PICS_SDK_CI_ONLY
       cluster: "SystemCommands"

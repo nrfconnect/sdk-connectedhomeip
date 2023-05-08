@@ -191,6 +191,13 @@ typedef void (*NullableActionsClusterActionTypeEnumAttributeCallback)(
 typedef void (*ActionsClusterEndpointListTypeEnumAttributeCallback)(void *, chip::app::Clusters::Actions::EndpointListTypeEnum);
 typedef void (*NullableActionsClusterEndpointListTypeEnumAttributeCallback)(
     void *, const chip::app::DataModel::Nullable<chip::app::Clusters::Actions::EndpointListTypeEnum> &);
+typedef void (*BasicInformationClusterColorEnumAttributeCallback)(void *, chip::app::Clusters::BasicInformation::ColorEnum);
+typedef void (*NullableBasicInformationClusterColorEnumAttributeCallback)(
+    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::BasicInformation::ColorEnum> &);
+typedef void (*BasicInformationClusterProductFinishEnumAttributeCallback)(void *,
+                                                                          chip::app::Clusters::BasicInformation::ProductFinishEnum);
+typedef void (*NullableBasicInformationClusterProductFinishEnumAttributeCallback)(
+    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::BasicInformation::ProductFinishEnum> &);
 typedef void (*OTASoftwareUpdateProviderClusterOTAApplyUpdateActionAttributeCallback)(
     void *, chip::app::Clusters::OtaSoftwareUpdateProvider::OTAApplyUpdateAction);
 typedef void (*NullableOTASoftwareUpdateProviderClusterOTAApplyUpdateActionAttributeCallback)(
@@ -215,14 +222,14 @@ typedef void (*OTASoftwareUpdateRequestorClusterOTAUpdateStateEnumAttributeCallb
     void *, chip::app::Clusters::OtaSoftwareUpdateRequestor::OTAUpdateStateEnum);
 typedef void (*NullableOTASoftwareUpdateRequestorClusterOTAUpdateStateEnumAttributeCallback)(
     void *, const chip::app::DataModel::Nullable<chip::app::Clusters::OtaSoftwareUpdateRequestor::OTAUpdateStateEnum> &);
-typedef void (*TimeFormatLocalizationClusterCalendarTypeAttributeCallback)(
-    void *, chip::app::Clusters::TimeFormatLocalization::CalendarType);
-typedef void (*NullableTimeFormatLocalizationClusterCalendarTypeAttributeCallback)(
-    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::CalendarType> &);
-typedef void (*TimeFormatLocalizationClusterHourFormatAttributeCallback)(void *,
-                                                                         chip::app::Clusters::TimeFormatLocalization::HourFormat);
-typedef void (*NullableTimeFormatLocalizationClusterHourFormatAttributeCallback)(
-    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::HourFormat> &);
+typedef void (*TimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback)(
+    void *, chip::app::Clusters::TimeFormatLocalization::CalendarTypeEnum);
+typedef void (*NullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback)(
+    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::CalendarTypeEnum> &);
+typedef void (*TimeFormatLocalizationClusterHourFormatEnumAttributeCallback)(
+    void *, chip::app::Clusters::TimeFormatLocalization::HourFormatEnum);
+typedef void (*NullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallback)(
+    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::HourFormatEnum> &);
 typedef void (*UnitLocalizationClusterTempUnitEnumAttributeCallback)(void *, chip::app::Clusters::UnitLocalization::TempUnitEnum);
 typedef void (*NullableUnitLocalizationClusterTempUnitEnumAttributeCallback)(
     void *, const chip::app::DataModel::Nullable<chip::app::Clusters::UnitLocalization::TempUnitEnum> &);
@@ -346,6 +353,14 @@ typedef void (*TimeSynchronizationClusterTimeSourceEnumAttributeCallback)(void *
                                                                           chip::app::Clusters::TimeSynchronization::TimeSourceEnum);
 typedef void (*NullableTimeSynchronizationClusterTimeSourceEnumAttributeCallback)(
     void *, const chip::app::DataModel::Nullable<chip::app::Clusters::TimeSynchronization::TimeSourceEnum> &);
+typedef void (*BridgedDeviceBasicInformationClusterColorEnumAttributeCallback)(
+    void *, chip::app::Clusters::BridgedDeviceBasicInformation::ColorEnum);
+typedef void (*NullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallback)(
+    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::BridgedDeviceBasicInformation::ColorEnum> &);
+typedef void (*BridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback)(
+    void *, chip::app::Clusters::BridgedDeviceBasicInformation::ProductFinishEnum);
+typedef void (*NullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback)(
+    void *, const chip::app::DataModel::Nullable<chip::app::Clusters::BridgedDeviceBasicInformation::ProductFinishEnum> &);
 typedef void (*AdministratorCommissioningClusterCommissioningWindowStatusEnumAttributeCallback)(
     void *, chip::app::Clusters::AdministratorCommissioning::CommissioningWindowStatusEnum);
 typedef void (*NullableAdministratorCommissioningClusterCommissioningWindowStatusEnumAttributeCallback)(
@@ -644,6 +659,8 @@ typedef void (*ActionsAttributeListListAttributeCallback)(void * context,
                                                           const chip::app::DataModel::DecodableList<chip::AttributeId> & data);
 typedef void (*BasicInformationCapabilityMinimaStructAttributeCallback)(
     void *, const chip::app::Clusters::BasicInformation::Structs::CapabilityMinimaStruct::DecodableType &);
+typedef void (*BasicInformationProductAppearanceStructAttributeCallback)(
+    void *, const chip::app::Clusters::BasicInformation::Structs::ProductAppearanceStruct::DecodableType &);
 typedef void (*BasicInformationGeneratedCommandListListAttributeCallback)(
     void * context, const chip::app::DataModel::DecodableList<chip::CommandId> & data);
 typedef void (*BasicInformationAcceptedCommandListListAttributeCallback)(
@@ -675,7 +692,8 @@ typedef void (*LocalizationConfigurationAcceptedCommandListListAttributeCallback
 typedef void (*LocalizationConfigurationAttributeListListAttributeCallback)(
     void * context, const chip::app::DataModel::DecodableList<chip::AttributeId> & data);
 typedef void (*TimeFormatLocalizationSupportedCalendarTypesListAttributeCallback)(
-    void * context, const chip::app::DataModel::DecodableList<chip::app::Clusters::TimeFormatLocalization::CalendarType> & data);
+    void * context,
+    const chip::app::DataModel::DecodableList<chip::app::Clusters::TimeFormatLocalization::CalendarTypeEnum> & data);
 typedef void (*TimeFormatLocalizationGeneratedCommandListListAttributeCallback)(
     void * context, const chip::app::DataModel::DecodableList<chip::CommandId> & data);
 typedef void (*TimeFormatLocalizationAcceptedCommandListListAttributeCallback)(
@@ -793,6 +811,8 @@ typedef void (*EthernetNetworkDiagnosticsAcceptedCommandListListAttributeCallbac
     void * context, const chip::app::DataModel::DecodableList<chip::CommandId> & data);
 typedef void (*EthernetNetworkDiagnosticsAttributeListListAttributeCallback)(
     void * context, const chip::app::DataModel::DecodableList<chip::AttributeId> & data);
+typedef void (*BridgedDeviceBasicInformationProductAppearanceStructAttributeCallback)(
+    void *, const chip::app::Clusters::BridgedDeviceBasicInformation::Structs::ProductAppearanceStruct::DecodableType &);
 typedef void (*BridgedDeviceBasicInformationGeneratedCommandListListAttributeCallback)(
     void * context, const chip::app::DataModel::DecodableList<chip::CommandId> & data);
 typedef void (*BridgedDeviceBasicInformationAcceptedCommandListListAttributeCallback)(
@@ -3388,6 +3408,40 @@ private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
 };
 
+class MTRBasicInformationProductAppearanceStructAttributeCallbackBridge
+    : public MTRCallbackBridge<BasicInformationProductAppearanceStructAttributeCallback>
+{
+public:
+    MTRBasicInformationProductAppearanceStructAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<BasicInformationProductAppearanceStructAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRBasicInformationProductAppearanceStructAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                      MTRActionBlock action) :
+        MTRCallbackBridge<BasicInformationProductAppearanceStructAttributeCallback>(queue, handler, action, OnSuccessFn){};
+
+    static void OnSuccessFn(void * context,
+                            const chip::app::Clusters::BasicInformation::Structs::ProductAppearanceStruct::DecodableType & value);
+};
+
+class MTRBasicInformationProductAppearanceStructAttributeCallbackSubscriptionBridge
+    : public MTRBasicInformationProductAppearanceStructAttributeCallbackBridge
+{
+public:
+    MTRBasicInformationProductAppearanceStructAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRBasicInformationProductAppearanceStructAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRBasicInformationProductAppearanceStructAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRBasicInformationProductAppearanceStructAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
 class MTRBasicInformationGeneratedCommandListListAttributeCallbackBridge
     : public MTRCallbackBridge<BasicInformationGeneratedCommandListListAttributeCallback>
 {
@@ -3870,7 +3924,7 @@ public:
 
     static void
     OnSuccessFn(void * context,
-                const chip::app::DataModel::DecodableList<chip::app::Clusters::TimeFormatLocalization::CalendarType> & value);
+                const chip::app::DataModel::DecodableList<chip::app::Clusters::TimeFormatLocalization::CalendarTypeEnum> & value);
 };
 
 class MTRTimeFormatLocalizationSupportedCalendarTypesListAttributeCallbackSubscriptionBridge
@@ -5639,6 +5693,43 @@ public:
     void OnSubscriptionEstablished();
     using MTREthernetNetworkDiagnosticsAttributeListListAttributeCallbackBridge::KeepAliveOnCallback;
     using MTREthernetNetworkDiagnosticsAttributeListListAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge
+    : public MTRCallbackBridge<BridgedDeviceBasicInformationProductAppearanceStructAttributeCallback>
+{
+public:
+    MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge(dispatch_queue_t queue,
+                                                                                   ResponseHandler handler) :
+        MTRCallbackBridge<BridgedDeviceBasicInformationProductAppearanceStructAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                                   MTRActionBlock action) :
+        MTRCallbackBridge<BridgedDeviceBasicInformationProductAppearanceStructAttributeCallback>(queue, handler, action,
+                                                                                                 OnSuccessFn){};
+
+    static void
+    OnSuccessFn(void * context,
+                const chip::app::Clusters::BridgedDeviceBasicInformation::Structs::ProductAppearanceStruct::DecodableType & value);
+};
+
+class MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackSubscriptionBridge
+    : public MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge
+{
+public:
+    MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRBridgedDeviceBasicInformationProductAppearanceStructAttributeCallbackBridge::OnDone;
 
 private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
@@ -12810,6 +12901,140 @@ private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
 };
 
+class MTRBasicInformationClusterColorEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<BasicInformationClusterColorEnumAttributeCallback>
+{
+public:
+    MTRBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<BasicInformationClusterColorEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                               MTRActionBlock action) :
+        MTRCallbackBridge<BasicInformationClusterColorEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
+
+    static void OnSuccessFn(void * context, chip::app::Clusters::BasicInformation::ColorEnum value);
+};
+
+class MTRBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge
+    : public MTRBasicInformationClusterColorEnumAttributeCallbackBridge
+{
+public:
+    MTRBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                           MTRActionBlock action,
+                                                                           MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRBasicInformationClusterColorEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRBasicInformationClusterColorEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRBasicInformationClusterColorEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<NullableBasicInformationClusterColorEnumAttributeCallback>
+{
+public:
+    MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<NullableBasicInformationClusterColorEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                       MTRActionBlock action) :
+        MTRCallbackBridge<NullableBasicInformationClusterColorEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
+
+    static void OnSuccessFn(void * context,
+                            const chip::app::DataModel::Nullable<chip::app::Clusters::BasicInformation::ColorEnum> & value);
+};
+
+class MTRNullableBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge
+    : public MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge
+{
+public:
+    MTRNullableBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRNullableBasicInformationClusterColorEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<BasicInformationClusterProductFinishEnumAttributeCallback>
+{
+public:
+    MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<BasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                       MTRActionBlock action) :
+        MTRCallbackBridge<BasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
+
+    static void OnSuccessFn(void * context, chip::app::Clusters::BasicInformation::ProductFinishEnum value);
+};
+
+class MTRBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge
+    : public MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+{
+public:
+    MTRBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRBasicInformationClusterProductFinishEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<NullableBasicInformationClusterProductFinishEnumAttributeCallback>
+{
+public:
+    MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<NullableBasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                               MTRActionBlock action) :
+        MTRCallbackBridge<NullableBasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
+
+    static void OnSuccessFn(void * context,
+                            const chip::app::DataModel::Nullable<chip::app::Clusters::BasicInformation::ProductFinishEnum> & value);
+};
+
+class MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge
+    : public MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+{
+public:
+    MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRNullableBasicInformationClusterProductFinishEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
 class MTROTASoftwareUpdateProviderClusterOTAApplyUpdateActionAttributeCallbackBridge
     : public MTRCallbackBridge<OTASoftwareUpdateProviderClusterOTAApplyUpdateActionAttributeCallback>
 {
@@ -13250,137 +13475,140 @@ private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
 };
 
-class MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge
-    : public MTRCallbackBridge<TimeFormatLocalizationClusterCalendarTypeAttributeCallback>
+class MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<TimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback>
 {
 public:
-    MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
-        MTRCallbackBridge<TimeFormatLocalizationClusterCalendarTypeAttributeCallback>(queue, handler, OnSuccessFn){};
+    MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<TimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback>(queue, handler, OnSuccessFn){};
 
-    MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
-                                                                        MTRActionBlock action) :
-        MTRCallbackBridge<TimeFormatLocalizationClusterCalendarTypeAttributeCallback>(queue, handler, action, OnSuccessFn){};
+    MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                            MTRActionBlock action) :
+        MTRCallbackBridge<TimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
 
-    static void OnSuccessFn(void * context, chip::app::Clusters::TimeFormatLocalization::CalendarType value);
+    static void OnSuccessFn(void * context, chip::app::Clusters::TimeFormatLocalization::CalendarTypeEnum value);
 };
 
-class MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackSubscriptionBridge
-    : public MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge
+class MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackSubscriptionBridge
+    : public MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge
 {
 public:
-    MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackSubscriptionBridge(
+    MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackSubscriptionBridge(
         dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
         MTRSubscriptionEstablishedHandler establishedHandler) :
-        MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge(queue, handler, action),
+        MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge(queue, handler, action),
         mEstablishedHandler(establishedHandler)
     {}
 
     void OnSubscriptionEstablished();
-    using MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge::KeepAliveOnCallback;
-    using MTRTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge::OnDone;
+    using MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge::OnDone;
 
 private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
 };
 
-class MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge
-    : public MTRCallbackBridge<NullableTimeFormatLocalizationClusterCalendarTypeAttributeCallback>
+class MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<NullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback>
 {
 public:
-    MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
-        MTRCallbackBridge<NullableTimeFormatLocalizationClusterCalendarTypeAttributeCallback>(queue, handler, OnSuccessFn){};
+    MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge(dispatch_queue_t queue,
+                                                                                    ResponseHandler handler) :
+        MTRCallbackBridge<NullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback>(queue, handler, OnSuccessFn){};
 
-    MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
-                                                                                MTRActionBlock action) :
-        MTRCallbackBridge<NullableTimeFormatLocalizationClusterCalendarTypeAttributeCallback>(queue, handler, action,
-                                                                                              OnSuccessFn){};
+    MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                                    MTRActionBlock action) :
+        MTRCallbackBridge<NullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallback>(queue, handler, action,
+                                                                                                  OnSuccessFn){};
 
     static void
     OnSuccessFn(void * context,
-                const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::CalendarType> & value);
+                const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::CalendarTypeEnum> & value);
 };
 
-class MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackSubscriptionBridge
-    : public MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge
+class MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackSubscriptionBridge
+    : public MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge
 {
 public:
-    MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackSubscriptionBridge(
+    MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackSubscriptionBridge(
         dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
         MTRSubscriptionEstablishedHandler establishedHandler) :
-        MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge(queue, handler, action),
+        MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge(queue, handler, action),
         mEstablishedHandler(establishedHandler)
     {}
 
     void OnSubscriptionEstablished();
-    using MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge::KeepAliveOnCallback;
-    using MTRNullableTimeFormatLocalizationClusterCalendarTypeAttributeCallbackBridge::OnDone;
+    using MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRNullableTimeFormatLocalizationClusterCalendarTypeEnumAttributeCallbackBridge::OnDone;
 
 private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
 };
 
-class MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge
-    : public MTRCallbackBridge<TimeFormatLocalizationClusterHourFormatAttributeCallback>
+class MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<TimeFormatLocalizationClusterHourFormatEnumAttributeCallback>
 {
 public:
-    MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
-        MTRCallbackBridge<TimeFormatLocalizationClusterHourFormatAttributeCallback>(queue, handler, OnSuccessFn){};
+    MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<TimeFormatLocalizationClusterHourFormatEnumAttributeCallback>(queue, handler, OnSuccessFn){};
 
-    MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
-                                                                      MTRActionBlock action) :
-        MTRCallbackBridge<TimeFormatLocalizationClusterHourFormatAttributeCallback>(queue, handler, action, OnSuccessFn){};
+    MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                          MTRActionBlock action) :
+        MTRCallbackBridge<TimeFormatLocalizationClusterHourFormatEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
 
-    static void OnSuccessFn(void * context, chip::app::Clusters::TimeFormatLocalization::HourFormat value);
+    static void OnSuccessFn(void * context, chip::app::Clusters::TimeFormatLocalization::HourFormatEnum value);
 };
 
-class MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackSubscriptionBridge
-    : public MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge
+class MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackSubscriptionBridge
+    : public MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge
 {
 public:
-    MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackSubscriptionBridge(
+    MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackSubscriptionBridge(
         dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
         MTRSubscriptionEstablishedHandler establishedHandler) :
-        MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge(queue, handler, action),
+        MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge(queue, handler, action),
         mEstablishedHandler(establishedHandler)
     {}
 
     void OnSubscriptionEstablished();
-    using MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge::KeepAliveOnCallback;
-    using MTRTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge::OnDone;
+    using MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge::OnDone;
 
 private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
 };
 
-class MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge
-    : public MTRCallbackBridge<NullableTimeFormatLocalizationClusterHourFormatAttributeCallback>
+class MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<NullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallback>
 {
 public:
-    MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
-        MTRCallbackBridge<NullableTimeFormatLocalizationClusterHourFormatAttributeCallback>(queue, handler, OnSuccessFn){};
+    MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<NullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallback>(queue, handler, OnSuccessFn){};
 
-    MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
-                                                                              MTRActionBlock action) :
-        MTRCallbackBridge<NullableTimeFormatLocalizationClusterHourFormatAttributeCallback>(queue, handler, action, OnSuccessFn){};
+    MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                                  MTRActionBlock action) :
+        MTRCallbackBridge<NullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallback>(queue, handler, action,
+                                                                                                OnSuccessFn){};
 
-    static void OnSuccessFn(void * context,
-                            const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::HourFormat> & value);
+    static void
+    OnSuccessFn(void * context,
+                const chip::app::DataModel::Nullable<chip::app::Clusters::TimeFormatLocalization::HourFormatEnum> & value);
 };
 
-class MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackSubscriptionBridge
-    : public MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge
+class MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackSubscriptionBridge
+    : public MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge
 {
 public:
-    MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackSubscriptionBridge(
+    MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackSubscriptionBridge(
         dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
         MTRSubscriptionEstablishedHandler establishedHandler) :
-        MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge(queue, handler, action),
+        MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge(queue, handler, action),
         mEstablishedHandler(establishedHandler)
     {}
 
     void OnSubscriptionEstablished();
-    using MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge::KeepAliveOnCallback;
-    using MTRNullableTimeFormatLocalizationClusterHourFormatAttributeCallbackBridge::OnDone;
+    using MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRNullableTimeFormatLocalizationClusterHourFormatEnumAttributeCallbackBridge::OnDone;
 
 private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;
@@ -15655,6 +15883,150 @@ public:
     void OnSubscriptionEstablished();
     using MTRNullableTimeSynchronizationClusterTimeSourceEnumAttributeCallbackBridge::KeepAliveOnCallback;
     using MTRNullableTimeSynchronizationClusterTimeSourceEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<BridgedDeviceBasicInformationClusterColorEnumAttributeCallback>
+{
+public:
+    MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler) :
+        MTRCallbackBridge<BridgedDeviceBasicInformationClusterColorEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                            MTRActionBlock action) :
+        MTRCallbackBridge<BridgedDeviceBasicInformationClusterColorEnumAttributeCallback>(queue, handler, action, OnSuccessFn){};
+
+    static void OnSuccessFn(void * context, chip::app::Clusters::BridgedDeviceBasicInformation::ColorEnum value);
+};
+
+class MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge
+    : public MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge
+{
+public:
+    MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<NullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallback>
+{
+public:
+    MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue,
+                                                                                    ResponseHandler handler) :
+        MTRCallbackBridge<NullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                                    MTRActionBlock action) :
+        MTRCallbackBridge<NullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallback>(queue, handler, action,
+                                                                                                  OnSuccessFn){};
+
+    static void
+    OnSuccessFn(void * context,
+                const chip::app::DataModel::Nullable<chip::app::Clusters::BridgedDeviceBasicInformation::ColorEnum> & value);
+};
+
+class MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge
+    : public MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge
+{
+public:
+    MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRNullableBridgedDeviceBasicInformationClusterColorEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<BridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback>
+{
+public:
+    MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue,
+                                                                                    ResponseHandler handler) :
+        MTRCallbackBridge<BridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, OnSuccessFn){};
+
+    MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue, ResponseHandler handler,
+                                                                                    MTRActionBlock action) :
+        MTRCallbackBridge<BridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, action,
+                                                                                                  OnSuccessFn){};
+
+    static void OnSuccessFn(void * context, chip::app::Clusters::BridgedDeviceBasicInformation::ProductFinishEnum value);
+};
+
+class MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge
+    : public MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+{
+public:
+    MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge::OnDone;
+
+private:
+    MTRSubscriptionEstablishedHandler mEstablishedHandler;
+};
+
+class MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+    : public MTRCallbackBridge<NullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback>
+{
+public:
+    MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue,
+                                                                                            ResponseHandler handler) :
+        MTRCallbackBridge<NullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler,
+                                                                                                          OnSuccessFn){};
+
+    MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge(dispatch_queue_t queue,
+                                                                                            ResponseHandler handler,
+                                                                                            MTRActionBlock action) :
+        MTRCallbackBridge<NullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallback>(queue, handler, action,
+                                                                                                          OnSuccessFn){};
+
+    static void OnSuccessFn(
+        void * context,
+        const chip::app::DataModel::Nullable<chip::app::Clusters::BridgedDeviceBasicInformation::ProductFinishEnum> & value);
+};
+
+class MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge
+    : public MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge
+{
+public:
+    MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackSubscriptionBridge(
+        dispatch_queue_t queue, ResponseHandler handler, MTRActionBlock action,
+        MTRSubscriptionEstablishedHandler establishedHandler) :
+        MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge(queue, handler, action),
+        mEstablishedHandler(establishedHandler)
+    {}
+
+    void OnSubscriptionEstablished();
+    using MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge::KeepAliveOnCallback;
+    using MTRNullableBridgedDeviceBasicInformationClusterProductFinishEnumAttributeCallbackBridge::OnDone;
 
 private:
     MTRSubscriptionEstablishedHandler mEstablishedHandler;

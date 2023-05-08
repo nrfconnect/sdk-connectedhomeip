@@ -29,6 +29,10 @@ shared_library("jni") {
     output_extension = "dylib"
   }
 
+  # Temporary while we have circular dependencies between codegen.py and zap
+  # generated files
+  check_includes = false
+
   sources = [
     "AndroidCallbacks-JNI.cpp",
     "AndroidCallbacks.cpp",
@@ -43,6 +47,8 @@ shared_library("jni") {
     "AndroidDeviceControllerWrapper.h",
     "AndroidOperationalCredentialsIssuer.cpp",
     "AndroidOperationalCredentialsIssuer.h",
+    "AttestationTrustStoreBridge.cpp",
+    "AttestationTrustStoreBridge.h",
     "BaseCHIPCluster-JNI.cpp",
     "CHIPAttributeTLVValueDecoder.h",
     "CHIPDefaultCallbacks.cpp",
@@ -56,7 +62,6 @@ shared_library("jni") {
     "zap-generated/CHIPInvokeCallbacks.cpp",
     "zap-generated/CHIPInvokeCallbacks.h",
     "zap-generated/CHIPReadCallbacks.cpp",
-    "zap-generated/CHIPReadCallbacks.h",
   ]
 
   deps = [
@@ -138,14 +143,80 @@ if (chip_link_tests) {
   }
 }
 
+kotlin_library("tlv") {
+  output_name = "libCHIPTlv.jar"
+
+  deps = [ "${chip_root}/third_party/java_deps:protobuf-java" ]
+
+  sources = [
+    "src/chip/tlv/Element.kt",
+    "src/chip/tlv/TlvReader.kt",
+    "src/chip/tlv/TlvWriter.kt",
+    "src/chip/tlv/tags.kt",
+    "src/chip/tlv/types.kt",
+    "src/chip/tlv/utils.kt",
+    "src/chip/tlv/values.kt",
+  ]
+
+  kotlinc_flags = [ "-Xlint:deprecation" ]
+}
+
+kotlin_library("tlv_reader_test") {
+  output_name = "TlvReaderTest.jar"
+
+  deps = [
+    ":tlv",
+    "${chip_root}/third_party/java_deps:junit-4",
+    "${chip_root}/third_party/java_deps:truth",
+  ]
+
+  sources = [ "tests/chip/tlv/TlvReaderTest.kt" ]
+
+  kotlinc_flags = [ "-Xlint:deprecation" ]
+}
+
+kotlin_library("tlv_writer_test") {
+  output_name = "TlvWriterTest.jar"
+
+  deps = [
+    ":tlv",
+    "${chip_root}/third_party/java_deps:junit-4",
+    "${chip_root}/third_party/java_deps:truth",
+  ]
+
+  sources = [ "tests/chip/tlv/TlvWriterTest.kt" ]
+
+  kotlinc_flags = [ "-Xlint:deprecation" ]
+}
+
+kotlin_library("tlv_read_write_test") {
+  output_name = "TlvReadWriteTest.jar"
+
+  deps = [
+    ":tlv",
+    "${chip_root}/third_party/java_deps:junit-4",
+    "${chip_root}/third_party/java_deps:kotlin-test",
+    "${chip_root}/third_party/java_deps:truth",
+  ]
+
+  sources = [ "tests/chip/tlv/TlvReadWriteTest.kt" ]
+
+  kotlinc_flags = [ "-Xlint:deprecation" ]
+}
+
 android_library("java") {
   output_name = "CHIPController.jar"
 
-  deps = [ "${chip_root}/third_party/java_deps:annotation" ]
+  deps = [
+    ":tlv",
+    "${chip_root}/third_party/java_deps:annotation",
+  ]
 
   data_deps = [ ":jni" ]
 
   sources = [
+    "generated/java/chip/devicecontroller/ClusterReadMapping.java",
+    "generated/java/chip/devicecontroller/ClusterWriteMapping.java",
     "src/chip/clusterinfo/ClusterCommandCallback.java",
     "src/chip/clusterinfo/ClusterInfo.java",
     "src/chip/clusterinfo/CommandParameterInfo.java",
@@ -153,6 +224,7 @@ android_library("java") {
     "src/chip/clusterinfo/DelegatedClusterCallback.java",
     "src/chip/clusterinfo/InteractionInfo.java",
     "src/chip/devicecontroller/AttestationInfo.java",
+    "src/chip/devicecontroller/AttestationTrustStoreDelegate.java",
     "src/chip/devicecontroller/CSRInfo.java",
     "src/chip/devicecontroller/ChipClusterException.java",
     "src/chip/devicecontroller/ChipCommandType.java",
@@ -162,6 +234,8 @@ android_library("java") {
     "src/chip/devicecontroller/DeviceAttestationDelegate.java",
     "src/chip/devicecontroller/DiscoveredDevice.java",
     "src/chip/devicecontroller/GetConnectedDeviceCallbackJni.java",
+    "src/chip/devicecontroller/InvokeCallback.java",
+    "src/chip/devicecontroller/InvokeCallbackJni.java",
     "src/chip/devicecontroller/KeypairDelegate.java",
     "src/chip/devicecontroller/NetworkCredentials.java",
     "src/chip/devicecontroller/NetworkLocation.java",
@@ -175,21 +249,23 @@ android_library("java") {
     "src/chip/devicecontroller/ResubscriptionAttemptCallback.java",
     "src/chip/devicecontroller/SubscriptionEstablishedCallback.java",
     "src/chip/devicecontroller/UnpairDeviceCallback.java",
+    "src/chip/devicecontroller/WriteAttributesCallback.java",
+    "src/chip/devicecontroller/WriteAttributesCallbackJni.java",
     "src/chip/devicecontroller/model/AttributeState.java",
+    "src/chip/devicecontroller/model/AttributeWriteRequest.java",
     "src/chip/devicecontroller/model/ChipAttributePath.java",
     "src/chip/devicecontroller/model/ChipEventPath.java",
     "src/chip/devicecontroller/model/ChipPathId.java",
     "src/chip/devicecontroller/model/ClusterState.java",
     "src/chip/devicecontroller/model/EndpointState.java",
     "src/chip/devicecontroller/model/EventState.java",
+    "src/chip/devicecontroller/model/InvokeElement.java",
     "src/chip/devicecontroller/model/NodeState.java",
     "zap-generated/chip/devicecontroller/ChipClusters.java",
     "zap-generated/chip/devicecontroller/ChipEventStructs.java",
     "zap-generated/chip/devicecontroller/ChipIdLookup.java",
     "zap-generated/chip/devicecontroller/ChipStructs.java",
     "zap-generated/chip/devicecontroller/ClusterInfoMapping.java",
-    "zap-generated/chip/devicecontroller/ClusterReadMapping.java",
-    "zap-generated/chip/devicecontroller/ClusterWriteMapping.java",
   ]
 
   if (build_java_matter_controller) {
@@ -209,7 +285,7 @@ android_library("java") {
   ]
 
   # TODO: add classpath support (we likely need to add something like
-  #  ..../platforms/android-21/android.jar to access BLE items)
+  #  ..../platforms/android-26/android.jar to access BLE items)
 }
 
 if (chip_link_tests) {
@@ -241,7 +317,7 @@ if (chip_link_tests) {
     javac_flags = [ "-Xlint:deprecation" ]
 
     # TODO: add classpath support (we likely need to add something like
-    #  ..../platforms/android-21/android.jar to access BLE items)
+    #  ..../platforms/android-26/android.jar to access BLE items)
   }
 
   android_library("tests") {
@@ -276,12 +352,12 @@ if (chip_link_tests) {
     javac_flags = [ "-Xlint:deprecation" ]
 
     # TODO: add classpath support (we likely need to add something like
-    #  ..../platforms/android-21/android.jar to access BLE items)
+    #  ..../platforms/android-26/android.jar to access BLE items)
   }
 }
 
 if (!build_java_matter_controller) {
   java_prebuilt("android") {
-    jar_path = "${android_sdk_root}/platforms/android-21/android.jar"
+    jar_path = "${android_sdk_root}/platforms/android-26/android.jar"
   }
 }

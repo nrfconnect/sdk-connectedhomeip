@@ -1,5 +1,5 @@
 {
-  "featureLevel": 92,
+  "featureLevel": 95,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -198,7 +198,7 @@
           "mfgCode": null,
           "define": "GROUPS_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "AddGroupResponse",
@@ -1883,7 +1883,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "HourFormat",
+              "type": "HourFormatEnum",
               "included": 1,
               "storageOption": "NVM",
               "singleton": 0,
@@ -1899,7 +1899,7 @@
               "code": 1,
               "mfgCode": null,
               "side": "server",
-              "type": "CalendarType",
+              "type": "CalendarTypeEnum",
               "included": 1,
               "storageOption": "NVM",
               "singleton": 0,
@@ -7796,5 +7796,6 @@
       "endpointVersion": 1,
       "deviceIdentifier": 257
     }
-  ]
+  ],
+  "log": []
 }

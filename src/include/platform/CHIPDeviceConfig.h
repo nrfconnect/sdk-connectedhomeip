@@ -224,7 +224,7 @@
 #endif
 
 /**
- * CHIP_DEVICE_CONFIG_DEVICE_HARDWARE_VERSION_STRING
+ * CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION_STRING
  *
  * Human readable string identifying version of the product assigned by the device vendor.
  */
@@ -264,7 +264,7 @@
  * A monothonic number identifying the software version running on the device.
  */
 #ifndef CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION
-#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION 0
+#define CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION 1
 #endif
 
 /**
@@ -1008,6 +1008,16 @@
  */
 #ifndef CHIP_DEVICE_CONFIG_EVENT_ID_COUNTER_EPOCH
 #define CHIP_DEVICE_CONFIG_EVENT_ID_COUNTER_EPOCH (0x10000)
+#endif
+
+/**
+ * @def CHIP_DEVICE_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS
+ *
+ * @brief
+ *   By default, don't record UTC timestamps.
+ */
+#ifndef CHIP_DEVICE_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS
+#define CHIP_DEVICE_CONFIG_EVENT_LOGGING_UTC_TIMESTAMPS 0
 #endif
 
 // -------------------- Software Update Manager Configuration --------------------

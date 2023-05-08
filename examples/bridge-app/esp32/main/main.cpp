@@ -24,6 +24,7 @@
 #include <app/ConcreteAttributePath.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/reporting/reporting.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/util/attribute-storage.h>
 #include <common/Esp32AppServer.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -32,6 +33,7 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPMemString.h>
 #include <lib/support/ZclString.h>
+#include <platform/ESP32/ESP32Utils.h>
 
 #include <app/InteractionModelEngine.h>
 #include <app/server/Server.h>
@@ -229,7 +231,8 @@ EmberAfStatus HandleReadBridgedDeviceBasicAttribute(Device * dev, chip::Attribut
     }
     else if ((attributeId == ClusterRevision::Id) && (maxReadLength == 2))
     {
-        *buffer = (uint16_t) ZCL_BRIDGED_DEVICE_BASIC_INFORMATION_CLUSTER_REVISION;
+        uint16_t rev = ZCL_BRIDGED_DEVICE_BASIC_INFORMATION_CLUSTER_REVISION;
+        memcpy(buffer, &rev, sizeof(rev));
     }
     else
     {
@@ -249,7 +252,8 @@ EmberAfStatus HandleReadOnOffAttribute(Device * dev, chip::AttributeId attribute
     }
     else if ((attributeId == OnOff::Attributes::ClusterRevision::Id) && (maxReadLength == 2))
     {
-        *buffer = (uint16_t) ZCL_ON_OFF_CLUSTER_REVISION;
+        uint16_t rev = ZCL_ON_OFF_CLUSTER_REVISION;
+        memcpy(buffer, &rev, sizeof(rev));
     }
     else
     {
@@ -358,6 +362,8 @@ const EmberAfDeviceType gBridgedOnOffDeviceTypes[] = { { DEVICE_TYPE_LO_ON_OFF_L
 
 static void InitServer(intptr_t context)
 {
+    PrintOnboardingCodes(chip::RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE));
+
     Esp32AppServer::Init(); // Init ZCL Data Model and CHIP App Server AND Initialize device attestation config
 
     // Set starting endpoint id where dynamic endpoints will be assigned, which
@@ -403,12 +409,26 @@ extern "C" void app_main()
         ESP_LOGE(TAG, "nvs_flash_init() failed: %s", esp_err_to_name(err));
         return;
     }
+    err = esp_event_loop_create_default();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "esp_event_loop_create_default()  failed: %s", esp_err_to_name(err));
+        return;
+    }
 
     CHIP_ERROR chip_err = CHIP_NO_ERROR;
 
     // bridge will have own database named gDevices.
     // Clear database
     memset(gDevices, 0, sizeof(gDevices));
+
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+    if (DeviceLayer::Internal::ESP32Utils::InitWiFiStack() != CHIP_NO_ERROR)
+    {
+        ESP_LOGE(TAG, "Failed to initialize the Wi-Fi stack");
+        return;
+    }
+#endif
 
     gLight1.SetReachable(true);
     gLight2.SetReachable(true);

@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import re
-from itertools import combinations
-from typing import Any, List, Optional
-
 from builders.ameba import AmebaApp, AmebaBoard, AmebaBuilder
 from builders.android import AndroidApp, AndroidBoard, AndroidBuilder, AndroidProfile
 from builders.bouffalolab import BouffalolabApp, BouffalolabBoard, BouffalolabBuilder
@@ -73,7 +68,7 @@ def BuildHostFakeTarget():
     target.AppendModifier("asan", use_asan=True).ExceptIfRe("-tsan")
     target.AppendModifier("tsan", use_tsan=True).ExceptIfRe("-asan")
     target.AppendModifier("ubsan", use_ubsan=True)
-    target.AppendModifier("libfuzzer", use_tsan=True).OnlyIfRe("-clang")
+    target.AppendModifier("libfuzzer", use_libfuzzer=True).OnlyIfRe("-clang")
     target.AppendModifier('coverage', use_coverage=True).OnlyIfRe('-(chip-tool|all-clusters)')
     target.AppendModifier('dmalloc', use_dmalloc=True)
     target.AppendModifier('clang', use_clang=True)
@@ -110,6 +105,8 @@ def BuildHostTarget():
         TargetPart('shell', app=HostApp.SHELL),
         TargetPart('ota-provider', app=HostApp.OTA_PROVIDER, enable_ble=False),
         TargetPart('ota-requestor', app=HostApp.OTA_REQUESTOR, enable_ble=False),
+        TargetPart('simulated-app1', app=HostApp.SIMULATED_APP1, enable_ble=False),
+        TargetPart('simulated-app2', app=HostApp.SIMULATED_APP2, enable_ble=False),
         TargetPart('python-bindings', app=HostApp.PYTHON_BINDINGS),
         TargetPart('tv-app', app=HostApp.TV_APP),
         TargetPart('tv-casting-app', app=HostApp.TV_CASTING),
@@ -143,7 +140,7 @@ def BuildHostTarget():
     target.AppendModifier("asan", use_asan=True).ExceptIfRe("-tsan")
     target.AppendModifier("tsan", use_tsan=True).ExceptIfRe("-asan")
     target.AppendModifier("ubsan", use_ubsan=True)
-    target.AppendModifier("libfuzzer", use_tsan=True).OnlyIfRe("-clang")
+    target.AppendModifier("libfuzzer", use_libfuzzer=True).OnlyIfRe("-clang")
     target.AppendModifier('coverage', use_coverage=True).OnlyIfRe('-(chip-tool|all-clusters)')
     target.AppendModifier('dmalloc', use_dmalloc=True)
     target.AppendModifier('clang', use_clang=True)
@@ -159,7 +156,7 @@ def BuildEsp32Target():
 
     # boards
     target.AppendFixedTargets([
-        TargetPart('m5stack', board=Esp32Board.M5Stack).OnlyIfRe('-(all-clusters|ota-requestor)'),
+        TargetPart('m5stack', board=Esp32Board.M5Stack),
         TargetPart('c3devkit', board=Esp32Board.C3DevKit),
         TargetPart('devkitc', board=Esp32Board.DevKitC),
         TargetPart('qemu', board=Esp32Board.QEMU).OnlyIfRe('-tests'),
@@ -435,11 +432,10 @@ def BuildCyw30739Target():
     # apps
     target.AppendFixedTargets([
         TargetPart('light', app=Cyw30739App.LIGHT),
-        TargetPart('lock',  app=Cyw30739App.LOCK),
-        TargetPart('ota-requestor',  app=Cyw30739App.OTA_REQUESTOR),
+        TargetPart('lock', app=Cyw30739App.LOCK),
+        TargetPart('ota-requestor', app=Cyw30739App.OTA_REQUESTOR),
+        TargetPart('switch', app=Cyw30739App.SWITCH),
     ])
-
-    target.AppendModifier(name="no-progress-logging", progress_logging=False)
 
     return target
 
@@ -477,12 +473,14 @@ def BuildTizenTarget():
         TargetPart('all-clusters-minimal', app=TizenApp.ALL_CLUSTERS_MINIMAL),
         TargetPart('chip-tool', app=TizenApp.CHIP_TOOL),
         TargetPart('light', app=TizenApp.LIGHT),
+        TargetPart('tests', app=TizenApp.TESTS),
     ])
 
-    target.AppendModifier(name="no-ble", enable_ble=False)
-    target.AppendModifier(name="no-wifi", enable_wifi=False)
-    target.AppendModifier(name="asan", use_asan=True)
-    target.AppendModifier(name="ubsan", use_ubsan=True)
+    target.AppendModifier("no-ble", enable_ble=False)
+    target.AppendModifier("no-thread", enable_thread=False)
+    target.AppendModifier("no-wifi", enable_wifi=False)
+    target.AppendModifier("asan", use_asan=True)
+    target.AppendModifier("ubsan", use_ubsan=True)
 
     return target
 
@@ -549,6 +547,7 @@ def BuildTelinkTarget():
     target.AppendFixedTargets([
         TargetPart('all-clusters', app=TelinkApp.ALL_CLUSTERS),
         TargetPart('all-clusters-minimal', app=TelinkApp.ALL_CLUSTERS_MINIMAL),
+        TargetPart('bridge', app=TelinkApp.BRIDGE),
         TargetPart('contact-sensor', app=TelinkApp.CONTACT_SENSOR),
         TargetPart('light', app=TelinkApp.LIGHT),
         TargetPart('light-switch', app=TelinkApp.SWITCH),
@@ -556,8 +555,13 @@ def BuildTelinkTarget():
         TargetPart('ota-requestor', app=TelinkApp.OTA_REQUESTOR),
         TargetPart('pump', app=TelinkApp.PUMP),
         TargetPart('pump-controller', app=TelinkApp.PUMP_CONTROLLER),
+        TargetPart('temperature-measurement', app=TelinkApp.TEMPERATURE_MEASUREMENT),
         TargetPart('thermostat', app=TelinkApp.THERMOSTAT),
+        TargetPart('window-covering', app=TelinkApp.WINDOW_COVERING),
     ])
+
+    target.AppendModifier('rpc', enable_rpcs=True)
+    target.AppendModifier('factory-data', enable_factory_data=True)
 
     return target
 

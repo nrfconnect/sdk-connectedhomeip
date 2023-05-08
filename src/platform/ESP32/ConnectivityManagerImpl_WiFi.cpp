@@ -105,6 +105,12 @@ void ConnectivityManagerImpl::_ClearWiFiStationProvision(void)
 {
     if (mWiFiStationMode != kWiFiStationMode_ApplicationControlled)
     {
+        CHIP_ERROR error = chip::DeviceLayer::Internal::ESP32Utils::ClearWiFiStationProvision();
+        if (error != CHIP_NO_ERROR)
+        {
+            ChipLogError(DeviceLayer, "ClearWiFiStationProvision failed: %s", chip::ErrorStr(error));
+            return;
+        }
         DeviceLayer::SystemLayer().ScheduleWork(DriveStationState, NULL);
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP
         DeviceLayer::SystemLayer().ScheduleWork(DriveAPState, NULL);
@@ -520,7 +526,10 @@ void ConnectivityManagerImpl::OnWiFiPlatformEvent(const ChipDeviceEvent * event)
                 break;
             case IP_EVENT_GOT_IP6:
                 ChipLogProgress(DeviceLayer, "IP_EVENT_GOT_IP6");
-                OnIPv6AddressAvailable(event->Platform.ESPSystemEvent.Data.IpGotIp6);
+                if (strcmp(esp_netif_get_ifkey(event->Platform.ESPSystemEvent.Data.IpGotIp6.esp_netif), "WIFI_STA_DEF") == 0)
+                {
+                    OnStationIPv6AddressAvailable(event->Platform.ESPSystemEvent.Data.IpGotIp6);
+                }
                 break;
             default:
                 break;
@@ -1080,7 +1089,7 @@ void ConnectivityManagerImpl::OnStationIPv4AddressLost(void)
     PlatformMgr().PostEventOrDie(&event);
 }
 
-void ConnectivityManagerImpl::OnIPv6AddressAvailable(const ip_event_got_ip6_t & got_ip)
+void ConnectivityManagerImpl::OnStationIPv6AddressAvailable(const ip_event_got_ip6_t & got_ip)
 {
 #if CHIP_PROGRESS_LOGGING
     {

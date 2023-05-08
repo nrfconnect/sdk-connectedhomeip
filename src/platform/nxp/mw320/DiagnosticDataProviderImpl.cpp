@@ -289,12 +289,12 @@ CHIP_ERROR DiagnosticDataProviderImpl::ResetWiFiNetworkDiagnosticsCounts()
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiVersion(uint8_t & wiFiVersion)
+CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiVersion(app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum & wiFiVersion)
 {
     return ConnectivityMgrImpl().GetWiFiVersion(wiFiVersion);
 }
 
-CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBssId(ByteSpan & value)
+CHIP_ERROR DiagnosticDataProviderImpl::GetWiFiBssId(MutableByteSpan & value)
 {
     return ConnectivityMgrImpl().GetWiFiBssId(value);
 }

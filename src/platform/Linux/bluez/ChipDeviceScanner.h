@@ -44,6 +44,9 @@ public:
 
     // Called when a scan was completed (stopped or timed out)
     virtual void OnScanComplete() = 0;
+
+    // Call on scan error
+    virtual void OnScanError(CHIP_ERROR) = 0;
 };
 
 /// Allows scanning for CHIP devices
@@ -76,8 +79,8 @@ public:
 
 private:
     static void TimerExpiredCallback(chip::System::Layer * layer, void * appState);
-    static int MainLoopStartScan(ChipDeviceScanner * self);
-    static int MainLoopStopScan(ChipDeviceScanner * self);
+    static CHIP_ERROR MainLoopStartScan(ChipDeviceScanner * self);
+    static CHIP_ERROR MainLoopStopScan(ChipDeviceScanner * self);
     static void SignalObjectAdded(GDBusObjectManager * manager, GDBusObject * object, ChipDeviceScanner * self);
     static void SignalInterfaceChanged(GDBusObjectManagerClient * manager, GDBusObjectProxy * object, GDBusProxy * aInterface,
                                        GVariant * aChangedProperties, const gchar * const * aInvalidatedProps,

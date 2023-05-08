@@ -26,13 +26,11 @@
 
 #include <functional>
 
-#include <platform/internal/CHIPDeviceLayerInternal.h>
-
 #include "nvm3.h"
 #include "nvm3_hal_flash.h"
 
 #ifndef KVS_MAX_ENTRIES
-#define KVS_MAX_ENTRIES 75 // Available key slot count for Kvs Key mapping.
+#define KVS_MAX_ENTRIES 255 // Available key slot count for Kvs Key mapping.
 #endif
 
 // Delay before Key/Value is actually saved in NVM
@@ -137,6 +135,14 @@ public:
     static constexpr Key kConfigKey_YearDaySchedules   = SilabsConfigKey(kMatterConfig_KeyBase, 0x16);
     static constexpr Key kConfigKey_HolidaySchedules   = SilabsConfigKey(kMatterConfig_KeyBase, 0x17);
     static constexpr Key kConfigKey_OpKeyMap           = SilabsConfigKey(kMatterConfig_KeyBase, 0x20);
+    static constexpr Key kConfigKey_Creds_KeyId        = SilabsConfigKey(kMatterConfig_KeyBase, 0x21);
+    static constexpr Key kConfigKey_Creds_Base_Addr    = SilabsConfigKey(kMatterConfig_KeyBase, 0x22);
+    static constexpr Key kConfigKey_Creds_DAC_Offset   = SilabsConfigKey(kMatterConfig_KeyBase, 0x23);
+    static constexpr Key kConfigKey_Creds_DAC_Size     = SilabsConfigKey(kMatterConfig_KeyBase, 0x24);
+    static constexpr Key kConfigKey_Creds_PAI_Offset   = SilabsConfigKey(kMatterConfig_KeyBase, 0x25);
+    static constexpr Key kConfigKey_Creds_PAI_Size     = SilabsConfigKey(kMatterConfig_KeyBase, 0x26);
+    static constexpr Key kConfigKey_Creds_CD_Offset    = SilabsConfigKey(kMatterConfig_KeyBase, 0x27);
+    static constexpr Key kConfigKey_Creds_CD_Size      = SilabsConfigKey(kMatterConfig_KeyBase, 0x28);
 
     static constexpr Key kConfigKey_GroupKeyMax =
         SilabsConfigKey(kMatterConfig_KeyBase, 0x1E); // Allows 16 Group Keys to be created.
@@ -145,6 +151,7 @@ public:
     static constexpr Key kConfigKey_BootCount             = SilabsConfigKey(kMatterCounter_KeyBase, 0x00);
     static constexpr Key kConfigKey_TotalOperationalHours = SilabsConfigKey(kMatterCounter_KeyBase, 0x01);
     static constexpr Key kConfigKey_LifeTimeCounter       = SilabsConfigKey(kMatterCounter_KeyBase, 0x02);
+    static constexpr Key kConfigKey_MigrationCounter      = SilabsConfigKey(kMatterCounter_KeyBase, 0x03);
 
     // Matter KVS storage Keys
     static constexpr Key kConfigKey_KvsStringKeyMap = SilabsConfigKey(kMatterKvs_KeyBase, 0x00);
@@ -161,8 +168,8 @@ public:
     static constexpr Key kMinConfigKey_MatterCounter = SilabsConfigKey(kMatterCounter_KeyBase, 0x00);
     static constexpr Key kMaxConfigKey_MatterCounter = SilabsConfigKey(kMatterCounter_KeyBase, 0x1F);
 
-    static constexpr Key kMinConfigKey_MatterKvs = SilabsConfigKey(kMatterKvs_KeyBase, 0x00);
-    static constexpr Key kMaxConfigKey_MatterKvs = SilabsConfigKey(kMatterKvs_KeyBase, 0xFF);
+    static constexpr Key kMinConfigKey_MatterKvs = kConfigKey_KvsStringKeyMap;
+    static constexpr Key kMaxConfigKey_MatterKvs = kConfigKey_KvsLastKeySlot;
 
     static CHIP_ERROR Init(void);
     static void DeInit(void);

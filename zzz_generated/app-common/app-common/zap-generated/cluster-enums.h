@@ -98,8 +98,8 @@ static IdentifyIdentifyType __attribute__((unused)) kIdentifyIdentifyTypekUnknow
 
 namespace Groups {
 
-// Bitmap for GroupClusterFeature
-enum class GroupClusterFeature : uint32_t
+// Bitmap for GroupsFeature
+enum class GroupsFeature : uint32_t
 {
     kGroupNames = 0x1,
 };
@@ -107,16 +107,16 @@ enum class GroupClusterFeature : uint32_t
 
 namespace Scenes {
 
-// Bitmap for SceneFeatures
-enum class SceneFeatures : uint32_t
-{
-    kSceneNames = 0x1,
-};
-
 // Bitmap for ScenesCopyMode
 enum class ScenesCopyMode : uint8_t
 {
     kCopyAllScenes = 0x1,
+};
+
+// Bitmap for ScenesFeature
+enum class ScenesFeature : uint32_t
+{
+    kSceneNames = 0x1,
 };
 } // namespace Scenes
 
@@ -370,7 +370,55 @@ enum class CommandBits : uint16_t
 };
 } // namespace Actions
 
-namespace BasicInformation {} // namespace BasicInformation
+namespace BasicInformation {
+
+// Enum for ColorEnum
+enum class ColorEnum : uint8_t
+{
+    kBlack   = 0x00,
+    kNavy    = 0x01,
+    kGreen   = 0x02,
+    kTeal    = 0x03,
+    kMaroon  = 0x04,
+    kPurple  = 0x05,
+    kOlive   = 0x06,
+    kGray    = 0x07,
+    kBlue    = 0x08,
+    kLime    = 0x09,
+    kAqua    = 0x0A,
+    kRed     = 0x0B,
+    kFuchsia = 0x0C,
+    kYellow  = 0x0D,
+    kWhite   = 0x0E,
+    kNickel  = 0x0F,
+    kChrome  = 0x10,
+    kBrass   = 0x11,
+    kCopper  = 0x12,
+    kSilver  = 0x13,
+    kGold    = 0x14,
+    // All received enum values that are not listed above will be mapped
+    // to kUnknownEnumValue. This is a helper enum value that should only
+    // be used by code to process how it handles receiving and unknown
+    // enum value. This specific should never be transmitted.
+    kUnknownEnumValue = 21,
+};
+
+// Enum for ProductFinishEnum
+enum class ProductFinishEnum : uint8_t
+{
+    kOther    = 0x00,
+    kMatte    = 0x01,
+    kSatin    = 0x02,
+    kPolished = 0x03,
+    kRugged   = 0x04,
+    kFabric   = 0x05,
+    // All received enum values that are not listed above will be mapped
+    // to kUnknownEnumValue. This is a helper enum value that should only
+    // be used by code to process how it handles receiving and unknown
+    // enum value. This specific should never be transmitted.
+    kUnknownEnumValue = 6,
+};
+} // namespace BasicInformation
 
 namespace OtaSoftwareUpdateProvider {
 
@@ -470,8 +518,8 @@ namespace LocalizationConfiguration {} // namespace LocalizationConfiguration
 
 namespace TimeFormatLocalization {
 
-// Enum for CalendarType
-enum class CalendarType : uint8_t
+// Enum for CalendarTypeEnum
+enum class CalendarTypeEnum : uint8_t
 {
     kBuddhist  = 0x00,
     kChinese   = 0x01,
@@ -492,8 +540,8 @@ enum class CalendarType : uint8_t
     kUnknownEnumValue = 12,
 };
 
-// Enum for HourFormat
-enum class HourFormat : uint8_t
+// Enum for HourFormatEnum
+enum class HourFormatEnum : uint8_t
 {
     k12hr = 0x00,
     k24hr = 0x01,
@@ -941,9 +989,6 @@ enum class BootReasonEnum : uint8_t
     kUnknownEnumValue = 7,
 };
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for HardwareFaultEnum
 enum class HardwareFaultEnum : uint8_t
 {
@@ -964,10 +1009,6 @@ enum class HardwareFaultEnum : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 11,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using HardwareFaultEnum                                                                    = EmberAfHardwareFaultEnum;
-static HardwareFaultEnum __attribute__((unused)) kHardwareFaultEnumkUnknownEnumValue       = static_cast<HardwareFaultEnum>(11);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
 // Need to convert consumers to using the new enum classes, so we
 // don't just have casts all over.
@@ -1258,7 +1299,55 @@ enum class TimeSourceEnum : uint8_t
 };
 } // namespace TimeSynchronization
 
-namespace BridgedDeviceBasicInformation {} // namespace BridgedDeviceBasicInformation
+namespace BridgedDeviceBasicInformation {
+
+// Enum for ColorEnum
+enum class ColorEnum : uint8_t
+{
+    kBlack   = 0x00,
+    kNavy    = 0x01,
+    kGreen   = 0x02,
+    kTeal    = 0x03,
+    kMaroon  = 0x04,
+    kPurple  = 0x05,
+    kOlive   = 0x06,
+    kGray    = 0x07,
+    kBlue    = 0x08,
+    kLime    = 0x09,
+    kAqua    = 0x0A,
+    kRed     = 0x0B,
+    kFuchsia = 0x0C,
+    kYellow  = 0x0D,
+    kWhite   = 0x0E,
+    kNickel  = 0x0F,
+    kChrome  = 0x10,
+    kBrass   = 0x11,
+    kCopper  = 0x12,
+    kSilver  = 0x13,
+    kGold    = 0x14,
+    // All received enum values that are not listed above will be mapped
+    // to kUnknownEnumValue. This is a helper enum value that should only
+    // be used by code to process how it handles receiving and unknown
+    // enum value. This specific should never be transmitted.
+    kUnknownEnumValue = 21,
+};
+
+// Enum for ProductFinishEnum
+enum class ProductFinishEnum : uint8_t
+{
+    kOther    = 0x00,
+    kMatte    = 0x01,
+    kSatin    = 0x02,
+    kPolished = 0x03,
+    kRugged   = 0x04,
+    kFabric   = 0x05,
+    // All received enum values that are not listed above will be mapped
+    // to kUnknownEnumValue. This is a helper enum value that should only
+    // be used by code to process how it handles receiving and unknown
+    // enum value. This specific should never be transmitted.
+    kUnknownEnumValue = 6,
+};
+} // namespace BridgedDeviceBasicInformation
 
 namespace Switch {
 
@@ -1947,16 +2036,6 @@ enum class ConfigStatus : uint8_t
     kTiltEncoderControlled = 0x40,
 };
 
-// Bitmap for Feature
-enum class Feature : uint32_t
-{
-    kLift              = 0x1,
-    kTilt              = 0x2,
-    kPositionAwareLift = 0x4,
-    kAbsolutePosition  = 0x8,
-    kPositionAwareTilt = 0x10,
-};
-
 // Bitmap for Mode
 enum class Mode : uint8_t
 {
@@ -1989,6 +2068,16 @@ enum class SafetyStatus : uint16_t
     kHardwareFailure     = 0x200,
     kManualOperation     = 0x400,
     kProtection          = 0x800,
+};
+
+// Bitmap for WindowCoveringFeature
+enum class WindowCoveringFeature : uint32_t
+{
+    kLift              = 0x1,
+    kTilt              = 0x2,
+    kPositionAwareLift = 0x4,
+    kAbsolutePosition  = 0x8,
+    kPositionAwareTilt = 0x10,
 };
 } // namespace WindowCovering
 
@@ -2026,8 +2115,8 @@ enum class OperationModeEnum : uint8_t
     kUnknownEnumValue = 4,
 };
 
-// Bitmap for PumpFeature
-enum class PumpFeature : uint32_t
+// Bitmap for PumpConfigurationAndControlFeature
+enum class PumpConfigurationAndControlFeature : uint32_t
 {
     kConstantPressure    = 0x1,
     kCompensatedPressure = 0x2,
@@ -2219,9 +2308,6 @@ namespace ThermostatUserInterfaceConfiguration {} // namespace ThermostatUserInt
 
 namespace ColorControl {
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for ColorLoopAction
 enum class ColorLoopAction : uint8_t
 {
@@ -2234,14 +2320,7 @@ enum class ColorLoopAction : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 3,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using ColorLoopAction                                                                      = EmberAfColorLoopAction;
-static ColorLoopAction __attribute__((unused)) kColorLoopActionkUnknownEnumValue           = static_cast<ColorLoopAction>(3);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for ColorLoopDirection
 enum class ColorLoopDirection : uint8_t
 {
@@ -2253,10 +2332,6 @@ enum class ColorLoopDirection : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 2,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using ColorLoopDirection                                                                   = EmberAfColorLoopDirection;
-static ColorLoopDirection __attribute__((unused)) kColorLoopDirectionkUnknownEnumValue     = static_cast<ColorLoopDirection>(2);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
 // Need to convert consumers to using the new enum classes, so we
 // don't just have casts all over.
@@ -2278,9 +2353,6 @@ using ColorMode                                                                 
 static ColorMode __attribute__((unused)) kColorModekUnknownEnumValue                       = static_cast<ColorMode>(3);
 #endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for HueDirection
 enum class HueDirection : uint8_t
 {
@@ -2294,14 +2366,7 @@ enum class HueDirection : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 4,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using HueDirection                                                                         = EmberAfHueDirection;
-static HueDirection __attribute__((unused)) kHueDirectionkUnknownEnumValue                 = static_cast<HueDirection>(4);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for HueMoveMode
 enum class HueMoveMode : uint8_t
 {
@@ -2314,14 +2379,7 @@ enum class HueMoveMode : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 2,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using HueMoveMode                                                                          = EmberAfHueMoveMode;
-static HueMoveMode __attribute__((unused)) kHueMoveModekUnknownEnumValue                   = static_cast<HueMoveMode>(2);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for HueStepMode
 enum class HueStepMode : uint8_t
 {
@@ -2333,14 +2391,7 @@ enum class HueStepMode : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 0,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using HueStepMode                                                                          = EmberAfHueStepMode;
-static HueStepMode __attribute__((unused)) kHueStepModekUnknownEnumValue                   = static_cast<HueStepMode>(0);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for SaturationMoveMode
 enum class SaturationMoveMode : uint8_t
 {
@@ -2353,14 +2404,7 @@ enum class SaturationMoveMode : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 2,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using SaturationMoveMode                                                                   = EmberAfSaturationMoveMode;
-static SaturationMoveMode __attribute__((unused)) kSaturationMoveModekUnknownEnumValue     = static_cast<SaturationMoveMode>(2);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
-// Need to convert consumers to using the new enum classes, so we
-// don't just have casts all over.
-#ifdef CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 // Enum for SaturationStepMode
 enum class SaturationStepMode : uint8_t
 {
@@ -2372,10 +2416,6 @@ enum class SaturationStepMode : uint8_t
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 0,
 };
-#else  // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
-using SaturationStepMode                                                                   = EmberAfSaturationStepMode;
-static SaturationStepMode __attribute__((unused)) kSaturationStepModekUnknownEnumValue     = static_cast<SaturationStepMode>(0);
-#endif // CHIP_USE_ENUM_CLASS_FOR_IM_ENUM
 
 // Bitmap for ColorCapabilities
 enum class ColorCapabilities : uint16_t
@@ -2428,8 +2468,8 @@ namespace TemperatureMeasurement {} // namespace TemperatureMeasurement
 
 namespace PressureMeasurement {
 
-// Bitmap for PressureFeature
-enum class PressureFeature : uint32_t
+// Bitmap for PressureMeasurementFeature
+enum class PressureMeasurementFeature : uint32_t
 {
     kExtended = 0x1,
 };

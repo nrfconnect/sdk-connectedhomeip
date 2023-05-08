@@ -98,6 +98,10 @@ CHIP_ERROR PersistenceManager::WriteAllVideoPlayers(TargetVideoPlayerInfo videoP
             ReturnErrorOnFailure(tlvWriter.PutBytes(TLV::ContextTag(kVideoPlayerDeviceNameTag),
                                                     (const uint8_t *) videoPlayer->GetDeviceName(),
                                                     static_cast<uint32_t>(strlen(videoPlayer->GetDeviceName()) + 1)));
+            ReturnErrorOnFailure(tlvWriter.PutBytes(TLV::ContextTag(kVideoPlayerHostNameTag),
+                                                    (const uint8_t *) videoPlayer->GetHostName(),
+                                                    static_cast<uint32_t>(strlen(videoPlayer->GetHostName()) + 1)));
+
             ReturnErrorOnFailure(
                 tlvWriter.Put(TLV::ContextTag(kVideoPlayerNumIPsTag), static_cast<uint64_t>(videoPlayer->GetNumIPs())));
             const Inet::IPAddress * ipAddress = videoPlayer->GetIpAddresses();
@@ -205,6 +209,7 @@ CHIP_ERROR PersistenceManager::ReadAllVideoPlayers(TargetVideoPlayerInfo outVide
     uint16_t productId                                  = 0;
     uint16_t deviceType                                 = 0;
     char deviceName[chip::Dnssd::kMaxDeviceNameLen + 1] = {};
+    char hostName[chip::Dnssd::kHostNameMaxLength + 1]  = {};
     size_t numIPs                                       = 0;
     Inet::IPAddress ipAddress[chip::Dnssd::CommonResolutionData::kMaxIPAddresses];
     CHIP_ERROR err;
@@ -251,6 +256,12 @@ CHIP_ERROR PersistenceManager::ReadAllVideoPlayers(TargetVideoPlayerInfo outVide
         if (videoPlayersContainerTagNum == kVideoPlayerDeviceNameTag)
         {
             ReturnErrorOnFailure(reader.GetBytes(reinterpret_cast<uint8_t *>(deviceName), chip::Dnssd::kMaxDeviceNameLen + 1));
+            continue;
+        }
+
+        if (videoPlayersContainerTagNum == kVideoPlayerHostNameTag)
+        {
+            ReturnErrorOnFailure(reader.GetBytes(reinterpret_cast<uint8_t *>(hostName), chip::Dnssd::kHostNameMaxLength + 1));
             continue;
         }
 
@@ -301,7 +312,7 @@ CHIP_ERROR PersistenceManager::ReadAllVideoPlayers(TargetVideoPlayerInfo outVide
         if (videoPlayersContainerTagNum == kContentAppEndpointsContainerTag)
         {
             outVideoPlayers[videoPlayerIndex].Initialize(nodeId, fabricIndex, nullptr, nullptr, vendorId, productId, deviceType,
-                                                         deviceName, numIPs, ipAddress);
+                                                         deviceName, hostName, numIPs, ipAddress);
             // Entering Content App Endpoints container
             TLV::TLVType contentAppEndpointArrayContainerType = TLV::kTLVType_Array;
             ReturnErrorOnFailure(reader.EnterContainer(contentAppEndpointArrayContainerType));
@@ -391,8 +402,56 @@ CHIP_ERROR PersistenceManager::ReadAllVideoPlayers(TargetVideoPlayerInfo outVide
     return CHIP_NO_ERROR;
 }
 
+void PersistenceManager::OnFabricRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex)
+{
+    ChipLogProgress(AppServer, "PersistenceManager::OnFabricRemoved called for fabricIndex: %d", fabricIndex);
+
+    // Read cached video players
+    TargetVideoPlayerInfo cachedVideoPlayers[kMaxCachedVideoPlayers];
+    CHIP_ERROR err = ReadAllVideoPlayers(cachedVideoPlayers);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "PersistenceManager::OnFabricRemoved could not read cached video players %" CHIP_ERROR_FORMAT,
+                     err.Format());
+    }
+
+    // Delete video players that match the passed in fabricIndex
+    for (size_t i = 0; i < kMaxCachedVideoPlayers && cachedVideoPlayers[i].IsInitialized(); i++)
+    {
+        if (cachedVideoPlayers[i].GetFabricIndex() == fabricIndex)
+        {
+            ChipLogProgress(AppServer,
+                            "PersistenceManager::OnFabricRemoved removing video player with nodeId: 0x" ChipLogFormatX64
+                            " from cache",
+                            ChipLogValueX64(cachedVideoPlayers[i].GetNodeId()));
+
+            // shift elements back by 1 and mark the last array element for deletion
+            size_t indexToDelete = i;
+            if (indexToDelete + 1 < kMaxCachedVideoPlayers && cachedVideoPlayers[indexToDelete + 1].IsInitialized())
+            {
+                while (indexToDelete + 1 < kMaxCachedVideoPlayers && cachedVideoPlayers[indexToDelete + 1].IsInitialized())
+                {
+                    cachedVideoPlayers[indexToDelete] = cachedVideoPlayers[indexToDelete + 1];
+                    indexToDelete++;
+                }
+            }
+
+            // Reset cachedVideoPlayers[indexToDelete]
+            cachedVideoPlayers[indexToDelete].Reset();
+        }
+    }
+
+    WriteAllVideoPlayers(cachedVideoPlayers);
+}
+
 CHIP_ERROR PersistenceManager::PurgeVideoPlayerCache()
 {
     ChipLogProgress(AppServer, "PersistenceManager::PurgeVideoPlayerCache called");
-    return chip::DeviceLayer::PersistedStorage::KeyValueStoreMgr().Delete(kCastingDataKey);
+    CHIP_ERROR err = chip::DeviceLayer::PersistedStorage::KeyValueStoreMgr().Delete(kCastingDataKey);
+    if (err == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND) // no error, if the key-value pair was not stored
+    {
+        ChipLogProgress(AppServer, "PersistenceManager::PurgeVideoPlayerCache ignoring error %" CHIP_ERROR_FORMAT, err.Format());
+        return CHIP_NO_ERROR;
+    }
+    return err;
 }

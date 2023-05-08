@@ -79,12 +79,12 @@ typedef void (^MTRValuesHandler)(id _Nullable values, NSError * _Nullable error)
 /**
  * Returns an NSXPCInterface configured for MTRDeviceControllerServerProtocol.
  */
-+ (NSXPCInterface *)xpcInterfaceForServerProtocol MTR_NEWLY_AVAILABLE;
++ (NSXPCInterface *)xpcInterfaceForServerProtocol API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
 
 /**
  * Returns an NSXPCInterface configured for MTRDeviceControllerClientProtocol.
  */
-+ (NSXPCInterface *)xpcInterfaceForClientProtocol MTR_NEWLY_AVAILABLE;
++ (NSXPCInterface *)xpcInterfaceForClientProtocol API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
 @end
 
 /**
@@ -98,7 +98,7 @@ typedef void (^MTRValuesHandler)(id _Nullable values, NSError * _Nullable error)
  */
 - (void)getDeviceControllerWithFabricId:(uint64_t)fabricId
                              completion:(MTRDeviceControllerGetterHandler)completion
-    API_DEPRECATED("This never called.", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+    MTR_DEPRECATED("This never called.", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 
 @required
 /**
@@ -203,7 +203,7 @@ typedef void (^MTRValuesHandler)(id _Nullable values, NSError * _Nullable error)
 
 + (MTRDeviceController *)sharedControllerWithId:(id<NSCopying> _Nullable)controllerID
                                 xpcConnectBlock:(MTRXPCConnectBlock)xpcConnectBlock
-    API_DEPRECATED("Please use sharedControllerWithID:xpcConnectBlock:", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+    MTR_DEPRECATED("Please use sharedControllerWithID:xpcConnectBlock:", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
         tvos(16.1, 16.4));
 
 @end

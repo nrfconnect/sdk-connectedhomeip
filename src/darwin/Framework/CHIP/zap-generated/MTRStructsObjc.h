@@ -15,14 +15,14 @@
  *    limitations under the License.
  */
 
-#import <Foundation/Foundation.h>
+#import <Matter/MTRDefines.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRScenesClusterAttributeValuePair : NSObject <NSCopying>
 @property (nonatomic, copy) NSNumber * _Nullable attributeID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nullable attributeId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nullable attributeId MTR_DEPRECATED(
     "Please use attributeID", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @property (nonatomic, copy) NSArray * _Nonnull attributeValue API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
 @end
@@ -30,7 +30,7 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRScenesClusterExtensionFieldSet : NSObject <NSCopying>
 @property (nonatomic, copy) NSNumber * _Nonnull clusterID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull clusterId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull clusterId MTR_DEPRECATED(
     "Please use clusterID", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @property (nonatomic, copy) NSArray * _Nonnull attributeValueList API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
 @end
@@ -38,12 +38,12 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 API_AVAILABLE(ios(16.2), macos(13.1), watchos(9.2), tvos(16.2))
 @interface MTRDescriptorClusterDeviceTypeStruct : NSObject <NSCopying>
 @property (nonatomic, copy) NSNumber * _Nonnull deviceType API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull type API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull type MTR_DEPRECATED(
     "Please use deviceType", ios(16.2, 16.4), macos(13.1, 13.3), watchos(9.2, 9.4), tvos(16.2, 16.4));
 @property (nonatomic, copy) NSNumber * _Nonnull revision API_AVAILABLE(ios(16.2), macos(13.1), watchos(9.2), tvos(16.2));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRDescriptorClusterDeviceTypeStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRDescriptorClusterDeviceType : MTRDescriptorClusterDeviceTypeStruct
 @end
@@ -73,7 +73,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRAccessControlClusterAccessControlEntryStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRAccessControlClusterAccessControlEntryStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRAccessControlClusterAccessControlEntry : MTRAccessControlClusterAccessControlEntryStruct
 @end
@@ -83,7 +83,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRAccessControlClusterAccessControlExtensionStruct", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTRAccessControlClusterAccessControlExtensionStruct", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRAccessControlClusterExtensionEntry : MTRAccessControlClusterAccessControlExtensionStruct
 @end
@@ -151,9 +151,14 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
     NSNumber * _Nonnull subscriptionsPerFabric API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRBasicInformationClusterCapabilityMinimaStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRBasicInformationClusterCapabilityMinimaStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRBasicClusterCapabilityMinimaStruct : MTRBasicInformationClusterCapabilityMinimaStruct
+@end
+MTR_NEWLY_AVAILABLE
+@interface MTRBasicInformationClusterProductAppearanceStruct : NSObject <NSCopying>
+@property (nonatomic, copy) NSNumber * _Nonnull finish MTR_NEWLY_AVAILABLE;
+@property (nonatomic, copy) NSNumber * _Nullable primaryColor MTR_NEWLY_AVAILABLE;
 @end
 
 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
@@ -161,7 +166,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull softwareVersion API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRBasicInformationClusterStartUpEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRBasicClusterStartUpEvent : MTRBasicInformationClusterStartUpEvent
 @end
@@ -170,7 +175,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTRBasicInformationClusterShutDownEvent : NSObject <NSCopying>
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRBasicInformationClusterShutDownEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRBasicClusterShutDownEvent : MTRBasicInformationClusterShutDownEvent
 @end
@@ -180,7 +185,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRBasicInformationClusterLeaveEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRBasicClusterLeaveEvent : MTRBasicInformationClusterLeaveEvent
 @end
@@ -190,7 +195,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull reachableNewValue API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRBasicInformationClusterReachableChangedEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRBasicInformationClusterReachableChangedEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRBasicClusterReachableChangedEvent : MTRBasicInformationClusterReachableChangedEvent
 @end
@@ -202,7 +207,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterProviderLocation", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterProviderLocation", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTROtaSoftwareUpdateRequestorClusterProviderLocation : MTROTASoftwareUpdateRequestorClusterProviderLocation
 @end
@@ -217,7 +222,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
     NSNumber * _Nullable targetSoftwareVersion API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterStateTransitionEvent", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterStateTransitionEvent", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTROtaSoftwareUpdateRequestorClusterStateTransitionEvent : MTROTASoftwareUpdateRequestorClusterStateTransitionEvent
 @end
@@ -228,7 +233,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull productID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterVersionAppliedEvent", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterVersionAppliedEvent", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTROtaSoftwareUpdateRequestorClusterVersionAppliedEvent : MTROTASoftwareUpdateRequestorClusterVersionAppliedEvent
 @end
@@ -241,32 +246,32 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nullable platformCode API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterDownloadErrorEvent", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTROTASoftwareUpdateRequestorClusterDownloadErrorEvent", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTROtaSoftwareUpdateRequestorClusterDownloadErrorEvent : MTROTASoftwareUpdateRequestorClusterDownloadErrorEvent
 @end
 
-API_DEPRECATED("This struct is unused and will be removed", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
+MTR_DEPRECATED("This struct is unused and will be removed", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRPowerSourceClusterBatChargeFaultChangeType : NSObject <NSCopying>
-@property (nonatomic, copy) NSArray * _Nonnull current API_DEPRECATED("Please use MTRPowerSourceClusterBatChargeFaultChangeType",
+@property (nonatomic, copy) NSArray * _Nonnull current MTR_DEPRECATED("Please use MTRPowerSourceClusterBatChargeFaultChangeType",
     ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
-@property (nonatomic, copy) NSArray * _Nonnull previous API_DEPRECATED("Please use MTRPowerSourceClusterBatChargeFaultChangeType",
+@property (nonatomic, copy) NSArray * _Nonnull previous MTR_DEPRECATED("Please use MTRPowerSourceClusterBatChargeFaultChangeType",
     ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @end
 
-API_DEPRECATED("This struct is unused and will be removed", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
+MTR_DEPRECATED("This struct is unused and will be removed", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRPowerSourceClusterBatFaultChangeType : NSObject <NSCopying>
-@property (nonatomic, copy) NSArray * _Nonnull current API_DEPRECATED(
+@property (nonatomic, copy) NSArray * _Nonnull current MTR_DEPRECATED(
     "Please use MTRPowerSourceClusterBatFaultChangeType", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
-@property (nonatomic, copy) NSArray * _Nonnull previous API_DEPRECATED(
+@property (nonatomic, copy) NSArray * _Nonnull previous MTR_DEPRECATED(
     "Please use MTRPowerSourceClusterBatFaultChangeType", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @end
 
-API_DEPRECATED("This struct is unused and will be removed", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
+MTR_DEPRECATED("This struct is unused and will be removed", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRPowerSourceClusterWiredFaultChangeType : NSObject <NSCopying>
-@property (nonatomic, copy) NSArray * _Nonnull current API_DEPRECATED("Please use MTRPowerSourceClusterWiredFaultChangeType",
+@property (nonatomic, copy) NSArray * _Nonnull current MTR_DEPRECATED("Please use MTRPowerSourceClusterWiredFaultChangeType",
     ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
-@property (nonatomic, copy) NSArray * _Nonnull previous API_DEPRECATED("Please use MTRPowerSourceClusterWiredFaultChangeType",
+@property (nonatomic, copy) NSArray * _Nonnull previous MTR_DEPRECATED("Please use MTRPowerSourceClusterWiredFaultChangeType",
     ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @end
 
@@ -338,7 +343,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull type API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRGeneralDiagnosticsClusterNetworkInterface", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRGeneralDiagnosticsClusterNetworkInterface", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRGeneralDiagnosticsClusterNetworkInterfaceType : MTRGeneralDiagnosticsClusterNetworkInterface
 @end
@@ -375,7 +380,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nullable stackSize API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRSoftwareDiagnosticsClusterThreadMetricsStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRSoftwareDiagnosticsClusterThreadMetricsStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRSoftwareDiagnosticsClusterThreadMetrics : MTRSoftwareDiagnosticsClusterThreadMetricsStruct
 @end
@@ -473,27 +478,33 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy) NSNumber * _Nonnull connectionStatus API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
 @end
 
-MTR_NEWLY_AVAILABLE
+API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5))
 @interface MTRTimeSynchronizationClusterDSTOffsetStruct : NSObject <NSCopying>
-@property (nonatomic, copy) NSNumber * _Nonnull offset MTR_NEWLY_AVAILABLE;
-@property (nonatomic, copy) NSNumber * _Nonnull validStarting MTR_NEWLY_AVAILABLE;
-@property (nonatomic, copy) NSNumber * _Nonnull validUntil MTR_NEWLY_AVAILABLE;
+@property (nonatomic, copy) NSNumber * _Nonnull offset API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
+@property (nonatomic, copy) NSNumber * _Nonnull validStarting API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
+@property (nonatomic, copy) NSNumber * _Nonnull validUntil API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
 @end
 
-API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
-MTR_NEWLY_DEPRECATED("Please use MTRTimeSynchronizationClusterDSTOffsetStruct")
+MTR_DEPRECATED("Please use MTRTimeSynchronizationClusterDSTOffsetStruct", ios(16.1, 16.5), macos(13.0, 13.4), watchos(9.1, 9.5),
+    tvos(16.1, 16.5))
 @interface MTRTimeSynchronizationClusterDstOffsetType : MTRTimeSynchronizationClusterDSTOffsetStruct
 @end
-MTR_NEWLY_AVAILABLE
+API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5))
 @interface MTRTimeSynchronizationClusterTimeZoneStruct : NSObject <NSCopying>
-@property (nonatomic, copy) NSNumber * _Nonnull offset MTR_NEWLY_AVAILABLE;
-@property (nonatomic, copy) NSNumber * _Nonnull validAt MTR_NEWLY_AVAILABLE;
-@property (nonatomic, copy) NSString * _Nullable name MTR_NEWLY_AVAILABLE;
+@property (nonatomic, copy) NSNumber * _Nonnull offset API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
+@property (nonatomic, copy) NSNumber * _Nonnull validAt API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
+@property (nonatomic, copy) NSString * _Nullable name API_AVAILABLE(ios(16.5), macos(13.4), watchos(9.5), tvos(16.5));
 @end
 
-API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
-MTR_NEWLY_DEPRECATED("Please use MTRTimeSynchronizationClusterTimeZoneStruct")
+MTR_DEPRECATED("Please use MTRTimeSynchronizationClusterTimeZoneStruct", ios(16.1, 16.5), macos(13.0, 13.4), watchos(9.1, 9.5),
+    tvos(16.1, 16.5))
 @interface MTRTimeSynchronizationClusterTimeZoneType : MTRTimeSynchronizationClusterTimeZoneStruct
+@end
+
+MTR_NEWLY_AVAILABLE
+@interface MTRBridgedDeviceBasicInformationClusterProductAppearanceStruct : NSObject <NSCopying>
+@property (nonatomic, copy) NSNumber * _Nonnull finish MTR_NEWLY_AVAILABLE;
+@property (nonatomic, copy) NSNumber * _Nullable primaryColor MTR_NEWLY_AVAILABLE;
 @end
 
 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
@@ -569,7 +580,7 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRSwitchClusterMultiPressCompleteEvent : NSObject <NSCopying>
 @property (nonatomic, copy) NSNumber * _Nonnull previousPosition API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy, getter=getNewPosition) NSNumber * _Nonnull newPosition API_DEPRECATED(
+@property (nonatomic, copy, getter=getNewPosition) NSNumber * _Nonnull newPosition MTR_DEPRECATED(
     "Please use previousPosition", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @property (nonatomic, copy)
     NSNumber * _Nonnull totalNumberOfPressesCounted API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
@@ -579,19 +590,19 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTROperationalCredentialsClusterFabricDescriptorStruct : NSObject <NSCopying>
 @property (nonatomic, copy) NSData * _Nonnull rootPublicKey API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @property (nonatomic, copy) NSNumber * _Nonnull vendorID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull vendorId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull vendorId MTR_DEPRECATED(
     "Please use vendorID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @property (nonatomic, copy) NSNumber * _Nonnull fabricID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull fabricId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull fabricId MTR_DEPRECATED(
     "Please use fabricID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @property (nonatomic, copy) NSNumber * _Nonnull nodeID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull nodeId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull nodeId MTR_DEPRECATED(
     "Please use nodeID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @property (nonatomic, copy) NSString * _Nonnull label API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTROperationalCredentialsClusterFabricDescriptorStruct", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTROperationalCredentialsClusterFabricDescriptorStruct", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTROperationalCredentialsClusterFabricDescriptor : MTROperationalCredentialsClusterFabricDescriptorStruct
 @end
@@ -653,7 +664,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull value API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRModeSelectClusterSemanticTagStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRModeSelectClusterSemanticTag : MTRModeSelectClusterSemanticTagStruct
 @end
@@ -670,7 +681,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull credentialIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRDoorLockClusterCredentialStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRDoorLockClusterDlCredential : MTRDoorLockClusterCredentialStruct
 @end
@@ -801,7 +812,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSString * _Nullable affiliateCallSign API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRChannelClusterChannelInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRChannelClusterChannelInfo : MTRChannelClusterChannelInfoStruct
 @end
@@ -813,7 +824,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull lineupInfoType API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRChannelClusterLineupInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRChannelClusterLineupInfo : MTRChannelClusterLineupInfoStruct
 @end
@@ -824,7 +835,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSString * _Nonnull name API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRTargetNavigatorClusterTargetInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTargetNavigatorClusterTargetInfo : MTRTargetNavigatorClusterTargetInfoStruct
 @end
@@ -835,7 +846,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nullable position API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRMediaPlaybackClusterPlaybackPositionStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRMediaPlaybackClusterPlaybackPositionStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRMediaPlaybackClusterPlaybackPosition : MTRMediaPlaybackClusterPlaybackPositionStruct
 @end
@@ -848,7 +859,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSString * _Nonnull descriptionString API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRMediaInputClusterInputInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRMediaInputClusterInputInfo : MTRMediaInputClusterInputInfoStruct
 @end
@@ -860,7 +871,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull metric API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRContentLauncherClusterDimensionStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRContentLauncherClusterDimension : MTRContentLauncherClusterDimensionStruct
 @end
@@ -870,7 +881,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSString * _Nonnull value API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRContentLauncherClusterAdditionalInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRContentLauncherClusterAdditionalInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRContentLauncherClusterAdditionalInfo : MTRContentLauncherClusterAdditionalInfoStruct
 @end
@@ -881,7 +892,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSArray * _Nullable externalIDList API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRContentLauncherClusterParameterStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRContentLauncherClusterParameter : MTRContentLauncherClusterParameterStruct
 @end
@@ -890,21 +901,21 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSArray * _Nonnull parameterList API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRContentLauncherClusterContentSearchStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRContentLauncherClusterContentSearchStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRContentLauncherClusterContentSearch : MTRContentLauncherClusterContentSearchStruct
 @end
 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTRContentLauncherClusterStyleInformationStruct : NSObject <NSCopying>
 @property (nonatomic, copy) NSString * _Nullable imageURL API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSString * _Nullable imageUrl API_DEPRECATED(
+@property (nonatomic, copy) NSString * _Nullable imageUrl MTR_DEPRECATED(
     "Please use imageURL", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @property (nonatomic, copy) NSString * _Nullable color API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @property (nonatomic, copy)
     MTRContentLauncherClusterDimensionStruct * _Nullable size API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRContentLauncherClusterStyleInformationStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRContentLauncherClusterStyleInformationStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRContentLauncherClusterStyleInformation : MTRContentLauncherClusterStyleInformationStruct
 @end
@@ -923,7 +934,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
     ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRContentLauncherClusterBrandingInformationStruct", ios(16.1, 16.4), macos(13.0, 13.3),
+MTR_DEPRECATED("Please use MTRContentLauncherClusterBrandingInformationStruct", ios(16.1, 16.4), macos(13.0, 13.3),
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRContentLauncherClusterBrandingInformation : MTRContentLauncherClusterBrandingInformationStruct
 @end
@@ -935,7 +946,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSString * _Nonnull name API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRAudioOutputClusterOutputInfoStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRAudioOutputClusterOutputInfo : MTRAudioOutputClusterOutputInfoStruct
 @end
@@ -943,14 +954,14 @@ API_DEPRECATED(
 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTRApplicationLauncherClusterApplicationStruct : NSObject <NSCopying>
 @property (nonatomic, copy) NSNumber * _Nonnull catalogVendorID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull catalogVendorId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull catalogVendorId MTR_DEPRECATED(
     "Please use catalogVendorID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @property (nonatomic, copy) NSString * _Nonnull applicationID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSString * _Nonnull applicationId API_DEPRECATED(
+@property (nonatomic, copy) NSString * _Nonnull applicationId MTR_DEPRECATED(
     "Please use applicationID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @end
 
-API_DEPRECATED("Please use MTRApplicationLauncherClusterApplicationStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRApplicationLauncherClusterApplicationStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRApplicationLauncherClusterApplication : MTRApplicationLauncherClusterApplicationStruct
 @end
@@ -961,7 +972,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nullable endpoint API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRApplicationLauncherClusterApplicationEPStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRApplicationLauncherClusterApplicationEPStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRApplicationLauncherClusterApplicationEP : MTRApplicationLauncherClusterApplicationEPStruct
 @end
@@ -969,14 +980,14 @@ API_DEPRECATED("Please use MTRApplicationLauncherClusterApplicationEPStruct", io
 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTRApplicationBasicClusterApplicationStruct : NSObject <NSCopying>
 @property (nonatomic, copy) NSNumber * _Nonnull catalogVendorID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSNumber * _Nonnull catalogVendorId API_DEPRECATED(
+@property (nonatomic, copy) NSNumber * _Nonnull catalogVendorId MTR_DEPRECATED(
     "Please use catalogVendorID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @property (nonatomic, copy) NSString * _Nonnull applicationID API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
-@property (nonatomic, copy) NSString * _Nonnull applicationId API_DEPRECATED(
+@property (nonatomic, copy) NSString * _Nonnull applicationId MTR_DEPRECATED(
     "Please use applicationID", ios(16.4, 16.4), macos(13.3, 13.3), watchos(9.4, 9.4), tvos(16.4, 16.4));
 @end
 
-API_DEPRECATED("Please use MTRApplicationBasicClusterApplicationStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRApplicationBasicClusterApplicationStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRApplicationBasicClusterApplicationBasicApplication : MTRApplicationBasicClusterApplicationStruct
 @end
@@ -993,7 +1004,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull h API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRUnitTestingClusterSimpleStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterSimpleStruct : MTRUnitTestingClusterSimpleStruct
 @end
@@ -1016,7 +1027,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRUnitTestingClusterTestFabricScoped", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterTestFabricScoped : MTRUnitTestingClusterTestFabricScoped
 @end
@@ -1042,7 +1053,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
     ;
 @end
 
-API_DEPRECATED("Please use MTRUnitTestingClusterNullablesAndOptionalsStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRUnitTestingClusterNullablesAndOptionalsStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRTestClusterClusterNullablesAndOptionalsStruct : MTRUnitTestingClusterNullablesAndOptionalsStruct
 @end
@@ -1054,7 +1065,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
     MTRUnitTestingClusterSimpleStruct * _Nonnull c API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRUnitTestingClusterNestedStruct", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterNestedStruct : MTRUnitTestingClusterNestedStruct
 @end
@@ -1070,7 +1081,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSArray * _Nonnull g API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRUnitTestingClusterNestedStructList", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterNestedStructList : MTRUnitTestingClusterNestedStructList
 @end
@@ -1079,7 +1090,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSArray * _Nonnull a API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRUnitTestingClusterDoubleNestedStructList", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRUnitTestingClusterDoubleNestedStructList", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRTestClusterClusterDoubleNestedStructList : MTRUnitTestingClusterDoubleNestedStructList
 @end
@@ -1089,7 +1100,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSData * _Nonnull member2 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRUnitTestingClusterTestListStructOctet", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterTestListStructOctet : MTRUnitTestingClusterTestListStructOctet
 @end
@@ -1105,7 +1116,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSArray * _Nonnull arg6 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRUnitTestingClusterTestEventEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterTestEventEvent : MTRUnitTestingClusterTestEventEvent
 @end
@@ -1115,7 +1126,7 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy) NSNumber * _Nonnull fabricIndex API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4));
 @end
 
-API_DEPRECATED("Please use MTRUnitTestingClusterTestFabricScopedEventEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
+MTR_DEPRECATED("Please use MTRUnitTestingClusterTestFabricScopedEventEvent", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
     tvos(16.1, 16.4))
 @interface MTRTestClusterClusterTestFabricScopedEventEvent : MTRUnitTestingClusterTestFabricScopedEventEvent
 @end

@@ -23,6 +23,7 @@ from .builder import Builder
 class TelinkApp(Enum):
     ALL_CLUSTERS = auto()
     ALL_CLUSTERS_MINIMAL = auto()
+    BRIDGE = auto()
     CONTACT_SENSOR = auto()
     LIGHT = auto()
     SWITCH = auto()
@@ -30,13 +31,17 @@ class TelinkApp(Enum):
     OTA_REQUESTOR = auto()
     PUMP = auto()
     PUMP_CONTROLLER = auto()
+    TEMPERATURE_MEASUREMENT = auto()
     THERMOSTAT = auto()
+    WINDOW_COVERING = auto()
 
     def ExampleName(self):
         if self == TelinkApp.ALL_CLUSTERS:
             return 'all-clusters-app'
         elif self == TelinkApp.ALL_CLUSTERS_MINIMAL:
             return 'all-clusters-minimal-app'
+        elif self == TelinkApp.BRIDGE:
+            return 'bridge-app'
         elif self == TelinkApp.CONTACT_SENSOR:
             return 'contact-sensor-app'
         elif self == TelinkApp.LIGHT:
@@ -51,8 +56,12 @@ class TelinkApp(Enum):
             return 'pump-app'
         elif self == TelinkApp.PUMP_CONTROLLER:
             return 'pump-controller-app'
+        elif self == TelinkApp.TEMPERATURE_MEASUREMENT:
+            return 'temperature-measurement-app'
         elif self == TelinkApp.THERMOSTAT:
             return 'thermostat'
+        elif self == TelinkApp.WINDOW_COVERING:
+            return 'window-app'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -61,6 +70,8 @@ class TelinkApp(Enum):
             return 'chip-telink-all-clusters-example'
         elif self == TelinkApp.ALL_CLUSTERS_MINIMAL:
             return 'chip-telink-all-clusters-minimal-example'
+        elif self == TelinkApp.BRIDGE:
+            return 'chip-telink-bridge-example'
         elif self == TelinkApp.CONTACT_SENSOR:
             return 'chip-telink-contact-sensor-example'
         elif self == TelinkApp.LIGHT:
@@ -75,8 +86,12 @@ class TelinkApp(Enum):
             return 'chip-telink-pump-example'
         elif self == TelinkApp.PUMP_CONTROLLER:
             return 'chip-telink-pump-controller-example'
+        elif self == TelinkApp.TEMPERATURE_MEASUREMENT:
+            return 'chip-telink-temperature-measurement-example'
         elif self == TelinkApp.THERMOSTAT:
             return 'chip-telink-thermostat-example'
+        elif self == TelinkApp.WINDOW_COVERING:
+            return 'chip-telink-window-example'
         else:
             raise Exception('Unknown app type: %r' % self)
 
@@ -97,10 +112,14 @@ class TelinkBuilder(Builder):
                  root,
                  runner,
                  app: TelinkApp = TelinkApp,
-                 board: TelinkBoard = TelinkBoard.TLSR9518ADK80D):
+                 board: TelinkBoard = TelinkBoard.TLSR9518ADK80D,
+                 enable_rpcs: bool = False,
+                 enable_factory_data: bool = False):
         super(TelinkBuilder, self).__init__(root, runner)
         self.app = app
         self.board = board
+        self.enable_rpcs = enable_rpcs
+        self.enable_factory_data = enable_factory_data
 
     def get_cmd_prefixes(self):
         if not self._runner.dry_run:
@@ -121,6 +140,12 @@ class TelinkBuilder(Builder):
             return
 
         flags = []
+        if self.enable_rpcs:
+            flags.append("-DOVERLAY_CONFIG=rpc.overlay")
+
+        if self.enable_factory_data:
+            flags.append("-DOVERLAY_CONFIG=factory_data.overlay")
+
         if self.options.pregen_dir:
             flags.append(f"-DCHIP_CODEGEN_PREGEN_DIR={shlex.quote(self.options.pregen_dir)}")
 

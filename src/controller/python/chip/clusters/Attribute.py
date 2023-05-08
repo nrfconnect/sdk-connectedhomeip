@@ -146,7 +146,7 @@ class TypedAttributePath:
                     break
 
             if (self.ClusterType is None or self.AttributeType is None):
-                raise Exception("Schema not found")
+                raise KeyError(f"No Schema found for Attribute {Path}")
 
         # Next, let's figure out the label.
         for field in self.ClusterType.descriptor.Fields:
@@ -156,7 +156,7 @@ class TypedAttributePath:
             self.AttributeName = field.Label
 
         if (self.AttributeName is None):
-            raise Exception("Schema not found")
+            raise KeyError(f"Unable to resolve name for Attribute {Path}")
 
         self.Path = Path
         self.ClusterId = self.ClusterType.id
@@ -745,8 +745,14 @@ class AsyncReadTransaction:
 
         if (self._subscription_handler is not None):
             for change in self._changedPathSet:
+                try:
+                    attribute_path = TypedAttributePath(Path=change)
+                except (KeyError, ValueError) as err:
+                    # path could not be resolved into a TypedAttributePath
+                    logging.getLogger(__name__).exception(err)
+                    continue
                 self._subscription_handler.OnAttributeChangeCb(
-                    TypedAttributePath(Path=change), self._subscription_handler)
+                    attribute_path, self._subscription_handler)
 
             # Clear it out once we've notified of all changes in this transaction.
         self._changedPathSet = set()
@@ -939,9 +945,9 @@ def WriteAttributes(future: Future, eventLoop, device, attributes: List[Attribut
     res = builtins.chipStack.Call(
         lambda: handle.pychip_WriteClient_WriteAttributes(
             ctypes.py_object(transaction), device,
-            ctypes.c_uint16(0 if timedRequestTimeoutMs is None else timedRequestTimeoutMs),
-            ctypes.c_uint16(0 if interactionTimeoutMs is None else interactionTimeoutMs),
-            ctypes.c_uint16(0 if busyWaitMs is None else busyWaitMs),
+            ctypes.c_size_t(0 if timedRequestTimeoutMs is None else timedRequestTimeoutMs),
+            ctypes.c_size_t(0 if interactionTimeoutMs is None else interactionTimeoutMs),
+            ctypes.c_size_t(0 if busyWaitMs is None else busyWaitMs),
             ctypes.c_size_t(len(attributes)), *writeargs)
     )
     if not res.is_success:
@@ -969,16 +975,16 @@ def WriteGroupAttributes(groupId: int, devCtrl: c_void_p, attributes: List[Attri
 
     return builtins.chipStack.Call(
         lambda: handle.pychip_WriteClient_WriteGroupAttributes(
-            ctypes.c_uint16(groupId), devCtrl,
-            ctypes.c_uint16(0 if busyWaitMs is None else busyWaitMs),
+            ctypes.c_size_t(groupId), devCtrl,
+            ctypes.c_size_t(0 if busyWaitMs is None else busyWaitMs),
             ctypes.c_size_t(len(attributes)), *writeargs)
     )
 
 
 # This struct matches the PyReadAttributeParams in attribute.cpp, for passing various params together.
 _ReadParams = construct.Struct(
-    "MinInterval" / construct.Int32ul,
-    "MaxInterval" / construct.Int32ul,
+    "MinInterval" / construct.Int16ul,
+    "MaxInterval" / construct.Int16ul,
     "IsSubscription" / construct.Flag,
     "IsFabricFiltered" / construct.Flag,
     "KeepSubscriptions" / construct.Flag,
@@ -1108,6 +1114,18 @@ def Init():
 
         handle.pychip_WriteClient_WriteAttributes.restype = PyChipError
         handle.pychip_WriteClient_WriteGroupAttributes.restype = PyChipError
+
+        # Both WriteAttributes and WriteGroupAttributes are variadic functions. As per ctype documentation
+        # https://docs.python.org/3/library/ctypes.html#calling-varadic-functions, it is critical that we
+        # specify the argtypes attribute for the regular, non-variadic, function arguments for this to work
+        # on ARM64 for Apple Platforms.
+        # TODO We could move away from a variadic function to one where we provide a vector of the
+        # attribute information we want written using a vector. This possibility was not implemented at the
+        # time where simply specified the argtypes, because of time constraints. This solution was quicker
+        # to fix the crash on ARM64 Apple platforms without a refactor.
+        handle.pychip_WriteClient_WriteAttributes.argtypes = [py_object, c_void_p, c_size_t, c_size_t, c_size_t, c_size_t]
+        handle.pychip_WriteClient_WriteGroupAttributes.argtypes = [c_size_t, c_void_p, c_size_t, c_size_t]
+
         setter.Set('pychip_WriteClient_InitCallbacks', None, [
                    _OnWriteResponseCallbackFunct, _OnWriteErrorCallbackFunct, _OnWriteDoneCallbackFunct])
         handle.pychip_ReadClient_Read.restype = PyChipError

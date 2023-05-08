@@ -32,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @class MTRDeviceController;
 @class MTRDeviceControllerStartupParams;
+@class MTRFabricInfo;
 
 API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @interface MTRDeviceControllerFactoryParams : NSObject
@@ -106,6 +107,16 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (readonly, nonatomic, getter=isRunning) BOOL running;
 
 /**
+ * Returns the list of MTRFabricInfo representing the fabrics the
+ * MTRDeviceControllerFactory knows about and the corresponding node identities
+ * of the controller factory on those fabrics.  Returns nil if the factory is
+ * not running or if there is an error reading fabric information.
+ *
+ * All entries in this list will have a non-nil rootCertificate.
+ */
+@property (readonly, nonatomic, nullable) NSArray<MTRFabricInfo *> * knownFabrics;
+
+/**
  * Start the controller factory. Repeated calls to startControllerFactory
  * without calls to stopControllerFactory in between are NO-OPs. Use the
  * isRunning property to check whether the controller factory needs to be
@@ -151,20 +162,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 
 @end
 
-API_DEPRECATED(
+MTR_DEPRECATED(
     "Please use MTRDeviceControllerFactoryParams", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRControllerFactoryParams : MTRDeviceControllerFactoryParams
-@property (nonatomic, strong, readonly) id<MTRPersistentStorageDelegate> storageDelegate API_DEPRECATED(
+@property (nonatomic, strong, readonly) id<MTRPersistentStorageDelegate> storageDelegate MTR_DEPRECATED(
     "Please use the storage property", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
-@property (nonatomic, assign) BOOL startServer API_DEPRECATED(
+@property (nonatomic, assign) BOOL startServer MTR_DEPRECATED(
     "Please use shouldStartServer", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
-@property (nonatomic, copy, nullable) NSArray<NSData *> * paaCerts API_DEPRECATED(
+@property (nonatomic, copy, nullable) NSArray<NSData *> * paaCerts MTR_DEPRECATED(
     "Please use productAttestationAuthorityCertificates", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
-@property (nonatomic, copy, nullable) NSArray<NSData *> * cdCerts API_DEPRECATED(
+@property (nonatomic, copy, nullable) NSArray<NSData *> * cdCerts MTR_DEPRECATED(
     "Please use certificationDeclarationCertificates", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
 @end
 
-API_DEPRECATED("Please use MTRDeviceControllerFactory", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
+MTR_DEPRECATED("Please use MTRDeviceControllerFactory", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRControllerFactory : NSObject
 @property (readonly, nonatomic) BOOL isRunning;
 + (MTRControllerFactory *)sharedInstance;

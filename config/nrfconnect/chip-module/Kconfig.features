@@ -21,7 +21,7 @@ if CHIP
 
 config CHIP_WIFI
 	bool "Enable nrfconnect Wi-Fi support"
-	default y if SHIELD_NRF7002EK || BOARD_NRF7002DK_NRF5340_CPUAPP
+	default y if SHIELD_NRF7002EK || BOARD_NRF7002DK_NRF5340_CPUAPP || SHIELD_NRF7002EB
 	select WIFI_NRF700X
 	select WIFI
 	select WPA_SUPP

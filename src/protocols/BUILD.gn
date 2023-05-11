@@ -17,6 +17,8 @@ import("//build_overrides/chip.gni")
 static_library("protocols") {
   output_name = "libChipProtocols"
 
+  defines = ["CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT=1"]
+
   sources = [
     "Protocols.cpp",
     "echo/Echo.h",

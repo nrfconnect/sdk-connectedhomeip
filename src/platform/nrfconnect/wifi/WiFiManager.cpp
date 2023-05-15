@@ -205,7 +205,7 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     mCachedWiFiState    = mWiFiState;
     mWiFiState          = WIFI_STATE_SCANNING;
     mSsidFound          = false;
-    mRecoveryArmed    = true;
+    mRecoveryArmed      = true;
 
     if (net_mgmt(NET_REQUEST_WIFI_SCAN, iface, NULL, 0))
     {
@@ -619,8 +619,8 @@ CHIP_ERROR WiFiManager::SetLowPowerMode(bool onoff)
         return CHIP_ERROR_INTERNAL;
     }
 
-    if ((currentConfig.enabled == WIFI_PS_ENABLED && onoff == false) ||
-        (currentConfig.enabled == WIFI_PS_DISABLED && onoff == true))
+    if ((currentConfig.ps_params.enabled == WIFI_PS_ENABLED && onoff == false) ||
+        (currentConfig.ps_params.enabled == WIFI_PS_DISABLED && onoff == true))
     {
         wifi_ps_params params{ .enabled = onoff ? WIFI_PS_ENABLED : WIFI_PS_DISABLED };
         if (net_mgmt(NET_REQUEST_WIFI_PS, iface, &params, sizeof(params)))

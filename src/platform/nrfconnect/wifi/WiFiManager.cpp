@@ -138,11 +138,12 @@ const Map<wifi_iface_state, WiFiManager::StationStatus, 10>
                               { WIFI_STATE_GROUP_HANDSHAKE, WiFiManager::StationStatus::PROVISIONING },
                               { WIFI_STATE_COMPLETED, WiFiManager::StationStatus::FULLY_PROVISIONED } });
 
-const Map<uint32_t, WiFiManager::NetEventHandler, 4>
+const Map<uint32_t, WiFiManager::NetEventHandler, 5>
     WiFiManager::sEventHandlerMap({ { NET_EVENT_WIFI_SCAN_RESULT, WiFiManager::ScanResultHandler },
                                     { NET_EVENT_WIFI_SCAN_DONE, WiFiManager::ScanDoneHandler },
                                     { NET_EVENT_WIFI_CONNECT_RESULT, WiFiManager::ConnectHandler },
-                                    { NET_EVENT_WIFI_DISCONNECT_RESULT, WiFiManager::DisconnectHandler } });
+                                    { NET_EVENT_WIFI_DISCONNECT_RESULT, WiFiManager::NetworkDrivenDisconnectHandler },
+                                    { NET_EVENT_WIFI_DISCONNECT_COMPLETE, WiFiManager::ApplicationDrivenDisconnectHandler } });
 
 void WiFiManager::WifiMgmtEventHandler(net_mgmt_event_callback * cb, uint32_t mgmtEvent, net_if * iface)
 {
@@ -251,10 +252,12 @@ CHIP_ERROR WiFiManager::Disconnect()
     net_if * iface = InetUtils::GetInterface();
     VerifyOrReturnError(nullptr != iface, CHIP_ERROR_INTERNAL);
 
-    int status = net_mgmt(NET_REQUEST_WIFI_DISCONNECT, iface, NULL, 0);
+    mApplicationDisconnectRequested = true;
+    int status                      = net_mgmt(NET_REQUEST_WIFI_DISCONNECT, iface, NULL, 0);
 
     if (status)
     {
+        mApplicationDisconnectRequested = false;
         if (status == -EALREADY)
         {
             ChipLogDetail(DeviceLayer, "Already disconnected");
@@ -267,7 +270,6 @@ CHIP_ERROR WiFiManager::Disconnect()
     }
     else
     {
-        mDisconnectRequested = true;
         ChipLogDetail(DeviceLayer, "Disconnect requested");
     }
 
@@ -507,32 +509,16 @@ void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
     }
 }
 
-void WiFiManager::DisconnectHandler(Platform::UniquePtr<uint8_t>)
+void WiFiManager::NetworkDrivenDisconnectHandler(Platform::UniquePtr<uint8_t>)
 {
-    if (Instance().mDisconnectRequested)
+    // Workaround: schedule the application level connection recovery in kSupplicantReconnectionTimeoutMs to give WPA supplicant
+    // some time to restore it.
+    if (!Instance().mRecoveryArmed)
     {
-        Instance().mDisconnectRequested = false;
-
-        if (Instance().mRecoveryArmed)
-        {
-            Instance().AbortConnectionRecovery();
-        }
-    }
-    else
-    {
-        // Workaround: schedule the application level connection recovery in kSupplicantReconnectionTimeoutMs to give WPA supplicant
-        // some time to restore it.
-        if (!Instance().mRecoveryArmed)
-        {
-            Instance().mRecoveryArmed = true;
-            DeviceLayer::SystemLayer().StartTimer(
-                System::Clock::Milliseconds32(kSupplicantReconnectionTimeoutMs),
-                [](System::Layer * layer, void * param) {
-                    Instance().Disconnect();
-                    Recover(layer, param);
-                },
-                nullptr);
-        }
+        Instance().mRecoveryArmed = true;
+        DeviceLayer::SystemLayer().StartTimer(
+            System::Clock::Milliseconds32(kSupplicantReconnectionTimeoutMs),
+            [](System::Layer * layer, void * param) { Instance().Disconnect(); }, nullptr);
     }
 
     SystemLayer().ScheduleLambda([] {
@@ -540,6 +526,24 @@ void WiFiManager::DisconnectHandler(Platform::UniquePtr<uint8_t>)
         Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
         Instance().PostConnectivityStatusChange(kConnectivity_Lost);
     });
+}
+
+void WiFiManager::ApplicationDrivenDisconnectHandler(Platform::UniquePtr<uint8_t>)
+{
+    if (!Instance().mRecoveryArmed)
+    {
+        return;
+    }
+
+    if (!Instance().mApplicationDisconnectRequested)
+    {
+        Instance().AbortConnectionRecovery();
+    }
+    else
+    {
+        Instance().mApplicationDisconnectRequested = false;
+        SystemLayer().ScheduleLambda([] { Recover(nullptr, nullptr); });
+    }
 }
 
 WiFiManager::StationStatus WiFiManager::GetStationStatus() const

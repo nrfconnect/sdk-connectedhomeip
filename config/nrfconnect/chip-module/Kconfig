@@ -99,6 +99,22 @@ config CHIP_DEBUG_SYMBOLS
 config CHIP_MALLOC_SYS_HEAP
 	default y if !ARCH_POSIX
 
+if CHIP_ENABLE_SLEEPY_END_DEVICE_SUPPORT
+
+config CHIP_SED_ACTIVE_THRESHOLD
+	int "Sleepy End Device active threshold (ms)"
+	default 0
+	help
+	  Provides the amount of time in milliseconds the device
+	  should stay in the active state after network activity.
+	  This value should be selected as a compromise between keeping the power consumption
+	  low due to not staying in the active mode too long, and allowing the device to wait
+	  for potentially delayed incoming traffic and avoid retransmissions. It is rationale
+	  to set this value to non-zero for devices using CONFIG_CHIP_SED_IDLE_INTERVAL bigger
+	  than few seconds.
+
+endif # CHIP_ENABLE_SLEEPY_END_DEVICE_SUPPORT
+
 config CHIP_FACTORY_DATA
 	bool "Factory data provider"
 	select ZCBOR

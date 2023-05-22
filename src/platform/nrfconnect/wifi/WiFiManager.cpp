@@ -207,10 +207,30 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     mWiFiState          = WIFI_STATE_SCANNING;
     mSsidFound          = false;
     mRecoveryArmed      = true;
+    // TODO Workaround for recovery mechanism to wait before the next scan request until the WiFi supplicant is not busy.
+    static bool workaroundDone;
 
-    if (net_mgmt(NET_REQUEST_WIFI_SCAN, iface, NULL, 0))
+    int ret = net_mgmt(NET_REQUEST_WIFI_SCAN, iface, NULL, 0);
+
+    if (ret)
     {
-        ChipLogError(DeviceLayer, "Scan request failed");
+        ChipLogError(DeviceLayer, "Scan request failed %d", ret);
+        if(ret == -EBUSY && !workaroundDone){
+            // TODO Wi-Fi driver returned an error during recovery.
+            // As a workaround schedule the recovery timer one more time in WifiSupplicantWorkaroundTime time.
+            // This allows the device to run the Scan method without
+            // rebooting when the "Device or resource busy" error occurs.
+            DeviceLayer::SystemLayer().StartTimer(System::Clock::Milliseconds32(kWifiSupplicantWorkaroundTime), Recover, nullptr);
+            workaroundDone = true;
+            return CHIP_NO_ERROR;
+        }
+        else 
+        {
+            // TODO The workaround has not worked, so reboot the device
+            ChipLogError(DeviceLayer, "WiFi driver does not respond, resetting the device...");
+            workaroundDone = false;
+            PlatformMgr().Shutdown();      
+        }
         return CHIP_ERROR_INTERNAL;
     }
 

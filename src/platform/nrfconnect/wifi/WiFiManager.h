@@ -246,6 +246,8 @@ private:
     uint32_t mConnectionRecoveryTimeMs{ kConnectionRecoveryMinIntervalMs };
     bool mRecoveryArmed{ false };
     bool mApplicationDisconnectRequested{ false };
+    // TODO Workaround for recovery mechanism to wait before the next scan request until the WiFi supplicant is not busy.
+    static constexpr uint32_t kWifiSupplicantWorkaroundTime = 8000;
 
     static const Map<wifi_iface_state, StationStatus, 10> sStatusMap;
     static const Map<uint32_t, NetEventHandler, 5> sEventHandlerMap;

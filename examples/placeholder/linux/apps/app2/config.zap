@@ -6362,7 +6362,7 @@
               "code": 16,
               "mfgCode": null,
               "side": "server",
-              "type": "int16s",
+              "type": "NameSupportBitmap",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,

@@ -530,7 +530,7 @@ CHIP_ERROR Engine::BuildAndSendSingleReportData(ReadHandler * apReadHandler)
         }
     }
 
-    SuccessOrExit(reportDataBuilder.GetError());
+    SuccessOrExit(err = reportDataBuilder.GetError());
     SuccessOrExit(err = reportDataWriter.UnreserveBuffer(kReservedSizeForMoreChunksFlag + kReservedSizeForIMRevision +
                                                          kReservedSizeForEndOfReportMessage));
     if (hasMoreChunks)

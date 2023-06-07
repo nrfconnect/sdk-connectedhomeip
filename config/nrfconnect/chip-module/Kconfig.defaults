@@ -355,39 +355,6 @@ config MBEDTLS_GCM_C
 config MBEDTLS_RSA_C
     default n
 
-config PSA_WANT_KEY_TYPE_CHACHA20
-    default n
-
-config PSA_WANT_ALG_GCM
-    default n
-
-config PSA_WANT_ALG_CHACHA20_POLY1305
-    default n
-
-config PSA_WANT_ALG_SHA_1
-    default n
-
-config PSA_WANT_ALG_SHA_224
-    default n
-
-config PSA_WANT_ALG_SHA_384
-    default n
-
-config PSA_WANT_ALG_SHA_512
-    default n
-
-config PSA_WANT_ALG_RIPEMD160
-    default n
-
-config PSA_WANT_ALG_MD5
-    default n
-
-config PSA_WANT_ALG_CFB
-    default n
-
-config PSA_WANT_ALG_OFB
-    default n
-
 # Disable not used shell modules
 
 config SHELL_WILDCARD

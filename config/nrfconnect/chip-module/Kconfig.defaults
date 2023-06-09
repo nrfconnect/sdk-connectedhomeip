@@ -229,9 +229,6 @@ endchoice
 config NRF_WIFI_LOW_POWER
     default n
 
-config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
-    default n
-
 config SYSTEM_WORKQUEUE_STACK_SIZE
     default 2560
 
@@ -244,9 +241,6 @@ config NET_IF_MCAST_IPV6_ADDR_COUNT
 
 config NET_SOCKETS_POLL_MAX
     default 4
-
-config MBEDTLS_SSL_OUT_CONTENT_LEN
-    default 900
 
 # options managed by IP4/IP6 simultaneous support
 # aligned here to match OpenThread config
@@ -267,122 +261,9 @@ config CHIP_MALLOC_SYS_HEAP_SIZE
 
 endif
 
-
-# Enable mbedTLS from nrf_security library
-
 choice OPENTHREAD_SECURITY
 	default OPENTHREAD_NRF_SECURITY_CHOICE
 endchoice
-
-config PSA_CRYPTO_DRIVER_CC3XX
-	default n
-
-config OBERON_BACKEND
-    default y
-
-config MBEDTLS_ENABLE_HEAP
-    default y
-
-config MBEDTLS_HEAP_SIZE
-    default 15360
-
-config MBEDTLS_TLS_LIBRARY
-    default y
-
-config NRF_SECURITY_ADVANCED
-    default y
-
-config MBEDTLS_AES_C
-    default y
-
-config MBEDTLS_ECP_C
-    default y
-
-config MBEDTLS_ECP_DP_SECP256R1_ENABLED
-    default y
-
-config MBEDTLS_CTR_DRBG_C
-    default y
-
-config MBEDTLS_CIPHER_MODE_CTR
-    default y
-
-config MBEDTLS_ECJPAKE_C
-    default y
-
-config MBEDTLS_SHA256_C
-    default y
-
-config MBEDTLS_PK_C
-    default y
-
-config MBEDTLS_PK_WRITE_C
-    default y
-
-config MBEDTLS_X509_CREATE_C
-    default y if !CHIP_CRYPTO_PSA
-
-config MBEDTLS_X509_CSR_WRITE_C
-    default y if !CHIP_CRYPTO_PSA
-
-# Disable unneeded crypto operations
-
-config MBEDTLS_SHA384_C
-    default n
-
-config MBEDTLS_SHA512_C
-    default n
-
-config MBEDTLS_CIPHER_MODE_XTS
-    default n
-
-config MBEDTLS_CHACHA20_C
-    default n
-
-config MBEDTLS_POLY1305_C
-    default n
-
-config MBEDTLS_CHACHAPOLY_C
-    default n
-
-config MBEDTLS_GCM_C
-    default n
-
-config MBEDTLS_RSA_C
-    default n
-
-config PSA_WANT_KEY_TYPE_CHACHA20
-    default n
-
-config PSA_WANT_ALG_GCM
-    default n
-
-config PSA_WANT_ALG_CHACHA20_POLY1305
-    default n
-
-config PSA_WANT_ALG_SHA_1
-    default n
-
-config PSA_WANT_ALG_SHA_224
-    default n
-
-config PSA_WANT_ALG_SHA_384
-    default n
-
-config PSA_WANT_ALG_SHA_512
-    default n
-
-config PSA_WANT_ALG_RIPEMD160
-    default n
-
-config PSA_WANT_ALG_MD5
-    default n
-
-config PSA_WANT_ALG_CFB
-    default n
-
-config PSA_WANT_ALG_OFB
-    default n
 
 # Disable not used shell modules
 

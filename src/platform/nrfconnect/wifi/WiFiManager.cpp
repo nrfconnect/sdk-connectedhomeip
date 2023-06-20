@@ -168,7 +168,7 @@ CHIP_ERROR WiFiManager::Init()
 
         if (maddr && !net_if_ipv6_maddr_is_joined(maddr) && !net_ipv6_is_addr_mcast_link_all_nodes(&addr))
         {
-            net_if_ipv6_maddr_join(maddr);
+            net_if_ipv6_maddr_join(iface, maddr);
         }
 
         return CHIP_NO_ERROR;

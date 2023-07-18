@@ -539,7 +539,13 @@ void WiFiManager::NetworkDrivenDisconnectHandler(Platform::UniquePtr<uint8_t>)
         Instance().mRecoveryArmed = true;
         DeviceLayer::SystemLayer().StartTimer(
             System::Clock::Milliseconds32(kSupplicantReconnectionTimeoutMs),
-            [](System::Layer * layer, void * param) { Instance().Disconnect(); }, nullptr);
+            [](System::Layer * layer, void * param) {
+                if (WIFI_STATE_DISCONNECTED == Instance().mWiFiState || WIFI_STATE_COMPLETED != Instance().mWiFiState)
+                {
+                    Instance().Disconnect();
+                }
+            },
+            nullptr);
     }
 
     SystemLayer().ScheduleLambda([] {

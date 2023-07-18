@@ -215,7 +215,8 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     if (ret)
     {
         ChipLogError(DeviceLayer, "Scan request failed %d", ret);
-        if(ret == -EBUSY && !workaroundDone){
+        if (ret == -EBUSY && !workaroundDone)
+        {
             // TODO Wi-Fi driver returned an error during recovery.
             // As a workaround schedule the recovery timer one more time in WifiSupplicantWorkaroundTime time.
             // This allows the device to run the Scan method without
@@ -538,7 +539,13 @@ void WiFiManager::NetworkDrivenDisconnectHandler(Platform::UniquePtr<uint8_t>)
         Instance().mRecoveryArmed = true;
         DeviceLayer::SystemLayer().StartTimer(
             System::Clock::Milliseconds32(kSupplicantReconnectionTimeoutMs),
-            [](System::Layer * layer, void * param) { Instance().Disconnect(); }, nullptr);
+            [](System::Layer * layer, void * param) {
+                if (WIFI_STATE_DISCONNECTED == Instance().mWiFiState || WIFI_STATE_COMPLETED != Instance().mWiFiState)
+                {
+                    Instance().Disconnect();
+                }
+            },
+            nullptr);
     }
 
     SystemLayer().ScheduleLambda([] {

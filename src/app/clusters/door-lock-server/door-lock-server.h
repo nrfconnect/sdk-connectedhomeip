@@ -83,6 +83,8 @@ class DoorLockServer
 public:
     static DoorLockServer & Instance();
 
+    using OnFabricRemovedCustomCallback = void (*)(chip::EndpointId endpointId, chip::FabricIndex fabricIndex);
+
     void InitServer(chip::EndpointId endpointId);
 
     /**
@@ -186,6 +188,17 @@ public:
     {
         // appclusters, 5.2.2: USR feature has conformance [PIN | RID | FGP | FACE]
         return GetFeatures(endpointId).Has(DoorLockFeature::kUser) && SupportsAnyCredential(endpointId);
+    }
+
+    /**
+     * @brief Allows the application to register a custom callback which will be called after the default DoorLock
+     *        OnFabricRemoved implementation.
+     *
+     * @param callback callback to be registered
+     */
+    inline void SetOnFabricRemovedCustomCallback(OnFabricRemovedCustomCallback callback)
+    {
+        mOnFabricRemovedCustomCallback = callback;
     }
 
     bool OnFabricRemoved(chip::EndpointId endpointId, chip::FabricIndex fabricIndex);
@@ -557,6 +570,8 @@ private:
         const chip::app::Clusters::DoorLock::Commands::ClearYearDaySchedule::DecodableType & commandData);
 
     std::array<EmberAfDoorLockEndpointContext, EMBER_AF_DOOR_LOCK_CLUSTER_SERVER_ENDPOINT_COUNT> mEndpointCtx;
+
+    OnFabricRemovedCustomCallback mOnFabricRemovedCustomCallback{ nullptr };
 
     static DoorLockServer instance;
 };

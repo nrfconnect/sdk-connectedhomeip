@@ -1082,6 +1082,8 @@ void ReadClient::HandleDeviceConnected(void * context, Messaging::ExchangeManage
     ChipLogProgress(DataManagement, "HandleDeviceConnected");
     _this->mReadPrepareParams.mSessionHolder.Grab(sessionHandle);
 
+    _this->mpCallback.OnCASESessionEstablished(sessionHandle, _this->mReadPrepareParams);
+
     auto err = _this->SendSubscribeRequest(_this->mReadPrepareParams);
     if (err != CHIP_NO_ERROR)
     {

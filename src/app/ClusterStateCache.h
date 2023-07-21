@@ -620,6 +620,11 @@ private:
         return mCallback.OnUnsolicitedMessageFromPublisher(apReadClient);
     }
 
+    void OnCASESessionEstablished(const SessionHandle & aSession, ReadPrepareParams & aSubscriptionParams) override
+    {
+        return mCallback.OnCASESessionEstablished(aSession, aSubscriptionParams);
+    }
+
     // Commit the pending cluster data version, if there is one.
     void CommitPendingDataVersion();
 

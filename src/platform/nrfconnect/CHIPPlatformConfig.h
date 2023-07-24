@@ -48,6 +48,12 @@
 #define CHIP_CONFIG_SHA256_CONTEXT_SIZE 208
 #endif
 
+#ifdef CONFIG_CHIP_CRYPTO_PSA
+#ifndef CHIP_CONFIG_SHA256_CONTEXT_ALIGN
+#define CHIP_CONFIG_SHA256_CONTEXT_ALIGN psa_hash_operation_t
+#endif // CHIP_CONFIG_SHA256_CONTEXT_ALIGN
+#endif // CONFIG_CHIP_CRYPTO_PSA
+
 // ==================== General Configuration Overrides ====================
 
 #ifndef CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS

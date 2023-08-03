@@ -162,6 +162,10 @@ config BT_DEVICE_NAME_GATT_WRITABLE
     bool
     default n
 
+config BT_GATT_CACHING
+    bool
+    default n
+
 # Enable NFC support
 
 config CHIP_NFC_COMMISSIONING

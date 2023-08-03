@@ -228,7 +228,8 @@ config CHIP_FACTORY_DATA_USER_CERTS_PAI_CERT
 	string "Path to the PAI certificate (DER format)"
 	help
 	  Provides the absolute path to the PAI certificate in the DER format.
-endif
+
+endif # CHIP_FACTORY_DATA_CERT_SOURCE_USER
 
 # Configs for SPAKE2+ generation
 config CHIP_FACTORY_DATA_GENERATE_SPAKE2_VERIFIER
@@ -243,14 +244,12 @@ config CHIP_DEVICE_GENERATE_ROTATING_DEVICE_UID
 	help
 	  Enables the generation of a random Rotating device ID unique ID.
 
-endif #CHIP_FACTORY_DATA_BUILD
+endif # CHIP_FACTORY_DATA_BUILD
 
 # See config/zephyr/Kconfig for full definition
 config CHIP_FACTORY_RESET_ERASE_NVS
 	bool
-	default y if CHIP_FACTORY_DATA || CHIP_FACTORY_DATA_CUSTOM_BACKEND
-
-endif
+	default y
 
 config CHIP_LOG_SIZE_OPTIMIZATION
 	bool "Disable some detailed logs to decrease flash usage"
@@ -268,3 +267,5 @@ config CHIP_IPV4
 	  If disabled, it allows to build nRF Connect SDK application
 	  with IPv4 support independently of the Matter stack still
 	  running over IPv6.
+
+endif # CHIP

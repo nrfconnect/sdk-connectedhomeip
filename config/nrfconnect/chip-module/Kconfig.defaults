@@ -65,6 +65,15 @@ config FPU
 config SHELL
     default y
 
+# Enable getting reboot reasons information
+config HWINFO
+	bool
+	default y
+
+config HWINFO_SHELL
+	bool
+	default n
+
 config PTHREAD_IPC
     bool
     default n
@@ -212,6 +221,10 @@ config NET_L2_OPENTHREAD
     default y if !WIFI_NRF700X
 
 if NET_L2_OPENTHREAD
+
+# Disable OpenThread shell
+config OPENTHREAD_SHELL
+    default n
 
 # Disable certain parts of Zephyr IPv6 stack
 config NET_IPV6_NBR_CACHE

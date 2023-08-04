@@ -433,9 +433,6 @@ endif # SOC_SERIES_NRF52X
 
 if SOC_SERIES_NRF53X
 
-config BOOT_IMAGE_ACCESS_HOOKS
-    default y
-
 config UPDATEABLE_IMAGE_NUMBER
     default 2
 

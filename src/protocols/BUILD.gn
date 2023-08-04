@@ -13,14 +13,9 @@
 # limitations under the License.
 
 import("//build_overrides/chip.gni")
-import("${chip_root}/src/platform/device.gni")
 
 static_library("protocols") {
   output_name = "libChipProtocols"
-  
-  if(chip_device_platform == "linux") {
-    defines = ["CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT=1"]
-  }
 
   sources = [
     "Protocols.cpp",

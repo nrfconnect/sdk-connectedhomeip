@@ -99,7 +99,6 @@ static_library("nrfconnect") {
       "wifi/NrfWiFiDriver.h",
       "wifi/WiFiManager.cpp",
       "wifi/WiFiManager.h",
-      "OTAImageProcessorImplWiFi.h",
     ]
   }
 

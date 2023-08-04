@@ -23,7 +23,6 @@
  *
  */
 
-#if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
 #include "UserDirectedCommissioning.h"
 
 #include <unistd.h>
@@ -79,5 +78,3 @@ CHIP_ERROR UserDirectedCommissioningClient::EncodeUDCMessage(const System::Packe
 } // namespace UserDirectedCommissioning
 } // namespace Protocols
 } // namespace chip
-
-#endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT

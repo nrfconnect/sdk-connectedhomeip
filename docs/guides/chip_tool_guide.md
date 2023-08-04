@@ -680,12 +680,8 @@ against a paired Matter device.
 
     -   _<test_name\>_ is the name of the particular test.
 
-
 See the [Examples](#running-testclusters-test) section for an example of how to
 run a test from the test suite.
-
-Developer details on how the test suite is structured can be found
-[here](https://github.com/project-chip/connectedhomeip/blob/master/src/app/tests/suites/README.md).
 
 ### Parsing the setup payload
 

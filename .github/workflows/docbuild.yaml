@@ -1,7 +1,14 @@
 name: Documentation Build
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+    paths:
+    - '.github/workflows/docbuild.yaml'
+    - '**.md'
+    - 'docs/**'
   push:
     branches:
       - master

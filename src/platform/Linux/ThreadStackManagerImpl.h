@@ -91,6 +91,9 @@ public:
     CHIP_ERROR _SetSEDIntervalsConfig(const ConnectivityManager::SEDIntervalsConfig & intervalsConfig);
     CHIP_ERROR _RequestSEDActiveMode(bool onOff, bool delayIdle = false);
 #endif
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    CHIP_ERROR _SetPollingInterval(System::Clock::Milliseconds32 pollingInterval);
+#endif /* CHIP_CONFIG_ENABLE_ICD_SERVER */
 
     bool _HaveMeshConnectivity();
 
@@ -147,9 +150,12 @@ private:
 
     std::unique_ptr<OpenthreadIoOpenthreadBorderRouter, GObjectDeleter> mProxy;
 
+    static CHIP_ERROR GLibMatterContextInitThreadStack(ThreadStackManagerImpl * self);
+    static CHIP_ERROR GLibMatterContextCallAttach(ThreadStackManagerImpl * self);
+    static CHIP_ERROR GLibMatterContextCallScan(ThreadStackManagerImpl * self);
     static void OnDbusPropertiesChanged(OpenthreadIoOpenthreadBorderRouter * proxy, GVariant * changed_properties,
                                         const gchar * const * invalidated_properties, gpointer user_data);
-    void ThreadDevcieRoleChangedHandler(const gchar * role);
+    void ThreadDeviceRoleChangedHandler(const gchar * role);
 
     Thread::OperationalDataset mDataset = {};
 

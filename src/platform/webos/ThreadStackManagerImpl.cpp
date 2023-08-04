@@ -25,6 +25,8 @@
 #include <platform/ThreadStackManager.h>
 #include <platform/webos/NetworkCommissioningDriver.h>
 
+#include <app-common/zap-generated/ids/Attributes.h>
+
 #include <nlbyteorder.hpp>
 #include <nlio-byteorder.hpp>
 #include <nlio.hpp>
@@ -70,7 +72,7 @@ CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
     std::unique_ptr<gchar, GFree> role(openthread_io_openthread_border_router_dup_device_role(mProxy.get()));
     if (role)
     {
-        ThreadDevcieRoleChangedHandler(role.get());
+        ThreadDeviceRoleChangedHandler(role.get());
     }
 
     return CHIP_NO_ERROR;
@@ -102,13 +104,13 @@ void ThreadStackManagerImpl::OnDbusPropertiesChanged(OpenthreadIoOpenthreadBorde
                 if (value_str == nullptr)
                     continue;
                 ChipLogProgress(DeviceLayer, "Thread role changed to: %s", StringOrNullMarker(value_str));
-                me->ThreadDevcieRoleChangedHandler(value_str);
+                me->ThreadDeviceRoleChangedHandler(value_str);
             }
         }
     }
 }
 
-void ThreadStackManagerImpl::ThreadDevcieRoleChangedHandler(const gchar * role)
+void ThreadStackManagerImpl::ThreadDeviceRoleChangedHandler(const gchar * role)
 {
     bool attached = strcmp(role, kOpenthreadDeviceRoleDetached) != 0 && strcmp(role, kOpenthreadDeviceRoleDisabled) != 0;
 

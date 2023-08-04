@@ -33,6 +33,7 @@
 #include <set>
 #include <vector>
 
+#if CHIP_CONFIG_ENABLE_READ_CLIENT
 namespace chip {
 namespace app {
 /*
@@ -150,6 +151,17 @@ public:
 
         ReturnErrorOnFailure(Get(path, reader));
         return DataModel::Decode(reader, value);
+    }
+
+    /**
+     * Get the value of a particular attribute for the given endpoint.  See the
+     * documentation for Get() with a ConcreteAttributePath above.
+     */
+    template <typename AttributeObjectTypeT>
+    CHIP_ERROR Get(EndpointId endpoint, typename AttributeObjectTypeT::DecodableType & value) const
+    {
+        ConcreteAttributePath path(endpoint, AttributeObjectTypeT::GetClusterId(), AttributeObjectTypeT::GetAttributeId());
+        return Get<AttributeObjectTypeT>(path, value);
     }
 
     /*
@@ -620,6 +632,11 @@ private:
         return mCallback.OnUnsolicitedMessageFromPublisher(apReadClient);
     }
 
+    void OnCASESessionEstablished(const SessionHandle & aSession, ReadPrepareParams & aSubscriptionParams) override
+    {
+        return mCallback.OnCASESessionEstablished(aSession, aSubscriptionParams);
+    }
+
     // Commit the pending cluster data version, if there is one.
     void CommitPendingDataVersion();
 
@@ -644,5 +661,6 @@ private:
     const bool mCacheData                   = true;
 };
 
-}; // namespace app
-}; // namespace chip
+};     // namespace app
+};     // namespace chip
+#endif // CHIP_CONFIG_ENABLE_READ_CLIENT

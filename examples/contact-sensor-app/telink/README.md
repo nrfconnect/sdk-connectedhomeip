@@ -9,13 +9,13 @@ You can use this example as a reference for creating your own application.
 1. Pull docker image from repository:
 
     ```bash
-    $ docker pull connectedhomeip/chip-build-telink:latest
+    $ docker pull ghcr.io/project-chip/chip-build-telink:1
     ```
 
 1. Run docker container:
 
     ```bash
-    $ docker run -it --rm -v ${CHIP_BASE}:/root/chip -v /dev/bus/usb:/dev/bus/usb --device-cgroup-rule "c 189:* rmw" connectedhomeip/chip-build-telink:latest
+    $ docker run -it --rm -v ${CHIP_BASE}:/root/chip -v /dev/bus/usb:/dev/bus/usb --device-cgroup-rule "c 189:* rmw" ghcr.io/project-chip/chip-build-telink:1
     ```
 
     here `${CHIP_BASE}` is directory which contains CHIP repo files **!!!Pay
@@ -81,14 +81,14 @@ following states:
 Identify command of the Identify cluster is received. The command's argument can
 be used to specify the the effect. It is able to be in following effects:
 
-| Effect                          | Description                                                          |
-| :------------------------------ | :------------------------------------------------------------------- |
-| Blinks (200 ms on/200 ms off)   | Blink (EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BLINK)                   |
-| Breathe (during 1000 ms)        | Breathe (EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BREATHE)               |
-| Blinks (50 ms on/950 ms off)    | Okay (EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_OKAY)                     |
-| Blinks (1000 ms on/1000 ms off) | Channel Change (EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_CHANNEL_CHANGE) |
-| Blinks (950 ms on/50 ms off)    | Finish (EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_FINISH_EFFECT)          |
-| LED off                         | Stop (EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_STOP_EFFECT)              |
+| Effect                          | Description                                                                  |
+| :------------------------------ | :--------------------------------------------------------------------------- |
+| Blinks (200 ms on/200 ms off)   | Blink (`Clusters::Identify::EffectIdentifierEnum::kBlink`)                   |
+| Breathe (during 1000 ms)        | Breathe (`Clusters::Identify::EffectIdentifierEnum::kBreathe`)               |
+| Blinks (50 ms on/950 ms off)    | Okay (`Clusters::Identify::EffectIdentifierEnum::kOkay`)                     |
+| Blinks (1000 ms on/1000 ms off) | Channel Change ( `Clusters::Identify::EffectIdentifierEnum::kChannelChange`) |
+| Blinks (950 ms on/50 ms off)    | Finish ( `Clusters::Identify::EffectIdentifierEnum::kFinishEffect`)          |
+| LED off                         | Stop (`Clusters::Identify::EffectIdentifierEnum::kStopEffect`)               |
 
 #### Indicate current state of Contact Sensor
 
@@ -165,7 +165,7 @@ Usage of OTA:
 -   Use the chip-tool to announce the ota-provider-app to start the OTA process
 
     ```
-    ./chip-tool otasoftwareupdaterequestor announce-ota-provider ${OTA_PROVIDER_NODE_ID} 0 0 0 ${DEVICE_NODE_ID} 0
+    ./chip-tool otasoftwareupdaterequestor announce-otaprovider ${OTA_PROVIDER_NODE_ID} 0 0 0 ${DEVICE_NODE_ID} 0
     ```
 
     here:

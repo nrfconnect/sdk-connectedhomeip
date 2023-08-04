@@ -15,9 +15,9 @@ class ParseMetaData:
 
     def __init__(self, meta: Optional[Meta] = None, line: Optional[int] = None, column: Optional[int] = None, start_pos: Optional[int] = None):
         if meta:
-            self.line = meta.line
-            self.column = meta.column
-            self.start_pos = meta.start_pos
+            self.line = getattr(meta, 'line', None)
+            self.column = getattr(meta, 'column', None)
+            self.start_pos = getattr(meta, 'start_pos', None)
         else:
             self.line = line
             self.column = column
@@ -99,7 +99,12 @@ class DataType:
     name: str
 
     # Applies for strings (char or binary)
+    min_length: Optional[int] = None
     max_length: Optional[int] = None
+
+    # Applies for numbers
+    min_value: Optional[int] = None
+    max_value: Optional[int] = None
 
 
 @dataclass

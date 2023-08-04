@@ -118,16 +118,43 @@ DataVersion fixedEndpointDataVersions[ZAP_FIXED_ENDPOINT_DATA_VERSION_COUNT];
 #define endpointTypeMacro(x) (&(generatedEmberAfEndpointTypes[fixedEmberAfEndpointTypes[x]]))
 #endif
 
-app::AttributeAccessInterface * gAttributeAccessOverrides = nullptr;
+AttributeAccessInterface * gAttributeAccessOverrides = nullptr;
+
+// shouldUnregister returns true if the given AttributeAccessInterface should be
+// unregistered.
+template <typename F>
+void UnregisterMatchingAttributeAccessInterfaces(F shouldUnregister)
+{
+    AttributeAccessInterface * prev = nullptr;
+    AttributeAccessInterface * cur  = gAttributeAccessOverrides;
+    while (cur)
+    {
+        AttributeAccessInterface * next = cur->GetNext();
+        if (shouldUnregister(cur))
+        {
+            // Remove it from the list
+            if (prev)
+            {
+                prev->SetNext(next);
+            }
+            else
+            {
+                gAttributeAccessOverrides = next;
+            }
+
+            cur->SetNext(nullptr);
+
+            // Do not change prev in this case.
+        }
+        else
+        {
+            prev = cur;
+        }
+        cur = next;
+    }
+}
+
 } // anonymous namespace
-
-//------------------------------------------------------------------------------
-// Forward declarations
-
-// Returns endpoint index within a given cluster
-static uint16_t findClusterEndpointIndex(EndpointId endpoint, ClusterId clusterId, uint8_t mask);
-
-//------------------------------------------------------------------------------
 
 // Initial configuration
 void emberAfEndpointConfigure()
@@ -165,7 +192,9 @@ void emberAfEndpointConfigure()
         emAfEndpoints[ep].deviceTypeList = endpointDeviceTypeList(ep);
         emAfEndpoints[ep].endpointType   = endpointTypeMacro(ep);
         emAfEndpoints[ep].dataVersions   = currentDataVersions;
-        emAfEndpoints[ep].bitmask        = EMBER_AF_ENDPOINT_ENABLED;
+
+        emAfEndpoints[ep].bitmask.Set(EmberAfEndpointOptions::isEnabled);
+        emAfEndpoints[ep].bitmask.Set(EmberAfEndpointOptions::isFlatComposition);
 
         // Increment currentDataVersions by 1 (slot) for every server cluster
         // this endpoint has.
@@ -244,7 +273,7 @@ EmberAfStatus emberAfSetDynamicEndpoint(uint16_t index, EndpointId id, const Emb
     emAfEndpoints[index].endpointType   = ep;
     emAfEndpoints[index].dataVersions   = dataVersionStorage.data();
     // Start the endpoint off as disabled.
-    emAfEndpoints[index].bitmask          = EMBER_AF_ENDPOINT_DISABLED;
+    emAfEndpoints[index].bitmask.Clear(EmberAfEndpointOptions::isEnabled);
     emAfEndpoints[index].parentEndpointId = parentEndpointId;
 
     emberAfSetDynamicEndpointCount(MAX_ENDPOINT_COUNT - FIXED_ENDPOINT_COUNT);
@@ -295,7 +324,7 @@ uint16_t emberAfEndpointCount()
 
 bool emberAfEndpointIndexIsEnabled(uint16_t index)
 {
-    return (emAfEndpoints[index].bitmask & EMBER_AF_ENDPOINT_ENABLED);
+    return (emAfEndpoints[index].bitmask.Has(EmberAfEndpointOptions::isEnabled));
 }
 
 bool emberAfIsStringAttributeType(EmberAfAttributeType attributeType)
@@ -391,33 +420,8 @@ static void shutdownEndpoint(EmberAfDefinedEndpoint * definedEndpoint)
 
     // Clear out any attribute access overrides registered for this
     // endpoint.
-    app::AttributeAccessInterface * prev = nullptr;
-    app::AttributeAccessInterface * cur  = gAttributeAccessOverrides;
-    while (cur)
-    {
-        app::AttributeAccessInterface * next = cur->GetNext();
-        if (cur->MatchesEndpoint(definedEndpoint->endpoint))
-        {
-            // Remove it from the list
-            if (prev)
-            {
-                prev->SetNext(next);
-            }
-            else
-            {
-                gAttributeAccessOverrides = next;
-            }
-
-            cur->SetNext(nullptr);
-
-            // Do not change prev in this case.
-        }
-        else
-        {
-            prev = cur;
-        }
-        cur = next;
-    }
+    UnregisterMatchingAttributeAccessInterfaces(
+        [endpoint = definedEndpoint->endpoint](AttributeAccessInterface * entry) { return entry->MatchesEndpoint(endpoint); });
 }
 
 // Calls the init functions.
@@ -825,40 +829,6 @@ const EmberAfCluster * emberAfFindClusterIncludingDisabledEndpoints(EndpointId e
     return nullptr;
 }
 
-// Server wrapper for findClusterEndpointIndex
-uint16_t emberAfFindClusterServerEndpointIndex(EndpointId endpoint, ClusterId clusterId)
-{
-    return findClusterEndpointIndex(endpoint, clusterId, CLUSTER_MASK_SERVER);
-}
-
-// Returns the endpoint index within a given cluster
-static uint16_t findClusterEndpointIndex(EndpointId endpoint, ClusterId clusterId, uint8_t mask)
-{
-    uint16_t i, epi = 0;
-
-    if (emberAfFindServerCluster(endpoint, clusterId) == nullptr)
-    {
-        return kEmberInvalidEndpointIndex;
-    }
-
-    for (i = 0; i < emberAfEndpointCount(); i++)
-    {
-        if (emAfEndpoints[i].endpoint == endpoint)
-        {
-            break;
-        }
-        if (emAfEndpoints[i].endpoint == kInvalidEndpointId)
-        {
-            // Not actually a configured endpoint.
-            continue;
-        }
-        epi = static_cast<uint16_t>(
-            epi + ((emberAfFindClusterIncludingDisabledEndpoints(emAfEndpoints[i].endpoint, clusterId, mask) != nullptr) ? 1 : 0));
-    }
-
-    return epi;
-}
-
 static uint16_t findIndexFromEndpoint(EndpointId endpoint, bool ignoreDisabledEndpoints)
 {
     if (endpoint == kInvalidEndpointId)
@@ -870,12 +840,59 @@ static uint16_t findIndexFromEndpoint(EndpointId endpoint, bool ignoreDisabledEn
     for (epi = 0; epi < emberAfEndpointCount(); epi++)
     {
         if (emAfEndpoints[epi].endpoint == endpoint &&
-            (!ignoreDisabledEndpoints || emAfEndpoints[epi].bitmask & EMBER_AF_ENDPOINT_ENABLED))
+            (!ignoreDisabledEndpoints || emAfEndpoints[epi].bitmask.Has(EmberAfEndpointOptions::isEnabled)))
         {
             return epi;
         }
     }
     return kEmberInvalidEndpointIndex;
+}
+
+uint16_t emberAfGetClusterServerEndpointIndex(EndpointId endpoint, ClusterId cluster, uint16_t fixedClusterServerEndpointCount)
+{
+    VerifyOrDie(fixedClusterServerEndpointCount <= FIXED_ENDPOINT_COUNT);
+    uint16_t epIndex = findIndexFromEndpoint(endpoint, true /*ignoreDisabledEndpoints*/);
+
+    // Endpoint must be configured and enabled
+    if (epIndex == kEmberInvalidEndpointIndex)
+    {
+        return kEmberInvalidEndpointIndex;
+    }
+
+    if (emberAfFindClusterInType(emAfEndpoints[epIndex].endpointType, cluster, CLUSTER_MASK_SERVER) == nullptr)
+    {
+        // The provided endpoint does not contain the given cluster server.
+        return kEmberInvalidEndpointIndex;
+    }
+
+    if (epIndex < FIXED_ENDPOINT_COUNT)
+    {
+        // This endpoint is a fixed one.
+        // Return the index of this endpoint in the list of fixed endpoints that support the given cluster.
+        uint16_t adjustedEndpointIndex = 0;
+        for (uint16_t i = 0; i < epIndex; i++)
+        {
+            // Increase adjustedEndpointIndex for every endpoint containing the cluster server
+            // before our endpoint of interest
+            if (emAfEndpoints[i].endpoint != kInvalidEndpointId &&
+                (emberAfFindClusterInType(emAfEndpoints[i].endpointType, cluster, CLUSTER_MASK_SERVER) != nullptr))
+            {
+                adjustedEndpointIndex++;
+            }
+        }
+
+        // If this asserts, the provided fixedClusterServerEndpointCount doesn't match the app data model.
+        VerifyOrDie(adjustedEndpointIndex < fixedClusterServerEndpointCount);
+        epIndex = adjustedEndpointIndex;
+    }
+    else
+    {
+        // This is a dynamic endpoint.
+        // Its index is just its index in the dynamic endpoint list, offset by fixedClusterServerEndpointCount.
+        epIndex = static_cast<uint16_t>(fixedClusterServerEndpointCount + (epIndex - FIXED_ENDPOINT_COUNT));
+    }
+
+    return epIndex;
 }
 
 bool emberAfEndpointIsEnabled(EndpointId endpoint)
@@ -904,11 +921,11 @@ bool emberAfEndpointEnableDisable(EndpointId endpoint, bool enable)
         return false;
     }
 
-    currentlyEnabled = emAfEndpoints[index].bitmask & EMBER_AF_ENDPOINT_ENABLED;
+    currentlyEnabled = emAfEndpoints[index].bitmask.Has(EmberAfEndpointOptions::isEnabled);
 
     if (enable)
     {
-        emAfEndpoints[index].bitmask |= EMBER_AF_ENDPOINT_ENABLED;
+        emAfEndpoints[index].bitmask.Set(EmberAfEndpointOptions::isEnabled);
     }
 
 #if defined(EZSP_HOST)
@@ -947,7 +964,7 @@ bool emberAfEndpointEnableDisable(EndpointId endpoint, bool enable)
 
     if (!enable)
     {
-        emAfEndpoints[index].bitmask &= EMBER_AF_ENDPOINT_DISABLED;
+        emAfEndpoints[index].bitmask.Clear(EmberAfEndpointOptions::isEnabled);
     }
 
     return true;
@@ -1372,7 +1389,7 @@ EmberAfGenericClusterFunction emberAfFindClusterFunction(const EmberAfCluster * 
     return cluster->functions[functionIndex];
 }
 
-bool registerAttributeAccessOverride(app::AttributeAccessInterface * attrOverride)
+bool registerAttributeAccessOverride(AttributeAccessInterface * attrOverride)
 {
     for (auto * cur = gAttributeAccessOverrides; cur; cur = cur->GetNext())
     {
@@ -1385,6 +1402,11 @@ bool registerAttributeAccessOverride(app::AttributeAccessInterface * attrOverrid
     attrOverride->SetNext(gAttributeAccessOverrides);
     gAttributeAccessOverrides = attrOverride;
     return true;
+}
+
+void unregisterAttributeAccessOverride(AttributeAccessInterface * attrOverride)
+{
+    UnregisterMatchingAttributeAccessInterfaces([attrOverride](AttributeAccessInterface * entry) { return entry == attrOverride; });
 }
 
 namespace chip {
@@ -1401,6 +1423,64 @@ app::AttributeAccessInterface * GetAttributeAccessOverride(EndpointId endpointId
 
     return nullptr;
 }
+
+CHIP_ERROR SetParentEndpointForEndpoint(EndpointId childEndpoint, EndpointId parentEndpoint)
+{
+    uint16_t childIndex  = emberAfIndexFromEndpoint(childEndpoint);
+    uint16_t parentIndex = emberAfIndexFromEndpoint(parentEndpoint);
+
+    if (childIndex == kEmberInvalidEndpointIndex || parentIndex == kEmberInvalidEndpointIndex)
+    {
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+    emAfEndpoints[childIndex].parentEndpointId = parentEndpoint;
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR SetFlatCompositionForEndpoint(EndpointId endpoint)
+{
+    uint16_t index = emberAfIndexFromEndpoint(endpoint);
+    if (index == kEmberInvalidEndpointIndex)
+    {
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+    emAfEndpoints[index].bitmask.Clear(EmberAfEndpointOptions::isTreeComposition);
+    emAfEndpoints[index].bitmask.Set(EmberAfEndpointOptions::isFlatComposition);
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR SetTreeCompositionForEndpoint(EndpointId endpoint)
+{
+    uint16_t index = emberAfIndexFromEndpoint(endpoint);
+    if (index == kEmberInvalidEndpointIndex)
+    {
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+    emAfEndpoints[index].bitmask.Clear(EmberAfEndpointOptions::isFlatComposition);
+    emAfEndpoints[index].bitmask.Set(EmberAfEndpointOptions::isTreeComposition);
+    return CHIP_NO_ERROR;
+}
+
+bool IsFlatCompositionForEndpoint(EndpointId endpoint)
+{
+    uint16_t index = emberAfIndexFromEndpoint(endpoint);
+    if (index == kEmberInvalidEndpointIndex)
+    {
+        return false;
+    }
+    return emAfEndpoints[index].bitmask.Has(EmberAfEndpointOptions::isFlatComposition);
+}
+
+bool IsTreeCompositionForEndpoint(EndpointId endpoint)
+{
+    uint16_t index = emberAfIndexFromEndpoint(endpoint);
+    if (index == kEmberInvalidEndpointIndex)
+    {
+        return false;
+    }
+    return emAfEndpoints[index].bitmask.Has(EmberAfEndpointOptions::isTreeComposition);
+}
+
 } // namespace app
 } // namespace chip
 

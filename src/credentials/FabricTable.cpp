@@ -799,7 +799,7 @@ FabricTable::AddOrUpdateInner(FabricIndex fabricIndex, bool isAddition, Crypto::
     }
     else
     {
-        // Initialization for Upating fabric: setting up a shadow fabricInfo
+        // Initialization for Updating fabric: setting up a shadow fabricInfo
         const FabricInfo * existingFabric = FindFabricWithIndex(fabricIndex);
         VerifyOrReturnError(existingFabric != nullptr, CHIP_ERROR_INTERNAL);
 
@@ -2077,6 +2077,21 @@ CHIP_ERROR FabricTable::GetFabricLabel(FabricIndex fabricIndex, CharSpan & outFa
     VerifyOrReturnError(fabricInfo != nullptr, CHIP_ERROR_INVALID_FABRIC_INDEX);
 
     outFabricLabel = fabricInfo->GetFabricLabel();
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR FabricTable::PeekFabricIndexForNextAddition(FabricIndex & outIndex)
+{
+    EnsureNextAvailableFabricIndexUpdated();
+    if (!mNextAvailableFabricIndex.HasValue())
+    {
+        return CHIP_ERROR_NO_MEMORY;
+    }
+
+    FabricIndex index = mNextAvailableFabricIndex.Value();
+    VerifyOrReturnError(IsValidFabricIndex(index), CHIP_ERROR_INVALID_FABRIC_INDEX);
+
+    outIndex = index;
     return CHIP_NO_ERROR;
 }
 

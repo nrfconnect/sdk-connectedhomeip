@@ -27,21 +27,22 @@ config:
     endpoint: 0
 
 tests:
-    - label: "Using TH_CR1, commission the DUT_CE onto the Matter network"
+    - label:
+          "Step 1: Using TH_CR1, commission the DUT_CE onto the Matter network"
       verification: |
           Using chip-tool (TH_CR1) provision the device using cmd
 
           ./out/debug/chip-tool pairing ble-wifi node-id ssid password setup-pin-code discriminator
       disabled: true
 
-    - label: "Bring the TH_CR2 onto the thread network"
+    - label: "Step 2: Bring the TH_CR2 onto the thread network"
       verification: |
           Build openthread POSIX cli app with RCP and have it join the thread network that the BR is part of.
 
-          If you don"t have the app, follow the below "Instructions to build the POSIX app"
+          If you don't have the app, follow the below "Instructions to build the POSIX app"
 
           if you have the RCP connected to the raspi, launch the ot-cli app with RCP
-          $ sudo ./build/posix/src/posix/ot-cli "spinel+hdlc+uart:///dev/ttyACM0?uart-baudrate=115200" -v
+          $ sudo ./build/posix/src/posix/ot-cli 'spinel+hdlc+uart:///dev/ttyACM0?uart-baudrate=115200' -v
           ./build/posix/src/posix/ot-cli[68007]: Running OPENTHREAD/thread-reference-20200818-1820-g095f530bd; POSIX; Jul 18 2022 22:44:35
           ./build/posix/src/posix/ot-cli[68007]: Thread version: 4
           ./build/posix/src/posix/ot-cli[68007]: Thread interface:
@@ -65,15 +66,15 @@ tests:
           6. ./bootstrap
           7. ./script/cmake-build posix
           8. follow the instructions to build the RCP dongle (or get the RCP image from README file in the test harness and flash it on the RCP)
-          8. ./build/posix/src/posix/ot-cli "spinel+hdlc+uart:///dev/ttyACM0?uart-baudrate=115200" -v
+          8. ./build/posix/src/posix/ot-cli 'spinel+hdlc+uart:///dev/ttyACM0?uart-baudrate=115200' -v
       disabled: true
 
     - label:
-          "Using TH_CR2, using ICMPv6 echo to ping with a payload >= 32 bytes to
-          the the DUT_CE that is already commissioned to the Matter network. IP
-          address is determined by operational discovery of the DNS-SD
-          operational service record (_matter._tcp service instance) of DUT_CE
-          done by TH_CR2."
+          "Step 3: Using TH_CR2, using ICMPv6 echo to ping with a payload >= 32
+          bytes to the the DUT_CE that is already commissioned to the Matter
+          network. IP address is determined by operational discovery of the
+          DNS-SD operational service record (_matter._tcp service instance) of
+          DUT_CE done by TH_CR2."
       verification: |
           In the RCP Shell , have the TH_CR2 discover the device IP address using
           > dns service 87E1B004E235A130-8FC7772401CD0696 _matter._tcp.default.service.arpa.

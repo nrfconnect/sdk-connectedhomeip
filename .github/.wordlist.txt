@@ -44,6 +44,7 @@ AdvSendAdvert
 AE
 aef
 AES
+AIDL
 AlarmCode
 algs
 alloc
@@ -87,6 +88,7 @@ ARMmbed
 armv
 ASAN
 asdk
+ASR
 AssertionError
 AST
 ASYNC
@@ -120,6 +122,7 @@ AXXXF
 AYNJV
 babaf
 backend
+backends
 backticks
 backtrace
 BallastConfiguration
@@ -162,6 +165,7 @@ bredr
 BridgedDeviceBasicInformation
 bridgedLightEndpoint
 bringup
+BroadcastReceiver
 BromateConcentrationMeasurement
 BromodichloromethaneConcentrationMeasurement
 BromoformConcentrationMeasurement
@@ -355,6 +359,8 @@ DCONF
 DCONFIG
 debianutils
 debugText
+decrypt
+decrypted
 DEDEDEDE
 deepnote
 DefaultOTAProviders
@@ -474,6 +480,7 @@ EEE
 eef
 ef
 EFR
+efuse
 eg
 EjQ
 elftools
@@ -563,6 +570,7 @@ FW
 gbl
 gcloud
 GDB
+gdbgui
 gdbserver
 GeneralCommissioning
 GeneralDiagnostics
@@ -582,6 +590,7 @@ getManualTests
 getstarted
 getTests
 GH
+ghcr
 ghp
 githubusercontent
 gitignore
@@ -606,6 +615,7 @@ GroupKeyManagement
 groupKeySecurityPolicy
 groupKeySetID
 groupsettings
+gsdk
 gtk
 GUA
 Gv
@@ -622,6 +632,7 @@ hci
 hciattach
 hciconfig
 hdlc
+HEPA
 HKDF
 HMAC
 hoc
@@ -641,6 +652,7 @@ IasWd
 iaszone
 ibb
 ICA
+ICD
 iCloud
 ICMP
 IDF
@@ -717,6 +729,7 @@ Jupyter
 jupyterlab
 KA
 kAdminister
+kbd
 kBusy
 kCase
 Kconfig
@@ -947,6 +960,7 @@ OnOffClusterTest
 OnOffSwitchConfiguration
 OnPlatformEvent
 OO
+openiotsdk
 openjdk
 OpenOCD
 OpenSSL
@@ -972,6 +986,7 @@ otaissues
 OTAProvider
 OTAProviderIpAddress
 OTAProviderNodeId
+otaproviders
 OTAProviderSerialPort
 OTARequesterImpl
 OTARequestorDriver
@@ -1017,6 +1032,7 @@ peerNodeId
 peerSessionId
 pem
 percentageLiftValue
+perfetto
 periodicQueryTimeout
 pexpect
 pickString
@@ -1062,6 +1078,7 @@ ProxyDiscovery
 ProxyValid
 ProxyView
 PRs
+PSA
 PSCAN
 PSECT
 PSK
@@ -1146,6 +1163,7 @@ RPC
 RPCs
 RPi
 RPis
+RSA
 rsn
 RSSI
 RST
@@ -1238,6 +1256,7 @@ SoftwareVersion
 softwareVersionStr
 SoftwareVersionString
 softwareVersionValid
+SparkFun
 sphinxcontrib
 SPI
 spiflash
@@ -1347,6 +1366,7 @@ tmp
 tngvndl
 TODO
 toJson
+tokenization
 tokenized
 tokenizer
 toolchain

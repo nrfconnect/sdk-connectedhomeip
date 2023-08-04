@@ -48,7 +48,7 @@ include(${COMMON_CMAKE_SOURCE_DIR}/chip_gn.cmake)
 # Prepare compiler flags
 
 if (CONFIG_POSIX_API)
-    matter_add_flags(-D_SYS__PTHREADTYPES_H_)
+    matter_add_flags(-D_DEFAULT_SOURCE)
     matter_add_flags(-isystem${ZEPHYR_BASE}/include/zephyr/posix)
 endif()
 
@@ -143,11 +143,17 @@ else()
     unset(GLOBAL_DTC_OVERLAY_FILE)
 endif()
 
+if(EXISTS "${CHIP_ROOT}/config/telink/app/bootloader.conf")
+    set(GLOBAL_BOOTLOADER_CONF_OVERLAY_FILE "${CHIP_ROOT}/config/telink/app/bootloader.conf")
+else()
+    unset(GLOBAL_BOOTLOADER_CONF_OVERLAY_FILE)
+endif()
+
 if (CONFIG_CHIP_OTA_IMAGE_BUILD)
     add_custom_target(build_mcuboot ALL
         COMMAND
         west build -b ${BOARD} -d build_mcuboot ${ZEPHYR_BASE}/../bootloader/mcuboot/boot/zephyr
-            -- -DCONFIG_BOOT_SWAP_USING_MOVE=y -DDTC_OVERLAY_FILE=${GLOBAL_DTC_OVERLAY_FILE}
+            -- -DOVERLAY_CONFIG=${GLOBAL_BOOTLOADER_CONF_OVERLAY_FILE} -DDTC_OVERLAY_FILE=${GLOBAL_DTC_OVERLAY_FILE}
     )
 
     add_custom_target(merge_mcuboot ALL

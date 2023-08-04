@@ -96,6 +96,7 @@ declare -a args=(
     'chip_build_tools=false'
     'chip_build_tests=false'
     'chip_enable_wifi=false'
+    'chip_enable_python_modules=false'
     'chip_log_message_max_size=4096' # might as well allow nice long log messages
     'chip_disable_platform_kvs=true'
     'enable_fuzz_test_targets=false'
@@ -130,6 +131,21 @@ declare -a args=(
 [[ $CHIP_IS_ASAN == YES ]] && {
     args+=(
         'is_asan=true'
+    )
+}
+
+[[ $CHIP_IS_UBSAN == YES ]] && {
+    args+=(
+        'is_ubsan=true'
+    )
+}
+
+[[ $CHIP_IS_TSAN == YES ]] && {
+    args+=(
+        'is_tsan=true'
+        # The system stats stuff races on the stats in various ways,
+        # so just disable it when using TSan.
+        'chip_system_config_provide_statistics=false'
     )
 }
 

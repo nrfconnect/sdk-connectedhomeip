@@ -143,6 +143,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGroupsClusterAddGroupResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRGroupsClusterAddGroupResponseParams (Deprecated)
@@ -212,6 +226,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGroupsClusterViewGroupResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRGroupsClusterViewGroupResponseParams (Deprecated)
@@ -273,6 +301,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGroupsClusterGetGroupMembershipResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -334,6 +376,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGroupsClusterRemoveGroupResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRGroupsClusterRemoveGroupResponseParams (Deprecated)
@@ -480,6 +536,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterAddSceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterAddSceneResponseParams (Deprecated)
@@ -563,6 +633,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterViewSceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterViewSceneResponseParams (Deprecated)
@@ -640,6 +724,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterRemoveSceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterRemoveSceneResponseParams (Deprecated)
@@ -710,6 +808,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterRemoveAllScenesResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterRemoveAllScenesResponseParams (Deprecated)
@@ -784,6 +896,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterStoreSceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterStoreSceneResponseParams (Deprecated)
@@ -901,6 +1027,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterGetSceneMembershipResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterGetSceneMembershipResponseParams (Deprecated)
@@ -981,6 +1121,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterEnhancedAddSceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterEnhancedAddSceneResponseParams (Deprecated)
@@ -1064,6 +1218,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterEnhancedViewSceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterEnhancedViewSceneResponseParams (Deprecated)
@@ -1153,6 +1321,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRScenesClusterCopySceneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRScenesClusterCopySceneResponseParams (Deprecated)
@@ -2179,6 +2361,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTROTASoftwareUpdateProviderClusterQueryImageResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTROTASoftwareUpdateProviderClusterQueryImageResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -2247,6 +2443,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTROTASoftwareUpdateProviderClusterApplyUpdateResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -2401,6 +2611,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGeneralCommissioningClusterArmFailSafeResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -2461,6 +2685,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGeneralCommissioningClusterSetRegulatoryConfigResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -2514,6 +2752,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGeneralCommissioningClusterCommissioningCompleteResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -2575,6 +2827,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRNetworkCommissioningClusterScanNetworksResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -2700,6 +2966,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRNetworkCommissioningClusterNetworkConfigResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -2759,6 +3039,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRNetworkCommissioningClusterConnectNetworkResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -2857,6 +3151,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDiagnosticLogsClusterRetrieveLogsResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRDiagnosticLogsClusterRetrieveLogsResponseParams (Deprecated)
@@ -3012,14 +3320,158 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
 @end
 
-API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
-@interface MTRTimeSynchronizationClusterSetUtcTimeParams : NSObject <NSCopying>
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetUTCTimeParams : NSObject <NSCopying>
 
-@property (nonatomic, copy) NSNumber * _Nonnull utcTime API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
+@property (nonatomic, copy) NSNumber * _Nonnull utcTime MTR_PROVISIONALLY_AVAILABLE;
 
-@property (nonatomic, copy) NSNumber * _Nonnull granularity API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
+@property (nonatomic, copy) NSNumber * _Nonnull granularity MTR_PROVISIONALLY_AVAILABLE;
 
-@property (nonatomic, copy) NSNumber * _Nullable timeSource API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
+@property (nonatomic, copy) NSNumber * _Nullable timeSource MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetUtcTimeParams : MTRTimeSynchronizationClusterSetUTCTimeParams
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetTrustedTimeSourceParams : NSObject <NSCopying>
+
+@property (nonatomic, copy)
+    MTRTimeSynchronizationClusterFabricScopedTrustedTimeSourceStruct * _Nullable trustedTimeSource MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetTimeZoneParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSArray * _Nonnull timeZone MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetTimeZoneResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull dstOffsetRequired MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRTimeSynchronizationClusterSetTimeZoneResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetDSTOffsetParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSArray * _Nonnull dstOffset MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTimeSynchronizationClusterSetDefaultNTPParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSString * _Nullable defaultNTP MTR_PROVISIONALLY_AVAILABLE;
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *
@@ -3203,6 +3655,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTROperationalCredentialsClusterAttestationResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTROperationalCredentialsClusterAttestationResponseParams (Deprecated)
@@ -3262,6 +3728,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTROperationalCredentialsClusterCertificateChainResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -3319,6 +3799,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTROperationalCredentialsClusterCSRResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -3416,6 +3910,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTROperationalCredentialsClusterNOCResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -3597,6 +4105,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGroupKeyManagementClusterKeySetReadResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -3631,8 +4153,6 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRGroupKeyManagementClusterKeySetReadAllIndicesParams : NSObject <NSCopying>
-
-@property (nonatomic, copy) NSArray * _Nonnull groupKeySetIDs API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *
@@ -3680,6 +4200,135 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRGroupKeyManagementClusterKeySetReadAllIndicesResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRICDManagementClusterRegisterClientParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull checkInNodeID MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSNumber * _Nonnull monitoredSubject MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSData * _Nonnull key MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSData * _Nullable verificationKey MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRICDManagementClusterRegisterClientResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull icdCounter MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRICDManagementClusterRegisterClientResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRICDManagementClusterUnregisterClientParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull checkInNodeID MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSData * _Nullable verificationKey MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRICDManagementClusterStayActiveRequestParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -3687,6 +4336,700 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 
 @property (nonatomic, copy, getter=getNewMode)
     NSNumber * _Nonnull newMode API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRLaundryWasherModeClusterChangeToModeParams : NSObject <NSCopying>
+
+@property (nonatomic, copy, getter=getNewMode) NSNumber * _Nonnull newMode MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRLaundryWasherModeClusterChangeToModeResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull status MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSString * _Nullable statusText MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRLaundryWasherModeClusterChangeToModeResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRefrigeratorAndTemperatureControlledCabinetModeClusterChangeToModeParams : NSObject <NSCopying>
+
+@property (nonatomic, copy, getter=getNewMode) NSNumber * _Nonnull newMode MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRefrigeratorAndTemperatureControlledCabinetModeClusterChangeToModeResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull status MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSString * _Nullable statusText MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRRefrigeratorAndTemperatureControlledCabinetModeClusterChangeToModeResponseParams with a response-value
+ * dictionary of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCRunModeClusterChangeToModeParams : NSObject <NSCopying>
+
+@property (nonatomic, copy, getter=getNewMode) NSNumber * _Nonnull newMode MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCRunModeClusterChangeToModeResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull status MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSString * _Nullable statusText MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRRVCRunModeClusterChangeToModeResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCCleanModeClusterChangeToModeParams : NSObject <NSCopying>
+
+@property (nonatomic, copy, getter=getNewMode) NSNumber * _Nonnull newMode MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCCleanModeClusterChangeToModeResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull status MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSString * _Nullable statusText MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRRVCCleanModeClusterChangeToModeResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRTemperatureControlClusterSetTemperatureParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nullable targetTemperature MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSNumber * _Nullable targetTemperatureLevel MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRDishwasherModeClusterChangeToModeParams : NSObject <NSCopying>
+
+@property (nonatomic, copy, getter=getNewMode) NSNumber * _Nonnull newMode MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRDishwasherModeClusterChangeToModeResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull status MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSString * _Nullable statusText MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRDishwasherModeClusterChangeToModeResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRSmokeCOAlarmClusterSelfTestRequestParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRDishwasherAlarmClusterResetParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull alarms MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRDishwasherAlarmClusterModifyEnabledAlarmsParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull mask MTR_PROVISIONALLY_AVAILABLE;
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTROperationalStateClusterPauseParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTROperationalStateClusterStopParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTROperationalStateClusterStartParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTROperationalStateClusterResumeParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTROperationalStateClusterOperationalCommandResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) MTROperationalStateClusterErrorStateStruct * _Nonnull commandResponseState MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTROperationalStateClusterOperationalCommandResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCOperationalStateClusterPauseParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCOperationalStateClusterStopParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCOperationalStateClusterStartParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCOperationalStateClusterResumeParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRRVCOperationalStateClusterOperationalCommandResponseParams : NSObject <NSCopying>
+
+@property (nonatomic, copy)
+    MTRRVCOperationalStateClusterErrorStateStruct * _Nonnull commandResponseState MTR_PROVISIONALLY_AVAILABLE;
+
+/**
+ * Initialize an MTRRVCOperationalStateClusterOperationalCommandResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error MTR_PROVISIONALLY_AVAILABLE;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRHEPAFilterMonitoringClusterResetConditionParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRActivatedCarbonFilterMonitoringClusterResetConditionParams : NSObject <NSCopying>
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *
@@ -3914,6 +5257,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDoorLockClusterGetWeekDayScheduleResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -4045,6 +5402,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDoorLockClusterGetYearDayScheduleResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -4174,6 +5545,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDoorLockClusterGetHolidayScheduleResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -4324,6 +5709,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDoorLockClusterGetUserResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 @interface MTRDoorLockClusterGetUserResponseParams (Deprecated)
@@ -4429,6 +5828,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDoorLockClusterSetCredentialResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -4493,6 +5906,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRDoorLockClusterGetCredentialStatusResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -4500,6 +5927,36 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 
 @property (nonatomic, copy)
     MTRDoorLockClusterCredentialStruct * _Nullable credential API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRDoorLockClusterUnboltDoorParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSData * _Nullable pinCode MTR_PROVISIONALLY_AVAILABLE;
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *
@@ -4851,6 +6308,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRThermostatClusterGetWeeklyScheduleResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -4925,6 +6396,40 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRThermostatClusterClearWeeklyScheduleParams : NSObject <NSCopying>
+/**
+ * Controls whether the command is a timed command (using Timed Invoke).
+ *
+ * If nil (the default value), a regular invoke is done for commands that do
+ * not require a timed invoke and a timed invoke with some default timed request
+ * timeout is done for commands that require a timed invoke.
+ *
+ * If not nil, a timed invoke is done, with the provided value used as the timed
+ * request timeout.  The value should be chosen small enough to provide the
+ * desired security properties but large enough that it will allow a round-trip
+ * from the sever to the client (for the status response and actual invoke
+ * request) within the timeout window.
+ *
+ */
+@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
+
+/**
+ * Controls how much time, in seconds, we will allow for the server to process the command.
+ *
+ * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
+ *
+ * If nil, the framework will try to select an appropriate timeout value itself.
+ */
+@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
+@end
+
+MTR_PROVISIONALLY_AVAILABLE
+@interface MTRFanControlClusterStepParams : NSObject <NSCopying>
+
+@property (nonatomic, copy) NSNumber * _Nonnull direction MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSNumber * _Nullable wrap MTR_PROVISIONALLY_AVAILABLE;
+
+@property (nonatomic, copy) NSNumber * _Nullable lowestOff MTR_PROVISIONALLY_AVAILABLE;
 /**
  * Controls whether the command is a timed command (using Timed Invoke).
  *
@@ -5729,6 +7234,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRChannelClusterChangeChannelResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -5849,6 +7368,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRTargetNavigatorClusterNavigateTargetResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6165,6 +7698,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRMediaPlaybackClusterPlaybackResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6394,6 +7941,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRKeypadInputClusterSendKeyResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6489,6 +8050,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRContentLauncherClusterLauncherResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRContentLauncherClusterLauncherResponseParams", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
@@ -6676,6 +8251,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRApplicationLauncherClusterLauncherResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6730,6 +8319,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRAccountLoginClusterGetSetupPINResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6822,6 +8425,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRElectricalMeasurementClusterGetProfileInfoResponseCommandParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6885,6 +8502,20 @@ API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRElectricalMeasurementClusterGetMeasurementProfileResponseCommandParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
@@ -6975,6 +8606,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestSpecificResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestSpecificResponseParams", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
@@ -7036,6 +8681,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestAddArgumentsResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestAddArgumentsResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7097,6 +8756,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestSimpleArgumentResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestSimpleArgumentResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7168,6 +8841,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestStructArrayArgumentResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestStructArrayArgumentResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7233,6 +8920,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestListInt8UReverseResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestListInt8UReverseResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7298,6 +8999,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestEnumsResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestEnumsResponseParams", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
@@ -7377,6 +9092,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestNullableOptionalResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestNullableOptionalResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7517,6 +9246,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestComplexNullableOptionalResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestComplexNullableOptionalResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7582,6 +9325,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterBooleanResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterBooleanResponseParams", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
@@ -7646,6 +9403,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterSimpleStructResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterSimpleStructResponseParams", ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4),
@@ -7709,6 +9480,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestEmitTestEventResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestEmitTestEventResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -7774,6 +9559,20 @@ API_AVAILABLE(ios(16.4), macos(13.3), watchos(9.4), tvos(16.4))
 @property (nonatomic, copy, nullable)
     NSNumber * timedInvokeTimeoutMs MTR_DEPRECATED("Timed invoke does not make sense for server to client commands",
         ios(16.1, 16.4), macos(13.0, 13.3), watchos(9.1, 9.4), tvos(16.1, 16.4));
+
+/**
+ * Initialize an MTRUnitTestingClusterTestEmitTestFabricScopedEventResponseParams with a response-value dictionary
+ * of the sort that MTRDeviceResponseHandler would receive.
+ *
+ * Will return nil and hand out an error if the response-value dictionary is not
+ * a command data response or is not the right command response.
+ *
+ * Will return nil and hand out an error if the data response does not match the known
+ * schema for this command.
+ */
+- (nullable instancetype)initWithResponseValue:(NSDictionary<NSString *, id> *)responseValue
+                                         error:(NSError * __autoreleasing *)error
+    API_AVAILABLE(ios(17.0), macos(14.0), watchos(10.0), tvos(17.0));
 @end
 
 MTR_DEPRECATED("Please use MTRUnitTestingClusterTestEmitTestFabricScopedEventResponseParams", ios(16.1, 16.4), macos(13.0, 13.3),
@@ -8167,78 +9966,6 @@ MTR_DEPRECATED("Please use MTRUnitTestingClusterTestEmitTestFabricScopedEventReq
     watchos(9.1, 9.4), tvos(16.1, 16.4))
 @interface MTRTestClusterClusterTestEmitTestFabricScopedEventRequestParams
     : MTRUnitTestingClusterTestEmitTestFabricScopedEventRequestParams
-@end
-
-API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
-@interface MTRFaultInjectionClusterFailAtFaultParams : NSObject <NSCopying>
-
-@property (nonatomic, copy) NSNumber * _Nonnull type API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-
-@property (nonatomic, copy) NSNumber * _Nonnull id API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-
-@property (nonatomic, copy) NSNumber * _Nonnull numCallsToSkip API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-
-@property (nonatomic, copy) NSNumber * _Nonnull numCallsToFail API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-
-@property (nonatomic, copy) NSNumber * _Nonnull takeMutex API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-/**
- * Controls whether the command is a timed command (using Timed Invoke).
- *
- * If nil (the default value), a regular invoke is done for commands that do
- * not require a timed invoke and a timed invoke with some default timed request
- * timeout is done for commands that require a timed invoke.
- *
- * If not nil, a timed invoke is done, with the provided value used as the timed
- * request timeout.  The value should be chosen small enough to provide the
- * desired security properties but large enough that it will allow a round-trip
- * from the sever to the client (for the status response and actual invoke
- * request) within the timeout window.
- *
- */
-@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
-
-/**
- * Controls how much time, in seconds, we will allow for the server to process the command.
- *
- * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
- *
- * If nil, the framework will try to select an appropriate timeout value itself.
- */
-@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
-@end
-
-API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
-@interface MTRFaultInjectionClusterFailRandomlyAtFaultParams : NSObject <NSCopying>
-
-@property (nonatomic, copy) NSNumber * _Nonnull type API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-
-@property (nonatomic, copy) NSNumber * _Nonnull id API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-
-@property (nonatomic, copy) NSNumber * _Nonnull percentage API_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1));
-/**
- * Controls whether the command is a timed command (using Timed Invoke).
- *
- * If nil (the default value), a regular invoke is done for commands that do
- * not require a timed invoke and a timed invoke with some default timed request
- * timeout is done for commands that require a timed invoke.
- *
- * If not nil, a timed invoke is done, with the provided value used as the timed
- * request timeout.  The value should be chosen small enough to provide the
- * desired security properties but large enough that it will allow a round-trip
- * from the sever to the client (for the status response and actual invoke
- * request) within the timeout window.
- *
- */
-@property (nonatomic, copy, nullable) NSNumber * timedInvokeTimeoutMs;
-
-/**
- * Controls how much time, in seconds, we will allow for the server to process the command.
- *
- * The command will then time out if that much time, plus an allowance for retransmits due to network failures, passes.
- *
- * If nil, the framework will try to select an appropriate timeout value itself.
- */
-@property (nonatomic, copy, nullable) NSNumber * serverSideProcessingTimeout;
 @end
 
 NS_ASSUME_NONNULL_END

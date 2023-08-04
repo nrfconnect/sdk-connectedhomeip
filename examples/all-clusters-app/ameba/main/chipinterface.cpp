@@ -37,6 +37,7 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
+#include <static-supported-temperature-levels.h>
 #include <support/CHIPMem.h>
 
 #if CONFIG_ENABLE_PW_RPC
@@ -48,6 +49,7 @@
 #endif
 
 using namespace ::chip;
+using namespace ::chip::app;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
 using namespace ::chip::System;
@@ -59,6 +61,8 @@ constexpr EndpointId kNetworkCommissioningEndpointSecondary = 0xFFFE;
 app::Clusters::NetworkCommissioning::Instance
     sWiFiNetworkCommissioningInstance(kNetworkCommissioningEndpointMain /* Endpoint Id */,
                                       &(NetworkCommissioning::AmebaWiFiDriver::GetInstance()));
+
+app::Clusters::TemperatureControl::AppSupportedTemperatureLevelsDelegate sAppSupportedTemperatureLevelsDelegate;
 } // namespace
 
 void NetWorkCommissioningInstInit()
@@ -73,17 +77,17 @@ void OnIdentifyTriggerEffect(Identify * identify)
 {
     switch (identify->mCurrentEffectIdentifier)
     {
-    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BLINK:
-        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BLINK");
+    case Clusters::Identify::EffectIdentifierEnum::kBlink:
+        ChipLogProgress(Zcl, "Clusters::Identify::EffectIdentifierEnum::kBlink");
         break;
-    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BREATHE:
-        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_BREATHE");
+    case Clusters::Identify::EffectIdentifierEnum::kBreathe:
+        ChipLogProgress(Zcl, "Clusters::Identify::EffectIdentifierEnum::kBreathe");
         break;
-    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_OKAY:
-        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_OKAY");
+    case Clusters::Identify::EffectIdentifierEnum::kOkay:
+        ChipLogProgress(Zcl, "Clusters::Identify::EffectIdentifierEnum::kOkay");
         break;
-    case EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_CHANNEL_CHANGE:
-        ChipLogProgress(Zcl, "EMBER_ZCL_IDENTIFY_EFFECT_IDENTIFIER_CHANNEL_CHANGE");
+    case Clusters::Identify::EffectIdentifierEnum::kChannelChange:
+        ChipLogProgress(Zcl, "Clusters::Identify::EffectIdentifierEnum::kChannelChange");
         break;
     default:
         ChipLogProgress(Zcl, "No identifier effect");
@@ -96,7 +100,7 @@ Identify gIdentify0 = {
     chip::EndpointId{ 0 },
     [](Identify *) { ChipLogProgress(Zcl, "onIdentifyStart"); },
     [](Identify *) { ChipLogProgress(Zcl, "onIdentifyStop"); },
-    EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED,
+    Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator,
     OnIdentifyTriggerEffect,
 };
 
@@ -104,7 +108,7 @@ Identify gIdentify1 = {
     chip::EndpointId{ 1 },
     [](Identify *) { ChipLogProgress(Zcl, "onIdentifyStart"); },
     [](Identify *) { ChipLogProgress(Zcl, "onIdentifyStop"); },
-    EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED,
+    Clusters::Identify::IdentifyTypeEnum::kVisibleIndicator,
     OnIdentifyTriggerEffect,
 };
 
@@ -140,6 +144,7 @@ static void InitServer(intptr_t context)
 #if CONFIG_ENABLE_CHIP_SHELL
     InitBindingHandler();
 #endif
+    app::Clusters::TemperatureControl::SetInstance(&sAppSupportedTemperatureLevelsDelegate);
 }
 
 extern "C" void ChipTest(void)

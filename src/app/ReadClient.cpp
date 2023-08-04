@@ -44,7 +44,6 @@ ReadClient::ReadClient(InteractionModelEngine * apImEngine, Messaging::ExchangeM
     mpCallback(apCallback), mOnConnectedCallback(HandleDeviceConnected, this),
     mOnConnectionFailureCallback(HandleDeviceConnectionFailure, this)
 {
-    // Error if already initialized.
     mpExchangeMgr    = apExchangeMgr;
     mpCallback       = apCallback;
     mInteractionType = aInteractionType;
@@ -248,7 +247,6 @@ CHIP_ERROR ReadClient::SendRequest(ReadPrepareParams & aReadPrepareParams)
 
 CHIP_ERROR ReadClient::SendReadRequest(ReadPrepareParams & aReadPrepareParams)
 {
-    // TODO: SendRequest parameter is too long, need to have the structure to represent it
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     ChipLogDetail(DataManagement, "%s ReadClient[%p]: Sending Read Request", __func__, this);
@@ -307,14 +305,14 @@ CHIP_ERROR ReadClient::SendReadRequest(ReadPrepareParams & aReadPrepareParams)
     ReturnErrorOnFailure(dataVersionFilterListBuilder.GetWriter()->UnreserveBuffer(kReservedSizeForTLVEncodingOverhead));
     if (encodedDataVersionList)
     {
-        ReturnErrorOnFailure(dataVersionFilterListBuilder.EndOfDataVersionFilterIBs().GetError());
+        ReturnErrorOnFailure(dataVersionFilterListBuilder.EndOfDataVersionFilterIBs());
     }
     else
     {
         request.Rollback(backup);
     }
 
-    ReturnErrorOnFailure(request.EndOfReadRequestMessage().GetError());
+    ReturnErrorOnFailure(request.EndOfReadRequestMessage());
     ReturnErrorOnFailure(writer.Finalize(&msgBuf));
 
     VerifyOrReturnError(aReadPrepareParams.mSessionHolder, CHIP_ERROR_MISSING_SECURE_SESSION);
@@ -352,8 +350,7 @@ CHIP_ERROR ReadClient::GenerateEventPaths(EventPathIBs::Builder & aEventPathsBui
         ReturnErrorOnFailure(path.Encode(event));
     }
 
-    aEventPathsBuilder.EndOfEventPaths();
-    return aEventPathsBuilder.GetError();
+    return aEventPathsBuilder.EndOfEventPaths();
 }
 
 CHIP_ERROR ReadClient::GenerateAttributePaths(AttributePathIBs::Builder & aAttributePathIBsBuilder,
@@ -367,8 +364,7 @@ CHIP_ERROR ReadClient::GenerateAttributePaths(AttributePathIBs::Builder & aAttri
         ReturnErrorOnFailure(path.Encode(attribute));
     }
 
-    aAttributePathIBsBuilder.EndOfAttributePathIBs();
-    return aAttributePathIBsBuilder.GetError();
+    return aAttributePathIBsBuilder.EndOfAttributePathIBs();
 }
 
 CHIP_ERROR ReadClient::BuildDataVersionFilterList(DataVersionFilterIBs::Builder & aDataVersionFilterIBsBuilder,
@@ -400,9 +396,9 @@ CHIP_ERROR ReadClient::BuildDataVersionFilterList(DataVersionFilterIBs::Builder 
         ReturnErrorOnFailure(aDataVersionFilterIBsBuilder.GetError());
         ClusterPathIB::Builder & path = filterIB.CreatePath();
         ReturnErrorOnFailure(filterIB.GetError());
-        ReturnErrorOnFailure(path.Endpoint(filter.mEndpointId).Cluster(filter.mClusterId).EndOfClusterPathIB().GetError());
+        ReturnErrorOnFailure(path.Endpoint(filter.mEndpointId).Cluster(filter.mClusterId).EndOfClusterPathIB());
         VerifyOrReturnError(filter.mDataVersion.HasValue(), CHIP_ERROR_INVALID_ARGUMENT);
-        ReturnErrorOnFailure(filterIB.DataVersion(filter.mDataVersion.Value()).EndOfDataVersionFilterIB().GetError());
+        ReturnErrorOnFailure(filterIB.DataVersion(filter.mDataVersion.Value()).EndOfDataVersionFilterIB());
         aEncodedDataVersionList = true;
     }
     return CHIP_NO_ERROR;
@@ -436,7 +432,7 @@ CHIP_ERROR ReadClient::OnMessageReceived(Messaging::ExchangeContext * apExchange
 
     if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::ReportData))
     {
-        err = ProcessReportData(std::move(aPayload));
+        err = ProcessReportData(std::move(aPayload), ReportType::kContinuingTransaction);
     }
     else if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::SubscribeResponse))
     {
@@ -490,7 +486,7 @@ void ReadClient::OnUnsolicitedReportData(Messaging::ExchangeContext * apExchange
     //
     mReadPrepareParams.mSessionHolder.Grab(mExchange->GetSessionHandle());
 
-    CHIP_ERROR err = ProcessReportData(std::move(aPayload));
+    CHIP_ERROR err = ProcessReportData(std::move(aPayload), ReportType::kUnsolicited);
     if (err != CHIP_NO_ERROR)
     {
         if (err == CHIP_ERROR_INVALID_SUBSCRIPTION)
@@ -507,7 +503,7 @@ void ReadClient::OnUnsolicitedReportData(Messaging::ExchangeContext * apExchange
     }
 }
 
-CHIP_ERROR ReadClient::ProcessReportData(System::PacketBufferHandle && aPayload)
+CHIP_ERROR ReadClient::ProcessReportData(System::PacketBufferHandle && aPayload, ReportType aReportType)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     ReportDataMessage::Parser report;
@@ -521,7 +517,10 @@ CHIP_ERROR ReadClient::ProcessReportData(System::PacketBufferHandle && aPayload)
     SuccessOrExit(err);
 
 #if CHIP_CONFIG_IM_PRETTY_PRINT
-    report.PrettyPrint();
+    if (aReportType != ReportType::kUnsolicited)
+    {
+        report.PrettyPrint();
+    }
 #endif
 
     err = report.GetSuppressResponse(&suppressResponse);
@@ -833,7 +832,7 @@ CHIP_ERROR ReadClient::ComputeLivenessCheckTimerTimeout(System::Clock::Timeout *
     const auto & ourMrpConfig = GetDefaultMRPConfig();
     auto publisherTransmissionTimeout =
         GetRetransmissionTimeout(ourMrpConfig.mActiveRetransTimeout, ourMrpConfig.mIdleRetransTimeout,
-                                 System::SystemClock().GetMonotonicTimestamp(), Transport::kMinActiveTime);
+                                 System::SystemClock().GetMonotonicTimestamp(), ourMrpConfig.mActiveThresholdTime);
     *aTimeout = System::Clock::Seconds16(mMaxInterval) + publisherTransmissionTimeout;
     return CHIP_NO_ERROR;
 }
@@ -940,6 +939,19 @@ CHIP_ERROR ReadClient::SendAutoResubscribeRequest(ReadPrepareParams && aReadPrep
     return err;
 }
 
+CHIP_ERROR ReadClient::SendAutoResubscribeRequest(const ScopedNodeId & aPublisherId, ReadPrepareParams && aReadPrepareParams)
+{
+    mPeer              = aPublisherId;
+    mReadPrepareParams = std::move(aReadPrepareParams);
+    CHIP_ERROR err     = EstablishSessionToPeer();
+    if (err != CHIP_NO_ERROR)
+    {
+        // Make sure we call our callback's OnDeallocatePaths.
+        StopResubscription();
+    }
+    return err;
+}
+
 CHIP_ERROR ReadClient::SendSubscribeRequest(const ReadPrepareParams & aReadPrepareParams)
 {
     VerifyOrReturnError(aReadPrepareParams.mMinIntervalFloorSeconds <= aReadPrepareParams.mMaxIntervalCeilingSeconds,
@@ -1015,14 +1027,14 @@ CHIP_ERROR ReadClient::SendSubscribeRequestImpl(const ReadPrepareParams & aReadP
     ReturnErrorOnFailure(dataVersionFilterListBuilder.GetWriter()->UnreserveBuffer(kReservedSizeForTLVEncodingOverhead));
     if (encodedDataVersionList)
     {
-        ReturnErrorOnFailure(dataVersionFilterListBuilder.EndOfDataVersionFilterIBs().GetError());
+        ReturnErrorOnFailure(dataVersionFilterListBuilder.EndOfDataVersionFilterIBs());
     }
     else
     {
         request.Rollback(backup);
     }
 
-    ReturnErrorOnFailure(request.EndOfSubscribeRequestMessage().GetError());
+    ReturnErrorOnFailure(request.EndOfSubscribeRequestMessage());
     ReturnErrorOnFailure(writer.Finalize(&msgBuf));
 
     VerifyOrReturnError(aReadPrepareParams.mSessionHolder, CHIP_ERROR_MISSING_SECURE_SESSION);
@@ -1081,6 +1093,9 @@ void ReadClient::HandleDeviceConnected(void * context, Messaging::ExchangeManage
 
     ChipLogProgress(DataManagement, "HandleDeviceConnected");
     _this->mReadPrepareParams.mSessionHolder.Grab(sessionHandle);
+    _this->mpExchangeMgr = &exchangeMgr;
+
+    _this->mpCallback.OnCASESessionEstablished(sessionHandle, _this->mReadPrepareParams);
 
     auto err = _this->SendSubscribeRequest(_this->mReadPrepareParams);
     if (err != CHIP_NO_ERROR)
@@ -1118,12 +1133,8 @@ void ReadClient::OnResubscribeTimerCallback(System::Layer * /* If this starts be
     {
         // We don't have an active CASE session.  We need to go ahead and set
         // one up, if we can.
-        ChipLogProgress(DataManagement, "Trying to establish a CASE session");
-        auto * caseSessionManager = InteractionModelEngine::GetInstance()->GetCASESessionManager();
-        if (caseSessionManager)
+        if (_this->EstablishSessionToPeer() == CHIP_NO_ERROR)
         {
-            caseSessionManager->FindOrEstablishSession(_this->mPeer, &_this->mOnConnectedCallback,
-                                                       &_this->mOnConnectionFailureCallback);
             return;
         }
 
@@ -1175,7 +1186,12 @@ CHIP_ERROR ReadClient::GetMinEventNumber(const ReadPrepareParams & aReadPrepareP
     }
     else
     {
-        return mpCallback.GetHighestReceivedEventNumber(aEventMin);
+        ReturnErrorOnFailure(mpCallback.GetHighestReceivedEventNumber(aEventMin));
+        if (aEventMin.HasValue())
+        {
+            // We want to start with the first event _after_ the last one we received.
+            aEventMin.SetValue(aEventMin.Value() + 1);
+        }
     }
     return CHIP_NO_ERROR;
 }
@@ -1207,6 +1223,15 @@ Optional<System::Clock::Timeout> ReadClient::GetSubscriptionTimeout()
     }
 
     return MakeOptional(timeout);
+}
+
+CHIP_ERROR ReadClient::EstablishSessionToPeer()
+{
+    ChipLogProgress(DataManagement, "Trying to establish a CASE session for subscription");
+    auto * caseSessionManager = InteractionModelEngine::GetInstance()->GetCASESessionManager();
+    VerifyOrReturnError(caseSessionManager != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    caseSessionManager->FindOrEstablishSession(mPeer, &mOnConnectedCallback, &mOnConnectionFailureCallback);
+    return CHIP_NO_ERROR;
 }
 
 } // namespace app

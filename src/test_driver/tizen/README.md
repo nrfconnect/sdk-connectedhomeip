@@ -12,7 +12,7 @@ image from hub.docker.com or build it locally using the provided Dockerfile in
 
 ```sh
 # Pull the image from hub.docker.com
-docker pull connectedhomeip/chip-build-tizen-qemu:latest
+docker pull ghcr.io/project-chip/chip-build-tizen-qemu:1
 ```
 
 ## Building and Running Tests on QEMU
@@ -21,7 +21,7 @@ All steps described below should be done inside the docker container.
 
 ```sh
 docker run -it --rm --name chip-tizen-qemu \
-    connectedhomeip/chip-build-tizen-qemu:latest /bin/bash
+    ghcr.io/project-chip/chip-build-tizen-qemu:1 /bin/bash
 ```
 
 ### Clone the connectedhomeip repository
@@ -47,7 +47,10 @@ argument of the `gn gen` command.
 # Generate test target
 gn gen --check --fail-on-unused-args \
     --root="$PWD/src/test_driver/tizen" \
-    --args="target_os=\"tizen\" target_cpu=\"arm\" chip_config_network_layer_ble=false" \
+    --args="target_os=\"tizen\" target_cpu=\"arm\" \
+        tizen_sdk_root=\"$TIZEN_SDK_ROOT\" \
+        tizen_sdk_sysroot=\"$TIZEN_SDK_SYSROOT\"
+        chip_config_network_layer_ble=false" \
     out/tizen-check
 # Run Tizen QEMU-based tests
 ninja -C out/tizen-check check

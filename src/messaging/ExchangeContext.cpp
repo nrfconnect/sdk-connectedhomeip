@@ -156,6 +156,7 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
     bool reliableTransmissionRequested =
         GetSessionHandle()->RequireMRP() && !sendFlags.Has(SendMessageFlags::kNoAutoRequestAck) && !IsGroupExchangeContext();
 
+    bool startedResponseTimer = false;
     // If a response message is expected...
     if (sendFlags.Has(SendMessageFlags::kExpectResponse) && !IsGroupExchangeContext())
     {
@@ -177,6 +178,7 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
                 SetResponseExpected(false);
                 return err;
             }
+            startedResponseTimer = true;
         }
     }
 
@@ -201,6 +203,7 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
             return CHIP_ERROR_MISSING_SECURE_SESSION;
         }
 
+        SessionHandle session = GetSessionHandle();
         CHIP_ERROR err;
 
 #if CONFIG_BUILD_FOR_HOST_UNIT_TEST
@@ -211,27 +214,52 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
         else
         {
 #endif
-            err = mDispatch.SendMessage(GetExchangeMgr()->GetSessionManager(), mSession.Get().Value(), mExchangeId, IsInitiator(),
+            err = mDispatch.SendMessage(GetExchangeMgr()->GetSessionManager(), session, mExchangeId, IsInitiator(),
                                         GetReliableMessageContext(), reliableTransmissionRequested, protocolId, msgType,
                                         std::move(msgBuf));
 #if CONFIG_BUILD_FOR_HOST_UNIT_TEST
         }
 #endif
-
-        if (err != CHIP_NO_ERROR && IsResponseExpected())
+        if (err != CHIP_NO_ERROR)
         {
-            CancelResponseTimer();
-            SetResponseExpected(false);
+            // We should only cancel the response timer if the ExchangeContext fails to send the message that starts the response
+            // timer.
+            if (startedResponseTimer)
+            {
+                CancelResponseTimer();
+                SetResponseExpected(false);
+            }
+
+            // If we can't even send a message (send failed with a non-transient
+            // error), mark the session as defunct, just like we would if we
+            // thought we sent the message and never got a response.
+            if (session->IsSecureSession() && session->AsSecureSession()->IsCASESession())
+            {
+                session->AsSecureSession()->MarkAsDefunct();
+            }
         }
-
-        // Standalone acks are not application-level message sends.
-        if (!isStandaloneAck && err == CHIP_NO_ERROR)
+        else
         {
-            //
-            // Once we've sent the message successfully, we can clear out the WillSendMessage flag.
-            //
-            mFlags.Clear(Flags::kFlagWillSendMessage);
-            MessageHandled();
+#if CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
+            DeviceLayer::ChipDeviceEvent event;
+            event.Type                       = DeviceLayer::DeviceEventType::kChipMsgSentEvent;
+            event.MessageSent.ExpectResponse = IsResponseExpected();
+            CHIP_ERROR status                = DeviceLayer::PlatformMgr().PostEvent(&event);
+            if (status != CHIP_NO_ERROR)
+            {
+                ChipLogError(DeviceLayer, "Failed to post Message sent event %" CHIP_ERROR_FORMAT, status.Format());
+            }
+#endif // CONFIG_DEVICE_LAYER
+
+            // Standalone acks are not application-level message sends.
+            if (!isStandaloneAck)
+            {
+                //
+                // Once we've sent the message successfully, we can clear out the WillSendMessage flag.
+                //
+                mFlags.Clear(Flags::kFlagWillSendMessage);
+                MessageHandled();
+            }
         }
 
         return err;
@@ -267,8 +295,23 @@ void ExchangeContext::DoClose(bool clearRetransTable)
         mExchangeMgr->GetReliableMessageMgr()->ClearRetransTable(this);
     }
 
-    // Cancel the response timer.
-    CancelResponseTimer();
+    if (IsResponseExpected())
+    {
+        // Cancel the response timer.
+        CancelResponseTimer();
+#if CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
+        DeviceLayer::ChipDeviceEvent event;
+        event.Type                                  = DeviceLayer::DeviceEventType::kChipMsgRxEventHandled;
+        event.RxEventContext.wasReceived            = false;
+        event.RxEventContext.clearsExpectedResponse = true;
+        CHIP_ERROR status                           = DeviceLayer::PlatformMgr().PostEvent(&event);
+        if (status != CHIP_NO_ERROR)
+        {
+            ChipLogError(DeviceLayer, "Failed to post Msg Handled event at ExchangeContext closure %" CHIP_ERROR_FORMAT,
+                         status.Format());
+        }
+#endif // CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
+    }
 }
 
 /**
@@ -478,6 +521,18 @@ void ExchangeContext::HandleResponseTimeout(System::Layer * aSystemLayer, void *
 
 void ExchangeContext::NotifyResponseTimeout(bool aCloseIfNeeded)
 {
+#if CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
+    DeviceLayer::ChipDeviceEvent event;
+    event.Type                                  = DeviceLayer::DeviceEventType::kChipMsgRxEventHandled;
+    event.RxEventContext.wasReceived            = false;
+    event.RxEventContext.clearsExpectedResponse = true;
+    CHIP_ERROR status                           = DeviceLayer::PlatformMgr().PostEvent(&event);
+    if (status != CHIP_NO_ERROR)
+    {
+        ChipLogError(DeviceLayer, "Failed to post Message Response Timeout event %" CHIP_ERROR_FORMAT, status.Format());
+    }
+#endif // CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
+
     SetResponseExpected(false);
 
     // Hold a ref to ourselves so we can make calls into our delegate that might
@@ -590,12 +645,27 @@ CHIP_ERROR ExchangeContext::HandleMessage(uint32_t messageCounter, const Payload
         return CHIP_ERROR_INCORRECT_STATE;
     }
 
-    // Since we got the response, cancel the response timer.
-    CancelResponseTimer();
+#if CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
+    DeviceLayer::ChipDeviceEvent event;
+    event.Type                                  = DeviceLayer::DeviceEventType::kChipMsgRxEventHandled;
+    event.RxEventContext.wasReceived            = true;
+    event.RxEventContext.clearsExpectedResponse = IsResponseExpected();
+    CHIP_ERROR status                           = DeviceLayer::PlatformMgr().PostEvent(&event);
+    if (status != CHIP_NO_ERROR)
+    {
+        ChipLogError(DeviceLayer, "Failed to post Message received event %" CHIP_ERROR_FORMAT, status.Format());
+    }
+#endif // CONFIG_DEVICE_LAYER && CHIP_CONFIG_ENABLE_ICD_SERVER
 
-    // If the context was expecting a response to a previously sent message, this message
-    // is implicitly that response.
-    SetResponseExpected(false);
+    if (IsResponseExpected())
+    {
+        // Since we got the response, cancel the response timer.
+        CancelResponseTimer();
+
+        // If the context was expecting a response to a previously sent message, this message
+        // is implicitly that response.
+        SetResponseExpected(false);
+    }
 
     // Don't send messages on to our delegate if our dispatch does not allow
     // those messages.

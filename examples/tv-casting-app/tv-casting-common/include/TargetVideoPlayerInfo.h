@@ -23,6 +23,8 @@
 #include <app/OperationalSessionSetup.h>
 #include <platform/CHIPDeviceLayer.h>
 
+#include <app-common/zap-generated/cluster-objects.h>
+
 constexpr size_t kMaxNumberOfEndpoints = 5;
 
 class TargetVideoPlayerInfo;
@@ -108,7 +110,6 @@ private:
     static void HandleDeviceConnected(void * context, chip::Messaging::ExchangeManager & exchangeMgr,
                                       const chip::SessionHandle & sessionHandle)
     {
-        ChipLogProgress(AppServer, "tmplog: HandleDeviceConnected called");
         VideoPlayerConnectionContext * connectionContext = static_cast<VideoPlayerConnectionContext *>(context);
         if (connectionContext == nullptr || connectionContext->mTargetVideoPlayerInfo == nullptr)
         {

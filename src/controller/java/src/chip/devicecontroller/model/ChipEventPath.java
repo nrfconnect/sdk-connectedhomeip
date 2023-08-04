@@ -83,7 +83,7 @@ public class ChipEventPath {
   }
 
   /** Create a new {@link ChipEventPath} with only concrete ids. */
-  public static ChipEventPath newInstance(long endpointId, long clusterId, long eventId) {
+  public static ChipEventPath newInstance(int endpointId, long clusterId, long eventId) {
     return new ChipEventPath(
         ChipPathId.forId(endpointId),
         ChipPathId.forId(clusterId),
@@ -98,7 +98,7 @@ public class ChipEventPath {
 
   /** Create a new {@link ChipEventPath} with only concrete ids. */
   public static ChipEventPath newInstance(
-      long endpointId, long clusterId, long eventId, boolean isUrgent) {
+      int endpointId, long clusterId, long eventId, boolean isUrgent) {
     return new ChipEventPath(
         ChipPathId.forId(endpointId),
         ChipPathId.forId(clusterId),

@@ -18,6 +18,7 @@ import("${chip_root}/src/platform/device.gni")
 
 import("${chip_root}/build/chip/buildconfig_header.gni")
 import("common_flags.gni")
+import("icd/icd.gni")
 
 declare_args() {
   # Enable strict schema checks.
@@ -54,7 +55,10 @@ buildconfig_header("app_buildconfig") {
     "CHIP_CONFIG_ENABLE_SESSION_RESUMPTION=${chip_enable_session_resumption}",
     "CHIP_CONFIG_ACCESS_CONTROL_POLICY_LOGGING_VERBOSITY=${chip_access_control_policy_logging_verbosity}",
     "CHIP_CONFIG_PERSIST_SUBSCRIPTIONS=${chip_persist_subscriptions}",
+    "CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION=${chip_subscription_timeout_resumption}",
     "CHIP_CONFIG_ENABLE_EVENTLIST_ATTRIBUTE=${enable_eventlist_attribute}",
+    "CHIP_CONFIG_ENABLE_ICD_SERVER=${chip_enable_icd_server}",
+    "CHIP_CONFIG_ENABLE_READ_CLIENT=${chip_enable_read_client}",
   ]
 }
 
@@ -73,7 +77,6 @@ static_library("app") {
     "AttributePathExpandIterator.h",
     "AttributePathParams.h",
     "AttributePersistenceProvider.h",
-    "BufferedReadCallback.cpp",
     "CASEClient.cpp",
     "CASEClient.h",
     "CASEClientPool.h",
@@ -81,13 +84,13 @@ static_library("app") {
     "CASESessionManager.h",
     "ChunkedWriteCallback.cpp",
     "ChunkedWriteCallback.h",
-    "ClusterStateCache.cpp",
-    "ClusterStateCache.h",
     "CommandHandler.cpp",
     "CommandResponseHelper.h",
     "CommandSender.cpp",
     "DefaultAttributePersistenceProvider.cpp",
+    "DefaultAttributePersistenceProvider.h",
     "DeferredAttributePersistenceProvider.cpp",
+    "DeferredAttributePersistenceProvider.h",
     "DeviceProxy.cpp",
     "DeviceProxy.h",
     "EventManagement.cpp",
@@ -174,10 +177,10 @@ static_library("app") {
     "OperationalSessionSetup.cpp",
     "OperationalSessionSetup.h",
     "OperationalSessionSetupPool.h",
-    "ReadClient.cpp",
     "ReadHandler.cpp",
     "RequiredPrivilege.cpp",
     "RequiredPrivilege.h",
+    "SafeAttributePersistenceProvider.h",
     "StatusResponse.cpp",
     "StatusResponse.h",
     "SubscriptionResumptionStorage.h",
@@ -189,6 +192,11 @@ static_library("app") {
     "WriteHandler.cpp",
     "reporting/Engine.cpp",
     "reporting/Engine.h",
+    "reporting/ReportScheduler.h",
+    "reporting/ReportSchedulerImpl.cpp",
+    "reporting/ReportSchedulerImpl.h",
+    "reporting/SynchronizedReportSchedulerImpl.cpp",
+    "reporting/SynchronizedReportSchedulerImpl.h",
     "reporting/reporting.h",
   ]
 
@@ -199,9 +207,19 @@ static_library("app") {
     ]
   }
 
+  if (chip_enable_read_client) {
+    sources += [
+      "BufferedReadCallback.cpp",
+      "ClusterStateCache.cpp",
+      "ClusterStateCache.h",
+      "ReadClient.cpp",
+    ]
+  }
+
   public_deps = [
     ":app_config",
     "${chip_root}/src/access",
+    "${chip_root}/src/app/icd:observer-srcs",
     "${chip_root}/src/lib/address_resolve",
     "${chip_root}/src/lib/support",
     "${chip_root}/src/messaging",
@@ -209,6 +227,10 @@ static_library("app") {
     "${chip_root}/src/system",
     "${nlio_root}:nlio",
   ]
+
+  if (chip_enable_icd_server) {
+    public_deps += [ "${chip_root}/src/app/icd:server-srcs" ]
+  }
 
   cflags = [ "-Wconversion" ]
 

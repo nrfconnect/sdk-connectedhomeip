@@ -31,6 +31,8 @@ class TelinkApp(Enum):
     OTA_REQUESTOR = auto()
     PUMP = auto()
     PUMP_CONTROLLER = auto()
+    SHELL = auto()
+    SMOKE_CO_ALARM = auto()
     TEMPERATURE_MEASUREMENT = auto()
     THERMOSTAT = auto()
     WINDOW_COVERING = auto()
@@ -56,6 +58,10 @@ class TelinkApp(Enum):
             return 'pump-app'
         elif self == TelinkApp.PUMP_CONTROLLER:
             return 'pump-controller-app'
+        elif self == TelinkApp.SHELL:
+            return 'shell'
+        elif self == TelinkApp.SMOKE_CO_ALARM:
+            return 'smoke-co-alarm-app'
         elif self == TelinkApp.TEMPERATURE_MEASUREMENT:
             return 'temperature-measurement-app'
         elif self == TelinkApp.THERMOSTAT:
@@ -86,6 +92,10 @@ class TelinkApp(Enum):
             return 'chip-telink-pump-example'
         elif self == TelinkApp.PUMP_CONTROLLER:
             return 'chip-telink-pump-controller-example'
+        elif self == TelinkApp.SHELL:
+            return 'chip-telink-shell-example'
+        elif self == TelinkApp.SMOKE_CO_ALARM:
+            return 'chip-telink-smoke-co-alarm-example'
         elif self == TelinkApp.TEMPERATURE_MEASUREMENT:
             return 'chip-telink-temperature-measurement-example'
         elif self == TelinkApp.THERMOSTAT:
@@ -113,11 +123,13 @@ class TelinkBuilder(Builder):
                  runner,
                  app: TelinkApp = TelinkApp,
                  board: TelinkBoard = TelinkBoard.TLSR9518ADK80D,
+                 enable_shell: bool = False,
                  enable_rpcs: bool = False,
                  enable_factory_data: bool = False):
         super(TelinkBuilder, self).__init__(root, runner)
         self.app = app
         self.board = board
+        self.enable_shell = enable_shell
         self.enable_rpcs = enable_rpcs
         self.enable_factory_data = enable_factory_data
 
@@ -140,6 +152,9 @@ class TelinkBuilder(Builder):
             return
 
         flags = []
+        if self.enable_shell:
+            flags.append("-DOVERLAY_CONFIG=shell.overlay")
+
         if self.enable_rpcs:
             flags.append("-DOVERLAY_CONFIG=rpc.overlay")
 

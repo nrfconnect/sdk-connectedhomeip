@@ -61,6 +61,28 @@
 #define CHIP_DEVICE_CONFIG_DEFAULT_DEVICE_HARDWARE_VERSION SL_HARDWARE_VERSION
 #endif
 
+/**
+ *  Allow for some test/fall-back values to be used
+ * Production builds shall set to 0 or remove this option
+ */
+#ifndef CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS
+#define CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS 1
+#endif
+
+#if CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS
+/**
+ *  @brief Fallback value for the basic information cluster's Vendor name attribute
+ *   if the actual vendor name is not provisioned in the device memory.
+ */
+#define CHIP_DEVICE_CONFIG_TEST_VENDOR_NAME "Silabs"
+
+/**
+ *  @brief Fallback value for the basic information cluster's product name attribute
+ *   if the actual vendor name is not provisioned in the device memory.
+ */
+#define CHIP_DEVICE_CONFIG_TEST_PRODUCT_NAME "SL_Sample"
+#endif // CHIP_DEVICE_CONFIG_ENABLE_TEST_SETUP_PARAMS
+
 #if defined(SL_WIFI)
 #define CHIP_DEVICE_CONFIG_ENABLE_WIFI_STATION 1
 #else
@@ -82,10 +104,10 @@
 #define CHIP_DEVICE_CONFIG_ENABLE_IPV4 0
 #endif /* CHIP_DEVICE_CONFIG_ENABLE_IPV4 */
 
-#ifdef CHIP_DEVICE_CONFIG_ENABLE_SED
-#define CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL chip::System::Clock::Milliseconds32(300)
-#define CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL chip::System::Clock::Milliseconds32(10)
-#endif /* CHIP_DEVICE_CONFIG_ENABLE_SED */
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+#define CHIP_DEVICE_CONFIG_ICD_SLOW_POLL_INTERVAL chip::System::Clock::Milliseconds32(300)
+#define CHIP_DEVICE_CONFIG_ICD_FAST_POLL_INTERVAL chip::System::Clock::Milliseconds32(10)
+#endif /* CHIP_CONFIG_ENABLE_ICD_SERVER */
 
 #endif /* SL_WIFI */
 
@@ -116,18 +138,6 @@
 #define CHIP_DEVICE_CONFIG_CHIP_TASK_STACK_SIZE (6 * 1024)
 #endif // CHIP_DEVICE_CONFIG_CHIP_TASK_STACK_SIZE
 
-#ifndef CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL
-#define CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL chip::System::Clock::Milliseconds32(SL_OT_IDLE_INTERVAL)
-#endif // CHIP_DEVICE_CONFIG_SED_IDLE_INTERVAL
-
-#ifndef CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL
-#define CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL chip::System::Clock::Milliseconds32(SL_OT_ACTIVE_INTERVAL)
-#endif // CHIP_DEVICE_CONFIG_SED_ACTIVE_INTERVAL
-
-#ifndef CHIP_DEVICE_CONFIG_SED_ACTIVE_THRESHOLD
-#define CHIP_DEVICE_CONFIG_SED_ACTIVE_THRESHOLD chip::System::Clock::Milliseconds32(SL_ACTIVE_MODE_THRESHOLD)
-#endif // CHIP_DEVICE_CONFIG_SED_ACTIVE_THRESHOLD
-
 #ifndef CHIP_DEVICE_CONFIG_THREAD_TASK_STACK_SIZE
 #if defined(EFR32MG21)
 #define CHIP_DEVICE_CONFIG_THREAD_TASK_STACK_SIZE (2 * 1024)
@@ -145,3 +155,15 @@
 #endif // CHIP_DEVICE_CONFIG_BLE_APP_TASK_NAME
 
 #define CHIP_DEVICE_CONFIG_MAX_EVENT_QUEUE_SIZE 25
+
+/*
+    ICD Configuration Defines
+*/
+
+#ifndef CHIP_DEVICE_CONFIG_ICD_SLOW_POLL_INTERVAL
+#define CHIP_DEVICE_CONFIG_ICD_SLOW_POLL_INTERVAL chip::System::Clock::Milliseconds32(SL_OT_IDLE_INTERVAL)
+#endif // CHIP_DEVICE_CONFIG_ICD_SLOW_POLL_INTERVAL
+
+#ifndef CHIP_DEVICE_CONFIG_ICD_FAST_POLL_INTERVAL
+#define CHIP_DEVICE_CONFIG_ICD_FAST_POLL_INTERVAL chip::System::Clock::Milliseconds32(SL_OT_ACTIVE_INTERVAL)
+#endif // CHIP_DEVICE_CONFIG_ICD_FAST_POLL_INTERVAL

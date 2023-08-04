@@ -114,7 +114,7 @@ public:
 
     friend class FabricTable;
 
-protected:
+private:
     struct InitParams
     {
         NodeId nodeId                         = kUndefinedNodeId;
@@ -971,6 +971,14 @@ public:
 #endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
     }
 
+    /**
+     * Get the fabric index that will be used for the next fabric that will be
+     * added.  Returns error if no more fabrics can be added, otherwise writes
+     * the fabric index that will be used for the next addition into the
+     * outparam.
+     */
+    CHIP_ERROR PeekFabricIndexForNextAddition(FabricIndex & outIndex);
+
 private:
     enum class StateFlags : uint16_t
     {
@@ -1098,7 +1106,7 @@ private:
      */
     const FabricInfo * GetShadowPendingFabricEntry() const { return HasPendingFabricUpdate() ? &mPendingFabric : nullptr; }
 
-    // Returns true if we have a shadow entry pending for a fabruc update.
+    // Returns true if we have a shadow entry pending for a fabric update.
     bool HasPendingFabricUpdate() const
     {
         return mPendingFabric.IsInitialized() &&

@@ -82,7 +82,7 @@ class Efr32Button final : public Button
 public:
     pw::Status Event(const chip_rpc_ButtonEvent & request, pw_protobuf_Empty & response) override
     {
-        AppTask::GetAppTask().ButtonEventHandler(SL_SIMPLE_BUTTON_INSTANCE(request.idx) /* PB 0 or PB 1 */, request.pushed);
+        AppTask::GetAppTask().ButtonEventHandler(request.idx /* PB 0 or PB 1 */, request.pushed);
         return pw::OkStatus();
     }
 };
@@ -149,7 +149,7 @@ Thread thread;
 #endif // defined(PW_RPC_THREAD_SERVICE) && PW_RPC_THREAD_SERVICE
 
 #if defined(PW_RPC_TRACING_SERVICE) && PW_RPC_TRACING_SERVICE
-pw::trace::TraceService trace_service;
+pw::trace::TraceService trace_service(pw::trace::GetTokenizedTracer());
 #endif // defined(PW_RPC_TRACING_SERVICE) && PW_RPC_TRACING_SERVICE
 
 void RegisterServices(pw::rpc::Server & server)

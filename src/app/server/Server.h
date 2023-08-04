@@ -63,7 +63,18 @@
 #if CONFIG_NETWORK_LAYER_BLE
 #include <transport/raw/BLE.h>
 #endif
+#include <app/TimerDelegates.h>
 #include <transport/raw/UDP.h>
+#if CHIP_CONFIG_SYNCHRONOUS_REPORTS_ENABLED
+#include <app/reporting/SynchronizedReportSchedulerImpl.h>
+#else
+#include <app/reporting/ReportSchedulerImpl.h>
+#endif
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+#include <app/icd/ICDEventManager.h> // nogncheck
+#include <app/icd/ICDManager.h>      // nogncheck
+#endif
 
 namespace chip {
 
@@ -135,42 +146,6 @@ struct ServerInitParams
     // Operational certificate store with access to the operational certs in persisted storage:
     // must not be null at timne of Server::Init().
     Credentials::OperationalCertificateStore * opCertStore = nullptr;
-};
-
-class IgnoreCertificateValidityPolicy : public Credentials::CertificateValidityPolicy
-{
-public:
-    IgnoreCertificateValidityPolicy() {}
-
-    /**
-     * @brief
-     *
-     * This certificate validity policy does not validate NotBefore or
-     * NotAfter to accommodate platforms that may have wall clock time, but
-     * where it is unreliable.
-     *
-     * Last Known Good Time is also not considered in this policy.
-     *
-     * @param cert CHIP Certificate for which we are evaluating validity
-     * @param depth the depth of the certificate in the chain, where the leaf is at depth 0
-     * @return CHIP_NO_ERROR if CHIPCert should accept the certificate; an appropriate CHIP_ERROR if it should be rejected
-     */
-    CHIP_ERROR ApplyCertificateValidityPolicy(const Credentials::ChipCertificateData * cert, uint8_t depth,
-                                              Credentials::CertificateValidityResult result) override
-    {
-        switch (result)
-        {
-        case Credentials::CertificateValidityResult::kValid:
-        case Credentials::CertificateValidityResult::kNotYetValid:
-        case Credentials::CertificateValidityResult::kExpired:
-        case Credentials::CertificateValidityResult::kNotExpiredAtLastKnownGoodTime:
-        case Credentials::CertificateValidityResult::kExpiredAtLastKnownGoodTime:
-        case Credentials::CertificateValidityResult::kTimeUnknown:
-            return CHIP_NO_ERROR;
-        default:
-            return CHIP_ERROR_INVALID_ARGUMENT;
-        }
-    }
 };
 
 /**
@@ -269,10 +244,6 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
         // Inject ACL storage. (Don't initialize it.)
         this->aclStorage = &sAclStorage;
 
-        // Inject certificate validation policy compatible with non-wall-clock-time-synced
-        // embedded systems.
-        this->certificateValidityPolicy = &sDefaultCertValidityPolicy;
-
 #if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS
         ChipLogProgress(AppServer, "Initializing subscription resumption storage...");
         ReturnErrorOnFailure(sSubscriptionResumptionStorage.Init(this->persistentStorageDelegate));
@@ -289,7 +260,7 @@ private:
     static PersistentStorageOperationalKeystore sPersistentStorageOperationalKeystore;
     static Credentials::PersistentStorageOpCertStore sPersistentStorageOpCertStore;
     static Credentials::GroupDataProviderImpl sGroupDataProvider;
-    static IgnoreCertificateValidityPolicy sDefaultCertValidityPolicy;
+
 #if CHIP_CONFIG_ENABLE_SESSION_RESUMPTION
     static SimpleSessionResumptionStorage sSessionResumptionStorage;
 #endif
@@ -369,6 +340,8 @@ public:
 
     app::DefaultAttributePersistenceProvider & GetDefaultAttributePersister() { return mAttributePersister; }
 
+    app::reporting::ReportScheduler & GetReportScheduler() { return mReportScheduler; }
+
     /**
      * This function causes the ShutDown event to be generated async on the
      * Matter event loop.  Should be called before stopping the event loop.
@@ -387,7 +360,7 @@ public:
     static Server & GetInstance() { return sServer; }
 
 private:
-    Server() = default;
+    Server() : mTimerDelegate(), mReportScheduler(&mTimerDelegate) {}
 
     static Server sServer;
 
@@ -438,7 +411,7 @@ private:
             const FabricInfo * fabric = mServer->GetFabricTable().FindFabricWithIndex(fabric_index);
             if (fabric == nullptr)
             {
-                ChipLogError(AppServer, "Group added to nonexistent fabric?");
+                ChipLogError(AppServer, "Group removed from nonexistent fabric?");
                 return;
             }
 
@@ -539,9 +512,60 @@ private:
         Server * mServer = nullptr;
     };
 
+    /**
+     * Since root certificates for Matter nodes cannot be updated in a reasonable
+     * way, it doesn't make sense to enforce expiration time on root certificates.
+     * This policy allows through root certificates, even if they're expired, and
+     * otherwise delegates to the provided policy, or to the default policy if no
+     * policy is provided.
+     */
+    class IgnoreRootExpirationValidityPolicy : public Credentials::CertificateValidityPolicy
+    {
+    public:
+        IgnoreRootExpirationValidityPolicy() {}
+
+        void Init(Credentials::CertificateValidityPolicy * providedPolicy) { mProvidedPolicy = providedPolicy; }
+
+        CHIP_ERROR ApplyCertificateValidityPolicy(const Credentials::ChipCertificateData * cert, uint8_t depth,
+                                                  Credentials::CertificateValidityResult result) override
+        {
+            switch (result)
+            {
+            case Credentials::CertificateValidityResult::kExpired:
+            case Credentials::CertificateValidityResult::kExpiredAtLastKnownGoodTime:
+            case Credentials::CertificateValidityResult::kTimeUnknown: {
+                uint8_t certType;
+                ReturnErrorOnFailure(cert->mSubjectDN.GetCertType(certType));
+                if (certType == Credentials::kCertType_Root)
+                {
+                    return CHIP_NO_ERROR;
+                }
+
+                break;
+            }
+            default:
+                break;
+            }
+
+            if (mProvidedPolicy)
+            {
+                return mProvidedPolicy->ApplyCertificateValidityPolicy(cert, depth, result);
+            }
+
+            return Credentials::CertificateValidityPolicy::ApplyDefaultPolicy(cert, depth, result);
+        }
+
+    private:
+        Credentials::CertificateValidityPolicy * mProvidedPolicy = nullptr;
+    };
+
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * mBleLayer = nullptr;
 #endif
+
+    // By default, use a certificate validation policy compatible with non-wall-clock-time-synced
+    // embedded systems.
+    static Credentials::IgnoreCertificateValidityPeriodPolicy sDefaultCertValidityPolicy;
 
     ServerTransportMgr mTransports;
     SessionManager mSessions;
@@ -560,15 +584,22 @@ private:
 #endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY_CLIENT
     CommissioningWindowManager mCommissioningWindowManager;
 
+    IgnoreRootExpirationValidityPolicy mCertificateValidityPolicy;
+
     PersistentStorageDelegate * mDeviceStorage;
     SessionResumptionStorage * mSessionResumptionStorage;
     app::SubscriptionResumptionStorage * mSubscriptionResumptionStorage;
-    Credentials::CertificateValidityPolicy * mCertificateValidityPolicy;
     Credentials::GroupDataProvider * mGroupsProvider;
     Crypto::SessionKeystore * mSessionKeystore;
     app::DefaultAttributePersistenceProvider mAttributePersister;
     GroupDataProviderListener mListener;
     ServerFabricDelegate mFabricDelegate;
+    app::DefaultTimerDelegate mTimerDelegate;
+#if CHIP_CONFIG_SYNCHRONOUS_REPORTS_ENABLED
+    app::reporting::SynchronizedReportSchedulerImpl mReportScheduler;
+#else
+    app::reporting::ReportSchedulerImpl mReportScheduler;
+#endif
 
     Access::AccessControl mAccessControl;
     app::AclStorage * mAclStorage;
@@ -584,6 +615,10 @@ private:
     Inet::InterfaceId mInterfaceId;
 
     System::Clock::Microseconds64 mInitTimestamp;
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    app::ICDEventManager mICDEventManager;
+    app::ICDManager mICDManager;
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 };
 
 } // namespace chip

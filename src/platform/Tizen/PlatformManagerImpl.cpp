@@ -40,6 +40,7 @@
 #include <platform/Tizen/DeviceInstanceInfoProviderImpl.h>
 
 #include "PosixConfig.h"
+#include "SystemInfo.h"
 #include "platform/internal/GenericPlatformManagerImpl.h"
 #include "platform/internal/GenericPlatformManagerImpl.ipp"
 #include "platform/internal/GenericPlatformManagerImpl_POSIX.h"
@@ -119,16 +120,28 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
 
     mStartTime = System::SystemClock().GetMonotonicTimestamp();
 
+    Internal::PlatformVersion version;
+    ReturnErrorOnFailure(Internal::SystemInfo::GetPlatformVersion(version));
+    ChipLogProgress(DeviceLayer, "Tizen Version: %d.%d", version.mMajor, version.mMinor);
+
     return CHIP_NO_ERROR;
 }
 
 void PlatformManagerImpl::_Shutdown()
 {
+    if (mGLibMainLoop == nullptr)
+    {
+        ChipLogError(DeviceLayer, "System Layer is already shutdown.");
+        return;
+    }
+
     Internal::GenericPlatformManagerImpl_POSIX<PlatformManagerImpl>::_Shutdown();
 
     g_main_loop_quit(mGLibMainLoop);
     g_main_loop_unref(mGLibMainLoop);
     g_thread_join(mGLibMainLoopThread);
+
+    mGLibMainLoop = nullptr;
 }
 
 CHIP_ERROR PlatformManagerImpl::_GLibMatterContextInvokeSync(CHIP_ERROR (*func)(void *), void * userData)

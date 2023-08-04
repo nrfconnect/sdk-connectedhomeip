@@ -69,15 +69,6 @@ chip-tool/README
 darwin-framework-tool/README
 ```
 
-## Dynamic bridge example
-
-```{toctree}
-:glob:
-:maxdepth: 1
-
-dynamic-bridge-app/**/README
-```
-
 ## Java matter controller example
 
 ```{toctree}
@@ -85,6 +76,15 @@ dynamic-bridge-app/**/README
 :maxdepth: 1
 
 java-matter-controller/README
+```
+
+## Virtual Device App example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+virtual-device-app/**/README
 ```
 
 ## Lighting example
@@ -132,15 +132,6 @@ log-source-app/**/README
 :maxdepth: 1
 
 minimal-mdns/README
-```
-
-## Open IoT SDK examples
-
-```{toctree}
-:glob:
-:maxdepth: 1
-
-openiotsdk_examples
 ```
 
 ## OTA Provider example
@@ -211,6 +202,24 @@ shell/README*
 shell/**/README
 ```
 
+## Smoke CO Alarm example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+smoke-co-alarm-app/**/README
+```
+
+## Dishwasher example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+dishwasher-app/**/README
+```
+
 ## Temperature measurement example
 
 ```{toctree}
@@ -255,4 +264,13 @@ tv-casting-app/**/README
 :maxdepth: 1
 
 window-app/**/README
+```
+
+## Resource monitoring example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+resource-monitoring-app/**/README
 ```

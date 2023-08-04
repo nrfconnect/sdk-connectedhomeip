@@ -509,7 +509,7 @@ ConnectivityManager::ThreadDeviceType GenericThreadStackManagerImpl_OpenThread<I
         ExitNow(deviceType = ConnectivityManager::kThreadDeviceType_MinimalEndDevice);
 
 #if CHIP_DEVICE_CONFIG_THREAD_SSED
-    if (otLinkGetCslPeriod(mOTInst) != 0)
+    if (otLinkCslGetPeriod(mOTInst) != 0)
         ExitNow(deviceType = ConnectivityManager::kThreadDeviceType_SynchronizedSleepyEndDevice);
 #endif
 
@@ -1859,8 +1859,8 @@ GenericThreadStackManagerImpl_OpenThread<ImplClass>::SetSEDIntervalMode(Connecti
 // * poll period for SED devices that poll the parent for data
 // * CSL period for SSED devices that listen for messages in scheduled time slots.
 #if CHIP_DEVICE_CONFIG_THREAD_SSED
-    // Get CSL period in units of us, divide by 1000 to get milliseconds.
-    uint32_t curIntervalMS = otLinkGetCslPeriod(mOTInst) / 1000;
+    // Get CSL period in units of 10 symbols, convert it to microseconds and divide by 1000 to get milliseconds.
+    uint32_t curIntervalMS = otLinkCslGetPeriod(mOTInst) * OT_US_PER_TEN_SYMBOLS / 1000;
 #else
     uint32_t curIntervalMS = otLinkGetPollPeriod(mOTInst);
 #endif
@@ -1868,9 +1868,9 @@ GenericThreadStackManagerImpl_OpenThread<ImplClass>::SetSEDIntervalMode(Connecti
     if (interval.count() != curIntervalMS)
     {
 #if CHIP_DEVICE_CONFIG_THREAD_SSED
-        // Get CSL period in units of us, divide by 1000 to get milliseconds.
-        otErr         = otLinkSetCslPeriod(mOTInst, interval.count() * 1000);
-        curIntervalMS = otLinkGetCslPeriod(mOTInst) / 1000;
+        // Set CSL period in units of 10 symbols, convert it to microseconds and divide by 1000 to get milliseconds.
+        otErr         = otLinkCslSetPeriod(mOTInst, static_cast<uint16_t>(static_cast<uint32_t>(interval.count() * 1000) / static_cast<uint32_t>(OT_US_PER_TEN_SYMBOLS)));
+        curIntervalMS = otLinkCslGetPeriod(mOTInst) * OT_US_PER_TEN_SYMBOLS / 1000;
 #else
         otErr         = otLinkSetPollPeriod(mOTInst, interval.count());
         curIntervalMS = otLinkGetPollPeriod(mOTInst);

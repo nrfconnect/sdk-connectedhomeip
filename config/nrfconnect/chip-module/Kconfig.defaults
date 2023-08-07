@@ -226,9 +226,10 @@ choice WPA_SUPP_LOG_LEVEL_CHOICE
 	default WPA_SUPP_LOG_LEVEL_ERR
 endchoice
 
+# TODO: uncomment after the configuration is fixed
 # it saves us 20kB of FLASH
-config WPA_SUPP_NO_DEBUG
-    default y
+# config WPA_SUPP_NO_DEBUG
+#     default y
 
 config NRF_WIFI_LOW_POWER
     default n

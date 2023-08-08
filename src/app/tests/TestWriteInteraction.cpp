@@ -580,8 +580,9 @@ void TestWriteInteraction::TestWriteHandlerReceiveInvalidMessage(nlTestSuite * a
     err           = engine->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable());
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
+    // Reserve all except the last 128 bytes, so that we make sure to chunk.
     app::WriteClient writeClient(&ctx.GetExchangeManager(), &writeCallback, Optional<uint16_t>::Missing(),
-                                 static_cast<uint16_t>(900) /* reserved buffer size */);
+                                 static_cast<uint16_t>(kMaxSecureSduLengthBytes - 128) /* reserved buffer size */);
 
     ByteSpan list[5];
 
@@ -648,8 +649,9 @@ void TestWriteInteraction::TestWriteHandlerInvalidateFabric(nlTestSuite * apSuit
     err           = engine->Init(&ctx.GetExchangeManager(), &ctx.GetFabricTable());
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
+    // Reserve all except the last 128 bytes, so that we make sure to chunk.
     app::WriteClient writeClient(&ctx.GetExchangeManager(), &writeCallback, Optional<uint16_t>::Missing(),
-                                 static_cast<uint16_t>(900) /* reserved buffer size */);
+                                 static_cast<uint16_t>(kMaxSecureSduLengthBytes - 128) /* reserved buffer size */);
 
     ByteSpan list[5];
 

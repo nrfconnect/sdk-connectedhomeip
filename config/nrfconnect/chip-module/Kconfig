@@ -127,7 +127,6 @@ config CHIP_FACTORY_DATA_CUSTOM_BACKEND
 
 config CHIP_FACTORY_DATA_BUILD
 	bool "Generate factory data contents"
-	default n
 	help
 	  Enables generation of the factory data contents during the building. This
 	  option requires the factory_data partition in Partition Manager
@@ -178,6 +177,7 @@ config CHIP_FACTORY_DATA_MERGE_WITH_FIRMWARE
 
 config CHIP_FACTORY_DATA_GENERATE_ONBOARDING_CODES
 	bool "Generate onboarding codes during the generation of a factory data set"
+	default y
 	help
 	  Enables generation of onboarding codes (manual pairing code and QR code)
 	  during the generation of a factory data set. You can provide the 

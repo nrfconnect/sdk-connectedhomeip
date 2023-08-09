@@ -87,7 +87,7 @@ config POSIX_MAX_FDS
 
 # Application stack size
 config MAIN_STACK_SIZE
-    default 8192
+    default 6144
 
 config INIT_STACKS
     default y
@@ -100,16 +100,16 @@ config NET_IF_MCAST_IPV6_ADDR_COUNT
 
 # Network buffers
 config NET_PKT_RX_COUNT
-    default 16
+    default 8
 
 config NET_PKT_TX_COUNT
-    default 16
+    default 8
 
 config NET_BUF_RX_COUNT
-    default 80
+    default 16
 
 config NET_BUF_TX_COUNT
-    default 80
+    default 16
 
 # Bluetooth Low Energy configs
 
@@ -238,6 +238,9 @@ config NET_IPV6_NBR_CACHE
 config IEEE802154_NRF5_RX_STACK_SIZE
     default 1024
 
+config OPENTHREAD_THREAD_STACK_SIZE
+	default 4096
+
 endif
 
 if CHIP_WIFI
@@ -252,6 +255,21 @@ config WPA_SUPP_NO_DEBUG
 
 config NRF_WIFI_LOW_POWER
     default n
+
+config NRF700X_RX_NUM_BUFS
+    default 16
+
+config NRF700X_TX_MAX_DATA_SIZE
+    default 1280
+
+config NRF700X_RX_MAX_DATA_SIZE
+    default 1280
+
+config NRF700X_MAX_TX_TOKENS
+    default 8
+
+config NRF700X_MAX_TX_AGGREGATION
+    default 1
 
 config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
     default n
@@ -284,13 +302,13 @@ config SHELL_STACK_SIZE
     default 2616
 
 config HEAP_MEM_POOL_SIZE
-    default 200000
-
-config CHIP_MALLOC_SYS_HEAP_SIZE
-    default 28672 # 28 kB
+    default 80000
 
 endif
 
+config CHIP_MALLOC_SYS_HEAP_SIZE
+    default 28672 if CHIP_WIFI
+    default 8192 if NET_L2_OPENTHREAD
 
 # Enable mbedTLS from nrf_security library
 
@@ -308,7 +326,7 @@ config MBEDTLS_ENABLE_HEAP
     default y
 
 config MBEDTLS_HEAP_SIZE
-    default 15360
+    default 8192
 
 config MBEDTLS_TLS_LIBRARY
     default y
@@ -373,6 +391,12 @@ config MBEDTLS_GCM_C
     default n
 
 config MBEDTLS_RSA_C
+    default n
+
+config MBEDTLS_SSL_SRV_C
+    default n
+
+config MBEDTLS_SSL_COOKIE_C
     default n
 
 # Disable not used shell modules

@@ -29,7 +29,7 @@ namespace {
 
 Shell::Engine sSubShell;
 
-CHIP_ERROR StatTopHandler(int argc, char ** argv)
+CHIP_ERROR StatPeakHandler(int argc, char ** argv)
 {
     auto labels     = System::Stats::GetStrings();
     auto watermarks = System::Stats::GetHighWatermarks();
@@ -77,8 +77,8 @@ void RegisterStatCommands()
 {
     // Register subcommands of the `stat` commands.
     static const shell_command_t subCommands[] = {
-        { &StatTopHandler, "top", "Print top resource usage statistics. Usage: stat top" },
-        { &StatResetHandler, "reset", "Reset top resource usage statistics. Usage: stat reset" },
+        { &StatPeakHandler, "peak", "Print peak usage of system resources. Usage: stat peak" },
+        { &StatResetHandler, "reset", "Reset peak usage of system resources. Usage: stat reset" },
     };
 
     sSubShell.RegisterCommands(subCommands, ArraySize(subCommands));

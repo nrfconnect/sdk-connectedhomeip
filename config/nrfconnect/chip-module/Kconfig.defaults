@@ -65,6 +65,9 @@ config FPU
 config SHELL
     default y
 
+config SHELL_MINIMAL
+    default y
+
 # Enable getting reboot reasons information
 config HWINFO
 	bool

@@ -267,7 +267,7 @@ config NET_IF_MCAST_IPV6_ADDR_COUNT
     default 8
 
 config NET_SOCKETS_POLL_MAX
-    default 4
+    default 6
 
 config MBEDTLS_SSL_OUT_CONTENT_LEN
     default 900

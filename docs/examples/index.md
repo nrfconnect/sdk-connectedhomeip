@@ -3,6 +3,15 @@
 The Matter SDK provides examples of Matter devices for different development
 platforms.
 
+## Air Quality Sensor example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+air-quality-sensor-app/**/README
+```
+
 ## All clusters example
 
 ```{toctree}
@@ -190,6 +199,15 @@ pump-app/cc13x2x7_26x2x7/doc/programming*
 
 pump-controller-app/**/README
 pump-controller-app/cc13x2x7_26x2x7/doc/programming*
+```
+
+## Refrigerator example
+
+```{toctree}
+:glob:
+:maxdepth: 1
+
+refrigerator-app/**/README
 ```
 
 ## Shell example

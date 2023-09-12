@@ -130,26 +130,53 @@ def _GetSlowTests() -> Set[str]:
 def _GetInDevelopmentTests() -> Set[str]:
     """Tests that fail in YAML for some reason."""
     return {
-        "Test_AddNewFabricFromExistingFabric.yaml",     # chip-repl does not support GetCommissionerRootCertificate and IssueNocChain command
-        "TestEqualities.yaml",              # chip-repl does not support pseudo-cluster commands that return a value
-        "TestExampleCluster.yaml",          # chip-repl does not load custom pseudo clusters
         "Test_TC_TIMESYNC_1_1.yaml",         # Time sync SDK is not yet ready
         "Test_TC_TIMESYNC_2_3.yaml",         # Time sync SDK is not yet ready
+        "Test_TC_PSCFG_1_1.yaml",  # Power source configuration cluster is deprecated and removed from all-clusters
+        "Test_TC_PSCFG_2_1.yaml",  # Power source configuration cluster is deprecated and removed from all-clusters
+        "Test_TC_PSCFG_2_2.yaml",  # Power source configuration cluster is deprecated and removed from all-clusters
+        "Test_TC_SMOKECO_2_2.yaml",          # chip-repl does not support local timeout (07/20/2023) and test assumes
+                                             # TestEventTriggersEnabled is true, which it's not in CI.
+        "Test_TC_SMOKECO_2_3.yaml",          # chip-repl does not support local timeout (07/20/2023) and test assumes
+                                             # TestEventTriggersEnabled is true, which it's not in CI.
+        "Test_TC_SMOKECO_2_4.yaml",          # chip-repl does not support local timeout (07/20/2023) and test assumes
+                                             # TestEventTriggersEnabled is true, which it's not in CI.
+        "Test_TC_SMOKECO_2_5.yaml",          # chip-repl does not support local timeout (07/20/2023) and test assumes
+                                             # TestEventTriggersEnabled is true, which it's not in CI.
+        "Test_TC_SMOKECO_2_6.yaml",          # chip-repl does not support local timeout (07/20/2023) and test assumes
+                                             # TestEventTriggersEnabled is true, which it's not in CI.
+    }
+
+
+def _GetChipReplUnsupportedTests() -> Set[str]:
+    """Tests that fail in chip-repl for some reason"""
+    return {
+        "Test_AddNewFabricFromExistingFabric.yaml",     # chip-repl does not support GetCommissionerRootCertificate and IssueNocChain command
+        "Test_TC_OPCREDS_3_7.yaml",         # chip-repl does not support GetCommissionerRootCertificate and IssueNocChain command
+        "TestEqualities.yaml",              # chip-repl does not support pseudo-cluster commands that return a value
+        "TestExampleCluster.yaml",          # chip-repl does not load custom pseudo clusters
         "TestAttributesById.yaml",           # chip-repl does not support AnyCommands (06/06/2023)
         "TestCommandsById.yaml",             # chip-repl does not support AnyCommands (06/06/2023)
         "TestEventsById.yaml",               # chip-repl does not support AnyCommands (06/06/2023)
         "TestReadNoneSubscribeNone.yaml",    # chip-repl does not support AnyCommands (07/27/2023)
         "Test_TC_DRLK_2_8.yaml",   # Test fails only in chip-repl: Refer--> https://github.com/project-chip/connectedhomeip/pull/27011#issuecomment-1593339855
         "Test_TC_ACE_1_6.yaml",    # Test fails only in chip-repl: Refer--> https://github.com/project-chip/connectedhomeip/pull/27910#issuecomment-1632485584
-        "Test_TC_PSCFG_1_1.yaml",  # Power source configuration cluster is deprecated and removed from all-clusters
-        "Test_TC_PSCFG_2_1.yaml",  # Power source configuration cluster is deprecated and removed from all-clusters
-        "Test_TC_PSCFG_2_2.yaml",  # Power source configuration cluster is deprecated and removed from all-clusters
-        "Test_TC_SMOKECO_2_2.yaml",          # chip-repl does not support local timeout (07/20/2023)
-        "Test_TC_SMOKECO_2_3.yaml",          # chip-repl does not support local timeout (07/20/2023)
-        "Test_TC_SMOKECO_2_4.yaml",          # chip-repl does not support local timeout (07/20/2023)
-        "Test_TC_SMOKECO_2_5.yaml",          # chip-repl does not support local timeout (07/20/2023)
-        "Test_TC_SMOKECO_2_6.yaml",          # chip-repl does not support local timeout (07/20/2023)
         "Test_TC_IDM_1_2.yaml",              # chip-repl does not support AnyCommands (19/07/2023)
+        "TestGroupKeyManagementCluster.yaml",  # chip-repl does not support EqualityCommands (2023-08-04)
+        "Test_TC_S_2_2.yaml",              # chip-repl does not support scenes cluster commands
+        "Test_TC_S_2_3.yaml",              # chip-repl does not support scenes cluster commands
+        "Test_TC_S_2_4.yaml",              # chip-repl does not support scenes cluster commands
+        "Test_TC_MOD_3_1.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_MOD_3_2.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_MOD_3_3.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_MOD_3_4.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_BRBINFO_2_1.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_DGGEN_2_1.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_DGGEN_2_3.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_LWM_3_1.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_G_2_4.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_RVCRUNM_3_1.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
+        "Test_TC_RVCCLEANM_3_1.yaml",            # chip-repl does not support EqualityCommands pseudo-cluster
     }
 
 
@@ -194,6 +221,7 @@ def tests_with_command(chip_tool: str, is_manual: bool):
         cmd += "-manual"
 
     result = subprocess.run([chip_tool, "tests", cmd], capture_output=True)
+    result.check_returncode()
 
     test_tags = set()
     if is_manual:
@@ -215,13 +243,12 @@ def tests_with_command(chip_tool: str, is_manual: bool):
         )
 
 
-# TODO We will move away from hardcoded list of yamltests to run all file when yamltests
-# parser/runner reaches parity with the code gen version.
-def _hardcoded_python_yaml_tests():
+def _AllFoundYamlTests(treat_repl_unsupported_as_in_development: bool):
     manual_tests = _GetManualTests()
     flaky_tests = _GetFlakyTests()
     slow_tests = _GetSlowTests()
     in_development_tests = _GetInDevelopmentTests()
+    chip_repl_unsupported_tests = _GetChipReplUnsupportedTests()
 
     for path in _AllYamlTests():
         if not _IsValidYamlTest(path.name):
@@ -240,6 +267,9 @@ def _hardcoded_python_yaml_tests():
         if path.name in in_development_tests:
             tags.add(TestTag.IN_DEVELOPMENT)
 
+        if treat_repl_unsupported_as_in_development and path.name in chip_repl_unsupported_tests:
+            tags.add(TestTag.IN_DEVELOPMENT)
+
         yield TestDefinition(
             run_name=str(path),
             name=path.stem,  # `path.stem` converts "some/path/Test_ABC_1.2.yaml" to "Test_ABC.1.2"
@@ -248,8 +278,13 @@ def _hardcoded_python_yaml_tests():
         )
 
 
-def AllYamlTests():
-    for test in _hardcoded_python_yaml_tests():
+def AllReplYamlTests():
+    for test in _AllFoundYamlTests(treat_repl_unsupported_as_in_development=True):
+        yield test
+
+
+def AllChipToolYamlTests():
+    for test in _AllFoundYamlTests(treat_repl_unsupported_as_in_development=False):
         yield test
 
 

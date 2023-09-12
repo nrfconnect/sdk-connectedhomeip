@@ -1,5 +1,5 @@
 {
-  "featureLevel": 97,
+  "featureLevel": 98,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -33,7 +33,28 @@
   ],
   "endpointTypes": [
     {
+      "id": 1,
       "name": "MA-rootdevice",
+      "deviceTypeRef": {
+        "code": 22,
+        "profileId": 259,
+        "label": "MA-rootdevice",
+        "name": "MA-rootdevice"
+      },
+      "deviceTypes": [
+        {
+          "code": 22,
+          "profileId": 259,
+          "label": "MA-rootdevice",
+          "name": "MA-rootdevice"
+        }
+      ],
+      "deviceVersions": [
+        1
+      ],
+      "deviceIdentifiers": [
+        22
+      ],
       "deviceTypeName": "MA-rootdevice",
       "deviceTypeCode": 22,
       "deviceTypeProfileId": 259,
@@ -198,7 +219,7 @@
           "mfgCode": null,
           "define": "GROUPS_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "AddGroupResponse",
@@ -4619,7 +4640,7 @@
           "mfgCode": null,
           "define": "SWITCH_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "attributes": [
             {
               "name": "NumberOfPositions",
@@ -5394,7 +5415,28 @@
       ]
     },
     {
+      "id": 2,
       "name": "Anonymous Endpoint Type",
+      "deviceTypeRef": {
+        "code": 116,
+        "profileId": 259,
+        "label": "MA-robotic-vacuum-cleaner",
+        "name": "MA-robotic-vacuum-cleaner"
+      },
+      "deviceTypes": [
+        {
+          "code": 116,
+          "profileId": 259,
+          "label": "MA-robotic-vacuum-cleaner",
+          "name": "MA-robotic-vacuum-cleaner"
+        }
+      ],
+      "deviceVersions": [
+        1
+      ],
+      "deviceIdentifiers": [
+        116
+      ],
       "deviceTypeName": "MA-robotic-vacuum-cleaner",
       "deviceTypeCode": 116,
       "deviceTypeProfileId": 259,
@@ -9339,7 +9381,7 @@
               "storageOption": "RAM",
               "singleton": 0,
               "bounded": 0,
-              "defaultValue": "5",
+              "defaultValue": "6",
               "reportable": 1,
               "minInterval": 1,
               "maxInterval": 65534,
@@ -10277,7 +10319,7 @@
               "storageOption": "RAM",
               "singleton": 0,
               "bounded": 0,
-              "defaultValue": "5",
+              "defaultValue": "6",
               "reportable": 1,
               "minInterval": 1,
               "maxInterval": 65534,
@@ -10830,19 +10872,14 @@
       "endpointTypeIndex": 0,
       "profileId": 259,
       "endpointId": 0,
-      "networkId": 0,
-      "endpointVersion": 1,
-      "deviceIdentifier": 22
+      "networkId": 0
     },
     {
       "endpointTypeName": "Anonymous Endpoint Type",
       "endpointTypeIndex": 1,
       "profileId": 259,
       "endpointId": 1,
-      "networkId": 0,
-      "endpointVersion": 1,
-      "deviceIdentifier": 116
+      "networkId": 0
     }
-  ],
-  "log": []
+  ]
 }

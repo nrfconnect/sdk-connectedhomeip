@@ -452,7 +452,7 @@ static bool HasValidEventPathForEndpointAndCluster(EndpointId aEndpoint, const E
     if (aEventPath.HasWildcardEventId())
     {
 #if CHIP_CONFIG_ENABLE_EVENTLIST_ATTRIBUTE
-        for (decltype(aCluster->eventCount) idx = 0; idx > aCluster->eventCount; ++idx)
+        for (decltype(aCluster->eventCount) idx = 0; idx < aCluster->eventCount; ++idx)
         {
             ConcreteEventPath path(aEndpoint, aCluster->clusterId, aCluster->eventList[idx]);
             // If we get here, the path exists.  We just have to do an ACL check for it.
@@ -615,14 +615,14 @@ Protocols::InteractionModel::Status InteractionModelEngine::OnReadInitialRequest
             // Walk through all existing subscriptions and shut down those whose subscriber matches
             // that which just came in.
             //
-            mReadHandlers.ForEachActiveObject([this, apExchangeContext](ReadHandler * handler) {
+            mReadHandlers.ForEachActiveObject([apExchangeContext](ReadHandler * handler) {
                 if (handler->IsFromSubscriber(*apExchangeContext))
                 {
                     ChipLogProgress(InteractionModel,
                                     "Deleting previous subscription from NodeId: " ChipLogFormatX64 ", FabricIndex: %u",
                                     ChipLogValueX64(apExchangeContext->GetSessionHandle()->AsSecureSession()->GetPeerNodeId()),
                                     apExchangeContext->GetSessionHandle()->GetFabricIndex());
-                    mReadHandlers.ReleaseObject(handler);
+                    handler->Close();
                 }
 
                 return Loop::Continue;

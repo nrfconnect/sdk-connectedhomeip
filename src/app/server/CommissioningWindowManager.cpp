@@ -25,10 +25,6 @@
 #include <platform/CommissionableDataProvider.h>
 #include <platform/DeviceControlServer.h>
 
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD && CHIP_DEVICE_CONFIG_THREAD_FTD
-using namespace chip::DeviceLayer;
-#endif
-
 using namespace chip::app::Clusters;
 using namespace chip::System::Clock;
 
@@ -102,24 +98,7 @@ void CommissioningWindowManager::ResetState()
     mECMIterations    = 0;
     mECMSaltLength    = 0;
 
-#if CHIP_DEVICE_CONFIG_ENABLE_SED
-    if (mSEDActiveModeEnabled)
-    {
-        DeviceLayer::ConnectivityMgr().RequestSEDActiveMode(false);
-        mSEDActiveModeEnabled = false;
-    }
-#endif
-
     UpdateWindowStatus(CommissioningWindowStatusEnum::kWindowNotOpen);
-
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD && CHIP_DEVICE_CONFIG_THREAD_FTD
-    // Recover Router device role.
-    if (mRecoverRouterDeviceRole)
-    {
-        ThreadStackMgr().SetRouterPromotion(true);
-        mRecoverRouterDeviceRole = false;
-    }
-#endif
 
     UpdateOpenerFabricIndex(NullNullable);
     UpdateOpenerVendorId(NullNullable);
@@ -249,17 +228,6 @@ CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow(Seconds16 commiss
 
     mCommissioningTimeoutTimerArmed = true;
 
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD && CHIP_DEVICE_CONFIG_THREAD_FTD
-    // Block device role changing into Router if commissioning window opened and device not yet Router.
-    // AdvertiseAndListenForPASE fails doesn't matter, because if it does the callers of OpenCommissioningWindow
-    // will end up calling ResetState, which will reset the boolean.
-    if (ConnectivityManagerImpl().GetThreadDeviceType() == ConnectivityManager::kThreadDeviceType_Router)
-    {
-        ThreadStackMgr().SetRouterPromotion(false);
-        mRecoverRouterDeviceRole = true;
-    }
-#endif
-
     return AdvertiseAndListenForPASE();
 }
 
@@ -268,14 +236,6 @@ CHIP_ERROR CommissioningWindowManager::AdvertiseAndListenForPASE()
     VerifyOrReturnError(mCommissioningTimeoutTimerArmed, CHIP_ERROR_INCORRECT_STATE);
 
     mPairingSession.Clear();
-
-#if CHIP_DEVICE_CONFIG_ENABLE_SED
-    if (!mSEDActiveModeEnabled)
-    {
-        mSEDActiveModeEnabled = true;
-        DeviceLayer::ConnectivityMgr().RequestSEDActiveMode(true);
-    }
-#endif
 
     ReturnErrorOnFailure(mServer->GetExchangeManager().RegisterUnsolicitedMessageHandlerForType(
         Protocols::SecureChannel::MsgType::PBKDFParamRequest, this));

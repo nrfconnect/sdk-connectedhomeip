@@ -1046,7 +1046,7 @@ void DoorLockServer::getWeekDayScheduleCommandHandler(chip::app::CommandHandler 
     {
         ChipLogProgress(Zcl, "[GetWeekDaySchedule] User does not exist [endpointId=%d,weekDayIndex=%d,userIndex=%d]", endpointId,
                         weekDayIndex, userIndex);
-        sendGetWeekDayScheduleResponse(commandObj, commandPath, weekDayIndex, userIndex, DlStatus::kFailure);
+        sendGetWeekDayScheduleResponse(commandObj, commandPath, weekDayIndex, userIndex, DlStatus::kNotFound);
         return;
     }
 
@@ -1246,7 +1246,7 @@ void DoorLockServer::getYearDayScheduleCommandHandler(chip::app::CommandHandler 
     {
         ChipLogProgress(Zcl, "[GetYearDaySchedule] User does not exist [endpointId=%d,yearDayIndex=%d,userIndex=%d]", endpointId,
                         yearDayIndex, userIndex);
-        sendGetYearDayScheduleResponse(commandObj, commandPath, yearDayIndex, userIndex, DlStatus::kFailure);
+        sendGetYearDayScheduleResponse(commandObj, commandPath, yearDayIndex, userIndex, DlStatus::kNotFound);
         return;
     }
 
@@ -3314,23 +3314,20 @@ bool DoorLockServer::RemoteOperationEnabled(chip::EndpointId endpointId) const
         mode != OperatingModeEnum::kPrivacy && mode != OperatingModeEnum::kNoRemoteLockUnlock;
 }
 
-CHIP_ERROR DoorLockServer::sendClusterResponse(chip::app::CommandHandler * commandObj,
-                                               const chip::app::ConcreteCommandPath & commandPath, EmberAfStatus status)
+void DoorLockServer::sendClusterResponse(chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+                                         EmberAfStatus status)
 {
     VerifyOrDie(nullptr != commandObj);
 
-    auto err             = CHIP_NO_ERROR;
     auto statusAsInteger = to_underlying(status);
     if (statusAsInteger == to_underlying(DlStatus::kOccupied) || statusAsInteger == to_underlying(DlStatus::kDuplicate))
     {
-        err = commandObj->AddClusterSpecificFailure(commandPath, static_cast<chip::ClusterStatus>(status));
+        VerifyOrDie(commandObj->AddClusterSpecificFailure(commandPath, static_cast<chip::ClusterStatus>(status)) == CHIP_NO_ERROR);
     }
     else
     {
-        err = commandObj->AddStatus(commandPath, ToInteractionModelStatus(status));
+        commandObj->AddStatus(commandPath, ToInteractionModelStatus(status));
     }
-
-    return err;
 }
 
 EmberAfDoorLockEndpointContext * DoorLockServer::getContext(chip::EndpointId endpointId)

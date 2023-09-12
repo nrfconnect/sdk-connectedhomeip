@@ -112,14 +112,36 @@ tests:
 
     - label:
           "Step 4c: Read the optional attribute InPlaceIndicator
-          (ACFREMON.S.A0002) in AttributeList"
-      PICS: ACFREMON.S.A0002
+          (ACFREMON.S.A0003) in AttributeList"
+      PICS: ACFREMON.S.A0003
       command: "readAttribute"
       attribute: "AttributeList"
       response:
           constraints:
               type: list
               contains: [3]
+
+    - label:
+          "Step 4d: Read the optional attribute LastChangedTime
+          (ACFREMON.S.A0004) in AttributeList"
+      PICS: ACFREMON.S.A0004
+      command: "readAttribute"
+      attribute: "AttributeList"
+      response:
+          constraints:
+              type: list
+              contains: [4]
+
+    - label:
+          "Step 4e: Read the optional attribute ReplacementProductList
+          (ACFREMON.S.F02) in AttributeList"
+      PICS: ACFREMON.S.F02
+      command: "readAttribute"
+      attribute: "AttributeList"
+      response:
+          constraints:
+              type: list
+              contains: [5]
 
     - label: "Step 5: TH reads EventList attribute from DUT"
       PICS: PICS_EVENT_LIST_ENABLED
@@ -130,16 +152,17 @@ tests:
           constraints:
               type: list
 
-    - label: "Step 6a: Read the global attribute: AcceptedCommandList"
+    - label: "Step 6: Read the global attribute: AcceptedCommandList"
+      PICS: "!ACFREMON.S.C00.Rsp"
       command: "readAttribute"
       attribute: "AcceptedCommandList"
       response:
+          value: []
           constraints:
               type: list
-              contains: []
 
     - label:
-          "Step 6b: Read the optional command (ResetCondition) in
+          "Step 6: Read the optional command (ResetCondition) in
           AcceptedCommandList"
       PICS: ACFREMON.S.C00.Rsp
       command: "readAttribute"

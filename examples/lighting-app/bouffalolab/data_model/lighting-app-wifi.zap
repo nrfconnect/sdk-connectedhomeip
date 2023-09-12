@@ -1,5 +1,5 @@
 {
-  "featureLevel": 97,
+  "featureLevel": 98,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -33,7 +33,28 @@
   ],
   "endpointTypes": [
     {
+      "id": 1,
       "name": "MA-rootdevice",
+      "deviceTypeRef": {
+        "code": 22,
+        "profileId": 259,
+        "label": "MA-rootdevice",
+        "name": "MA-rootdevice"
+      },
+      "deviceTypes": [
+        {
+          "code": 22,
+          "profileId": 259,
+          "label": "MA-rootdevice",
+          "name": "MA-rootdevice"
+        }
+      ],
+      "deviceVersions": [
+        1
+      ],
+      "deviceIdentifiers": [
+        22
+      ],
       "deviceTypeName": "MA-rootdevice",
       "deviceTypeCode": 22,
       "deviceTypeProfileId": 259,
@@ -5438,7 +5459,28 @@
       ]
     },
     {
+      "id": 2,
       "name": "MA-extendedcolorlight",
+      "deviceTypeRef": {
+        "code": 269,
+        "profileId": 259,
+        "label": "MA-extendedcolorlight",
+        "name": "MA-extendedcolorlight"
+      },
+      "deviceTypes": [
+        {
+          "code": 269,
+          "profileId": 259,
+          "label": "MA-extendedcolorlight",
+          "name": "MA-extendedcolorlight"
+        }
+      ],
+      "deviceVersions": [
+        1
+      ],
+      "deviceIdentifiers": [
+        269
+      ],
       "deviceTypeName": "MA-extendedcolorlight",
       "deviceTypeCode": 269,
       "deviceTypeProfileId": 259,
@@ -7273,7 +7315,7 @@
               "storageOption": "RAM",
               "singleton": 0,
               "bounded": 0,
-              "defaultValue": "5",
+              "defaultValue": "6",
               "reportable": 1,
               "minInterval": 0,
               "maxInterval": 65344,
@@ -8195,7 +8237,7 @@
               "storageOption": "RAM",
               "singleton": 0,
               "bounded": 0,
-              "defaultValue": "5",
+              "defaultValue": "6",
               "reportable": 1,
               "minInterval": 0,
               "maxInterval": 65344,
@@ -8328,19 +8370,14 @@
       "endpointTypeIndex": 0,
       "profileId": 259,
       "endpointId": 0,
-      "networkId": 0,
-      "endpointVersion": 1,
-      "deviceIdentifier": 22
+      "networkId": 0
     },
     {
       "endpointTypeName": "MA-extendedcolorlight",
       "endpointTypeIndex": 1,
       "profileId": 259,
       "endpointId": 1,
-      "networkId": 0,
-      "endpointVersion": 1,
-      "deviceIdentifier": 269
+      "networkId": 0
     }
-  ],
-  "log": []
+  ]
 }

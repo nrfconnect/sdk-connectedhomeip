@@ -93,7 +93,10 @@ namespace Scenes {
 // Bitmap for Feature
 enum class Feature : uint32_t
 {
-    kSceneNames = 0x1,
+    kSceneNames   = 0x1,
+    kExplicit     = 0x2,
+    kTableSize    = 0x4,
+    kFabricScenes = 0x8,
 };
 
 // Bitmap for ScenesCopyMode
@@ -230,7 +233,14 @@ namespace BinaryInputBasic {} // namespace BinaryInputBasic
 
 namespace PulseWidthModulation {} // namespace PulseWidthModulation
 
-namespace Descriptor {} // namespace Descriptor
+namespace Descriptor {
+
+// Bitmap for Feature
+enum class Feature : uint32_t
+{
+    kTagList = 0x1,
+};
+} // namespace Descriptor
 
 namespace Binding {} // namespace Binding
 
@@ -534,6 +544,12 @@ enum class HourFormatEnum : uint8_t
     // be used by code to process how it handles receiving and unknown
     // enum value. This specific should never be transmitted.
     kUnknownEnumValue = 2,
+};
+
+// Bitmap for Feature
+enum class Feature : uint32_t
+{
+    kCalendarFormat = 0x1,
 };
 } // namespace TimeFormatLocalization
 
@@ -1797,6 +1813,12 @@ enum class AlarmMap : uint32_t
     kTempTooLow      = 0x8,
     kTempTooHigh     = 0x10,
     kWaterLevelError = 0x20,
+};
+
+// Bitmap for Feature
+enum class Feature : uint32_t
+{
+    kReset = 0x1,
 };
 } // namespace DishwasherAlarm
 

@@ -1,5 +1,5 @@
 {
-  "featureLevel": 97,
+  "featureLevel": 98,
   "creator": "zap",
   "keyValuePairs": [
     {
@@ -33,7 +33,28 @@
   ],
   "endpointTypes": [
     {
+      "id": 1,
       "name": "MA-rootdevice",
+      "deviceTypeRef": {
+        "code": 22,
+        "profileId": 259,
+        "label": "MA-rootdevice",
+        "name": "MA-rootdevice"
+      },
+      "deviceTypes": [
+        {
+          "code": 22,
+          "profileId": 259,
+          "label": "MA-rootdevice",
+          "name": "MA-rootdevice"
+        }
+      ],
+      "deviceVersions": [
+        1
+      ],
+      "deviceIdentifiers": [
+        22
+      ],
       "deviceTypeName": "MA-rootdevice",
       "deviceTypeCode": 22,
       "deviceTypeProfileId": 259,
@@ -6215,7 +6236,28 @@
       ]
     },
     {
+      "id": 2,
       "name": "Anonymous Endpoint Type",
+      "deviceTypeRef": {
+        "code": 771,
+        "profileId": 2457,
+        "label": "MA-pump",
+        "name": "MA-pump"
+      },
+      "deviceTypes": [
+        {
+          "code": 771,
+          "profileId": 2457,
+          "label": "MA-pump",
+          "name": "MA-pump"
+        }
+      ],
+      "deviceVersions": [
+        1
+      ],
+      "deviceIdentifiers": [
+        771
+      ],
       "deviceTypeName": "MA-pump",
       "deviceTypeCode": 771,
       "deviceTypeProfileId": 2457,
@@ -7525,19 +7567,14 @@
       "endpointTypeIndex": 0,
       "profileId": 259,
       "endpointId": 0,
-      "networkId": 0,
-      "endpointVersion": 1,
-      "deviceIdentifier": 22
+      "networkId": 0
     },
     {
       "endpointTypeName": "Anonymous Endpoint Type",
       "endpointTypeIndex": 1,
       "profileId": 2457,
       "endpointId": 1,
-      "networkId": 0,
-      "endpointVersion": 1,
-      "deviceIdentifier": 771
+      "networkId": 0
     }
-  ],
-  "log": []
+  ]
 }

@@ -16,6 +16,10 @@
 
 rsource "../../zephyr/Kconfig"
 
+config CHIP
+	imply NVS_LOOKUP_CACHE
+	imply NVS_LOOKUP_CACHE_FOR_SETTINGS
+
 if CHIP
 
 # See config/zephyr/Kconfig for full definition

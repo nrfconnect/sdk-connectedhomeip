@@ -212,9 +212,6 @@ endif # BOARD_NRF7002DK_NRF5340_CPUAPP
 config CHIP_EXTENDED_DISCOVERY
     default n
 
-config NVS_LOOKUP_CACHE
-    default y
-
 config NVS_LOOKUP_CACHE_SIZE
     default 512
 

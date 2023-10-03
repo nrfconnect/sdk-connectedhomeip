@@ -249,6 +249,11 @@ choice WPA_SUPP_LOG_LEVEL_CHOICE
 	default WPA_SUPP_LOG_LEVEL_ERR
 endchoice
 
+# increase the prefixes limit to match
+# maximum number of IPv6 addresses per interface
+config NET_IF_IPV6_PREFIX_COUNT
+    default 6
+
 # it saves us 20kB of FLASH
 config WPA_SUPP_NO_DEBUG
     default y

@@ -22,6 +22,8 @@
 #include <functional>
 #include <zap-generated/CHIPClusters.h>
 
+#include <app-common/zap-generated/cluster-objects.h>
+
 // COMMAND CLASSES
 class ChangeChannelCommand : public MediaCommandBase<chip::app::Clusters::Channel::Commands::ChangeChannel::Type,
                                                      chip::app::Clusters::Channel::Commands::ChangeChannelResponse::DecodableType>

@@ -147,15 +147,15 @@ def print_paths_warning(paths_to_print):
 def install_zap_package(version, location, overwrite):
     current_os = platform.system()
     if current_os == 'Linux':
-        package = 'zap-linux'
+        package = 'zap-linux-x64'
         zap_executable = 'zap'
         zap_cli_executable = 'zap-cli'
     elif current_os == 'Windows':
-        package = 'zap-win'
+        package = 'zap-win-x64'
         zap_executable = 'zap.exe'
         zap_cli_executable = 'zap-cli.exe'
     elif current_os == 'Darwin':
-        package = 'zap-mac'
+        package = 'zap-mac-x64'
         zap_executable = 'zap.app/Contents/MacOS/zap'
         zap_cli_executable = 'zap-cli'
     else:

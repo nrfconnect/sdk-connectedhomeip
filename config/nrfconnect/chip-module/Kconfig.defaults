@@ -262,6 +262,10 @@ config WPA_SUPP_NO_DEBUG
 config NRF700X_LOG_VERBOSE
     default n
 
+choice WIFI_NRF700X_LOG_LEVEL_CHOICE
+    default WIFI_NRF700X_LOG_LEVEL_OFF
+endchoice
+
 config NRF_WIFI_LOW_POWER
     default n
 

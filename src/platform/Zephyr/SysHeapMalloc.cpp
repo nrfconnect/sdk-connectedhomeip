@@ -67,7 +67,7 @@ LockGuard::~LockGuard()
     }
 }
 
-int initHeap()
+int initHeap(const device *)
 {
     sys_heap_init(&sHeap, sHeapMemory, sizeof(sHeapMemory));
     return 0;

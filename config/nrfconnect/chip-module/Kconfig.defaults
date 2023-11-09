@@ -279,7 +279,7 @@ config NRF700X_RX_MAX_DATA_SIZE
     default 1280
 
 config NRF700X_MAX_TX_TOKENS
-    default 10
+    default 8
 
 config NRF700X_MAX_TX_AGGREGATION
     default 1

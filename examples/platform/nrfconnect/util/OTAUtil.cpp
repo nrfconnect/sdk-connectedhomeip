@@ -63,23 +63,6 @@ void InitBasicOTARequestor()
     sOTARequestorDriver.Init(&sOTARequestor, &imageProcessor);
     imageProcessor.TriggerFlashAction(ExternalFlashManager::Action::SLEEP);
 }
-
-CHIP_ERROR OtaConfirmNewImage()
-{
-    CHIP_ERROR err                         = CHIP_NO_ERROR;
-    OTAImageProcessorImpl & imageProcessor = GetOTAImageProcessor();
-    if (imageProcessor.IsFirstImageRun())
-    {
-        CHIP_ERROR err = System::MapErrorZephyr(boot_write_img_confirmed());
-        if (CHIP_NO_ERROR == err)
-        {
-            imageProcessor.SetImageConfirmed();
-        }
-    }
-    ChipLogError(SoftwareUpdate, "Failed to confirm firmware image, it will be reverted on the next boot");
-    return err;
-}
-
 #endif
 
 ExternalFlashManager & GetFlashHandler()

@@ -20,8 +20,6 @@
 #include "transport/SecureSession.h"
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app/ClusterStateCache.h>
-#include <app/ConcreteAttributePath.h>
-#include <app/ConcreteEventPath.h>
 #include <app/InteractionModelEngine.h>
 #include <app/tests/AppTestContext.h>
 #include <app/util/mock/Constants.h>
@@ -239,11 +237,6 @@ bool IsDeviceTypeOnEndpoint(DeviceTypeId deviceType, EndpointId endpoint)
 bool ConcreteAttributePathExists(const ConcreteAttributePath & aPath)
 {
     return true;
-}
-
-Protocols::InteractionModel::Status CheckEventSupportStatus(const ConcreteEventPath & aPath)
-{
-    return Protocols::InteractionModel::Status::Success;
 }
 
 } // namespace app

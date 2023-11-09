@@ -28,8 +28,6 @@
 #include <app/AttributeAccessInterface.h>
 #include <app/CommandHandler.h>
 #include <app/CommandSender.h>
-#include <app/ConcreteAttributePath.h>
-#include <app/ConcreteEventPath.h>
 #include <app/EventManagement.h>
 #include <app/InteractionModelEngine.h>
 #include <app/tests/integration/common.h>
@@ -128,11 +126,6 @@ CHIP_ERROR ReadSingleClusterData(const Access::SubjectDescriptor & aSubjectDescr
 bool ConcreteAttributePathExists(const ConcreteAttributePath & aPath)
 {
     return true;
-}
-
-Protocols::InteractionModel::Status CheckEventSupportStatus(const ConcreteEventPath & aPath)
-{
-    return Protocols::InteractionModel::Status::Success;
 }
 
 const EmberAfAttributeMetadata * GetAttributeMetadata(const ConcreteAttributePath & aConcreteClusterPath)

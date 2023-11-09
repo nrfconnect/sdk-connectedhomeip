@@ -19,9 +19,6 @@
 
 #include <inttypes.h>
 
-#include <app/util/af-types.h>
-#include <app/util/endpoint-config-api.h>
-
 // Cluster name structure
 typedef struct
 {
@@ -66,6 +63,8 @@ uint16_t * emberAfPutInt16uInResp(uint16_t value);
 uint8_t * emberAfPutBlockInResp(const uint8_t * data, uint16_t length);
 uint8_t * emberAfPutStringInResp(const uint8_t * buffer);
 void emberAfPutInt16sInResp(int16_t value);
+
+bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId);
 
 /* @brief returns true if the attribute is known to be volatile (i.e. RAM
  * storage).

@@ -37,7 +37,6 @@
 
 #include <app/util/debug-printing.h>
 #include <app/util/ember-print.h>
-#include <app/util/endpoint-config-api.h>
 
 #include <lib/core/DataModelTypes.h>
 #include <lib/support/Iterators.h>
@@ -132,6 +131,11 @@ extern EmberAfDefinedEndpoint emAfEndpoints[];
 #endif
 
 /**
+ * @brief Macro that takes index of endpoint, and returns Zigbee endpoint
+ */
+chip::EndpointId emberAfEndpointFromIndex(uint16_t index);
+
+/**
  * @brief Returns root endpoint of a composed bridged device
  */
 chip::EndpointId emberAfParentEndpointFromIndex(uint16_t index);
@@ -179,6 +183,11 @@ uint16_t emberAfIndexFromEndpointIncludingDisabledEndpoints(chip::EndpointId end
  * emberAfFindClusterServerEndpointIndex(9, X) returns 2.
  */
 uint16_t emberAfFindClusterServerEndpointIndex(chip::EndpointId endpoint, chip::ClusterId clusterId);
+
+/**
+ * @brief Returns the total number of endpoints (dynamic and pre-compiled).
+ */
+uint16_t emberAfEndpointCount(void);
 
 /**
  * @brief Returns the number of pre-compiled endpoints.
@@ -245,6 +254,11 @@ bool emberAfIsDeviceIdentifying(chip::EndpointId endpoint);
  * @brief Enable/disable endpoints
  */
 bool emberAfEndpointEnableDisable(chip::EndpointId endpoint, bool enable);
+
+/**
+ * @brief Determine if an endpoint at the specified index is enabled or disabled
+ */
+bool emberAfEndpointIndexIsEnabled(uint16_t index);
 
 /** @brief Returns true if a given ZCL data type is a list type. */
 bool emberAfIsThisDataTypeAListType(EmberAfAttributeType dataType);

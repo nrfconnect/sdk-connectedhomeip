@@ -11,7 +11,7 @@
 #   - output_file/golden_path are the expected output file names
 #     and the expected content for those output files.
 inputs/all-clusters-app.zap:
-    ../../../../src/app/zap-templates/app-templates-testing.json:
+    ../../../../src/app/zap-templates/app-templates.json:
         CHIPClusters.h: outputs/all-clusters-app/app-templates/CHIPClusters.h
         endpoint_config.h: outputs/all-clusters-app/app-templates/endpoint_config.h
         gen_config.h: outputs/all-clusters-app/app-templates/gen_config.h
@@ -20,7 +20,7 @@ inputs/all-clusters-app.zap:
         IMClusterCommandHandler.cpp: outputs/all-clusters-app/app-templates/IMClusterCommandHandler.cpp
 
 inputs/lighting-app.zap:
-    ../../../../src/app/zap-templates/app-templates-testing.json:
+    ../../../../src/app/zap-templates/app-templates.json:
         CHIPClusters.h: outputs/lighting-app/app-templates/CHIPClusters.h
         endpoint_config.h: outputs/lighting-app/app-templates/endpoint_config.h
         gen_config.h: outputs/lighting-app/app-templates/gen_config.h

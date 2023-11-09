@@ -63,10 +63,6 @@ config PTHREAD_IPC
     bool
     default n
 
-config POSIX_MAX_FDS
-    int
-    default 16
-
 # Application stack size
 config MAIN_STACK_SIZE
     default 8192

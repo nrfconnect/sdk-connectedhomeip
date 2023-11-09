@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "AppTask.h"
+
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
 #ifdef CONFIG_CHIP_WIFI
@@ -40,49 +42,36 @@ public:
 #ifndef CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
         static AppFabricTableDelegate sAppFabricDelegate;
         chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&sAppFabricDelegate);
-        k_timer_init(&sFactoryResetTimer, &OnFabricRemovedTimerCallback, nullptr);
 #endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
     }
 
 private:
     void OnFabricRemoved(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex)
     {
-        k_timer_start(&sFactoryResetTimer, K_MSEC(CONFIG_CHIP_LAST_FABRIC_REMOVED_ACTION_DELAY), K_NO_WAIT);
-    }
-
-    static void OnFabricRemovedTimerCallback(k_timer * timer)
-    {
 #ifndef CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
         if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0)
         {
-            chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
 #ifdef CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_AND_REBOOT
-                chip::Server::GetInstance().ScheduleFactoryReset();
+            chip::Server::GetInstance().ScheduleFactoryReset();
 #elif defined(CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_ONLY) || defined(CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_AND_PAIRING_START)
-                // Erase Matter data
+            chip::DeviceLayer::PlatformMgr().ScheduleWork([](intptr_t) {
+                /* Erase Matter data */
                 chip::DeviceLayer::PersistedStorage::KeyValueStoreMgrImpl().DoFactoryReset();
-                // Erase Network credentials and disconnect
+                /* Erase Network credentials and disconnect */
                 chip::DeviceLayer::ConnectivityMgr().ErasePersistentInfo();
 #ifdef CONFIG_CHIP_WIFI
                 chip::DeviceLayer::WiFiManager::Instance().Disconnect();
                 chip::DeviceLayer::ConnectivityMgr().ClearWiFiStationProvision();
 #endif
 #ifdef CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_AND_PAIRING_START
-                // Start the New BLE advertising
-                if (!chip::DeviceLayer::ConnectivityMgr().IsBLEAdvertisingEnabled())
-                {
-                    if (CHIP_NO_ERROR == chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow())
-                    {
-                        return;
-                    }
-                }
-                ChipLogError(FabricProvisioning, "Could not start Bluetooth LE advertising");
+                /* Start the New BLE advertising */
+                AppEvent event;
+                event.Handler = AppTask::StartBLEAdvertisementHandler;
+                AppTask::Instance().PostEvent(event);
 #endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_AND_PAIRING_START
-#endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_AND_REBOOT
             });
+#endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_ERASE_AND_REBOOT
         }
 #endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
     }
-
-    inline static k_timer sFactoryResetTimer;
 };

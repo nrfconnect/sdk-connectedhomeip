@@ -178,10 +178,6 @@ config BT_GATT_CACHING
     bool
     default n
 
-# Disable 2M PHY due to interoperability issues.
-config BT_CTLR_PHY_2M
-    default n
-
 # Enable NFC support
 
 config CHIP_NFC_COMMISSIONING

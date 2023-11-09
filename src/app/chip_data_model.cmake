@@ -17,7 +17,10 @@
 set(CHIP_APP_BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 if (NOT CHIP_ROOT)
-    get_filename_component(CHIP_ROOT ${CHIP_APP_BASE_DIR}/../.. REALPATH)
+    # TODO: these are WORKAROUNDS and should be removed
+    if(DEFINED ameba_matter_root)
+        SET(CHIP_ROOT "${ameba_matter_root}")
+    endif()
 endif()
 
 include("${CHIP_ROOT}/build/chip/chip_codegen.cmake")

@@ -568,34 +568,5 @@ void WiFiManager::AbortConnectionRecovery()
     Instance().mRecoveryTimerAborted = true;
 }
 
-CHIP_ERROR WiFiManager::SetLowPowerMode(bool onoff)
-{
-    net_if * iface = InetUtils::GetInterface();
-    VerifyOrReturnError(nullptr != iface, CHIP_ERROR_INTERNAL);
-
-    wifi_ps_config currentConfig{};
-    if (net_mgmt(NET_REQUEST_WIFI_PS_CONFIG, iface, &currentConfig, sizeof(currentConfig)))
-    {
-        ChipLogError(DeviceLayer, "Get current low power mode config request failed");
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    if ((currentConfig.enabled == WIFI_PS_ENABLED && onoff == false) ||
-        (currentConfig.enabled == WIFI_PS_DISABLED && onoff == true))
-    {
-        wifi_ps_params params{ .enabled = onoff ? WIFI_PS_ENABLED : WIFI_PS_DISABLED };
-        if (net_mgmt(NET_REQUEST_WIFI_PS, iface, &params, sizeof(params)))
-        {
-            ChipLogError(DeviceLayer, "Set low power mode request failed");
-            return CHIP_ERROR_INTERNAL;
-        }
-        ChipLogProgress(DeviceLayer, "Successfully set low power mode [%d]", onoff);
-        return CHIP_NO_ERROR;
-    }
-
-    ChipLogDetail(DeviceLayer, "Low power mode is already in requested state [%d]", onoff);
-    return CHIP_NO_ERROR;
-}
-
 } // namespace DeviceLayer
 } // namespace chip

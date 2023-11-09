@@ -21,8 +21,6 @@
 #include <functional>
 #include <zap-generated/CHIPClusters.h>
 
-#include <app-common/zap-generated/cluster-objects.h>
-
 class SendKeyCommand : public MediaCommandBase<chip::app::Clusters::KeypadInput::Commands::SendKey::Type,
                                                chip::app::Clusters::KeypadInput::Commands::SendKeyResponse::DecodableType>
 {

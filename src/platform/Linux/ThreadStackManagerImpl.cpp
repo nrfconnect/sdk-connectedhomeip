@@ -25,8 +25,6 @@
 #include <platform/PlatformManager.h>
 #include <platform/ThreadStackManager.h>
 
-#include <app-common/zap-generated/ids/Attributes.h>
-
 #include <nlbyteorder.hpp>
 #include <nlio-byteorder.hpp>
 #include <nlio.hpp>

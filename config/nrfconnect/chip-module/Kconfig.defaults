@@ -255,9 +255,6 @@ config NET_IF_IPV6_PREFIX_COUNT
 config WPA_SUPP_NO_DEBUG
     default y
 
-config NRF700X_LOG_VERBOSE
-    default n
-
 config NRF_WIFI_LOW_POWER
     default n
 

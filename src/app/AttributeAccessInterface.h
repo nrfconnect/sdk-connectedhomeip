@@ -292,7 +292,6 @@ private:
 
         mCurrentEncodingListIndex++;
         mEncodeState.mCurrentEncodingListIndex++;
-        mEncodedAtLeastOneListItem = true;
         return CHIP_NO_ERROR;
     }
 
@@ -341,8 +340,6 @@ private:
     // started chunking it yet, so we're encoding a single attribute report IB
     // for the whole list, not one per item.
     bool mEncodingInitialList = false;
-    // mEncodedAtLeastOneListItem becomes true once we successfully encode a list item.
-    bool mEncodedAtLeastOneListItem = false;
     AttributeEncodeState mEncodeState;
     ListIndex mCurrentEncodingListIndex = kInvalidListIndex;
 };

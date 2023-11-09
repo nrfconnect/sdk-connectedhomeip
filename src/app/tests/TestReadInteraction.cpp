@@ -1286,8 +1286,8 @@ void TestReadInteraction::TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void 
                     !aPath.IsListItemOperation())
                 {
                     mGotStartOfSecondReport = true;
-                    // We always have data chunks, so go ahead to mark things
-                    // dirty as needed.
+                    // Wait for an actual data chunk.
+                    return;
                 }
 
                 if (!mGotStartOfSecondReport)
@@ -1897,16 +1897,14 @@ void TestReadInteraction::TestSubscribeWildcard(nlTestSuite * apSuite, void * ap
 
         NL_TEST_ASSERT(apSuite, delegate.mGotReport);
 
-        // Thus we should receive 29*2 + 4 + 6 = 68 attribute data in total.
-
-        // When EventList is not enabled, the packet boundaries shift and for the first
-        // report for the list attribute we receive two of its items in the initial list,
-        // then 4 additional items.  For the second report we receive 3 items in
-        // the initial list followed by 3 additional items.
+        // We have 29 attributes in our mock attribute storage. And we subscribed twice.
+        // And attribute 3/2/4 is a list with 6 elements and list chunking is
+        // applied to it, but the way the packet boundaries fall we get two of
+        // its items as a single list, followed by 4 more single items for one
+        // of our subscriptions, but every item as a separate IB for the other.
         //
-        // Thus we should receive 29*2 + 4 + 3 = 65 attribute data when the eventlist
-        // attribute is not available.
-        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 65);
+        // Thus we should receive 29*2 + 4 + 6 = 68 attribute data in total.
+        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 68);
         NL_TEST_ASSERT(apSuite, delegate.mNumArrayItems == 12);
         NL_TEST_ASSERT(apSuite, engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe) == 1);
         NL_TEST_ASSERT(apSuite, engine->ActiveHandlerAt(0) != nullptr);

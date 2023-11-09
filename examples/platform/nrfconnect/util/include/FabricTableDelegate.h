@@ -40,14 +40,14 @@ public:
 #ifndef CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
         static AppFabricTableDelegate sAppFabricDelegate;
         chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&sAppFabricDelegate);
-        k_timer_init(&sFabricRemovedTimer, &OnFabricRemovedTimerCallback, nullptr);
+        k_timer_init(&sFactoryResetTimer, &OnFabricRemovedTimerCallback, nullptr);
 #endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
     }
 
 private:
     void OnFabricRemoved(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex)
     {
-        k_timer_start(&sFabricRemovedTimer, K_MSEC(CONFIG_CHIP_LAST_FABRIC_REMOVED_ACTION_DELAY), K_NO_WAIT);
+        k_timer_start(&sFactoryResetTimer, K_MSEC(CONFIG_CHIP_LAST_FABRIC_REMOVED_ACTION_DELAY), K_NO_WAIT);
     }
 
     static void OnFabricRemovedTimerCallback(k_timer * timer)
@@ -84,5 +84,5 @@ private:
 #endif // CONFIG_CHIP_LAST_FABRIC_REMOVED_NONE
     }
 
-    inline static k_timer sFabricRemovedTimer;
+    inline static k_timer sFactoryResetTimer;
 };

@@ -43,17 +43,16 @@ static const Label sStatsStrings[chip::System::Stats::kNumEntries] = {
 #include "lwippools.h"
 #undef LWIP_PBUF_MEMPOOL
 #else
-    "Packet Buffers",
+    "SystemLayer_NumPacketBufs",
 #endif
-    "Timers",
+    "SystemLayer_NumTimersInUse",
 #if INET_CONFIG_NUM_TCP_ENDPOINTS
-    "TCP endpoints",
+    "InetLayer_NumTCPEpsInUse",
 #endif
 #if INET_CONFIG_NUM_UDP_ENDPOINTS
-    "UDP endpoints",
+    "InetLayer_NumUDPEpsInUse",
 #endif
-    "Exchange contexts",
-    "Unsolicited message handlers",
+    "ExchangeMgr_NumContextsInUse", "ExchangeMgr_NumUMHandlersInUse", "ExchangeMgr_NumBindings", "MessageLayer_NumConnectionsInUse",
 };
 
 count_t sResourcesInUse[kNumEntries];

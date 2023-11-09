@@ -68,6 +68,8 @@ enum
 #endif
     kExchangeMgr_NumContexts,
     kExchangeMgr_NumUMHandlers,
+    kExchangeMgr_NumBindings,
+    kMessageLayer_NumConnections,
     kNumEntries
 };
 

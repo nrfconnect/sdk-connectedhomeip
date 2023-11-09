@@ -7113,8 +7113,7 @@
                   - Other
       bitmaps:
           Groups:
-              - Feature
-              - NameSupportBitmap
+              - GroupsFeature
           PressureMeasurement:
               - PressureMeasurementFeature
           PumpConfigurationAndControl:
@@ -7124,8 +7123,6 @@
       bitmap values:
           Groups:
               GroupsFeature:
-                  - GroupNames
-              NameSupportBitmap:
                   - GroupNames
           PressureMeasurement:
               PressureMeasurementFeature:

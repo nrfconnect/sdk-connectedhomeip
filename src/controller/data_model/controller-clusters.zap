@@ -343,7 +343,7 @@
               "code": 0,
               "mfgCode": null,
               "side": "server",
-              "type": "NameSupportBitmap",
+              "type": "bitmap8",
               "included": 1,
               "storageOption": "RAM",
               "singleton": 0,

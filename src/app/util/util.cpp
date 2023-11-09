@@ -24,11 +24,8 @@
 #include <app/util/config.h>
 #include <app/util/generic-callbacks.h>
 
-#ifdef CHIP_BYPASS_IDL
-#include <zap-generated/PluginApplicationCallbacks.h>
-#else
+// TODO: figure out a clear path for compile-time codegen
 #include <app/PluginApplicationCallbacks.h>
-#endif
 
 #ifdef EMBER_AF_PLUGIN_GROUPS_SERVER
 #include <app/clusters/groups-server/groups-server.h>

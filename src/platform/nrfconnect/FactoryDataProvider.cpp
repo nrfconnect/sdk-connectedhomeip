@@ -323,8 +323,6 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetRotatingDeviceIdUniqueId(Mu
 
     memcpy(uniqueIdSpan.data(), mFactoryData.rd_uid.data, mFactoryData.rd_uid.len);
 
-    uniqueIdSpan.reduce_size(mFactoryData.rd_uid.len);
-
     return CHIP_NO_ERROR;
 }
 

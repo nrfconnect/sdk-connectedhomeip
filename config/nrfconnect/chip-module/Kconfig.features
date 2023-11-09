@@ -99,13 +99,6 @@ config SYSTEM_WORKQUEUE_STACK_SIZE
 config BT_DEVICE_APPEARANCE
 	default 833
 
-if !LOG
-
-config BT_FIXED_PASSKEY
-	default y
-
-endif
-
 config CHIP_NUS_MAX_COMMAND_LEN
 	int "Maximum length of single command in Bytes"
 	default 10

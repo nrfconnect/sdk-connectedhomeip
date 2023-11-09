@@ -117,6 +117,7 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
     VerifyOrExit(initParams.sessionKeystore != nullptr, err = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(initParams.operationalKeystore != nullptr, err = CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrExit(initParams.opCertStore != nullptr, err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrExit(initParams.reportScheduler != nullptr, err = CHIP_ERROR_INVALID_ARGUMENT);
 
     // TODO(16969): Remove chip::Platform::MemoryInit() call from Server class, it belongs to outer code
     chip::Platform::MemoryInit();
@@ -127,8 +128,16 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
     mSubscriptionResumptionStorage = initParams.subscriptionResumptionStorage;
     mOperationalKeystore           = initParams.operationalKeystore;
     mOpCertStore                   = initParams.opCertStore;
+    mSessionKeystore               = initParams.sessionKeystore;
 
-    mCertificateValidityPolicy = initParams.certificateValidityPolicy;
+    if (initParams.certificateValidityPolicy)
+    {
+        mCertificateValidityPolicy.Init(initParams.certificateValidityPolicy);
+    }
+    else
+    {
+        mCertificateValidityPolicy.Init(&sDefaultCertValidityPolicy);
+    }
 
 #if defined(CHIP_SUPPORT_ENABLE_STORAGE_API_AUDIT)
     VerifyOrDie(chip::audit::ExecutePersistentStorageApiAudit(*mDeviceStorage));
@@ -140,8 +149,9 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
 
     // Set up attribute persistence before we try to bring up the data model
     // handler.
-    SuccessOrExit(mAttributePersister.Init(mDeviceStorage));
+    SuccessOrExit(err = mAttributePersister.Init(mDeviceStorage));
     SetAttributePersistenceProvider(&mAttributePersister);
+    SetSafeAttributePersistenceProvider(&mAttributePersister);
 
     {
         FabricTable::InitParams fabricTableInitParams;
@@ -161,6 +171,8 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
 
     mGroupsProvider = initParams.groupDataProvider;
     SetGroupDataProvider(mGroupsProvider);
+
+    mReportScheduler = initParams.reportScheduler;
 
     mTestEventTriggerDelegate = initParams.testEventTriggerDelegate;
 
@@ -198,7 +210,7 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
     SuccessOrExit(err);
 
     err = mSessions.Init(&DeviceLayer::SystemLayer(), &mTransports, &mMessageCounterManager, mDeviceStorage, &GetFabricTable(),
-                         *initParams.sessionKeystore);
+                         *mSessionKeystore);
     SuccessOrExit(err);
 
     err = mFabricDelegate.Init(this);
@@ -243,6 +255,11 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
     // This initializes clusters, so should come after lower level initialization.
     InitDataModelHandler();
 
+// ICD Init needs to be after data model init
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    mICDManager.Init(mDeviceStorage, &GetFabricTable(), mReportScheduler, mSessionKeystore);
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
+
 #if defined(CHIP_APP_USE_ECHO)
     err = InitEchoHandler(&mExchangeMgr);
     SuccessOrExit(err);
@@ -286,7 +303,7 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
         .sessionInitParams =  {
             .sessionManager    = &mSessions,
             .sessionResumptionStorage = mSessionResumptionStorage,
-            .certificateValidityPolicy = mCertificateValidityPolicy,
+            .certificateValidityPolicy = &mCertificateValidityPolicy,
             .exchangeMgr       = &mExchangeMgr,
             .fabricTable       = &mFabrics,
             .groupDataProvider = mGroupsProvider,
@@ -300,11 +317,11 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
     SuccessOrExit(err);
 
     err = mCASEServer.ListenForSessionEstablishment(&mExchangeMgr, &mSessions, &mFabrics, mSessionResumptionStorage,
-                                                    mCertificateValidityPolicy, mGroupsProvider);
+                                                    &mCertificateValidityPolicy, mGroupsProvider);
     SuccessOrExit(err);
 
-    err = chip::app::InteractionModelEngine::GetInstance()->Init(&mExchangeMgr, &GetFabricTable(), &mCASESessionManager,
-                                                                 mSubscriptionResumptionStorage);
+    err = chip::app::InteractionModelEngine::GetInstance()->Init(&mExchangeMgr, &GetFabricTable(), mReportScheduler,
+                                                                 &mCASESessionManager, mSubscriptionResumptionStorage);
     SuccessOrExit(err);
 
     // This code is necessary to restart listening to existing groups after a reboot
@@ -398,7 +415,7 @@ void Server::CheckServerReadyEvent()
     // are ready, and emit the 'server ready' event if so.
     if (mIsDnssdReady)
     {
-        ChipLogError(AppServer, "Server initialization complete");
+        ChipLogProgress(AppServer, "Server initialization complete");
 
         ChipDeviceEvent event = { .Type = DeviceEventType::kServerReady };
         PlatformMgr().PostEventOrDie(&event);
@@ -477,6 +494,9 @@ void Server::Shutdown()
     mAccessControl.Finish();
     Access::ResetAccessControlToDefault();
     Credentials::SetGroupDataProvider(nullptr);
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    mICDManager.Shutdown();
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
     mAttributePersister.Shutdown();
     // TODO(16969): Remove chip::Platform::MemoryInit() call from Server class, it belongs to outer code
     chip::Platform::MemoryShutdown();
@@ -531,11 +551,15 @@ void Server::ResumeSubscriptions()
 }
 #endif
 
+Credentials::IgnoreCertificateValidityPeriodPolicy Server::sDefaultCertValidityPolicy;
+
 KvsPersistentStorageDelegate CommonCaseDeviceServerInitParams::sKvsPersistenStorageDelegate;
 PersistentStorageOperationalKeystore CommonCaseDeviceServerInitParams::sPersistentStorageOperationalKeystore;
 Credentials::PersistentStorageOpCertStore CommonCaseDeviceServerInitParams::sPersistentStorageOpCertStore;
 Credentials::GroupDataProviderImpl CommonCaseDeviceServerInitParams::sGroupDataProvider;
-IgnoreCertificateValidityPolicy CommonCaseDeviceServerInitParams::sDefaultCertValidityPolicy;
+app::DefaultTimerDelegate CommonCaseDeviceServerInitParams::sTimerDelegate;
+app::reporting::ReportSchedulerImpl
+    CommonCaseDeviceServerInitParams::sReportScheduler(&CommonCaseDeviceServerInitParams::sTimerDelegate);
 #if CHIP_CONFIG_ENABLE_SESSION_RESUMPTION
 SimpleSessionResumptionStorage CommonCaseDeviceServerInitParams::sSessionResumptionStorage;
 #endif

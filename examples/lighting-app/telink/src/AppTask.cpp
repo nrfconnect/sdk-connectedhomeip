@@ -17,6 +17,7 @@
  */
 
 #include "AppTask.h"
+#include <app/server/Server.h>
 
 #include "ColorFormat.h"
 #include "PWMDevice.h"
@@ -26,10 +27,10 @@
 LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
 
 namespace {
-const struct pwm_dt_spec sPwmRgbSpecBlueLed = LIGHTING_PWM_SPEC_RGB_BLUE;
+const struct pwm_dt_spec sPwmRgbSpecBlueLed = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led0));
 #if USE_RGB_PWM
-const struct pwm_dt_spec sPwmRgbSpecGreenLed = LIGHTING_PWM_SPEC_RGB_GREEN;
-const struct pwm_dt_spec sPwmRgbSpecRedLed   = LIGHTING_PWM_SPEC_RGB_RED;
+const struct pwm_dt_spec sPwmRgbSpecGreenLed = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led1));
+const struct pwm_dt_spec sPwmRgbSpecRedLed   = PWM_DT_SPEC_GET(DT_ALIAS(pwm_led2));
 
 uint8_t sBrightness;
 PWMDevice::Action_t sColorAction = PWMDevice::INVALID_ACTION;
@@ -40,6 +41,17 @@ CtColor_t sCT;
 } // namespace
 
 AppTask AppTask::sAppTask;
+
+#ifdef CONFIG_CHIP_ENABLE_POWER_ON_FACTORY_RESET
+void AppTask::PowerOnFactoryReset(void)
+{
+    LOG_INF("Lighting App Power On Factory Reset");
+    AppEvent event;
+    event.Type    = AppEvent::kEventType_Lighting;
+    event.Handler = PowerOnFactoryResetEventHandler;
+    GetAppTask().PostEvent(&event);
+}
+#endif /* CONFIG_CHIP_ENABLE_POWER_ON_FACTORY_RESET */
 
 CHIP_ERROR AppTask::Init(void)
 {
@@ -77,13 +89,6 @@ CHIP_ERROR AppTask::Init(void)
     SetExampleButtonCallbacks(LightingActionEventHandler);
 #endif
     InitCommonParts();
-
-    err = ConnectivityMgr().SetBLEDeviceName("TelinkLight");
-    if (err != CHIP_NO_ERROR)
-    {
-        LOG_ERR("SetBLEDeviceName fail");
-        return err;
-    }
 
     return CHIP_NO_ERROR;
 }
@@ -126,32 +131,6 @@ void AppTask::LightingActionEventHandler(AppEvent * aEvent)
         LOG_INF("Action is in progress or active");
     }
 }
-
-#ifdef CONFIG_CHIP_PW_RPC
-void AppTask::ButtonEventHandler(ButtonId_t btnId, bool btnPressed)
-{
-    if (!btnPressed)
-    {
-        return;
-    }
-
-    switch (btnId)
-    {
-    case kButtonId_LightingAction:
-        ExampleActionButtonEventHandler();
-        break;
-    case kButtonId_FactoryReset:
-        FactoryResetButtonEventHandler();
-        break;
-    case kButtonId_StartThread:
-        StartThreadButtonEventHandler();
-        break;
-    case kButtonId_StartBleAdv:
-        StartBleAdvButtonEventHandler();
-        break;
-    }
-}
-#endif
 
 void AppTask::ActionInitiated(PWMDevice::Action_t aAction, int32_t aActor)
 {
@@ -196,7 +175,7 @@ void AppTask::UpdateClusterState(void)
     bool isTurnedOn =
         sAppTask.mPwmRgbRedLed.IsTurnedOn() || sAppTask.mPwmRgbGreenLed.IsTurnedOn() || sAppTask.mPwmRgbBlueLed.IsTurnedOn();
 #else
-    bool isTurnedOn = sAppTask.mPwmRgbBlueLed.IsTurnedOn();
+    bool isTurnedOn  = sAppTask.mPwmRgbBlueLed.IsTurnedOn();
 #endif
     // write the new on/off value
     EmberAfStatus status = Clusters::OnOff::Attributes::OnOff::Set(kExampleEndpointId, isTurnedOn);
@@ -310,3 +289,42 @@ void AppTask::SetInitiateAction(PWMDevice::Action_t aAction, int32_t aActor, uin
     }
 #endif
 }
+
+#ifdef CONFIG_CHIP_ENABLE_POWER_ON_FACTORY_RESET
+static constexpr uint32_t kPowerOnFactoryResetIndicationMax    = 4;
+static constexpr uint32_t kPowerOnFactoryResetIndicationTimeMs = 1000;
+
+unsigned int AppTask::sPowerOnFactoryResetTimerCnt;
+k_timer AppTask::sPowerOnFactoryResetTimer;
+
+void AppTask::PowerOnFactoryResetEventHandler(AppEvent * aEvent)
+{
+    LOG_INF("Lighting App Power On Factory Reset Handler");
+    sPowerOnFactoryResetTimerCnt = 1;
+    sAppTask.mPwmRgbBlueLed.Set(sPowerOnFactoryResetTimerCnt % 2);
+#if USE_RGB_PWM
+    sAppTask.mPwmRgbRedLed.Set(sPowerOnFactoryResetTimerCnt % 2);
+    sAppTask.mPwmRgbGreenLed.Set(sPowerOnFactoryResetTimerCnt % 2);
+#endif
+    k_timer_init(&sPowerOnFactoryResetTimer, PowerOnFactoryResetTimerEvent, nullptr);
+    k_timer_start(&sPowerOnFactoryResetTimer, K_MSEC(kPowerOnFactoryResetIndicationTimeMs),
+                  K_MSEC(kPowerOnFactoryResetIndicationTimeMs));
+}
+
+void AppTask::PowerOnFactoryResetTimerEvent(struct k_timer * timer)
+{
+    sPowerOnFactoryResetTimerCnt++;
+    LOG_INF("Lighting App Power On Factory Reset Handler %u", sPowerOnFactoryResetTimerCnt);
+    sAppTask.mPwmRgbBlueLed.Set(sPowerOnFactoryResetTimerCnt % 2);
+#if USE_RGB_PWM
+    sAppTask.mPwmRgbRedLed.Set(sPowerOnFactoryResetTimerCnt % 2);
+    sAppTask.mPwmRgbGreenLed.Set(sPowerOnFactoryResetTimerCnt % 2);
+#endif
+    if (sPowerOnFactoryResetTimerCnt > kPowerOnFactoryResetIndicationMax)
+    {
+        k_timer_stop(timer);
+        LOG_INF("schedule factory reset");
+        chip::Server::GetInstance().ScheduleFactoryReset();
+    }
+}
+#endif /* CONFIG_CHIP_ENABLE_POWER_ON_FACTORY_RESET */

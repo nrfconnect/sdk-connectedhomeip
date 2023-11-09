@@ -33,7 +33,6 @@ IGNORE: Set[str] = {
     '/Test',
     '/tests/',
     '/tools/',
-    r'/lib/assign/ValueAssign\.h',
 
     # Platforms can opt in or out.
     '/darwin/',
@@ -52,6 +51,7 @@ IGNORE: Set[str] = {
     '/platform/bouffalolab/BL602',
     '/platform/webos/',
     '/platform/mt793x/',
+    '/platform/ASR/',
     r'POSIX\.h$',
 }
 
@@ -153,5 +153,15 @@ ALLOW: Dict[str, Set[str]] = {
     # of a list of discovered things.
     'src/controller/SetUpCodePairer.h': {'deque'},
 
-    'src/controller/ExamplePersistentStorage.cpp': {'fstream'}
+    'src/controller/ExamplePersistentStorage.cpp': {'fstream'},
+
+    # Library meant for non-embedded
+    'src/tracing/json/json_tracing.cpp': {'string', 'sstream'},
+    'src/tracing/json/json_tracing.h': {'fstream'},
+
+    # Not intended for embedded clients
+    'src/lib/support/jsontlv/JsonToTlv.cpp': {'sstream'},
+    'src/lib/support/jsontlv/JsonToTlv.h': {'string'},
+    'src/lib/support/jsontlv/TlvToJson.h': {'string'},
+    'src/lib/support/jsontlv/TextFormat.h': {'string'}
 }

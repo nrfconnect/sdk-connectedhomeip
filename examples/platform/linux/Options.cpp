@@ -32,6 +32,10 @@
 
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
+#if ENABLE_TRACING
+#include <TracingCommandLineArgument.h> // nogncheck
+#endif
+
 using namespace chip;
 using namespace chip::ArgParser;
 
@@ -78,6 +82,8 @@ enum
     kOptionCSRResponseCSRExistingKeyPair                = 0x101e,
     kDeviceOption_TestEventTriggerEnableKey             = 0x101f,
     kCommissionerOption_FabricID                        = 0x1020,
+    kTraceTo                                            = 0x1021,
+    kOptionSimulateNoInternalTime                       = 0x1022,
 };
 
 constexpr unsigned kAppUsageLength = 64;
@@ -128,6 +134,10 @@ OptionDef sDeviceOptionDefs[] = {
     { "cert_error_attestation_signature_invalid", kNoArgument, kOptionCSRResponseAttestationSignatureInvalid },
     { "enable-key", kArgumentRequired, kDeviceOption_TestEventTriggerEnableKey },
     { "commissioner-fabric-id", kArgumentRequired, kCommissionerOption_FabricID },
+#if ENABLE_TRACING
+    { "trace-to", kArgumentRequired, kTraceTo },
+#endif
+    { "simulate-no-internal-time", kNoArgument, kOptionSimulateNoInternalTime },
     {}
 };
 
@@ -238,6 +248,12 @@ const char * sDeviceOptionHelp =
     "       Configure the CSRResponse to be build with an AttestationSignature that does not match what is expected.\n"
     "  --enable-key <key>\n"
     "       A 16-byte, hex-encoded key, used to validate TestEventTrigger command of Generial Diagnostics cluster\n"
+#if ENABLE_TRACING
+    "  --trace-to <destination>\n"
+    "       Trace destinations, comma separated (" SUPPORTED_COMMAND_LINE_TRACING_TARGETS ")\n"
+#endif
+    "  --simulate-no-internal-time\n"
+    "       Time cluster does not use internal platform time\n"
     "\n";
 
 bool Base64ArgToVector(const char * arg, size_t maxSize, std::vector<uint8_t> & outVector)
@@ -483,7 +499,14 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
         LinuxDeviceOptions::GetInstance().commissionerFabricId = (chip::FabricId) strtoull(aValue, &eptr, 0);
         break;
     }
-
+#if ENABLE_TRACING
+    case kTraceTo:
+        LinuxDeviceOptions::GetInstance().traceTo.push_back(aValue);
+        break;
+#endif
+    case kOptionSimulateNoInternalTime:
+        LinuxDeviceOptions::GetInstance().mSimulateNoInternalTime = true;
+        break;
     default:
         PrintArgError("%s: INTERNAL ERROR: Unhandled option: %s\n", aProgram, aName);
         retval = false;

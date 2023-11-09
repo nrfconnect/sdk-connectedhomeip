@@ -64,7 +64,7 @@ namespace chip {
 namespace System {
 
 // Enable thread safety attributes only with clang.
-#if defined(__clang__) && (!defined(SWIG))
+#if defined(SYSTEM_ENABLE_CLANG_THREAD_SAFETY_ANALYSIS) && (!defined(SWIG))
 #define CHIP_TSA_ATTRIBUTE__(x) __attribute__((x))
 #else
 #define CHIP_TSA_ATTRIBUTE__(x)
@@ -148,7 +148,7 @@ private:
     k_mutex mZephyrMutex;
 #endif // CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
 
-    Mutex(const Mutex &) = delete;
+    Mutex(const Mutex &)             = delete;
     Mutex & operator=(const Mutex &) = delete;
 };
 

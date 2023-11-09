@@ -42,8 +42,8 @@
 #include <ble/BleConfig.h>
 #include <system/SystemConfig.h>
 
-/* COMING SOON: making the INET Layer optional entails making this inclusion optional. */
-// #include "InetConfig.h"
+#include <inet/InetConfig.h>
+
 /*
 #if INET_CONFIG_ENABLE_TCP_ENDPOINT && INET_TCP_IDLE_CHECK_INTERVAL <= 0
 #error "chip SDK requires INET_TCP_IDLE_CHECK_INTERVAL > 0"
@@ -164,6 +164,30 @@
 #endif // CHIP_CONFIG_MEMORY_DEBUG_DMALLOC
 
 /**
+ *  @def CHIP_CONFIG_GLOBALS_LAZY_INIT
+ *
+ *  @brief
+ *    Whether to perform chip::Global initialization lazily (1) or eagerly (0).
+ *
+ *    The default is standard (eager) C++ global initialization behavior.
+ */
+#ifndef CHIP_CONFIG_GLOBALS_LAZY_INIT
+#define CHIP_CONFIG_GLOBALS_LAZY_INIT 0
+#endif // CHIP_CONFIG_GLOBALS_LAZY_INIT
+
+/**
+ *  @def CHIP_CONFIG_GLOBALS_NO_DESTRUCT
+ *
+ *  @brief
+ *    Whether to omit calling destructors for chip::Global objects.
+ *
+ *    The default is to call destructors.
+ */
+#ifndef CHIP_CONFIG_GLOBALS_NO_DESTRUCT
+#define CHIP_CONFIG_GLOBALS_NO_DESTRUCT 0
+#endif // CHIP_CONFIG_GLOBALS_NO_DESTRUCT
+
+/**
  *  @def CHIP_CONFIG_SHA256_CONTEXT_SIZE
  *
  *  @brief
@@ -184,6 +208,15 @@
 #ifndef CHIP_CONFIG_SHA256_CONTEXT_SIZE
 #define CHIP_CONFIG_SHA256_CONTEXT_SIZE ((sizeof(unsigned int) * (8 + 2 + 16 + 2)) + sizeof(uint64_t))
 #endif // CHIP_CONFIG_SHA256_CONTEXT_SIZE
+
+/**
+ *  @def CHIP_CONFIG_SHA256_CONTEXT_ALIGN
+ *
+ * @brief The alignment of SHA256 context buffer.
+ */
+#ifndef CHIP_CONFIG_SHA256_CONTEXT_ALIGN
+#define CHIP_CONFIG_SHA256_CONTEXT_ALIGN size_t
+#endif // CHIP_CONFIG_SHA256_CONTEXT_ALIGN
 
 /**
  *  @def CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS
@@ -668,28 +701,6 @@
 #endif // CHIP_CONFIG_UNAUTHENTICATED_CONNECTION_POOL_SIZE
 
 /**
- * @def CHIP_CONFIG_SECURE_SESSION_POOL_SIZE
- *
- * @brief Defines the size of the pool used for tracking the state of
- * secure sessions. This controls the maximum number of concurrent
- * established secure sessions across all supported transports.
- *
- * This is sized by default to cover the sum of the following:
- *  - At least 3 CASE sessions / fabric (Spec Ref: 4.13.2.8)
- *  - 1 reserved slot for CASEServer as a responder.
- *  - 1 reserved slot for PASE.
- *
- *  NOTE: On heap-based platforms, there is no pre-allocation of the pool.
- *  Due to the use of an LRU-scheme to manage sessions, the actual active
- *  size of the pool will grow up to the value of this define,
- *  after which, it will remain at or around this size indefinitely.
- *
- */
-#ifndef CHIP_CONFIG_SECURE_SESSION_POOL_SIZE
-#define CHIP_CONFIG_SECURE_SESSION_POOL_SIZE (CHIP_CONFIG_MAX_FABRICS * 3 + 2)
-#endif // CHIP_CONFIG_SECURE_SESSION_POOL_SIZE
-
-/**
  * @def CHIP_CONFIG_SECURE_SESSION_REFCOUNT_LOGGING
  *
  * @brief This enables logging of changes to the underlying reference count of
@@ -711,6 +722,28 @@
 #ifndef CHIP_CONFIG_MAX_FABRICS
 #define CHIP_CONFIG_MAX_FABRICS 16
 #endif // CHIP_CONFIG_MAX_FABRICS
+
+/**
+ * @def CHIP_CONFIG_SECURE_SESSION_POOL_SIZE
+ *
+ * @brief Defines the size of the pool used for tracking the state of
+ * secure sessions. This controls the maximum number of concurrent
+ * established secure sessions across all supported transports.
+ *
+ * This is sized by default to cover the sum of the following:
+ *  - At least 3 CASE sessions / fabric (Spec Ref: 4.13.2.8)
+ *  - 1 reserved slot for CASEServer as a responder.
+ *  - 1 reserved slot for PASE.
+ *
+ *  NOTE: On heap-based platforms, there is no pre-allocation of the pool.
+ *  Due to the use of an LRU-scheme to manage sessions, the actual active
+ *  size of the pool will grow up to the value of this define,
+ *  after which, it will remain at or around this size indefinitely.
+ *
+ */
+#ifndef CHIP_CONFIG_SECURE_SESSION_POOL_SIZE
+#define CHIP_CONFIG_SECURE_SESSION_POOL_SIZE (CHIP_CONFIG_MAX_FABRICS * 3 + 2)
+#endif // CHIP_CONFIG_SECURE_SESSION_POOL_SIZE
 
 /**
  *  @def CHIP_CONFIG_MAX_GROUP_DATA_PEERS
@@ -901,6 +934,10 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #ifndef CHIP_IM_MAX_NUM_TIMED_HANDLER
 #define CHIP_IM_MAX_NUM_TIMED_HANDLER 8
 #endif
+
+/**
+ * @}
+ */
 
 /**
  * @def CONFIG_BUILD_FOR_HOST_UNIT_TEST
@@ -1356,16 +1393,6 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #endif // CHIP_CONFIG_NUM_CD_KEY_SLOTS
 
 /**
- * @def CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC
- *
- * @brief Defines the number of clients that can register for monitoring with a server
- * see ClientMonitoring cluster for specification
- */
-#ifndef CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC
-#define CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC 1
-#endif // CHIP_CONFIG_MAX_CLIENT_REG_PER_FABRIC
-
-/**
  * @def CHIP_CONFIG_MAX_SUBSCRIPTION_RESUMPTION_STORAGE_CONCURRENT_ITERATORS
  *
  * @brief Defines the number of simultaneous subscription resumption iterators that can be allocated
@@ -1377,13 +1404,6 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #endif
 
 /**
- * @brief The minimum number of scenes to support according to spec
- */
-#ifndef CHIP_CONFIG_SCENES_MAX_NUMBER
-#define CHIP_CONFIG_SCENES_MAX_NUMBER 16
-#endif
-
-/**
  * @brief Maximum length of Scene names
  */
 #ifndef CHIP_CONFIG_SCENES_CLUSTER_MAXIMUM_NAME_LENGTH
@@ -1391,10 +1411,10 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #endif
 
 /**
- * @brief The maximum number of scenes allowed on a single fabric
+ * @brief The maximum number of attribute value pairs in an extension field set.
  */
-#ifndef CHIP_CONFIG_SCENES_MAX_PER_FABRIC
-#define CHIP_CONFIG_SCENES_MAX_PER_FABRIC (CHIP_CONFIG_SCENES_MAX_NUMBER / 2)
+#ifndef CHIP_CONFIG_SCENES_MAX_AV_PAIRS_EFS
+#define CHIP_CONFIG_SCENES_MAX_AV_PAIRS_EFS 15
 #endif
 
 /**
@@ -1421,6 +1441,149 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
  */
 #ifndef CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS
 #define CHIP_CONFIG_MAX_SCENES_CONCURRENT_ITERATORS 2
+#endif
+
+/**
+ * @def CHIP_CONFIG_TIME_ZONE_LIST_MAX_SIZE
+ *
+ * Defines the size of the time zone list
+ */
+#ifndef CHIP_CONFIG_TIME_ZONE_LIST_MAX_SIZE
+#define CHIP_CONFIG_TIME_ZONE_LIST_MAX_SIZE 2
+#endif
+
+#if (CHIP_CONFIG_TIME_ZONE_LIST_MAX_SIZE < 1 || CHIP_CONFIG_TIME_ZONE_LIST_MAX_SIZE > 2)
+#error "Please ensure CHIP_CONFIG_TIME_ZONE_LIST_MAX_SIZE meets minimum and maximum requirements."
+#endif
+
+/**
+ * @def CHIP_CONFIG_DST_OFFSET_LIST_MAX_SIZE
+ *
+ * Defines the size of the DSTOffset list
+ */
+#ifndef CHIP_CONFIG_DST_OFFSET_LIST_MAX_SIZE
+#define CHIP_CONFIG_DST_OFFSET_LIST_MAX_SIZE 2
+#endif
+
+#if (CHIP_CONFIG_DST_OFFSET_LIST_MAX_SIZE < 1)
+#error "Please ensure CHIP_CONFIG_DST_OFFSET_LIST_MAX_SIZE meets minimum requirements."
+#endif
+
+/**
+ * @def CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES
+ *
+ * @brief Controls whether core data model code will try to include app-specific generated headers.
+ *
+ * If this is set to true, data model code will be compiled with no client or
+ * server clusters enabled and all required access control levels set to their
+ * defaults: (view for all attribute/event reads, operate for all writes and
+ * invokes).
+ */
+#ifndef CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES
+#define CHIP_CONFIG_SKIP_APP_SPECIFIC_GENERATED_HEADER_INCLUDES 0
+#endif
+
+/**
+ * @def CHIP_CONFIG_ICD_IDLE_MODE_DURATION_SEC
+ *
+ * @brief Default value for the ICD Management cluster IdleModeDuration attribute, in seconds
+ */
+#ifndef CHIP_CONFIG_ICD_IDLE_MODE_DURATION_SEC
+#define CHIP_CONFIG_ICD_IDLE_MODE_DURATION_SEC 2
+#endif
+
+/**
+ * @def CHIP_CONFIG_ICD_ACTIVE_MODE_DURATION_MS
+ *
+ * @brief Default value for the ICD Management cluster ActiveModeDuration attribute, in milliseconds
+ */
+#ifndef CHIP_CONFIG_ICD_ACTIVE_MODE_DURATION_MS
+#define CHIP_CONFIG_ICD_ACTIVE_MODE_DURATION_MS 300
+#endif
+
+/**
+ * @def CHIP_CONFIG_ICD_ACTIVE_MODE_THRESHOLD_MS
+ *
+ * @brief Default value for the ICD Management cluster ActiveModeThreshold attribute, in milliseconds
+ */
+#ifndef CHIP_CONFIG_ICD_ACTIVE_MODE_THRESHOLD_MS
+#define CHIP_CONFIG_ICD_ACTIVE_MODE_THRESHOLD_MS 300
+#endif
+
+/**
+ * @def CHIP_CONFIG_ICD_CLIENTS_SUPPORTED_PER_FABRIC
+ *
+ * @brief Default value for the ICD Management cluster ClientsSupportedPerFabric attribute
+ */
+#ifndef CHIP_CONFIG_ICD_CLIENTS_SUPPORTED_PER_FABRIC
+#define CHIP_CONFIG_ICD_CLIENTS_SUPPORTED_PER_FABRIC 2
+#endif
+
+/**
+ *  @name Configuation for resuming subscriptions that timed out
+ *
+ *  @brief
+ *    The following definitions sets the parameters for subscription resumption in the case of subscription timeout.
+ *      * #CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_FIBONACCI_STEP_INDEX
+ *      * #CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS
+ *      * #CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_WAIT_TIME_MULTIPLIER_SECS
+ *      * #CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS
+ *
+ *  @{
+ */
+
+/**
+ *  @def CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_FIBONACCI_STEP_INDEX
+ *
+ *  @brief
+ *    If subscription timeout resumption is enabled, specify the max fibonacci step index.
+ *
+ *    This index must satisfy below conditions (for readability "CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_" prefix is omitted):
+ *      * MIN_RETRY_INTERVAL_SECS + Fibonacci(MAX_FIBONACCI_STEP_INDEX + 1) * WAIT_TIME_MULTIPLIER_SECS > MAX_RETRY_INTERVAL_SECS
+ *      * MIN_RETRY_INTERVAL_SECS + Fibonacci(MAX_FIBONACCI_STEP_INDEX) * WAIT_TIME_MULTIPLIER_SECS < MAX_RETRY_INTERVAL_SECS
+ *
+ */
+#ifndef CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_FIBONACCI_STEP_INDEX
+#define CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_FIBONACCI_STEP_INDEX 10
+#endif // CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_FIBONACCI_STEP_INDEX
+
+/**
+ *  @def CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS
+ *
+ *  @brief The minimum interval before resuming a subsciption that timed out.
+ */
+#ifndef CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS
+#define CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS 300
+#endif // CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MIN_RETRY_INTERVAL_SECS
+
+/**
+ *  @def CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_WAIT_TIME_MULTIPLIER_SECS
+ *
+ *  @brief The multiplier per step in the calculation of retry interval.
+ */
+#ifndef CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_WAIT_TIME_MULTIPLIER_SECS
+#define CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_WAIT_TIME_MULTIPLIER_SECS 300
+#endif // CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_WAIT_TIME_MULTIPLIER_SECS
+
+/**
+ *  @def CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS
+ *
+ *  @brief The maximum interval before resuming a subsciption that timed out.
+ */
+#ifndef CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS
+#define CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS (3600 * 6)
+#endif // CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION_MAX_RETRY_INTERVAL_SECS
+
+/**
+ * @def CHIP_CONFIG_SYNCHRONOUS_REPORTS_ENABLED
+ *
+ * @brief Controls whether the synchronized report scheduler is used.
+ *
+ * The use of the synchronous reports feature aims to reduce the number of times an ICD needs to wake up to emit reports to its
+ * various subscribers.
+ */
+#ifndef CHIP_CONFIG_SYNCHRONOUS_REPORTS_ENABLED
+#define CHIP_CONFIG_SYNCHRONOUS_REPORTS_ENABLED 0
 #endif
 
 /**

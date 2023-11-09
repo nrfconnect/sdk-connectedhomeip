@@ -21,18 +21,18 @@
 #import "MTRBaseDevice_Internal.h"
 #import "MTRCluster.h"
 
-#import "zap-generated/CHIPClusters.h"
 #import "zap-generated/MTRBaseClusters.h"
 
 #include <app/ReadPrepareParams.h>
+#include <lib/core/DataModelTypes.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface MTRCluster ()
 @property (readonly, nonatomic) dispatch_queue_t callbackQueue;
-- (instancetype _Nullable)initWithQueue:(dispatch_queue_t)queue;
-- (chip::ByteSpan)asByteSpan:(NSData *)value;
-- (chip::CharSpan)asCharSpan:(NSString *)value;
+@property (nonatomic, readonly) chip::EndpointId endpoint;
+
+- (instancetype)initWithEndpointID:(NSNumber *)endpointID queue:(dispatch_queue_t)queue;
 @end
 
 @interface MTRReadParams ()

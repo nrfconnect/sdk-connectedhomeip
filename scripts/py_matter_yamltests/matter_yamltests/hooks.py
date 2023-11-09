@@ -13,11 +13,13 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from .errors import TestStepError
+from .parser import TestStep
 
 
 class TestParserHooks():
-    def start(self, count: int):
+    __test__ = False
+
+    def parsing_start(self, count: int):
         """
         This method is called when the parser starts parsing a set of files.
 
@@ -28,7 +30,7 @@ class TestParserHooks():
         """
         pass
 
-    def stop(self, duration: int):
+    def parsing_stop(self, duration: int):
         """
         This method is called when the parser is done parsing a set of files.
 
@@ -39,7 +41,7 @@ class TestParserHooks():
         """
         pass
 
-    def test_start(self, name: str):
+    def test_parsing_start(self, name: str):
         """
         This method is called when the parser starts parsing a single file.
 
@@ -50,20 +52,20 @@ class TestParserHooks():
         """
         pass
 
-    def test_failure(self, exception: TestStepError, duration: int):
+    def test_parsing_failure(self, exception: Exception, duration: int):
         """
         This method is called when parsing a single file fails.
 
         Parameters
         ----------
-        exception: TestStepError
+        exception: Exception
             An exception describing why parsing the file has failed.
         duration: int
             How long it took to parse the file, in milliseconds.
         """
         pass
 
-    def test_success(self, duration: int):
+    def test_parsing_success(self, duration: int):
         """
         This method is called when parsing a single file succeeds.
 
@@ -76,6 +78,8 @@ class TestParserHooks():
 
 
 class TestRunnerHooks():
+    __test__ = False
+
     def start(self, count: int):
         """
         This method is called when the runner starts running a set of tests.
@@ -143,18 +147,18 @@ class TestRunnerHooks():
         """
         pass
 
-    def step_start(self, name: str):
+    def step_start(self, request: TestStep):
         """
         This method is called when the runner starts running a step from the test.
 
         Parameters
         ----------
-        name: str
-            The name of the test step that is starting.
+        request: TestStep
+            The original request as defined by the test step.
         """
         pass
 
-    def step_success(self, logger, logs, duration: int, request):
+    def step_success(self, logger, logs, duration: int, request: TestStep):
         """
         This method is called when running a step succeeds.
 
@@ -169,12 +173,12 @@ class TestRunnerHooks():
         duration: int
             How long it took to run the test step, in milliseconds.
 
-        request:
+        request: TestStep
             The original request as defined by the test step.
         """
         pass
 
-    def step_failure(self, logger, logs, duration: int, request, received):
+    def step_failure(self, logger, logs, duration: int, request: TestStep, received):
         """
         This method is called when running a step fails.
 
@@ -189,7 +193,7 @@ class TestRunnerHooks():
         duration: int
             How long it took to run the test step, in milliseconds.
 
-        request:
+        request: TestStep
             The original request as defined by the test step.
 
         received:
@@ -200,6 +204,12 @@ class TestRunnerHooks():
     def step_unknown(self):
         """
         This method is called when the result of running a step is unknown. For example during a dry-run.
+        """
+        pass
+
+    async def step_manual(self):
+        """
+        This method is called when the step is executed manually.
         """
         pass
 

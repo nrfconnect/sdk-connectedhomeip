@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <app/AppBuildConfig.h>
 #include <app/CASEClientPool.h>
 #include <app/CASESessionManager.h>
 #include <app/ClusterStateCache.h>
@@ -81,10 +82,11 @@ namespace Controller {
 
 using namespace chip::Protocols::UserDirectedCommissioning;
 
-constexpr uint16_t kNumMaxActiveDevices = CHIP_CONFIG_CONTROLLER_MAX_ACTIVE_DEVICES;
+inline constexpr uint16_t kNumMaxActiveDevices = CHIP_CONFIG_CONTROLLER_MAX_ACTIVE_DEVICES;
 
 // Raw functions for cluster callbacks
 void OnBasicFailure(void * context, CHIP_ERROR err);
+void OnBasicSuccess(void * context, const chip::app::DataModel::NullObjectType &);
 
 struct ControllerInitParams
 {
@@ -184,6 +186,16 @@ public:
         if (mSystemState)
         {
             return mSystemState->SessionMgr();
+        }
+
+        return nullptr;
+    }
+
+    Messaging::ExchangeManager * ExchangeMgr()
+    {
+        if (mSystemState != nullptr)
+        {
+            return mSystemState->ExchangeMgr();
         }
 
         return nullptr;
@@ -383,8 +395,10 @@ class DLL_EXPORT DeviceCommissioner : public DeviceController,
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY // make this commissioner discoverable
                                       public Protocols::UserDirectedCommissioning::InstanceNameResolver,
 #endif
-                                      public SessionEstablishmentDelegate,
-                                      public app::ClusterStateCache::Callback
+#if CHIP_CONFIG_ENABLE_READ_CLIENT
+                                      public app::ClusterStateCache::Callback,
+#endif
+                                      public SessionEstablishmentDelegate
 {
 public:
     DeviceCommissioner();
@@ -425,10 +439,13 @@ public:
      * @param[in] remoteDeviceId        The remote device Id.
      * @param[in] setUpCode             The setup code for connecting to the device
      * @param[in] discoveryType         The network discovery type, defaults to DiscoveryType::kAll.
+     * @param[in] resolutionData        Optional resolution data previously discovered on the network for the target device.
      */
-    CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode, DiscoveryType discoveryType = DiscoveryType::kAll);
+    CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode, DiscoveryType discoveryType = DiscoveryType::kAll,
+                          Optional<Dnssd::CommonResolutionData> resolutionData = NullOptional);
     CHIP_ERROR PairDevice(NodeId remoteDeviceId, const char * setUpCode, const CommissioningParameters & CommissioningParameters,
-                          DiscoveryType discoveryType = DiscoveryType::kAll);
+                          DiscoveryType discoveryType                          = DiscoveryType::kAll,
+                          Optional<Dnssd::CommonResolutionData> resolutionData = NullOptional);
 
     /**
      * @brief
@@ -443,6 +460,7 @@ public:
      * @param[in] rendezvousParams      The Rendezvous connection parameters
      */
     CHIP_ERROR PairDevice(NodeId remoteDeviceId, RendezvousParameters & rendezvousParams);
+
     /**
      * @overload
      * @param[in] remoteDeviceId        The remote device Id.
@@ -490,9 +508,11 @@ public:
      * @param[in] remoteDeviceId        The remote device Id.
      * @param[in] setUpCode             The setup code for connecting to the device
      * @param[in] discoveryType         The network discovery type, defaults to DiscoveryType::kAll.
+     * @param[in] resolutionData        Optional resolution data previously discovered on the network for the target device.
      */
     CHIP_ERROR EstablishPASEConnection(NodeId remoteDeviceId, const char * setUpCode,
-                                       DiscoveryType discoveryType = DiscoveryType::kAll);
+                                       DiscoveryType discoveryType                          = DiscoveryType::kAll,
+                                       Optional<Dnssd::CommonResolutionData> resolutionData = NullOptional);
 
     /**
      * @brief
@@ -676,8 +696,10 @@ public:
     void RegisterPairingDelegate(DevicePairingDelegate * pairingDelegate) { mPairingDelegate = pairingDelegate; }
     DevicePairingDelegate * GetPairingDelegate() const { return mPairingDelegate; }
 
+#if CHIP_CONFIG_ENABLE_READ_CLIENT
     // ClusterStateCache::Callback impl
     void OnDone(app::ReadClient *) override;
+#endif // CHIP_CONFIG_ENABLE_READ_CLIENT
 
     // Issue an NOC chain using the associated OperationalCredentialsDelegate. The NOC chain will
     // be provided in X509 DER format.
@@ -690,6 +712,8 @@ public:
     {
         mDeviceAttestationVerifier = deviceAttestationVerifier;
     }
+
+    Credentials::DeviceAttestationVerifier * GetDeviceAttestationVerifier() const { return mDeviceAttestationVerifier; }
 
     Optional<CommissioningParameters> GetCommissioningParameters()
     {
@@ -821,6 +845,11 @@ private:
     static void OnSetRegulatoryConfigResponse(
         void * context,
         const chip::app::Clusters::GeneralCommissioning::Commands::SetRegulatoryConfigResponse::DecodableType & data);
+    static void OnSetUTCError(void * context, CHIP_ERROR error);
+    static void
+    OnSetTimeZoneResponse(void * context,
+                          const chip::app::Clusters::TimeSynchronization::Commands::SetTimeZoneResponse::DecodableType & data);
+
     static void
     OnScanNetworksResponse(void * context,
                            const app::Clusters::NetworkCommissioning::Commands::ScanNetworksResponse::DecodableType & data);
@@ -901,6 +930,16 @@ private:
         return cluster.InvokeCommand(request, this, successCb, failureCb);
     }
 
+    void SendCommissioningReadRequest(DeviceProxy * proxy, Optional<System::Clock::Timeout> timeout,
+                                      app::AttributePathParams * readPaths, size_t readPathsSize);
+#if CHIP_CONFIG_ENABLE_READ_CLIENT
+    // Parsers for the two different read clients
+    void ParseCommissioningInfo();
+    void ParseFabrics();
+    // Called by ParseCommissioningInfo
+    void ParseTimeSyncInfo(ReadCommissioningInfo & info);
+#endif // CHIP_CONFIG_ENABLE_READ_CLIENT
+
     static CHIP_ERROR
     ConvertFromOperationalCertStatus(chip::app::Clusters::OperationalCredentials::NodeOperationalCertStatusEnum err);
 
@@ -939,8 +978,10 @@ private:
         nullptr; // Commissioning delegate that issued the PerformCommissioningStep command
     CompletionStatus commissioningCompletionStatus;
 
+#if CHIP_CONFIG_ENABLE_READ_CLIENT
     Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
     Platform::UniquePtr<app::ReadClient> mReadClient;
+#endif
     Credentials::AttestationVerificationResult mAttestationResult;
     Platform::UniquePtr<Credentials::DeviceAttestationVerifier::AttestationDeviceInfo> mAttestationDeviceInfo;
     Credentials::DeviceAttestationVerifier * mDeviceAttestationVerifier = nullptr;

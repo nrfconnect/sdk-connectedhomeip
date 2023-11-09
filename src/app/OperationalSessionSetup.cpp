@@ -193,7 +193,6 @@ void OperationalSessionSetup::UpdateDeviceData(const Transport::PeerAddress & ad
                   mPeerId.GetFabricIndex(), ChipLogValueX64(mPeerId.GetNodeId()), peerAddrBuff, static_cast<int>(mState));
 #endif
 
-    CHIP_ERROR err = CHIP_NO_ERROR;
     mDeviceAddress = addr;
 
     // Initialize CASE session state with any MRP parameters that DNS-SD has provided.
@@ -203,31 +202,46 @@ void OperationalSessionSetup::UpdateDeviceData(const Transport::PeerAddress & ad
         mCASEClient->SetRemoteMRPIntervals(config);
     }
 
-    if (mState == State::ResolvingAddress)
+    if (mState != State::ResolvingAddress)
     {
-        MoveToState(State::HasAddress);
-        mInitParams.sessionManager->UpdateAllSessionsPeerAddress(mPeerId, addr);
-        if (!mPerformingAddressUpdate)
-        {
-            err = EstablishConnection(config);
-            if (err != CHIP_NO_ERROR)
-            {
-                DequeueConnectionCallbacks(err);
-                // Do not touch `this` instance anymore; it has been destroyed in DequeueConnectionCallbacks.
-                return;
-            }
-            // We expect to get a callback via OnSessionEstablished or OnSessionEstablishmentError to continue
-            // the state machine forward.
-            return;
-        }
+        ChipLogError(Discovery, "Received UpdateDeviceData in incorrect state");
+        DequeueConnectionCallbacks(CHIP_ERROR_INCORRECT_STATE);
+        // Do not touch `this` instance anymore; it has been destroyed in
+        // DequeueConnectionCallbacks.
+        return;
+    }
 
+    MoveToState(State::HasAddress);
+    mInitParams.sessionManager->UpdateAllSessionsPeerAddress(mPeerId, addr);
+
+    if (mPerformingAddressUpdate)
+    {
+        // Nothing else to do here.
         DequeueConnectionCallbacks(CHIP_NO_ERROR);
         // Do not touch `this` instance anymore; it has been destroyed in DequeueConnectionCallbacks.
         return;
     }
 
-    ChipLogError(Discovery, "Received UpdateDeviceData in incorrect state");
-    DequeueConnectionCallbacks(CHIP_ERROR_INCORRECT_STATE);
+    CHIP_ERROR err = EstablishConnection(config);
+    LogErrorOnFailure(err);
+    if (err == CHIP_NO_ERROR)
+    {
+        // We expect to get a callback via OnSessionEstablished or OnSessionEstablishmentError to continue
+        // the state machine forward.
+        return;
+    }
+
+    // Move to the ResolvingAddress state, in case we have more results,
+    // since we expect to receive results in that state.
+    MoveToState(State::ResolvingAddress);
+    if (CHIP_NO_ERROR == Resolver::Instance().TryNextResult(mAddressLookupHandle))
+    {
+        // No need to NotifyRetryHandlers, since we never actually
+        // spent any time trying the previous result.
+        return;
+    }
+
+    DequeueConnectionCallbacks(err);
     // Do not touch `this` instance anymore; it has been destroyed in DequeueConnectionCallbacks.
 }
 
@@ -262,7 +276,7 @@ void OperationalSessionSetup::EnqueueConnectionCallbacks(Callback::Callback<OnDe
     }
 }
 
-void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ERROR error)
+void OperationalSessionSetup::DequeueConnectionCallbacks(CHIP_ERROR error, ReleaseBehavior releaseBehavior)
 {
     Cancelable failureReady, successReady;
 
@@ -283,6 +297,29 @@ void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ER
     }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
+    // Gather up state we will need for our notifications.
+    bool performingAddressUpdate                  = mPerformingAddressUpdate;
+    auto * exchangeMgr                            = mInitParams.exchangeMgr;
+    Optional<SessionHandle> optionalSessionHandle = mSecureSession.Get();
+    ScopedNodeId peerId                           = mPeerId;
+
+    if (releaseBehavior == ReleaseBehavior::Release)
+    {
+        VerifyOrDie(mReleaseDelegate != nullptr);
+        mReleaseDelegate->ReleaseSession(this);
+    }
+
+    // DO NOT touch any members of this object after this point.  It's dead.
+
+    NotifyConnectionCallbacks(failureReady, successReady, error, peerId, performingAddressUpdate, exchangeMgr,
+                              optionalSessionHandle);
+}
+
+void OperationalSessionSetup::NotifyConnectionCallbacks(Cancelable & failureReady, Cancelable & successReady, CHIP_ERROR error,
+                                                        const ScopedNodeId & peerId, bool performingAddressUpdate,
+                                                        Messaging::ExchangeManager * exchangeMgr,
+                                                        const Optional<SessionHandle> & optionalSessionHandle)
+{
     //
     // If we encountered no error, go ahead and call all success callbacks. Otherwise,
     // call the failure callbacks.
@@ -290,7 +327,7 @@ void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ER
     while (failureReady.mNext != &failureReady)
     {
         // We expect that we only have callbacks if we are not performing just address update.
-        VerifyOrDie(!mPerformingAddressUpdate);
+        VerifyOrDie(!performingAddressUpdate);
         Callback::Callback<OnDeviceConnectionFailure> * cb =
             Callback::Callback<OnDeviceConnectionFailure>::FromCancelable(failureReady.mNext);
 
@@ -298,33 +335,24 @@ void OperationalSessionSetup::DequeueConnectionCallbacksWithoutReleasing(CHIP_ER
 
         if (error != CHIP_NO_ERROR)
         {
-            cb->mCall(cb->mContext, mPeerId, error);
+            cb->mCall(cb->mContext, peerId, error);
         }
     }
 
     while (successReady.mNext != &successReady)
     {
         // We expect that we only have callbacks if we are not performing just address update.
-        VerifyOrDie(!mPerformingAddressUpdate);
+        VerifyOrDie(!performingAddressUpdate);
         Callback::Callback<OnDeviceConnected> * cb = Callback::Callback<OnDeviceConnected>::FromCancelable(successReady.mNext);
 
         cb->Cancel();
         if (error == CHIP_NO_ERROR)
         {
-            auto * exchangeMgr = mInitParams.exchangeMgr;
             VerifyOrDie(exchangeMgr);
             // We know that we for sure have the SessionHandle in the successful case.
-            auto optionalSessionHandle = mSecureSession.Get();
             cb->mCall(cb->mContext, *exchangeMgr, optionalSessionHandle.Value());
         }
     }
-}
-
-void OperationalSessionSetup::DequeueConnectionCallbacks(CHIP_ERROR error)
-{
-    DequeueConnectionCallbacksWithoutReleasing(error);
-    VerifyOrDie(mReleaseDelegate != nullptr);
-    mReleaseDelegate->ReleaseSession(this);
 }
 
 void OperationalSessionSetup::OnSessionEstablishmentError(CHIP_ERROR error)
@@ -382,12 +410,18 @@ void OperationalSessionSetup::OnSessionEstablished(const SessionHandle & session
                    ChipLogError(Discovery, "OnSessionEstablished was called while we were not connecting"));
 
     if (!mSecureSession.Grab(session))
-        return; // Got an invalid session, do not change any state
+    {
+        // Got an invalid session, just dispatch an error.  We have to do this
+        // so we don't leak.
+        DequeueConnectionCallbacks(CHIP_ERROR_INCORRECT_STATE);
+
+        // Do not touch `this` instance anymore; it has been destroyed in DequeueConnectionCallbacks.
+        return;
+    }
 
     MoveToState(State::SecureConnected);
 
     DequeueConnectionCallbacks(CHIP_NO_ERROR);
-    // Do not touch `this` instance anymore; it has been destroyed in DequeueConnectionCallbacks.
 }
 
 void OperationalSessionSetup::CleanupCASEClient()
@@ -397,14 +431,6 @@ void OperationalSessionSetup::CleanupCASEClient()
         mClientPool->Release(mCASEClient);
         mCASEClient = nullptr;
     }
-}
-
-void OperationalSessionSetup::OnSessionReleased()
-{
-    // This is unlikely to be called since within the same call that we get SessionHandle we
-    // then call DequeueConnectionCallbacks which releases `this`. If this is called, and we
-    // we have any callbacks we will just send an error.
-    DequeueConnectionCallbacks(CHIP_ERROR_INCORRECT_STATE);
 }
 
 OperationalSessionSetup::~OperationalSessionSetup()
@@ -435,7 +461,7 @@ OperationalSessionSetup::~OperationalSessionSetup()
     CancelSessionSetupReattempt();
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
 
-    DequeueConnectionCallbacksWithoutReleasing(CHIP_ERROR_CANCELLED);
+    DequeueConnectionCallbacks(CHIP_ERROR_CANCELLED, ReleaseBehavior::DoNotRelease);
 }
 
 CHIP_ERROR OperationalSessionSetup::LookupPeerAddress()

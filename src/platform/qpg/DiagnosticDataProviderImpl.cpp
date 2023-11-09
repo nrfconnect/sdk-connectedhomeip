@@ -160,8 +160,8 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetActiveRadioFaults(GeneralFaults<kMaxRa
 {
     ChipLogProgress(DeviceLayer, "GetActiveRadioFaults");
 #if CHIP_CONFIG_TEST
-    ReturnErrorOnFailure(radioFaults.add(EMBER_ZCL_RADIO_FAULT_ENUM_THREAD_FAULT));
-    ReturnErrorOnFailure(radioFaults.add(EMBER_ZCL_RADIO_FAULT_ENUM_BLE_FAULT));
+    ReturnErrorOnFailure(radioFaults.add(to_underlying(RadioFaultEnum::kThreadFault)));
+    ReturnErrorOnFailure(radioFaults.add(to_underlying(RadioFaultEnum::kBLEFault)));
 #endif
 
     return CHIP_NO_ERROR;
@@ -171,9 +171,11 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetActiveNetworkFaults(GeneralFaults<kMax
 {
     ChipLogProgress(DeviceLayer, "GetActiveNetworkFaults");
 #if CHIP_CONFIG_TEST
-    ReturnErrorOnFailure(networkFaults.add(EMBER_ZCL_NETWORK_FAULT_ENUM_HARDWARE_FAILURE));
-    ReturnErrorOnFailure(networkFaults.add(EMBER_ZCL_NETWORK_FAULT_ENUM_NETWORK_JAMMED));
-    ReturnErrorOnFailure(networkFaults.add(EMBER_ZCL_NETWORK_FAULT_ENUM_CONNECTION_FAILED));
+    using app::Clusters::GeneralDiagnostics::NetworkFaultEnum;
+
+    ReturnErrorOnFailure(networkFaults.add(to_underlying(NetworkFaultEnum::kHardwareFailure)));
+    ReturnErrorOnFailure(networkFaults.add(to_underlying(NetworkFaultEnum::kNetworkJammed)));
+    ReturnErrorOnFailure(networkFaults.add(to_underlying(NetworkFaultEnum::kConnectionFailed)));
 #endif
 
     return CHIP_NO_ERROR;

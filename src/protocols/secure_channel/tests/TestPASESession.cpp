@@ -59,7 +59,7 @@ constexpr uint32_t sTestPaseMessageCount = 5;
 constexpr uint32_t sTestSpake2p01_PinCode        = 20202021;
 constexpr uint32_t sTestSpake2p01_IterationCount = 1000;
 constexpr uint8_t sTestSpake2p01_Salt[]          = { 0x53, 0x50, 0x41, 0x4B, 0x45, 0x32, 0x50, 0x20,
-                                            0x4B, 0x65, 0x79, 0x20, 0x53, 0x61, 0x6C, 0x74 };
+                                                     0x4B, 0x65, 0x79, 0x20, 0x53, 0x61, 0x6C, 0x74 };
 constexpr Spake2pVerifier sTestSpake2p01_PASEVerifier = { .mW0 = {
     0xB9, 0x61, 0x70, 0xAA, 0xE8, 0x03, 0x34, 0x68, 0x84, 0x72, 0x4F, 0xE9, 0xA3, 0xB2, 0x87, 0xC3,
     0x03, 0x30, 0xC2, 0xA6, 0x60, 0x37, 0x5D, 0x17, 0xBB, 0x20, 0x5A, 0x8C, 0xF1, 0xAE, 0xCB, 0x35,
@@ -161,8 +161,8 @@ void SecurePairingWaitTest(nlTestSuite * inSuite, void * inContext)
     loopback.Reset();
 
     NL_TEST_ASSERT(inSuite,
-                   pairing.WaitForPairing(sessionManager, sTestSpake2p01_PASEVerifier, sTestSpake2p01_IterationCount,
-                                          ByteSpan(nullptr, 0), Optional<ReliableMessageProtocolConfig>::Missing(),
+                   pairing.WaitForPairing(sessionManager, sTestSpake2p01_PASEVerifier, sTestSpake2p01_IterationCount, ByteSpan(),
+                                          Optional<ReliableMessageProtocolConfig>::Missing(),
                                           &delegate) == CHIP_ERROR_INVALID_ARGUMENT);
     ctx.DrainAndServiceIO();
 
@@ -279,7 +279,8 @@ void SecurePairingHandshakeTestCommon(nlTestSuite * inSuite, void * inContext, S
 
     while (delegate.mMessageDropped)
     {
-        chip::test_utils::SleepMillis(100);
+        // Wait some time so the dropped message will be retransmitted when we drain the IO.
+        chip::test_utils::SleepMillis((100_ms + CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST).count());
         delegate.mMessageDropped = false;
         ReliableMessageMgr::Timeout(&ctx.GetSystemLayer(), ctx.GetExchangeManager().GetReliableMessageMgr());
         ctx.DrainAndServiceIO();
@@ -362,7 +363,7 @@ void SecurePairingHandshakeWithCommissionerMRPTest(nlTestSuite * inSuite, void *
     PASESession pairingCommissioner;
     auto & loopback = ctx.GetLoopback();
     loopback.Reset();
-    ReliableMessageProtocolConfig config(1000_ms32, 10000_ms32);
+    ReliableMessageProtocolConfig config(1000_ms32, 10000_ms32, 4000_ms16);
     SecurePairingHandshakeTestCommon(inSuite, inContext, sessionManager, pairingCommissioner,
                                      Optional<ReliableMessageProtocolConfig>::Value(config),
                                      Optional<ReliableMessageProtocolConfig>::Missing(), delegateCommissioner);
@@ -377,7 +378,7 @@ void SecurePairingHandshakeWithDeviceMRPTest(nlTestSuite * inSuite, void * inCon
     PASESession pairingCommissioner;
     auto & loopback = ctx.GetLoopback();
     loopback.Reset();
-    ReliableMessageProtocolConfig config(1000_ms32, 10000_ms32);
+    ReliableMessageProtocolConfig config(1000_ms32, 10000_ms32, 4000_ms16);
     SecurePairingHandshakeTestCommon(inSuite, inContext, sessionManager, pairingCommissioner,
                                      Optional<ReliableMessageProtocolConfig>::Missing(),
                                      Optional<ReliableMessageProtocolConfig>::Value(config), delegateCommissioner);
@@ -392,8 +393,8 @@ void SecurePairingHandshakeWithAllMRPTest(nlTestSuite * inSuite, void * inContex
     PASESession pairingCommissioner;
     auto & loopback = ctx.GetLoopback();
     loopback.Reset();
-    ReliableMessageProtocolConfig commissionerConfig(1000_ms32, 10000_ms32);
-    ReliableMessageProtocolConfig deviceConfig(2000_ms32, 7000_ms32);
+    ReliableMessageProtocolConfig commissionerConfig(1000_ms32, 10000_ms32, 4000_ms16);
+    ReliableMessageProtocolConfig deviceConfig(2000_ms32, 7000_ms32, 4000_ms16);
     SecurePairingHandshakeTestCommon(inSuite, inContext, sessionManager, pairingCommissioner,
                                      Optional<ReliableMessageProtocolConfig>::Value(commissionerConfig),
                                      Optional<ReliableMessageProtocolConfig>::Value(deviceConfig), delegateCommissioner);

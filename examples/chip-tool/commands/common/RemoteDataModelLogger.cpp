@@ -21,6 +21,8 @@
 #include <lib/support/SafeInt.h>
 #include <lib/support/jsontlv/TlvJson.h>
 
+constexpr const char * kEventNumberKey    = "eventNumber";
+constexpr const char * kDataVersionKey    = "dataVersion";
 constexpr const char * kClusterIdKey      = "clusterId";
 constexpr const char * kEndpointIdKey     = "endpointId";
 constexpr const char * kAttributeIdKey    = "attributeId";
@@ -69,6 +71,10 @@ CHIP_ERROR LogAttributeAsJSON(const chip::app::ConcreteDataAttributePath & path,
     value[kClusterIdKey]   = path.mClusterId;
     value[kEndpointIdKey]  = path.mEndpointId;
     value[kAttributeIdKey] = path.mAttributeId;
+    if (path.mDataVersion.HasValue())
+    {
+        value[kDataVersionKey] = path.mDataVersion.Value();
+    }
 
     chip::TLV::TLVReader reader;
     reader.Init(*data);
@@ -124,9 +130,10 @@ CHIP_ERROR LogEventAsJSON(const chip::app::EventHeader & header, chip::TLV::TLVR
     VerifyOrReturnError(gDelegate != nullptr, CHIP_NO_ERROR);
 
     Json::Value value;
-    value[kClusterIdKey]  = header.mPath.mClusterId;
-    value[kEndpointIdKey] = header.mPath.mEndpointId;
-    value[kEventIdKey]    = header.mPath.mEventId;
+    value[kClusterIdKey]   = header.mPath.mClusterId;
+    value[kEndpointIdKey]  = header.mPath.mEndpointId;
+    value[kEventIdKey]     = header.mPath.mEventId;
+    value[kEventNumberKey] = header.mEventNumber;
 
     chip::TLV::TLVReader reader;
     reader.Init(*data);
@@ -246,6 +253,11 @@ CHIP_ERROR LogDiscoveredNodeData(const chip::Dnssd::DiscoveredNodeData & nodeDat
     if (resolutionData.mrpRetryIntervalActive.HasValue())
     {
         value["mrpRetryIntervalActive"] = resolutionData.mrpRetryIntervalActive.Value().count();
+    }
+
+    if (resolutionData.mrpRetryActiveThreshold.HasValue())
+    {
+        value["mrpRetryActiveThreshold"] = resolutionData.mrpRetryActiveThreshold.Value().count();
     }
 
     Json::Value rootValue;

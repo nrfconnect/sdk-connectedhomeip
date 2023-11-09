@@ -108,6 +108,9 @@
  * @def kNvmId_KvsValues
  *
  * PDM ID used for KVS values RAM storage.
+ * KVS buffer can become quite big, so this PDM
+ * id is used as base id for subsequent PDM ids
+ * used to store data in chunks of PDM page size.
  */
 #ifndef kNvmId_KvsValues
 #define kNvmId_KvsValues (uint16_t) 0x6001
@@ -122,13 +125,23 @@
 #define kNvmId_OTConfigData (uint16_t) 0x4F00
 #endif
 
-#if CONFIG_CHIP_K32W0_REAL_FACTORY_DATA
+/**
+ * @def kNvmId_ApplicationBase
+ *
+ * Base PDM ID to be used by applications to define their own
+ * PDM IDs by using an offset.
+ */
+#ifndef kNvmId_ApplicationBase
+#define kNvmId_ApplicationBase (uint16_t) 0xA000
+#endif
+
+#if CONFIG_CHIP_LOAD_REAL_FACTORY_DATA
 /**
  * @def kNvmId_FactoryDataBackup
  *
- * PDM ID used for factory data backup in K32W0FactoryDataProvider.
+ * PDM ID used for factory data backup in FactoryDataProvider.
  */
 #ifndef kNvmId_FactoryDataBackup
 #define kNvmId_FactoryDataBackup (uint16_t) 0x7000
 #endif
-#endif // CONFIG_CHIP_K32W0_REAL_FACTORY_DATA
+#endif // CONFIG_CHIP_LOAD_REAL_FACTORY_DATA

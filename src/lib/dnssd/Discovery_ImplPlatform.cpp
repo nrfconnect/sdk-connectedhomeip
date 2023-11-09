@@ -48,105 +48,10 @@ static void HandleNodeResolve(void * context, DnssdService * result, const Span<
     }
 
     DiscoveredNodeData nodeData;
-
-    Platform::CopyString(nodeData.resolutionData.hostName, result->mHostName);
-    Platform::CopyString(nodeData.commissionData.instanceName, result->mName);
-
-    nodeData.resolutionData.interfaceId = result->mInterface;
-
-    IPAddressSorter::Sort(addresses, result->mInterface);
-
-    size_t addressesFound = 0;
-    for (auto & ip : addresses)
-    {
-        if (addressesFound == ArraySize(nodeData.resolutionData.ipAddress))
-        {
-            // Out of space.
-            ChipLogProgress(Discovery, "Can't add more IPs to DiscoveredNodeData");
-            break;
-        }
-        nodeData.resolutionData.ipAddress[addressesFound] = ip;
-        ++addressesFound;
-    }
-
-    nodeData.resolutionData.numIPs = addressesFound;
-
-    nodeData.resolutionData.port = result->mPort;
-
-    for (size_t i = 0; i < result->mTextEntrySize; ++i)
-    {
-        ByteSpan key(reinterpret_cast<const uint8_t *>(result->mTextEntries[i].mKey), strlen(result->mTextEntries[i].mKey));
-        ByteSpan val(result->mTextEntries[i].mData, result->mTextEntries[i].mDataSize);
-        FillNodeDataFromTxt(key, val, nodeData.resolutionData);
-        FillNodeDataFromTxt(key, val, nodeData.commissionData);
-    }
+    result->ToDiscoveredNodeData(addresses, nodeData);
 
     nodeData.LogDetail();
     proxy->OnNodeDiscovered(nodeData);
-    proxy->Release();
-}
-
-static void HandleNodeIdResolve(void * context, DnssdService * result, const Span<Inet::IPAddress> & addresses, CHIP_ERROR error)
-{
-    ResolverDelegateProxy * proxy = static_cast<ResolverDelegateProxy *>(context);
-    if (CHIP_NO_ERROR != error)
-    {
-        proxy->OnOperationalNodeResolutionFailed(PeerId(), error);
-        proxy->Release();
-        return;
-    }
-
-    VerifyOrDie(proxy != nullptr);
-
-    if (result == nullptr)
-    {
-        proxy->OnOperationalNodeResolutionFailed(PeerId(), CHIP_ERROR_UNKNOWN_RESOURCE_ID);
-        proxy->Release();
-        return;
-    }
-
-    VerifyOrDie(proxy != nullptr);
-
-    PeerId peerId;
-    error = ExtractIdFromInstanceName(result->mName, &peerId);
-    if (CHIP_NO_ERROR != error)
-    {
-        proxy->OnOperationalNodeResolutionFailed(PeerId(), error);
-        proxy->Release();
-        return;
-    }
-
-    VerifyOrDie(proxy != nullptr);
-
-    ResolvedNodeData nodeData;
-    Platform::CopyString(nodeData.resolutionData.hostName, result->mHostName);
-    nodeData.resolutionData.interfaceId = result->mInterface;
-    nodeData.resolutionData.port        = result->mPort;
-    nodeData.operationalData.peerId     = peerId;
-
-    size_t addressesFound = 0;
-    for (auto & ip : addresses)
-    {
-        if (addressesFound == ArraySize(nodeData.resolutionData.ipAddress))
-        {
-            // Out of space.
-            ChipLogProgress(Discovery, "Can't add more IPs to ResolvedNodeData");
-            break;
-        }
-        nodeData.resolutionData.ipAddress[addressesFound] = ip;
-        ++addressesFound;
-    }
-    nodeData.resolutionData.numIPs = addressesFound;
-
-    for (size_t i = 0; i < result->mTextEntrySize; ++i)
-    {
-        ByteSpan key(reinterpret_cast<const uint8_t *>(result->mTextEntries[i].mKey), strlen(result->mTextEntries[i].mKey));
-        ByteSpan val(result->mTextEntries[i].mData, result->mTextEntries[i].mDataSize);
-        FillNodeDataFromTxt(key, val, nodeData.resolutionData);
-    }
-
-    nodeData.LogNodeIdResolved();
-    proxy->OnOperationalNodeResolved(nodeData);
     proxy->Release();
 }
 
@@ -283,20 +188,32 @@ CHIP_ERROR CopyTextRecordValue(char * buffer, size_t bufferLen, chip::Optional<u
 }
 
 CHIP_ERROR CopyTextRecordValue(char * buffer, size_t bufferLen, const chip::Optional<ReliableMessageProtocolConfig> optional,
-                               bool isIdle)
+                               TxtFieldKey key)
 {
+    VerifyOrReturnError((key == TxtFieldKey::kSessionIdleInterval || key == TxtFieldKey::kSessionActiveInterval ||
+                         key == TxtFieldKey::kSessionActiveThreshold),
+                        CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(optional.HasValue(), CHIP_ERROR_WELL_UNINITIALIZED);
 
-    auto retryInterval = isIdle ? optional.Value().mIdleRetransTimeout : optional.Value().mActiveRetransTimeout;
-
-    if (retryInterval > kMaxRetryInterval)
+    CHIP_ERROR err;
+    if (key == TxtFieldKey::kSessionActiveThreshold)
     {
-        ChipLogProgress(Discovery, "MRP retry interval %s value exceeds allowed range of 1 hour, using maximum available",
-                        isIdle ? "idle" : "active");
-        retryInterval = kMaxRetryInterval;
+        err = CopyTextRecordValue(buffer, bufferLen, optional.Value().mActiveThresholdTime.count());
+    }
+    else
+    {
+        bool isIdle        = (key == TxtFieldKey::kSessionIdleInterval);
+        auto retryInterval = isIdle ? optional.Value().mIdleRetransTimeout : optional.Value().mActiveRetransTimeout;
+        if (retryInterval > kMaxRetryInterval)
+        {
+            ChipLogProgress(Discovery, "MRP retry interval %s value exceeds allowed range of 1 hour, using maximum available",
+                            isIdle ? "idle" : "active");
+            retryInterval = kMaxRetryInterval;
+        }
+        err = CopyTextRecordValue(buffer, bufferLen, retryInterval.count());
     }
 
-    return CopyTextRecordValue(buffer, bufferLen, retryInterval.count());
+    return err;
 }
 
 template <class T>
@@ -306,9 +223,10 @@ CHIP_ERROR CopyTxtRecord(TxtFieldKey key, char * buffer, size_t bufferLen, const
     {
     case TxtFieldKey::kTcpSupported:
         return CopyTextRecordValue(buffer, bufferLen, params.GetTcpSupported());
-    case TxtFieldKey::kSleepyIdleInterval:
-    case TxtFieldKey::kSleepyActiveInterval:
-        return CopyTextRecordValue(buffer, bufferLen, params.GetLocalMRPConfig(), key == TxtFieldKey::kSleepyIdleInterval);
+    case TxtFieldKey::kSessionIdleInterval:
+    case TxtFieldKey::kSessionActiveInterval:
+    case TxtFieldKey::kSessionActiveThreshold:
+        return CopyTextRecordValue(buffer, bufferLen, params.GetLocalMRPConfig(), key);
     default:
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
@@ -354,9 +272,105 @@ CHIP_ERROR AddTxtRecord(TxtFieldKey key, TextEntry * entries, size_t & entriesCo
 
 } // namespace
 
-DiscoveryImplPlatform DiscoveryImplPlatform::sManager;
+void DiscoveryImplPlatform::HandleNodeIdResolve(void * context, DnssdService * result, const Span<Inet::IPAddress> & addresses,
+                                                CHIP_ERROR error)
+{
+    DiscoveryImplPlatform * impl = static_cast<DiscoveryImplPlatform *>(context);
 
-DiscoveryImplPlatform::DiscoveryImplPlatform() = default;
+    if (impl->mOperationalDelegate == nullptr)
+    {
+        ChipLogError(Discovery, "No delegate to handle node resolution data.");
+        return;
+    }
+
+    if (CHIP_NO_ERROR != error)
+    {
+        impl->mOperationalDelegate->OnOperationalNodeResolutionFailed(PeerId(), error);
+        return;
+    }
+
+    if (result == nullptr)
+    {
+        impl->mOperationalDelegate->OnOperationalNodeResolutionFailed(PeerId(), CHIP_ERROR_UNKNOWN_RESOURCE_ID);
+        return;
+    }
+
+    PeerId peerId;
+    error = ExtractIdFromInstanceName(result->mName, &peerId);
+    if (CHIP_NO_ERROR != error)
+    {
+        impl->mOperationalDelegate->OnOperationalNodeResolutionFailed(PeerId(), error);
+        return;
+    }
+
+    ResolvedNodeData nodeData;
+    Platform::CopyString(nodeData.resolutionData.hostName, result->mHostName);
+    nodeData.resolutionData.interfaceId = result->mInterface;
+    nodeData.resolutionData.port        = result->mPort;
+    nodeData.operationalData.peerId     = peerId;
+
+    size_t addressesFound = 0;
+    for (auto & ip : addresses)
+    {
+        if (addressesFound == ArraySize(nodeData.resolutionData.ipAddress))
+        {
+            // Out of space.
+            ChipLogProgress(Discovery, "Can't add more IPs to ResolvedNodeData");
+            break;
+        }
+        nodeData.resolutionData.ipAddress[addressesFound] = ip;
+        ++addressesFound;
+    }
+    nodeData.resolutionData.numIPs = addressesFound;
+
+    for (size_t i = 0; i < result->mTextEntrySize; ++i)
+    {
+        ByteSpan key(reinterpret_cast<const uint8_t *>(result->mTextEntries[i].mKey), strlen(result->mTextEntries[i].mKey));
+        ByteSpan val(result->mTextEntries[i].mData, result->mTextEntries[i].mDataSize);
+        FillNodeDataFromTxt(key, val, nodeData.resolutionData);
+    }
+
+    nodeData.LogNodeIdResolved();
+    impl->mOperationalDelegate->OnOperationalNodeResolved(nodeData);
+}
+
+void DnssdService::ToDiscoveredNodeData(const Span<Inet::IPAddress> & addresses, DiscoveredNodeData & nodeData)
+{
+    auto & resolutionData = nodeData.resolutionData;
+    auto & commissionData = nodeData.commissionData;
+
+    Platform::CopyString(resolutionData.hostName, mHostName);
+    Platform::CopyString(commissionData.instanceName, mName);
+
+    IPAddressSorter::Sort(addresses, mInterface);
+
+    size_t addressesFound = 0;
+    for (auto & ip : addresses)
+    {
+        if (addressesFound == ArraySize(resolutionData.ipAddress))
+        {
+            // Out of space.
+            ChipLogProgress(Discovery, "Can't add more IPs to DiscoveredNodeData");
+            break;
+        }
+        resolutionData.ipAddress[addressesFound] = ip;
+        ++addressesFound;
+    }
+
+    resolutionData.interfaceId = mInterface;
+    resolutionData.numIPs      = addressesFound;
+    resolutionData.port        = mPort;
+
+    for (size_t i = 0; i < mTextEntrySize; ++i)
+    {
+        ByteSpan key(reinterpret_cast<const uint8_t *>(mTextEntries[i].mKey), strlen(mTextEntries[i].mKey));
+        ByteSpan val(mTextEntries[i].mData, mTextEntries[i].mDataSize);
+        FillNodeDataFromTxt(key, val, resolutionData);
+        FillNodeDataFromTxt(key, val, commissionData);
+    }
+}
+
+Global<DiscoveryImplPlatform> DiscoveryImplPlatform::sManager;
 
 CHIP_ERROR DiscoveryImplPlatform::InitImpl()
 {
@@ -494,7 +508,11 @@ CHIP_ERROR DiscoveryImplPlatform::PublishService(const char * serviceType, TextE
                              ? MakeInstanceName(service.mName, sizeof(service.mName), peerId)
                              : GetCommissionableInstanceName(service.mName, sizeof(service.mName)));
     Platform::CopyString(service.mType, serviceType);
-    service.mAddressType   = Inet::IPAddressType::kAny;
+#if INET_CONFIG_ENABLE_IPV4
+    service.mAddressType = Inet::IPAddressType::kAny;
+#else
+    service.mAddressType = Inet::IPAddressType::kIPv6;
+#endif
     service.mInterface     = interfaceId;
     service.mProtocol      = protocol;
     service.mPort          = port;
@@ -547,8 +565,9 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const OperationalAdvertisingParamete
 {
     PREPARE_RECORDS(Operational);
 
-    ADD_TXT_RECORD(SleepyIdleInterval);
-    ADD_TXT_RECORD(SleepyActiveInterval);
+    ADD_TXT_RECORD(SessionIdleInterval);
+    ADD_TXT_RECORD(SessionActiveInterval);
+    ADD_TXT_RECORD(SessionActiveThreshold);
     ADD_TXT_RECORD(TcpSupported);
 
     ADD_PTR_RECORD(CompressedFabricId);
@@ -565,8 +584,9 @@ CHIP_ERROR DiscoveryImplPlatform::Advertise(const CommissionAdvertisingParameter
     ADD_TXT_RECORD(VendorProduct);
     ADD_TXT_RECORD(DeviceType);
     ADD_TXT_RECORD(DeviceName);
-    ADD_TXT_RECORD(SleepyIdleInterval);
-    ADD_TXT_RECORD(SleepyActiveInterval);
+    ADD_TXT_RECORD(SessionIdleInterval);
+    ADD_TXT_RECORD(SessionActiveInterval);
+    ADD_TXT_RECORD(SessionActiveThreshold);
     ADD_TXT_RECORD(TcpSupported);
 
     ADD_PTR_RECORD(VendorId);
@@ -613,15 +633,27 @@ bool DiscoveryImplPlatform::IsInitialized()
 
 CHIP_ERROR DiscoveryImplPlatform::ResolveNodeId(const PeerId & peerId)
 {
-    ReturnErrorOnFailure(InitImpl());
-    return mResolverProxy.ResolveNodeId(peerId);
+    // Resolve requests can only be issued once DNSSD is initialized and there is
+    // no caching currently
+    VerifyOrReturnError(mState == State::kInitialized, CHIP_ERROR_INCORRECT_STATE);
+
+    ChipLogProgress(Discovery, "Resolving " ChipLogFormatX64 ":" ChipLogFormatX64 " ...",
+                    ChipLogValueX64(peerId.GetCompressedFabricId()), ChipLogValueX64(peerId.GetNodeId()));
+
+    DnssdService service;
+
+    ReturnErrorOnFailure(MakeInstanceName(service.mName, sizeof(service.mName), peerId));
+    Platform::CopyString(service.mType, kOperationalServiceName);
+    service.mProtocol    = DnssdServiceProtocol::kDnssdProtocolTcp;
+    service.mAddressType = Inet::IPAddressType::kAny;
+
+    return ChipDnssdResolve(&service, Inet::InterfaceId::Null(), HandleNodeIdResolve, this);
 }
 
 void DiscoveryImplPlatform::NodeIdResolutionNoLongerNeeded(const PeerId & peerId)
 {
     char name[Common::kInstanceNameMaxLength + 1];
     ReturnOnFailure(MakeInstanceName(name, sizeof(name), peerId));
-
     ChipDnssdResolveNoLongerNeeded(name);
 }
 
@@ -651,7 +683,7 @@ CHIP_ERROR DiscoveryImplPlatform::ReconfirmRecord(const char * hostname, Inet::I
 
 DiscoveryImplPlatform & DiscoveryImplPlatform::GetInstance()
 {
-    return sManager;
+    return sManager.get();
 }
 
 ServiceAdvertiser & chip::Dnssd::ServiceAdvertiser::Instance()
@@ -662,38 +694,6 @@ ServiceAdvertiser & chip::Dnssd::ServiceAdvertiser::Instance()
 Resolver & chip::Dnssd::Resolver::Instance()
 {
     return DiscoveryImplPlatform::GetInstance();
-}
-
-CHIP_ERROR ResolverProxy::ResolveNodeId(const PeerId & peerId)
-{
-    VerifyOrReturnError(mDelegate != nullptr, CHIP_ERROR_INCORRECT_STATE);
-
-    ChipLogProgress(Discovery, "Resolving " ChipLogFormatX64 ":" ChipLogFormatX64 " ...",
-                    ChipLogValueX64(peerId.GetCompressedFabricId()), ChipLogValueX64(peerId.GetNodeId()));
-
-    DnssdService service;
-
-    ReturnErrorOnFailure(MakeInstanceName(service.mName, sizeof(service.mName), peerId));
-    Platform::CopyString(service.mType, kOperationalServiceName);
-    service.mProtocol    = DnssdServiceProtocol::kDnssdProtocolTcp;
-    service.mAddressType = Inet::IPAddressType::kAny;
-
-    mDelegate->Retain();
-
-    CHIP_ERROR err = ChipDnssdResolve(&service, Inet::InterfaceId::Null(), HandleNodeIdResolve, mDelegate);
-    if (err != CHIP_NO_ERROR)
-    {
-        mDelegate->Release();
-    }
-    return err;
-}
-
-void ResolverProxy::NodeIdResolutionNoLongerNeeded(const PeerId & peerId)
-{
-    char name[Common::kInstanceNameMaxLength + 1];
-    ReturnOnFailure(MakeInstanceName(name, sizeof(name), peerId));
-
-    ChipDnssdResolveNoLongerNeeded(name);
 }
 
 ResolverProxy::~ResolverProxy()

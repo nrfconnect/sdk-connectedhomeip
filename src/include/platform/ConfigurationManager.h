@@ -31,7 +31,7 @@
 #include <setup_payload/CHIPAdditionalDataPayloadBuildConfig.h>
 #endif
 
-#include <app-common/zap-generated/cluster-objects.h>
+#include <lib/core/ClusterEnums.h>
 #include <lib/support/Span.h>
 #include <platform/PersistedStorage.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
@@ -171,8 +171,8 @@ protected:
     virtual ~ConfigurationManager() = default;
 
     // No copy, move or assignment.
-    ConfigurationManager(const ConfigurationManager &)  = delete;
-    ConfigurationManager(const ConfigurationManager &&) = delete;
+    ConfigurationManager(const ConfigurationManager &)             = delete;
+    ConfigurationManager(const ConfigurationManager &&)            = delete;
     ConfigurationManager & operator=(const ConfigurationManager &) = delete;
 };
 
@@ -202,7 +202,7 @@ void SetConfigurationMgr(ConfigurationManager * configurationManager);
 
 inline CHIP_ERROR ConfigurationManager::GetLocationCapability(uint8_t & location)
 {
-    location = to_underlying(chip::app::Clusters::GeneralCommissioning::RegulatoryLocationType::kIndoor);
+    location = to_underlying(chip::app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum::kIndoor);
     return CHIP_NO_ERROR;
 }
 

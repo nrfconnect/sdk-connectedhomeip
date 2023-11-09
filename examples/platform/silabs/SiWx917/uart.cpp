@@ -19,7 +19,7 @@
 #include "USART.h"
 #include "matter_shell.h"
 #include "rsi_rom_egpio.h"
-#include "siwx917_utils.h"
+#include "silabs_utils.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,7 +53,7 @@ void ARM_USART_SignalEvent(uint32_t event)
     case ARM_USART_EVENT_RECEIVE_COMPLETE:
 #ifdef ENABLE_CHIP_SHELL
         chip::NotifyShellProcessFromISR();
-#endif;
+#endif
     case ARM_USART_EVENT_TRANSFER_COMPLETE:
     case ARM_USART_EVENT_TX_COMPLETE:
     case ARM_USART_EVENT_TX_UNDERFLOW:

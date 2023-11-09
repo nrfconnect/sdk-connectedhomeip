@@ -29,12 +29,8 @@
 #include <platform/nrfconnect/DeviceInstanceInfoProviderImpl.h>
 #endif
 
-#ifdef CONFIG_MCUMGR_SMP_BT
+#ifdef CONFIG_MCUMGR_TRANSPORT_BT
 #include "DFUOverSMP.h"
-#endif
-
-#ifdef CONFIG_CHIP_ICD_SUBSCRIPTION_HANDLING
-#include "ICDUtil.h"
 #endif
 
 #include <cstdint>

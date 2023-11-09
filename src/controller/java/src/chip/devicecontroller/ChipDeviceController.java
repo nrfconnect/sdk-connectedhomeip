@@ -25,6 +25,7 @@ import chip.devicecontroller.model.ChipAttributePath;
 import chip.devicecontroller.model.ChipEventPath;
 import chip.devicecontroller.model.InvokeElement;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -175,6 +176,35 @@ public class ChipDeviceController {
         deviceControllerPtr, deviceId, address, port, discriminator, pinCode, csrNonce);
   }
 
+  /**
+   * Pair a device connected using the scanned QR code or manual entry code.
+   *
+   * @param deviceId the node ID to assign to the device
+   * @param setupCode the scanned QR code or manual entry code
+   * @param discoverOnce the flag to enable/disable PASE auto retry mechanism
+   * @param useOnlyOnNetworkDiscovery the flag to indicate the commissionable device is available on
+   *     the network
+   * @param csrNonce the 32-byte CSR nonce to use, or null if we want to use an internally randomly
+   *     generated CSR nonce.
+   * @param networkCredentials the credentials (Wi-Fi or Thread) to be provisioned
+   */
+  public void pairDeviceWithCode(
+      long deviceId,
+      String setupCode,
+      boolean discoverOnce,
+      boolean useOnlyOnNetworkDiscovery,
+      @Nullable byte[] csrNonce,
+      @Nullable NetworkCredentials networkCredentials) {
+    pairDeviceWithCode(
+        deviceControllerPtr,
+        deviceId,
+        setupCode,
+        discoverOnce,
+        useOnlyOnNetworkDiscovery,
+        csrNonce,
+        networkCredentials);
+  }
+
   public void establishPaseConnection(long deviceId, int connId, long setupPincode) {
     if (connectionId == 0) {
       connectionId = connId;
@@ -314,6 +344,58 @@ public class ChipDeviceController {
     releaseOperationalDevicePointer(devicePtr);
   }
 
+  public long getGroupDevicePointer(int groupId) {
+    return getGroupDevicePointer(deviceControllerPtr, groupId);
+  }
+
+  public native void releaseGroupDevicePointer(long devicePtr);
+
+  public List<Integer> getAvailableGroupIds() {
+    return getAvailableGroupIds(deviceControllerPtr);
+  }
+
+  public String getGroupName(int groupId) {
+    return getGroupName(deviceControllerPtr, groupId);
+  }
+
+  public Optional<Integer> findKeySetId(int groupId) {
+    return findKeySetId(deviceControllerPtr, groupId);
+  }
+
+  public boolean addGroup(int groupId, String groupName) {
+    return addGroup(deviceControllerPtr, groupId, groupName);
+  }
+
+  public boolean removeGroup(int groupId) {
+    return removeGroup(deviceControllerPtr, groupId);
+  }
+
+  public List<Integer> getKeySetIds() {
+    return getKeySetIds(deviceControllerPtr);
+  }
+
+  public Optional<GroupKeySecurityPolicy> getKeySecurityPolicy(int keySetId) {
+    return getKeySecurityPolicy(deviceControllerPtr, keySetId)
+        .map(id -> GroupKeySecurityPolicy.value(id));
+  }
+
+  public boolean bindKeySet(int groupId, int keySetId) {
+    return bindKeySet(deviceControllerPtr, groupId, keySetId);
+  }
+
+  public boolean unbindKeySet(int groupId, int keySetId) {
+    return unbindKeySet(deviceControllerPtr, groupId, keySetId);
+  }
+
+  public boolean addKeySet(
+      int keySetId, GroupKeySecurityPolicy keyPolicy, long validityTime, byte[] epochKey) {
+    return addKeySet(deviceControllerPtr, keySetId, keyPolicy.getID(), validityTime, epochKey);
+  }
+
+  public boolean removeKeySet(int keySetId) {
+    return removeKeySet(deviceControllerPtr, keySetId);
+  }
+
   public void onConnectDeviceComplete() {
     completionListener.onConnectDeviceComplete();
   }
@@ -359,10 +441,8 @@ public class ChipDeviceController {
   public void onScanNetworksSuccess(
       Integer networkingStatus,
       Optional<String> debugText,
-      Optional<ArrayList<ChipStructs.NetworkCommissioningClusterWiFiInterfaceScanResult>>
-          wiFiScanResults,
-      Optional<ArrayList<ChipStructs.NetworkCommissioningClusterThreadInterfaceScanResult>>
-          threadScanResults) {
+      Optional<ArrayList<WiFiScanResult>> wiFiScanResults,
+      Optional<ArrayList<ThreadScanResult>> threadScanResults) {
     if (scanNetworksListener != null) {
       scanNetworksListener.onScanNetworksSuccess(
           networkingStatus, debugText, wiFiScanResults, threadScanResults);
@@ -438,6 +518,11 @@ public class ChipDeviceController {
 
   public long getCompressedFabricId() {
     return getCompressedFabricId(deviceControllerPtr);
+  }
+
+  /** Get device Controller's Node ID. */
+  public long getControllerNodeId() {
+    return getControllerNodeId(deviceControllerPtr);
   }
 
   /**
@@ -547,8 +632,6 @@ public class ChipDeviceController {
    * @brief Auto-Resubscribe to the given attribute path with keepSubscriptions and isFabricFiltered
    * @param SubscriptionEstablishedCallback Callback when a subscribe response has been received and
    *     processed
-   * @param ResubscriptionAttemptCallback Callback when a resubscirption haoppens, the termination
-   *     cause is provided to help inform subsequent re-subscription logic.
    * @param ReportCallback Callback when a report data has been received and processed for the given
    *     paths.
    * @param devicePtr connected device pointer
@@ -586,8 +669,6 @@ public class ChipDeviceController {
    * @brief Auto-Resubscribe to the given event path with keepSubscriptions and isFabricFiltered
    * @param SubscriptionEstablishedCallback Callback when a subscribe response has been received and
    *     processed
-   * @param ResubscriptionAttemptCallback Callback when a resubscirption haoppens, the termination
-   *     cause is provided to help inform subsequent re-subscription logic.
    * @param ReportCallback Callback when a report data has been received and processed for the given
    *     paths.
    * @param devicePtr connected device pointer
@@ -708,10 +789,9 @@ public class ChipDeviceController {
       boolean isFabricFiltered,
       int imTimeoutMs,
       @Nullable Long eventMin) {
-    // TODO: pass resubscriptionAttemptCallback to ReportCallbackJni since jni layer is not ready
-    // for auto-resubscribe
     ReportCallbackJni jniCallback =
-        new ReportCallbackJni(subscriptionEstablishedCallback, reportCallback, null);
+        new ReportCallbackJni(
+            subscriptionEstablishedCallback, reportCallback, resubscriptionAttemptCallback);
     subscribe(
         deviceControllerPtr,
         jniCallback.getCallbackHandle(),
@@ -896,6 +976,99 @@ public class ChipDeviceController {
         imTimeoutMs);
   }
 
+  /** Create a root (self-signed) X.509 DER encoded certificate */
+  public static byte[] createRootCertificate(
+      KeypairDelegate keypair, long issuerId, @Nullable Long fabricId) {
+    // current time
+    Calendar start = Calendar.getInstance();
+    Calendar end = Calendar.getInstance();
+    // current time + 10 years
+    end.add(Calendar.YEAR, 10);
+    return createRootCertificate(keypair, issuerId, fabricId, start, end);
+  }
+
+  public static native byte[] createRootCertificate(
+      KeypairDelegate keypair,
+      long issuerId,
+      @Nullable Long fabricId,
+      Calendar validityStart,
+      Calendar validityEnd);
+
+  /** Create an intermediate X.509 DER encoded certificate */
+  public static byte[] createIntermediateCertificate(
+      KeypairDelegate rootKeypair,
+      byte[] rootCertificate,
+      byte[] intermediatePublicKey,
+      long issuerId,
+      @Nullable Long fabricId) {
+    // current time
+    Calendar start = Calendar.getInstance();
+    // current time + 10 years
+    Calendar end = Calendar.getInstance();
+    end.add(Calendar.YEAR, 10);
+    return createIntermediateCertificate(
+        rootKeypair, rootCertificate, intermediatePublicKey, issuerId, fabricId, start, end);
+  }
+
+  public static native byte[] createIntermediateCertificate(
+      KeypairDelegate rootKeypair,
+      byte[] rootCertificate,
+      byte[] intermediatePublicKey,
+      long issuerId,
+      @Nullable Long fabricId,
+      Calendar validityStart,
+      Calendar validityEnd);
+
+  /**
+   * Create an X.509 DER encoded certificate that has the right fields to be a valid Matter
+   * operational certificate.
+   *
+   * <p>signingKeypair and signingCertificate are the root or intermediate that is signing the
+   * operational certificate.
+   *
+   * <p>caseAuthenticatedTags may be null to indicate no CASE Authenticated Tags should be used. If
+   * caseAuthenticatedTags is not null, it must contain at most 3 numbers, which are expected to be
+   * 32-bit unsigned Case Authenticated Tag values.
+   */
+  public static byte[] createOperationalCertificate(
+      KeypairDelegate signingKeypair,
+      byte[] signingCertificate,
+      byte[] operationalPublicKey,
+      long fabricId,
+      long nodeId,
+      List<Integer> caseAuthenticatedTags) {
+    // current time
+    Calendar start = Calendar.getInstance();
+    // current time + 10 years
+    Calendar end = Calendar.getInstance();
+    end.add(Calendar.YEAR, 10);
+    return createOperationalCertificate(
+        signingKeypair,
+        signingCertificate,
+        operationalPublicKey,
+        fabricId,
+        nodeId,
+        caseAuthenticatedTags,
+        start,
+        end);
+  }
+
+  public static native byte[] createOperationalCertificate(
+      KeypairDelegate signingKeypair,
+      byte[] signingCertificate,
+      byte[] operationalPublicKey,
+      long fabricId,
+      long nodeId,
+      List<Integer> caseAuthenticatedTags,
+      Calendar validityStart,
+      Calendar validityEnd);
+
+  /**
+   * Extract the public key from the given PKCS#10 certificate signing request. This is the public
+   * key that a certificate issued in response to the request would need to have.
+   */
+  public static native byte[] publicKeyFromCSR(byte[] csr);
+
   /**
    * Converts a given X.509v3 certificate into a Matter certificate.
    *
@@ -996,6 +1169,15 @@ public class ChipDeviceController {
       long pinCode,
       @Nullable byte[] csrNonce);
 
+  private native void pairDeviceWithCode(
+      long deviceControllerPtr,
+      long deviceId,
+      String setupCode,
+      boolean discoverOnce,
+      boolean useOnlyOnNetworkDiscovery,
+      @Nullable byte[] csrNonce,
+      @Nullable NetworkCredentials networkCredentials);
+
   private native void establishPaseConnection(
       long deviceControllerPtr, long deviceId, int connId, long setupPincode);
 
@@ -1023,6 +1205,31 @@ public class ChipDeviceController {
 
   private native void releaseOperationalDevicePointer(long devicePtr);
 
+  private native long getGroupDevicePointer(long deviceControllerPtr, int groupId);
+
+  private native List<Integer> getAvailableGroupIds(long deviceControllerPtr);
+
+  private native String getGroupName(long deviceControllerPtr, int groupId);
+
+  private native Optional<Integer> findKeySetId(long deviceControllerPtr, int groupId);
+
+  private native boolean addGroup(long deviceControllerPtr, int groupId, String groupName);
+
+  private native boolean removeGroup(long deviceControllerPtr, int groupId);
+
+  private native List<Integer> getKeySetIds(long deviceControllerPtr);
+
+  private native Optional<Integer> getKeySecurityPolicy(long deviceControllerPtr, int keySetId);
+
+  private native boolean bindKeySet(long deviceControllerPtr, int groupId, int keySetId);
+
+  private native boolean unbindKeySet(long deviceControllerPtr, int groupId, int keySetId);
+
+  private native boolean addKeySet(
+      long deviceControllerPtr, int keySetId, int keyPolicy, long validityTime, byte[] epochKey);
+
+  private native boolean removeKeySet(long deviceControllerPtr, int keySetId);
+
   private native void deleteDeviceController(long deviceControllerPtr);
 
   private native String getIpAddress(long deviceControllerPtr, long deviceId);
@@ -1030,6 +1237,8 @@ public class ChipDeviceController {
   private native NetworkLocation getNetworkLocation(long deviceControllerPtr, long deviceId);
 
   private native long getCompressedFabricId(long deviceControllerPtr);
+
+  private native long getControllerNodeId(long deviceControllerPtr);
 
   private native void discoverCommissionableNodes(long deviceControllerPtr);
 
@@ -1136,10 +1345,8 @@ public class ChipDeviceController {
     void onScanNetworksSuccess(
         Integer networkingStatus,
         Optional<String> debugText,
-        Optional<ArrayList<ChipStructs.NetworkCommissioningClusterWiFiInterfaceScanResult>>
-            wiFiScanResults,
-        Optional<ArrayList<ChipStructs.NetworkCommissioningClusterThreadInterfaceScanResult>>
-            threadScanResults);
+        Optional<ArrayList<WiFiScanResult>> wiFiScanResults,
+        Optional<ArrayList<ThreadScanResult>> threadScanResults);
   }
 
   /** Interface to listen for callbacks from CHIPDeviceController. */

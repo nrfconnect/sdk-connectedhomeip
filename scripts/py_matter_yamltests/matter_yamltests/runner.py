@@ -16,7 +16,8 @@
 import asyncio
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from asyncio import CancelledError
+from dataclasses import dataclass, field
 
 from .adapter import TestAdapter
 from .hooks import TestRunnerHooks
@@ -43,10 +44,14 @@ class TestRunnerOptions:
                     stop running the tests if a step index matches
                     the number. This is mostly useful when running
                     a single test file and for debugging purposes.
+
+    delay_in_ms:  If set to any value that is not zero the runner will
+                  wait for the given time between steps.
     """
     stop_on_error: bool = True
     stop_on_warning: bool = False
     stop_at_number: int = -1
+    delay_in_ms: int = 0
 
 
 @dataclass
@@ -68,7 +73,7 @@ class TestRunnerConfig:
     """
     adapter: TestAdapter = None
     pseudo_clusters: PseudoClusters = PseudoClusters([])
-    options: TestRunnerOptions = TestRunnerOptions()
+    options: TestRunnerOptions = field(default_factory=TestRunnerOptions)
     hooks: TestRunnerHooks = TestRunnerHooks()
 
 
@@ -117,9 +122,6 @@ class TestRunnerBase(ABC):
 
 
 class TestRunner(TestRunnerBase):
-    """
-    TestRunner is a default runner implementation.
-    """
     async def start(self):
         return
 
@@ -129,7 +131,7 @@ class TestRunner(TestRunnerBase):
     async def stop(self):
         return
 
-    def run(self, parser_builder_config: TestParserBuilderConfig, runner_config: TestRunnerConfig):
+    async def run(self, parser_builder_config: TestParserBuilderConfig, runner_config: TestRunnerConfig):
         if runner_config and runner_config.hooks:
             start = time.time()
             runner_config.hooks.start(len(parser_builder_config.tests))
@@ -139,8 +141,8 @@ class TestRunner(TestRunnerBase):
             if not parser or not runner_config:
                 continue
 
-            result = asyncio.run(self._run(parser, runner_config))
-            if isinstance(result, Exception):
+            result = await self._run_with_timeout(parser, runner_config)
+            if isinstance(result, Exception) or isinstance(result, CancelledError):
                 raise (result)
             elif not result:
                 return False
@@ -149,13 +151,22 @@ class TestRunner(TestRunnerBase):
             duration = round((time.time() - start) * 1000)
             runner_config.hooks.stop(duration)
 
-        return True
+        return parser_builder.done
+
+    async def _run_with_timeout(self, parser: TestParser, config: TestRunnerConfig):
+        status = True
+        try:
+            await self.start()
+            status = await asyncio.wait_for(self._run(parser, config), parser.timeout)
+        except (Exception, CancelledError) as exception:
+            status = exception
+        finally:
+            await self.stop()
+            return status
 
     async def _run(self, parser: TestParser, config: TestRunnerConfig):
         status = True
         try:
-            await self.start()
-
             hooks = config.hooks
             hooks.test_start(parser.filename, parser.name, parser.tests.count)
 
@@ -165,15 +176,19 @@ class TestRunner(TestRunnerBase):
                     hooks.step_skipped(request.label, request.pics)
                     continue
                 elif not config.adapter:
-                    hooks.step_start(request.label)
+                    hooks.step_start(request)
                     hooks.step_unknown()
                     continue
+                elif config.pseudo_clusters.is_manual_step(request):
+                    hooks.step_start(request)
+                    await hooks.step_manual()
+                    continue
                 else:
-                    hooks.step_start(request.label)
+                    hooks.step_start(request)
 
                 start = time.time()
                 if config.pseudo_clusters.supports(request):
-                    responses, logs = await config.pseudo_clusters.execute(request)
+                    responses, logs = await config.pseudo_clusters.execute(request, parser.definitions)
                 else:
                     encoded_request = config.adapter.encode(request)
                     encoded_response = await self.execute(encoded_request)
@@ -200,10 +215,12 @@ class TestRunner(TestRunnerBase):
                 if (idx + 1) == config.options.stop_at_number:
                     break
 
+                if config.options.delay_in_ms:
+                    await asyncio.sleep(config.options.delay_in_ms / 1000)
+
             hooks.test_stop(round(test_duration))
 
         except Exception as exception:
             status = exception
         finally:
-            await self.stop()
             return status

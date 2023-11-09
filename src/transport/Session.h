@@ -27,7 +27,6 @@
 #include <messaging/ReliableMessageProtocolConfig.h>
 #include <platform/LockTracker.h>
 #include <transport/SessionDelegate.h>
-#include <transport/raw/PeerAddress.h>
 
 namespace chip {
 namespace Transport {
@@ -49,10 +48,10 @@ public:
     SessionHandle(Transport::Session & session) : mSession(session) {}
     ~SessionHandle() {}
 
-    SessionHandle(const SessionHandle &) = delete;
+    SessionHandle(const SessionHandle &)           = delete;
     SessionHandle operator=(const SessionHandle &) = delete;
     SessionHandle(SessionHandle &&)                = default;
-    SessionHandle & operator=(SessionHandle &&) = delete;
+    SessionHandle & operator=(SessionHandle &&)    = delete;
 
     bool operator==(const SessionHandle & that) const { return &mSession.Get() == &that.mSession.Get(); }
 
@@ -156,8 +155,6 @@ class SecureSession;
 class UnauthenticatedSession;
 class IncomingGroupSession;
 class OutgoingGroupSession;
-
-constexpr System::Clock::Milliseconds32 kMinActiveTime = System::Clock::Milliseconds32(4000);
 
 class Session
 {

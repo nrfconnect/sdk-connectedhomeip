@@ -110,11 +110,11 @@ class IdlEnumType:
 
     @property
     def byte_count(self):
-        return self.base_type.byte_count()
+        return self.base_type.byte_count
 
     @property
     def bits(self):
-        return self.base_type.bits()
+        return self.base_type.bits
 
 
 @dataclass
@@ -129,11 +129,11 @@ class IdlBitmapType:
 
     @property
     def byte_count(self):
-        return self.base_type.byte_count()
+        return self.base_type.byte_count
 
     @property
     def bits(self):
-        return self.base_type.bits()
+        return self.base_type.bits
 
 
 class IdlItemType(enum.Enum):
@@ -196,7 +196,9 @@ __CHIP_SIZED_TYPES__ = {
     "data_ver": BasicInteger(idl_name="data_ver", byte_count=4, is_signed=False),
     "date": BasicInteger(idl_name="date", byte_count=4, is_signed=False),
     "devtype_id": BasicInteger(idl_name="devtype_id", byte_count=4, is_signed=False),
+    "elapsed_s": BasicInteger(idl_name="elapsed_s", byte_count=4, is_signed=False),
     "endpoint_no": BasicInteger(idl_name="endpoint_no", byte_count=2, is_signed=False),
+    "entry_idx": BasicInteger(idl_name="entry_idx", byte_count=2, is_signed=False),
     "epoch_s": BasicInteger(idl_name="epoch_s", byte_count=4, is_signed=False),
     "epoch_us": BasicInteger(idl_name="epoch_us", byte_count=8, is_signed=False),
     "event_id": BasicInteger(idl_name="event_id", byte_count=4, is_signed=False),
@@ -205,11 +207,17 @@ __CHIP_SIZED_TYPES__ = {
     "fabric_idx": BasicInteger(idl_name="fabric_idx", byte_count=1, is_signed=False),
     "field_id": BasicInteger(idl_name="field_id", byte_count=4, is_signed=False),
     "group_id": BasicInteger(idl_name="group_id", byte_count=2, is_signed=False),
+    "namespace": BasicInteger(idl_name="namespace", byte_count=1, is_signed=False),
     "node_id": BasicInteger(idl_name="node_id", byte_count=8, is_signed=False),
     "percent": BasicInteger(idl_name="percent", byte_count=1, is_signed=False),
     "percent100ths": BasicInteger(idl_name="percent100ths", byte_count=2, is_signed=False),
+    "posix_ms": BasicInteger(idl_name="posix_ms", byte_count=8, is_signed=False),
+    "priority": BasicInteger(idl_name="priority", byte_count=1, is_signed=False),
     "status": BasicInteger(idl_name="status", byte_count=2, is_signed=False),
+    "systime_ms": BasicInteger(idl_name="systime_ms", byte_count=8, is_signed=False),
     "systime_us": BasicInteger(idl_name="systime_us", byte_count=8, is_signed=False),
+    "tag": BasicInteger(idl_name="tag", byte_count=1, is_signed=False),
+    "temperature": BasicInteger(idl_name="temperature", byte_count=2, is_signed=True),
     "tod": BasicInteger(idl_name="tod", byte_count=4, is_signed=False),
     "trans_id": BasicInteger(idl_name="trans_id", byte_count=4, is_signed=False),
     "vendor_id": BasicInteger(idl_name="vendor_id", byte_count=2, is_signed=False),
@@ -287,16 +295,14 @@ class TypeLookupContext:
     @property
     def all_enums(self):
         """
-        All enumerations, ordered by lookup priority.
+        All enumerations defined within this lookup context.
 
-        If an enum A is defined both in the cluster and globally, this WILL
-        return both instances, however it will return the cluster version first.
+        enums are only defined at cluster level. If lookup context does not
+        include a cluster, the enum list will be empty.
         """
         if self.cluster:
             for e in self.cluster.enums:
                 yield e
-        for e in self.idl.enums:
-            yield e
 
     @property
     def all_bitmaps(self):
@@ -304,7 +310,7 @@ class TypeLookupContext:
         All bitmaps defined within this lookup context.
 
         bitmaps are only defined at cluster level. If lookup context does not
-        include a cluster, the bitmal list will be empty.
+        include a cluster, the bitmap list will be empty.
         """
         if self.cluster:
             for b in self.cluster.bitmaps:
@@ -312,16 +318,14 @@ class TypeLookupContext:
 
     @property
     def all_structs(self):
-        """All structs, ordered by lookup prioroty.
+        """All structs defined within this lookup context.
 
-        If a struct A is defined both in the cluster and globally, this WILL
-        return both instances, however it will return the cluster version first.
+        structs are only defined at cluster level. If lookup context does not
+        include a cluster, the struct list will be empty.
         """
         if self.cluster:
             for e in self.cluster.structs:
                 yield e
-        for e in self.idl.structs:
-            yield e
 
     def is_enum_type(self, name: str):
         """
@@ -340,6 +344,10 @@ class TypeLookupContext:
         """
         return any(map(lambda s: s.name == name, self.all_structs))
 
+    def is_untyped_bitmap_type(self, name: str):
+        """Determine if the given type is a untyped bitmap (just an interger size)."""
+        return name.lower() in {"bitmap8", "bitmap16", "bitmap24", "bitmap32", "bitmap64"}
+
     def is_bitmap_type(self, name: str):
         """
         Determine if the given type name is type that is known to be a bitmap.
@@ -347,13 +355,13 @@ class TypeLookupContext:
         Handles both standard/zcl names (like bitmap32) and types defined within
         the current lookup context.
         """
-        if name.lower() in ["bitmap8", "bitmap16", "bitmap24", "bitmap32", "bitmap64"]:
+        if self.is_untyped_bitmap_type(name):
             return True
 
         return any(map(lambda s: s.name == name, self.all_bitmaps))
 
 
-def ParseDataType(data_type: DataType, lookup: TypeLookupContext) -> Union[BasicInteger, BasicString, FundamentalType, IdlType]:
+def ParseDataType(data_type: DataType, lookup: TypeLookupContext) -> Union[BasicInteger, BasicString, FundamentalType, IdlType, IdlEnumType, IdlBitmapType]:
     """
     Given a AST data type and a lookup context, match it to a type that can be later
     be used for generation.
@@ -404,3 +412,29 @@ def ParseDataType(data_type: DataType, lookup: TypeLookupContext) -> Union[Basic
             "Data type %s is NOT known, but treating it as a generic IDL type." % data_type)
 
     return result
+
+
+def IsSignedDataType(data_type: DataType) -> bool:
+    """
+    Returns if the data type is a signed type.
+    Returns if the data type is a signed data type of False if the data type can not be found.
+    """
+    lowercase_name = data_type.name.lower()
+    sized_type = __CHIP_SIZED_TYPES__.get(lowercase_name, None)
+    if sized_type is None:
+        return False
+
+    return sized_type.is_signed
+
+
+def GetDataTypeSizeInBits(data_type: DataType) -> Optional[int]:
+    """
+    Returns the size in bits for a given data type or None if the data type can not be found.
+    """
+
+    lowercase_name = data_type.name.lower()
+    sized_type = __CHIP_SIZED_TYPES__.get(lowercase_name, None)
+    if sized_type is None:
+        return None
+
+    return sized_type.power_of_two_bits

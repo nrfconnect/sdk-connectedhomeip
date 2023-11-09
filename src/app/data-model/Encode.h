@@ -37,10 +37,10 @@ template <typename Enum, Enum value>
 using VoidType = void;
 
 template <typename, typename = void>
-constexpr bool HasUnknownValue = false;
+inline constexpr bool HasUnknownValue = false;
 
 template <typename T>
-constexpr bool HasUnknownValue<T, VoidType<T, T::kUnknownEnumValue>> = true;
+inline constexpr bool HasUnknownValue<T, VoidType<T, T::kUnknownEnumValue>> = true;
 } // namespace detail
 
 /*
@@ -188,7 +188,7 @@ CHIP_ERROR Encode(TLV::TLVWriter & writer, TLV::Tag tag, const Nullable<X> & x)
     // CONFIG_BUILD_FOR_HOST_UNIT_TEST is true, so we can test how the other side
     // responds.
 #if !CONFIG_BUILD_FOR_HOST_UNIT_TEST
-    if (!x.HasValidValue())
+    if (!x.ExistingValueInEncodableRange())
     {
         return CHIP_IM_GLOBAL_STATUS(ConstraintError);
     }

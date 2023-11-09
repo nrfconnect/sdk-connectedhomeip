@@ -45,9 +45,6 @@
 #include <lib/support/ScopedBuffer.h>
 #include <lib/support/TimeUtils.h>
 #include <protocols/Protocols.h>
-#if CHIP_CRYPTO_HSM
-#include <crypto/hsm/CHIPCryptoPALHsm.h>
-#endif
 
 namespace chip {
 namespace Credentials {
@@ -56,9 +53,6 @@ using namespace chip::ASN1;
 using namespace chip::TLV;
 using namespace chip::Protocols;
 using namespace chip::Crypto;
-
-extern CHIP_ERROR DecodeConvertTBSCert(TLVReader & reader, ASN1Writer & writer, ChipCertificateData & certData);
-extern CHIP_ERROR DecodeECDSASignature(TLVReader & reader, ChipCertificateData & certData);
 
 ChipCertificateSet::ChipCertificateSet()
 {
@@ -140,76 +134,21 @@ CHIP_ERROR ChipCertificateSet::LoadCert(const ByteSpan chipCert, BitFlags<CertDe
     TLVReader reader;
 
     reader.Init(chipCert);
-
-    ReturnErrorOnFailure(reader.Next(kTLVType_Structure, AnonymousTag()));
-
     return LoadCert(reader, decodeFlags, chipCert);
 }
 
 CHIP_ERROR ChipCertificateSet::LoadCert(TLVReader & reader, BitFlags<CertDecodeFlags> decodeFlags, ByteSpan chipCert)
 {
-    ASN1Writer writer; // ASN1Writer is used to encode TBS portion of the certificate for the purpose of signature
-                       // validation, which should be performed on the TBS data encoded in ASN.1 DER form.
     ChipCertificateData cert;
-    cert.Clear();
+    ReturnErrorOnFailure(DecodeChipCert(reader, cert, decodeFlags));
 
-    // Must be positioned on the structure element representing the certificate.
-    VerifyOrReturnError(reader.GetType() == kTLVType_Structure, CHIP_ERROR_INVALID_ARGUMENT);
+    // Verify the cert has both the Subject Key Id and Authority Key Id extensions present.
+    // Only certs with both these extensions are supported for the purposes of certificate validation.
+    VerifyOrReturnError(cert.mCertFlags.HasAll(CertFlags::kExtPresent_SubjectKeyId, CertFlags::kExtPresent_AuthKeyId),
+                        CHIP_ERROR_UNSUPPORTED_CERT_FORMAT);
 
-    cert.mCertificate = chipCert;
-
-    {
-        TLVType containerType;
-
-        // Enter the certificate structure...
-        ReturnErrorOnFailure(reader.EnterContainer(containerType));
-
-        // If requested to generate the TBSHash.
-        if (decodeFlags.Has(CertDecodeFlags::kGenerateTBSHash))
-        {
-            chip::Platform::ScopedMemoryBuffer<uint8_t> asn1TBSBuf;
-            ReturnErrorCodeIf(!asn1TBSBuf.Alloc(kMaxCHIPCertDecodeBufLength), CHIP_ERROR_NO_MEMORY);
-
-            // Initialize an ASN1Writer and convert the TBS (to-be-signed) portion of the certificate to ASN.1 DER
-            // encoding. At the same time, parse various components within the certificate and set the corresponding
-            // fields in the CertificateData object.
-            writer.Init(asn1TBSBuf.Get(), kMaxCHIPCertDecodeBufLength);
-            ReturnErrorOnFailure(DecodeConvertTBSCert(reader, writer, cert));
-
-            // Generate a SHA hash of the encoded TBS certificate.
-            chip::Crypto::Hash_SHA256(asn1TBSBuf.Get(), writer.GetLengthWritten(), cert.mTBSHash);
-
-            cert.mCertFlags.Set(CertFlags::kTBSHashPresent);
-        }
-        else
-        {
-            // Initialize an ASN1Writer as a NullWriter.
-            writer.InitNullWriter();
-            ReturnErrorOnFailure(DecodeConvertTBSCert(reader, writer, cert));
-        }
-
-        // Verify the cert has both the Subject Key Id and Authority Key Id extensions present.
-        // Only certs with both these extensions are supported for the purposes of certificate validation.
-        VerifyOrReturnError(cert.mCertFlags.HasAll(CertFlags::kExtPresent_SubjectKeyId, CertFlags::kExtPresent_AuthKeyId),
-                            CHIP_ERROR_UNSUPPORTED_CERT_FORMAT);
-
-        // Verify the cert was signed with ECDSA-SHA256. This is the only signature algorithm currently supported.
-        VerifyOrReturnError(cert.mSigAlgoOID == kOID_SigAlgo_ECDSAWithSHA256, CHIP_ERROR_UNSUPPORTED_SIGNATURE_TYPE);
-
-        // Decode the certificate's signature...
-        ReturnErrorOnFailure(DecodeECDSASignature(reader, cert));
-
-        // Verify no more elements in the certificate.
-        ReturnErrorOnFailure(reader.VerifyEndOfContainer());
-
-        ReturnErrorOnFailure(reader.ExitContainer(containerType));
-    }
-
-    // If requested by the caller, mark the certificate as trusted.
-    if (decodeFlags.Has(CertDecodeFlags::kIsTrustAnchor))
-    {
-        cert.mCertFlags.Set(CertFlags::kIsTrustAnchor);
-    }
+    // Verify the cert was signed with ECDSA-SHA256. This is the only signature algorithm currently supported.
+    VerifyOrReturnError(cert.mSigAlgoOID == kOID_SigAlgo_ECDSAWithSHA256, CHIP_ERROR_UNSUPPORTED_SIGNATURE_TYPE);
 
     // Check if this cert matches any currently loaded certificates
     for (uint32_t i = 0; i < mCertCount; i++)
@@ -287,20 +226,29 @@ CHIP_ERROR ChipCertificateSet::FindValidCert(const ChipDN & subjectDN, const Cer
 
 CHIP_ERROR ChipCertificateSet::VerifySignature(const ChipCertificateData * cert, const ChipCertificateData * caCert)
 {
+    VerifyOrReturnError((cert != nullptr) && (caCert != nullptr), CHIP_ERROR_INVALID_ARGUMENT);
+    return VerifyCertSignature(*cert, *caCert);
+}
+
+CHIP_ERROR VerifyCertSignature(const ChipCertificateData & cert, const ChipCertificateData & signer)
+{
+    VerifyOrReturnError(cert.mCertFlags.Has(CertFlags::kTBSHashPresent), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(cert.mSigAlgoOID == kOID_SigAlgo_ECDSAWithSHA256, CHIP_ERROR_UNSUPPORTED_SIGNATURE_TYPE);
+
 #ifdef ENABLE_HSM_ECDSA_VERIFY
-    P256PublicKeyHSM caPublicKey;
+    P256PublicKeyHSM signerPublicKey;
 #else
-    P256PublicKey caPublicKey;
+    P256PublicKey signerPublicKey;
 #endif
     P256ECDSASignature signature;
 
-    VerifyOrReturnError((cert != nullptr) && (caCert != nullptr), CHIP_ERROR_INVALID_ARGUMENT);
-    ReturnErrorOnFailure(signature.SetLength(cert->mSignature.size()));
-    memcpy(signature.Bytes(), cert->mSignature.data(), cert->mSignature.size());
+    ReturnErrorOnFailure(signature.SetLength(cert.mSignature.size()));
+    memcpy(signature.Bytes(), cert.mSignature.data(), cert.mSignature.size());
 
-    memcpy(caPublicKey, caCert->mPublicKey.data(), caCert->mPublicKey.size());
+    memcpy(signerPublicKey, signer.mPublicKey.data(), signer.mPublicKey.size());
 
-    ReturnErrorOnFailure(caPublicKey.ECDSA_validate_hash_signature(cert->mTBSHash, chip::Crypto::kSHA256_Hash_Length, signature));
+    ReturnErrorOnFailure(
+        signerPublicKey.ECDSA_validate_hash_signature(cert.mTBSHash, chip::Crypto::kSHA256_Hash_Length, signature));
 
     return CHIP_NO_ERROR;
 }
@@ -309,7 +257,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
 {
     CHIP_ERROR err                     = CHIP_NO_ERROR;
     const ChipCertificateData * caCert = nullptr;
-    uint8_t certType;
+    CertType certType;
 
     err = cert->mSubjectDN.GetCertType(certType);
     SuccessOrExit(err);
@@ -328,7 +276,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
                      err = CHIP_ERROR_CERT_USAGE_NOT_ALLOWED);
 
         // Verify that the certificate type is set to Root or ICA.
-        VerifyOrExit(certType == kCertType_ICA || certType == kCertType_Root, err = CHIP_ERROR_WRONG_CERT_TYPE);
+        VerifyOrExit(certType == CertType::kICA || certType == CertType::kRoot, err = CHIP_ERROR_WRONG_CERT_TYPE);
 
         // If a path length constraint was included, verify the cert depth vs. the specified constraint.
         //
@@ -365,7 +313,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
         }
 
         // If a required certificate type has been specified, verify it against the current certificate's type.
-        if (context.mRequiredCertType != kCertType_NotSpecified)
+        if (context.mRequiredCertType != CertType::kNotSpecified)
         {
             VerifyOrExit(certType == context.mRequiredCertType, err = CHIP_ERROR_WRONG_CERT_TYPE);
         }
@@ -431,26 +379,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
     }
     else
     {
-        switch (validityResult)
-        {
-        case CertificateValidityResult::kValid:
-        case CertificateValidityResult::kNotExpiredAtLastKnownGoodTime:
-        // By default, we do not enforce certificate validity based upon a Last
-        // Known Good Time source.  However, implementations may always inject a
-        // policy that does enforce based upon this.
-        case CertificateValidityResult::kExpiredAtLastKnownGoodTime:
-        case CertificateValidityResult::kTimeUnknown:
-            break;
-        case CertificateValidityResult::kNotYetValid:
-            ExitNow(err = CHIP_ERROR_CERT_NOT_VALID_YET);
-            break;
-        case CertificateValidityResult::kExpired:
-            ExitNow(err = CHIP_ERROR_CERT_EXPIRED);
-            break;
-        default:
-            ExitNow(err = CHIP_ERROR_INTERNAL);
-            break;
-        }
+        SuccessOrExit(err = CertificateValidityPolicy::ApplyDefaultPolicy(cert, depth, validityResult));
     }
 
     // If the certificate itself is trusted, then it is implicitly valid.  Record this certificate as the trust
@@ -476,10 +405,6 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
     // recursion in such a case.
     VerifyOrExit(depth < mCertCount, err = CHIP_ERROR_CERT_PATH_TOO_LONG);
 
-    // Verify that a hash of the 'to-be-signed' portion of the certificate has been computed. We will need this to
-    // verify the cert's signature below.
-    VerifyOrExit(cert->mCertFlags.Has(CertFlags::kTBSHashPresent), err = CHIP_ERROR_INVALID_ARGUMENT);
-
     // Search for a valid CA certificate that matches the Issuer DN and Authority Key Id of the current certificate.
     // Fail if no acceptable certificate is found.
     err = FindValidCert(cert->mIssuerDN, cert->mAuthKeyId, context, static_cast<uint8_t>(depth + 1), &caCert);
@@ -490,7 +415,7 @@ CHIP_ERROR ChipCertificateSet::ValidateCert(const ChipCertificateData * cert, Va
 
     // Verify signature of the current certificate against public key of the CA certificate. If signature verification
     // succeeds, the current certificate is valid.
-    err = VerifySignature(cert, caCert);
+    err = VerifyCertSignature(*cert, *caCert);
     SuccessOrExit(err);
 
 exit:
@@ -507,23 +432,17 @@ CHIP_ERROR ChipCertificateSet::FindValidCert(const ChipDN & subjectDN, const Cer
     // Default error if we don't find any matching cert.
     err = (depth > 0) ? CHIP_ERROR_CA_CERT_NOT_FOUND : CHIP_ERROR_CERT_NOT_FOUND;
 
-    // Fail immediately if neither of the input criteria are specified.
-    if (subjectDN.IsEmpty() && subjectKeyId.empty())
-    {
-        ExitNow();
-    }
-
     // For each cert in the set...
     for (uint8_t i = 0; i < mCertCount; i++)
     {
         ChipCertificateData * candidateCert = &mCerts[i];
 
         // Skip the certificate if its subject DN and key id do not match the input criteria.
-        if (!subjectDN.IsEmpty() && !candidateCert->mSubjectDN.IsEqual(subjectDN))
+        if (!candidateCert->mSubjectDN.IsEqual(subjectDN))
         {
             continue;
         }
-        if (!subjectKeyId.empty() && !candidateCert->mSubjectKeyId.data_equal(subjectKeyId))
+        if (!candidateCert->mSubjectKeyId.data_equal(subjectKeyId))
         {
             continue;
         }
@@ -588,7 +507,7 @@ void ValidationContext::Reset()
     mValidityPolicy = nullptr;
     mRequiredKeyUsages.ClearAll();
     mRequiredKeyPurposes.ClearAll();
-    mRequiredCertType = kCertType_NotSpecified;
+    mRequiredCertType = CertType::kNotSpecified;
 }
 
 bool ChipRDN::IsEqual(const ChipRDN & other) const
@@ -686,40 +605,40 @@ CHIP_ERROR ChipDN::AddAttribute(chip::ASN1::OID oid, CharSpan val, bool isPrinta
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR ChipDN::GetCertType(uint8_t & certType) const
+CHIP_ERROR ChipDN::GetCertType(CertType & certType) const
 {
-    uint8_t lCertType    = kCertType_NotSpecified;
+    CertType lCertType   = CertType::kNotSpecified;
     bool fabricIdPresent = false;
     bool catsPresent     = false;
     uint8_t rdnCount     = RDNCount();
 
-    certType = kCertType_NotSpecified;
+    certType = CertType::kNotSpecified;
 
     for (uint8_t i = 0; i < rdnCount; i++)
     {
         if (rdn[i].mAttrOID == kOID_AttributeType_MatterRCACId)
         {
-            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == CertType::kNotSpecified, CHIP_ERROR_WRONG_CERT_DN);
 
-            lCertType = kCertType_Root;
+            lCertType = CertType::kRoot;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterICACId)
         {
-            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == CertType::kNotSpecified, CHIP_ERROR_WRONG_CERT_DN);
 
-            lCertType = kCertType_ICA;
+            lCertType = CertType::kICA;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterNodeId)
         {
-            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == CertType::kNotSpecified, CHIP_ERROR_WRONG_CERT_DN);
             VerifyOrReturnError(IsOperationalNodeId(rdn[i].mChipVal), CHIP_ERROR_WRONG_NODE_ID);
-            lCertType = kCertType_Node;
+            lCertType = CertType::kNode;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterFirmwareSigningId)
         {
-            VerifyOrReturnError(lCertType == kCertType_NotSpecified, CHIP_ERROR_WRONG_CERT_DN);
+            VerifyOrReturnError(lCertType == CertType::kNotSpecified, CHIP_ERROR_WRONG_CERT_DN);
 
-            lCertType = kCertType_FirmwareSigning;
+            lCertType = CertType::kFirmwareSigning;
         }
         else if (rdn[i].mAttrOID == kOID_AttributeType_MatterFabricId)
         {
@@ -736,7 +655,7 @@ CHIP_ERROR ChipDN::GetCertType(uint8_t & certType) const
         }
     }
 
-    if (lCertType == kCertType_Node)
+    if (lCertType == CertType::kNode)
     {
         VerifyOrReturnError(fabricIdPresent, CHIP_ERROR_WRONG_CERT_DN);
     }
@@ -1142,7 +1061,7 @@ DLL_EXPORT CHIP_ERROR ChipEpochToASN1Time(uint32_t epochTime, chip::ASN1::ASN1Un
     // times, which in consuming code can create a conversion from CHIP epoch 0 seconds to 99991231235959Z
     // for NotBefore, which is not conventional.
     //
-    // If an original X509 certificate encloses a NotBefore time that this the CHIP Epoch itself, 2000-01-01
+    // If an original X509 certificate encloses a NotBefore time that is the CHIP Epoch itself, 2000-01-01
     // 00:00:00, the resultant X509 certificate in a conversion back from CHIP TLV format using this time
     // conversion method will instead enclose the NotBefore time 99991231235959Z, which will invalidiate the
     // TBS signature.  Thus, certificates with this specific attribute are not usable with this code.
@@ -1170,7 +1089,7 @@ CHIP_ERROR ValidateChipRCAC(const ByteSpan & rcac)
     ChipCertificateSet certSet;
     ChipCertificateData certData;
     ValidationContext validContext;
-    uint8_t certType;
+    CertType certType;
 
     // Note that this function doesn't check RCAC NotBefore / NotAfter time validity.
     // It is assumed that RCAC should be valid at the time of installation by definition.
@@ -1180,7 +1099,7 @@ CHIP_ERROR ValidateChipRCAC(const ByteSpan & rcac)
     ReturnErrorOnFailure(certSet.LoadCert(rcac, CertDecodeFlags::kGenerateTBSHash));
 
     ReturnErrorOnFailure(certData.mSubjectDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_Root, CHIP_ERROR_WRONG_CERT_TYPE);
+    VerifyOrReturnError(certType == CertType::kRoot, CHIP_ERROR_WRONG_CERT_TYPE);
 
     VerifyOrReturnError(certData.mSubjectDN.IsEqual(certData.mIssuerDN), CHIP_ERROR_WRONG_CERT_TYPE);
 
@@ -1194,7 +1113,7 @@ CHIP_ERROR ValidateChipRCAC(const ByteSpan & rcac)
 
     VerifyOrReturnError(certData.mKeyUsageFlags.Has(KeyUsageFlags::kKeyCertSign), CHIP_ERROR_CERT_USAGE_NOT_ALLOWED);
 
-    return ChipCertificateSet::VerifySignature(&certData, &certData);
+    return VerifyCertSignature(certData, certData);
 }
 
 CHIP_ERROR ConvertIntegerDERToRaw(ByteSpan derInt, uint8_t * rawInt, const uint16_t rawIntLen)
@@ -1227,12 +1146,11 @@ CHIP_ERROR ConvertIntegerDERToRaw(ByteSpan derInt, uint8_t * rawInt, const uint1
 
 CHIP_ERROR ConvertECDSASignatureRawToDER(P256ECDSASignatureSpan rawSig, MutableByteSpan & derSig)
 {
+    VerifyOrReturnError(derSig.size() >= kMax_ECDSA_Signature_Length_Der, CHIP_ERROR_BUFFER_TOO_SMALL);
+
     ASN1Writer writer;
-
     writer.Init(derSig);
-
     ReturnErrorOnFailure(ConvertECDSASignatureRawToDER(rawSig, writer));
-
     derSig.reduce_size(writer.GetLengthWritten());
 
     return CHIP_NO_ERROR;
@@ -1242,8 +1160,6 @@ CHIP_ERROR ConvertECDSASignatureRawToDER(P256ECDSASignatureSpan rawSig, ASN1Writ
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     uint8_t derInt[kP256_FE_Length + kEmitDerIntegerWithoutTagOverhead];
-
-    VerifyOrReturnError(!rawSig.empty(), CHIP_ERROR_INVALID_ARGUMENT);
 
     // Ecdsa-Sig-Value ::= SEQUENCE
     ASN1_START_SEQUENCE
@@ -1356,10 +1272,10 @@ CHIP_ERROR ExtractCATsFromOpCert(const ByteSpan & opcert, CATValues & cats)
 CHIP_ERROR ExtractCATsFromOpCert(const ChipCertificateData & opcert, CATValues & cats)
 {
     uint8_t catCount = 0;
-    uint8_t certType;
+    CertType certType;
 
     ReturnErrorOnFailure(opcert.mSubjectDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_Node, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(certType == CertType::kNode, CHIP_ERROR_INVALID_ARGUMENT);
 
     const ChipDN & subjectDN = opcert.mSubjectDN;
     for (uint8_t i = 0; i < subjectDN.RDNCount(); ++i)
@@ -1503,6 +1419,31 @@ CHIP_ERROR ExtractSubjectDNFromX509Cert(const ByteSpan & x509Cert, ChipDN & dn)
 
 exit:
     return err;
+}
+
+CHIP_ERROR CertificateValidityPolicy::ApplyDefaultPolicy(const ChipCertificateData * cert, uint8_t depth,
+                                                         CertificateValidityResult result)
+{
+    switch (result)
+    {
+    case CertificateValidityResult::kValid:
+    case CertificateValidityResult::kNotExpiredAtLastKnownGoodTime:
+    // By default, we do not enforce certificate validity based upon a Last
+    // Known Good Time source.  However, implementations may always inject a
+    // policy that does enforce based upon this.
+    case CertificateValidityResult::kExpiredAtLastKnownGoodTime:
+    case CertificateValidityResult::kTimeUnknown:
+        return CHIP_NO_ERROR;
+
+    case CertificateValidityResult::kNotYetValid:
+        return CHIP_ERROR_CERT_NOT_VALID_YET;
+
+    case CertificateValidityResult::kExpired:
+        return CHIP_ERROR_CERT_EXPIRED;
+
+    default:
+        return CHIP_ERROR_INTERNAL;
+    }
 }
 
 } // namespace Credentials

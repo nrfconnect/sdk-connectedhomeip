@@ -20,12 +20,14 @@
 #include "transport/SecureSession.h"
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app/ClusterStateCache.h>
+#include <app/ConcreteAttributePath.h>
+#include <app/ConcreteEventPath.h>
 #include <app/InteractionModelEngine.h>
 #include <app/tests/AppTestContext.h>
 #include <app/util/mock/Constants.h>
 #include <app/util/mock/Functions.h>
 #include <controller/ReadInteraction.h>
-#include <lib/support/ErrorStr.h>
+#include <lib/core/ErrorStr.h>
 #include <lib/support/UnitTestContext.h>
 #include <lib/support/UnitTestRegistration.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -191,8 +193,8 @@ CHIP_ERROR ReadSingleClusterData(const Access::SubjectDescriptor & aSubjectDescr
         ReturnErrorOnFailure(attributePath.GetError());
 
         ReturnErrorOnFailure(DataModel::Encode(*(attributeData.GetWriter()), TLV::ContextTag(AttributeDataIB::Tag::kData), value));
-        ReturnErrorOnFailure(attributeData.EndOfAttributeDataIB().GetError());
-        return attributeReport.EndOfAttributeReportIB().GetError();
+        ReturnErrorOnFailure(attributeData.EndOfAttributeDataIB());
+        return attributeReport.EndOfAttributeReportIB();
     }
 
     for (size_t i = 0; i < (responseDirective == kSendTwoDataErrors ? 2 : 1); ++i)
@@ -209,7 +211,7 @@ CHIP_ERROR ReadSingleClusterData(const Access::SubjectDescriptor & aSubjectDescr
         errorStatus.EncodeStatusIB(StatusIB(Protocols::InteractionModel::Status::Busy));
         attributeStatus.EndOfAttributeStatusIB();
         ReturnErrorOnFailure(attributeStatus.GetError());
-        ReturnErrorOnFailure(attributeReport.EndOfAttributeReportIB().GetError());
+        ReturnErrorOnFailure(attributeReport.EndOfAttributeReportIB());
     }
 
     return CHIP_NO_ERROR;
@@ -237,6 +239,11 @@ bool IsDeviceTypeOnEndpoint(DeviceTypeId deviceType, EndpointId endpoint)
 bool ConcreteAttributePathExists(const ConcreteAttributePath & aPath)
 {
     return true;
+}
+
+Protocols::InteractionModel::Status CheckEventSupportStatus(const ConcreteEventPath & aPath)
+{
+    return Protocols::InteractionModel::Status::Success;
 }
 
 } // namespace app
@@ -295,7 +302,7 @@ private:
 
         if (mAlterSubscriptionIntervals)
         {
-            ReturnErrorOnFailure(aReadHandler.SetReportingIntervals(mMaxInterval));
+            ReturnErrorOnFailure(aReadHandler.SetMaxReportingInterval(mMaxInterval));
         }
         return CHIP_NO_ERROR;
     }
@@ -1056,7 +1063,7 @@ void TestReadInteraction::TestReadSubscribeAttributeResponseWithCache(nlTestSuit
     }
 
     // Read of E2C3A* and E3C2A2, and inject a large amount of event path list, then it would try to apply previous cache
-    // latest data version and construct data version list but no enough memory, finally fully rollback data version filter. Expect
+    // latest data version and construct data version list but run out of memory, finally fully rollback data version filter. Expect
     // E2C3A* attributes in report, and E3C2A2 attribute in report
     {
         testId++;
@@ -1074,8 +1081,12 @@ void TestReadInteraction::TestReadSubscribeAttributeResponseWithCache(nlTestSuit
         readPrepareParams.mpAttributePathParamsList    = attributePathParams2;
         readPrepareParams.mAttributePathParamsListSize = 2;
 
-        readPrepareParams.mpEventPathParamsList    = eventPathParams;
-        readPrepareParams.mEventPathParamsListSize = 64;
+        readPrepareParams.mpEventPathParamsList = eventPathParams;
+        // This size needs to be big enough that we can't fit our
+        // DataVersionFilterIBs in the same packet.  Max size is
+        // ArraySize(eventPathParams);
+        static_assert(75 <= ArraySize(eventPathParams));
+        readPrepareParams.mEventPathParamsListSize = 75;
 
         err = readClient.SendRequest(readPrepareParams);
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
@@ -1245,8 +1256,8 @@ void TestReadInteraction::TestReadSubscribeAttributeResponseWithCache(nlTestSuit
 
     // Read of E1C2A*(3 attributes) and E2C3A*(5 attributes) and E2C2A*(4 attributes), and inject a large amount of event path
     // list, then it would try to apply previous cache latest data version and construct data version list with the ordering from
-    // largest cluster size to smallest cluster size(C2, C3, C1) but no enough memory, finally partially rollback data version
-    // filter with only C2. Expect E1C2A*, E2C2A* attributes(7 attributes) in report,
+    // largest cluster size to smallest cluster size(C3, C2, C1) but run out of memory, finally partially rollback data version
+    // filter with only C3. Expect E1C2A*, E2C2A* attributes(7 attributes) in report,
     {
         testId++;
         ChipLogProgress(DataManagement, "\t -- Running Read with ClusterStateCache Test ID %d", testId);
@@ -1268,8 +1279,12 @@ void TestReadInteraction::TestReadSubscribeAttributeResponseWithCache(nlTestSuit
         readPrepareParams.mpAttributePathParamsList    = attributePathParams3;
         readPrepareParams.mAttributePathParamsListSize = 3;
         readPrepareParams.mpEventPathParamsList        = eventPathParams;
-        readPrepareParams.mEventPathParamsListSize     = 62;
-        err                                            = readClient.SendRequest(readPrepareParams);
+
+        // This size needs to be big enough that we can only fit our first
+        // DataVersionFilterIB. Max size is ArraySize(eventPathParams);
+        static_assert(73 <= ArraySize(eventPathParams));
+        readPrepareParams.mEventPathParamsListSize = 73;
+        err                                        = readClient.SendRequest(readPrepareParams);
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
         ctx.DrainAndServiceIO();
@@ -4638,14 +4653,15 @@ void TestReadInteraction::TestReadHandler_KeepSubscriptionTest(nlTestSuite * apS
 
 System::Clock::Timeout TestReadInteraction::ComputeSubscriptionTimeout(System::Clock::Seconds16 aMaxInterval)
 {
-    // Add 50ms of slack to our max interval to make sure we hit the
-    // subscription liveness timer.
+    // Add 1000ms of slack to our max interval to make sure we hit the
+    // subscription liveness timer.  100ms was tried in the past and is not
+    // sufficient: our process can easily lose the timeslice for 100ms.
     const auto & ourMrpConfig = GetDefaultMRPConfig();
     auto publisherTransmissionTimeout =
         GetRetransmissionTimeout(ourMrpConfig.mActiveRetransTimeout, ourMrpConfig.mIdleRetransTimeout,
-                                 System::SystemClock().GetMonotonicTimestamp(), Transport::kMinActiveTime);
+                                 System::SystemClock().GetMonotonicTimestamp(), ourMrpConfig.mActiveThresholdTime);
 
-    return publisherTransmissionTimeout + aMaxInterval + System::Clock::Milliseconds32(50);
+    return publisherTransmissionTimeout + aMaxInterval + System::Clock::Milliseconds32(1000);
 }
 
 // clang-format off

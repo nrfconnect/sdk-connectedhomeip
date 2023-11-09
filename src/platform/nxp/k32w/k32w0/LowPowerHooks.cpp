@@ -20,7 +20,7 @@
  *          Provides a glue layer between Matter and NXP-SDK Low Power
  */
 
-#if defined(cPWR_UsePowerDownMode) && (cPWR_UsePowerDownMode)
+#if defined(chip_with_low_power) && (chip_with_low_power == 1)
 
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/ThreadStackManager.h>
@@ -246,7 +246,7 @@ void dm_switch_init15_4AfterWakeUp(void)
 
     if (dualModeStates.threadWarmBootInitTime == kThreadWarmNotInitializedValue)
     {
-        dualModeStates.threadWarmBootInitTime = (uint32_t)(otPlatTimeGet() - tick1);
+        dualModeStates.threadWarmBootInitTime = (uint32_t) (otPlatTimeGet() - tick1);
 
         /* Add a margin of 0.5 ms */
         dualModeStates.threadWarmBootInitTime += 500;

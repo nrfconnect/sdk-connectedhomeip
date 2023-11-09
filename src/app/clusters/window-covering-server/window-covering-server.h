@@ -25,10 +25,10 @@
 
 #include <app/data-model/Nullable.h>
 
-#define WC_PERCENT100THS_MIN_OPEN 0
-#define WC_PERCENT100THS_MAX_CLOSED 10000
-#define WC_PERCENT100THS_MIDDLE 5000
-#define WC_PERCENT100THS_COEF 100
+static constexpr chip::Percent100ths WC_PERCENT100THS_MIN_OPEN   = 0;
+static constexpr chip::Percent100ths WC_PERCENT100THS_MAX_CLOSED = 10000;
+static constexpr chip::Percent100ths WC_PERCENT100THS_MIDDLE     = 5000;
+static constexpr chip::Percent100ths WC_PERCENT100THS_COEF       = 100;
 
 namespace chip {
 namespace app {
@@ -69,7 +69,7 @@ struct AbsoluteLimits
     uint16_t closed;
 };
 
-bool HasFeature(chip::EndpointId endpoint, WindowCoveringFeature feature);
+bool HasFeature(chip::EndpointId endpoint, Feature feature);
 bool HasFeaturePaLift(chip::EndpointId endpoint);
 bool HasFeaturePaTilt(chip::EndpointId endpoint);
 

@@ -78,11 +78,11 @@ public:
 
     void SetScanner(std::unique_ptr<ChipDeviceScanner> scanner) { mScanner = std::move(scanner); }
 
-    void OnDeviceScanned(BluezDevice1 * device, const chip::Ble::ChipBLEDeviceIdentificationInfo & info) override
+    void OnDeviceScanned(BluezDevice1 & device, const chip::Ble::ChipBLEDeviceIdentificationInfo & info) override
     {
         if (mScanCallback)
         {
-            mScanCallback(mContext, bluez_device1_get_address(device), info.GetDeviceDiscriminator(), info.GetProductId(),
+            mScanCallback(mContext, bluez_device1_get_address(&device), info.GetDeviceDiscriminator(), info.GetProductId(),
                           info.GetVendorId());
         }
     }
@@ -130,7 +130,11 @@ extern "C" void * pychip_ble_start_scanning(PyObject * context, void * adapter, 
         return nullptr;
     }
 
-    if (scanner->StartScan(chip::System::Clock::Milliseconds32(timeoutMs)) != CHIP_NO_ERROR)
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
+    err = scanner->StartScan(chip::System::Clock::Milliseconds32(timeoutMs));
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+    if (err != CHIP_NO_ERROR)
     {
         return nullptr;
     }

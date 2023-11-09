@@ -31,12 +31,8 @@
 #include <platform/nrfconnect/DeviceInstanceInfoProviderImpl.h>
 #endif
 
-#ifdef CONFIG_MCUMGR_SMP_BT
+#ifdef CONFIG_MCUMGR_TRANSPORT_BT
 #include "DFUOverSMP.h"
-#endif
-
-#ifdef CONFIG_CHIP_ICD_SUBSCRIPTION_HANDLING
-#include "ICDUtil.h"
 #endif
 
 struct k_timer;
@@ -71,8 +67,8 @@ private:
     static void FunctionHandler(const AppEvent & event);
     static void StartBLEAdvertisementAndLockActionEventHandler(const AppEvent & event);
     static void LockActionEventHandler(const AppEvent & event);
-    static void StartBLEAdvertisementHandler(const AppEvent & event);
     static void UpdateLedStateEventHandler(const AppEvent & event);
+    static void StartBLEAdvertisementHandler(const AppEvent & event);
 
     static void ChipEventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t arg);
     static void ButtonEventHandler(uint32_t buttonState, uint32_t hasChanged);

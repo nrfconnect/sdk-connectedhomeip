@@ -21,6 +21,8 @@
 
 #define MTR_EXPORT __attribute__((visibility("default")))
 
+#define MTR_HIDDEN __attribute__((visibility("hidden")))
+
 #ifdef __cplusplus
 #define MTR_EXTERN extern "C" MTR_EXPORT
 #else
@@ -35,20 +37,41 @@
 
 #pragma mark - Deprecation macros (can be overriden via build system)
 
-#ifndef MTR_DEPRECATED
+/**
+ * MTR_NO_AVAILABILITY can be used to turn off availability
+ * annotations, to allow compiling a version of Matter.framework for "local
+ * use", not as a system framework.
+ */
+#if !defined(MTR_NO_AVAILABILITY)
+#define MTR_NO_AVAILABILITY 0
+#endif
+
+#if MTR_NO_AVAILABILITY
+#define MTR_DEPRECATED(...) MTR_SWIFT_DISFAVORED_OVERLOAD
+#define MTR_DEPRECATED_WITH_REPLACEMENT(...) MTR_SWIFT_DISFAVORED_OVERLOAD
+#define MTR_AVAILABLE(...)
+#else
 #define MTR_DEPRECATED(...) API_DEPRECATED(__VA_ARGS__) MTR_SWIFT_DISFAVORED_OVERLOAD
-#endif
-
-#ifndef MTR_DEPRECATED_WITH_REPLACEMENT
 #define MTR_DEPRECATED_WITH_REPLACEMENT(...) API_DEPRECATED_WITH_REPLACEMENT(__VA_ARGS__) MTR_SWIFT_DISFAVORED_OVERLOAD
-#endif
+#define MTR_AVAILABLE(...) API_AVAILABLE(__VA_ARGS__)
+#endif // MTR_NO_AVAILABILITY
 
-#ifndef MTR_NEWLY_DEPRECATED
 #define MTR_NEWLY_DEPRECATED(message)
+
+#define MTR_NEWLY_AVAILABLE
+
+#if !defined(MTR_ENABLE_PROVISIONAL)
+#define MTR_ENABLE_PROVISIONAL 0
 #endif
 
-#ifndef MTR_NEWLY_AVAILABLE
-#define MTR_NEWLY_AVAILABLE
+#if MTR_ENABLE_PROVISIONAL
+#define MTR_PROVISIONALLY_AVAILABLE MTR_NEWLY_AVAILABLE
+#else
+#define MTR_PROVISIONALLY_AVAILABLE API_UNAVAILABLE(ios, macos, tvos, watchos) MTR_HIDDEN
+#endif
+
+#ifndef MTR_PER_CONTROLLER_STORAGE_ENABLED
+#define MTR_PER_CONTROLLER_STORAGE_ENABLED 0
 #endif
 
 #pragma mark - Types

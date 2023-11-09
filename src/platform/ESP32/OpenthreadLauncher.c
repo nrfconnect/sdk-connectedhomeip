@@ -15,7 +15,6 @@
  *    limitations under the License.
  */
 
-#include "OpenthreadConfig.h"
 #include "driver/uart.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -31,7 +30,8 @@
 #include "openthread/logging.h"
 #include "openthread/tasklet.h"
 
-static esp_netif_t * openthread_netif = NULL;
+static esp_netif_t * openthread_netif                       = NULL;
+static esp_openthread_platform_config_t * s_platform_config = NULL;
 
 static esp_netif_t * init_openthread_netif(const esp_openthread_platform_config_t * config)
 {
@@ -55,6 +55,20 @@ static void ot_task_worker(void * context)
     vTaskDelete(NULL);
 }
 
+esp_err_t set_openthread_platform_config(esp_openthread_platform_config_t * config)
+{
+    if (!s_platform_config)
+    {
+        s_platform_config = (esp_openthread_platform_config_t *) malloc(sizeof(esp_openthread_platform_config_t));
+        if (!s_platform_config)
+        {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+    memcpy(s_platform_config, config, sizeof(esp_openthread_platform_config_t));
+    return ESP_OK;
+}
+
 esp_err_t openthread_init_stack(void)
 {
     // Used eventfds:
@@ -67,15 +81,13 @@ esp_err_t openthread_init_stack(void)
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_vfs_eventfd_register(&eventfd_config));
-    esp_openthread_platform_config_t config = {
-        .radio_config = ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG(),
-        .host_config  = ESP_OPENTHREAD_DEFAULT_HOST_CONFIG(),
-        .port_config  = ESP_OPENTHREAD_DEFAULT_PORT_CONFIG(),
-    };
+    assert(s_platform_config);
     // Initialize the OpenThread stack
-    ESP_ERROR_CHECK(esp_openthread_init(&config));
+    ESP_ERROR_CHECK(esp_openthread_init(s_platform_config));
     // Initialize the esp_netif bindings
-    openthread_netif = init_openthread_netif(&config);
+    openthread_netif = init_openthread_netif(s_platform_config);
+    free(s_platform_config);
+    s_platform_config = NULL;
     return ESP_OK;
 }
 

@@ -26,42 +26,28 @@ config:
     endpoint: 0
 
 tests:
-    - label: "Commission TH and DUT over BLE to setup the Wi-Fi"
+    - label: "Preconditions"
       verification: |
-
+          1. DUT supports CNET.S.F00(WI)
+          2. DUT has a Network Commissioning cluster on endpoint PIXIT.CNET.ENDPOINT_WIFI with FeatureMap attribute of 1
+          3. DUT is commissioned on PIXIT.CNET.WIFI_1ST_ACCESSPOINT_SSID
+          4. TH can communicate with the DUT
       disabled: true
 
     - label:
-          "The cluster Identifier 49 (0x0031) is present in the ServerList
-          attribute"
-      verification: |
-
-      disabled: true
-
-    - label: "The FeatureMap attribute value is 1"
-      verification: |
-          "./chip-tool networkcommissioning read feature-map 1 0
-
-          Verify the "feature-map" on the TH(Chip-tool) Log:
-
-          [1653474932.055513][29920:29925] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_0031 Attribute 0x0000_FFFC DataVersion: 1600858167
-          [1653474932.055578][29920:29925] CHIP:TOO:   FeatureMap: 1
-          [1653474932.055675][29920:29925] CHIP:EM: Sending Standalone Ack for MessageCounter:1494059 on exchange 5482i"
-      disabled: true
-
-    - label:
-          "TH sends the AddOrUpdateWiFiNetwork command to the DUT with the
-          following argument: SSID argument value as Userwifi_ssid Credentials
-          argument value as Userwifi_Credentials Breadcrumb argument value as 1"
+          "Step 1: TH sends the AddOrUpdateWiFiNetwork command to the DUT with
+          the following fields: 1. SSID field set to PIXIT.CNET.WIFI_1S
+          T_ACCESSPOINT_SSI D 2. Credentials field set to PIXIT.CNET.WIFI_1S
+          T_ACCESSPOINT_CRE DENTIALS 3. Breadcrumb field set to 1"
       PICS: CNET.S.C02.Rsp
       verification: |
           ./chip-tool networkcommissioning add-or-update-wi-fi-network  hex:<your network id in hex> 1 0
 
           Below is an example:
 
-          ./chip-tool networkcommissioning add-or-update-wi-fi-network hex:47524C50726976617465 grlprivatewifi092010 1 0
+          ./chip-tool networkcommissioning add-or-update-wi-fi-network hex:47524C50726976617465 grlprivatewifi092010 1 0 --Breadcrumb 1
 
-          Verify  "FAILSAFE_REQUIRED status code"  on the TH(Chip-tool) Log:
+          Via the TH (chip-tool), verify the FAILSAFE_REQUIRED response for sending the AddOrUpdateWiFiNetwork command.
 
           [1657619600.364023][2056:2061] CHIP:DMG: Received Command Response Status for Endpoint=0 Cluster=0x0000_0031 Command=0x0000_0003 Status=0xca
           [1657619600.364102][2056:2061] CHIP:TOO: Error: IM Error 0x000005CA: General error: 0xca (FAILSAFE_REQUIRED)
@@ -69,17 +55,18 @@ tests:
       disabled: true
 
     - label:
-          "TH sends RemoveNetwork command to the DUT with NetworkID field set to
-          PIXIT.CNET.WIFI_1ST_ACCE SSPOINT_SSID and Breadcrumb field set to 1"
+          "Step 2: TH sends RemoveNetwork command to the DUT with NetworkID
+          field set to PIXIT.CNET.WIFI_1ST_ACCE SSPOINT_SSID and Breadcrumb
+          field set to 1"
       PICS: CNET.S.C02.Rsp
       verification: |
           ./chip-tool networkcommissioning remove hex:<your network id in hex> 1 0
 
           Below is an example:
 
-          ./chip-tool networkcommissioning remove-network hex:47524C50726976617465 1 0
+          ./chip-tool networkcommissioning remove-network hex:47524C50726976617465 1 0 --Breadcrumb 1
 
-          Verify  "FAILSAFE_REQUIRED status code"  on the TH(Chip-tool) Log:
+          Via the TH (chip-tool), verify the FAILSAFE_REQUIRED response for sending the RemoveNetwork command.
 
           [1657619600.364023][2056:2061] CHIP:DMG: Received Command Response Status for Endpoint=0 Cluster=0x0000_0031 Command=0x0000_0003 Status=0xca
           [1657619600.364102][2056:2061] CHIP:TOO: Error: IM Error 0x000005CA: General error: 0xca (FAILSAFE_REQUIRED)
@@ -87,17 +74,18 @@ tests:
       disabled: true
 
     - label:
-          "TH sends ConnectNetwork command to the DUT with NetworkID field set
-          to PIXIT.CNET.WIFI_1ST_ACCE SSPOINT_SSID and Breadcrumb field set to 1"
+          "Step 3: TH sends ConnectNetwork command to the DUT with NetworkID
+          field set to PIXIT.CNET.WIFI_1ST_ACCE SSPOINT_SSID and Breadcrumb
+          field set to 1"
       PICS: CNET.S.C06.Rsp
       verification: |
           ./chip-tool networkcommissioning connect hex:<your network id in hex> 1 0
 
           Below is an example:
 
-          ./chip-tool networkcommissioning connect-network hex:47524C50726976617465 1 0
+          ./chip-tool networkcommissioning connect-network hex:47524C50726976617465 1 0 --Breadcrumb 1
 
-          Verify  "FAILSAFE_REQUIRED status code"  on the TH(Chip-tool) Log:
+          Via the TH (chip-tool), verify the FAILSAFE_REQUIRED response for sending the ConnectNetwork command.
 
           [1657619600.364023][2056:2061] CHIP:DMG: Received Command Response Status for Endpoint=0 Cluster=0x0000_0031 Command=0x0000_0003 Status=0xca
           [1657619600.364102][2056:2061] CHIP:TOO: Error: IM Error 0x000005CA: General error: 0xca (FAILSAFE_REQUIRED)

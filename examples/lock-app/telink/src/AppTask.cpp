@@ -41,7 +41,7 @@ CHIP_ERROR AppTask::Init(void)
     InitCommonParts();
 
 #if CONFIG_CHIP_ENABLE_APPLICATION_STATUS_LED
-    sLockLED.Init(LOCK_STATE_LED);
+    sLockLED.Init(GPIO_DT_SPEC_GET(DT_ALIAS(led2), gpios));
     sLockLED.Set(BoltLockMgr().IsLocked());
 #endif
 
@@ -49,13 +49,6 @@ CHIP_ERROR AppTask::Init(void)
 
     // Disable auto-relock time feature.
     DoorLockServer::Instance().SetAutoRelockTime(kExampleEndpointId, 0);
-
-    CHIP_ERROR err = ConnectivityMgr().SetBLEDeviceName("Telink Lock");
-    if (err != CHIP_NO_ERROR)
-    {
-        LOG_ERR("SetBLEDeviceName fail");
-        return err;
-    }
 
     return CHIP_NO_ERROR;
 }

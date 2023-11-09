@@ -74,12 +74,12 @@ public:
         return T2{};
     }
 
-    Map()            = delete;
-    Map(const Map &) = delete;
-    Map(Map &&)      = delete;
+    Map()                        = delete;
+    Map(const Map &)             = delete;
+    Map(Map &&)                  = delete;
     Map & operator=(const Map &) = delete;
-    Map & operator=(Map &&) = delete;
-    ~Map()                  = default;
+    Map & operator=(Map &&)      = delete;
+    ~Map()                       = default;
 
 private:
     Pair mMap[N];
@@ -127,7 +127,7 @@ public:
 
     struct WiFiInfo
     {
-        ByteSpan mBssId{};
+        uint8_t mBssId[DeviceLayer::Internal::kWiFiBSSIDLength];
         app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum mSecurityType{};
         app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum mWiFiVersion{};
         uint16_t mChannel{};
@@ -173,14 +173,10 @@ public:
     static constexpr uint32_t kConnectionRecoveryMaxIntervalMs     = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MAXIMUM_INTERVAL;
     static constexpr uint32_t kConnectionRecoveryJitterMs          = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_JITTER;
     static constexpr uint32_t kConnectionRecoveryMaxRetries        = CONFIG_CHIP_WIFI_CONNECTION_RECOVERY_MAX_RETRIES_NUMBER;
+    static constexpr uint32_t kSupplicantReconnectionTimeoutMs     = 60000;
 
     static_assert(kConnectionRecoveryMinIntervalMs < kConnectionRecoveryMaxIntervalMs);
     static_assert(kConnectionRecoveryJitterMs <= kConnectionRecoveryMaxIntervalMs);
-
-#if CHIP_DEVICE_CONFIG_ENABLE_SED
-    static constexpr uint8_t kDefaultDTIMInterval = 3;
-    static constexpr uint8_t kBeaconIntervalMs    = 100;
-#endif
 
     CHIP_ERROR Init();
     CHIP_ERROR Scan(const ByteSpan & ssid, ScanResultCallback resultCallback, ScanDoneCallback doneCallback,
@@ -192,6 +188,7 @@ public:
     CHIP_ERROR GetWiFiInfo(WiFiInfo & info) const;
     CHIP_ERROR GetNetworkStatistics(NetworkStatistics & stats) const;
     void AbortConnectionRecovery();
+    CHIP_ERROR SetLowPowerMode(bool onoff);
 
 private:
     using NetEventHandler = void (*)(Platform::UniquePtr<uint8_t>);
@@ -203,14 +200,16 @@ private:
     };
 
     constexpr static uint32_t kWifiManagementEvents = NET_EVENT_WIFI_SCAN_RESULT | NET_EVENT_WIFI_SCAN_DONE |
-        NET_EVENT_WIFI_CONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_RESULT | NET_EVENT_WIFI_IFACE_STATUS;
+        NET_EVENT_WIFI_CONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_RESULT | NET_EVENT_WIFI_DISCONNECT_COMPLETE |
+        NET_EVENT_WIFI_IFACE_STATUS;
 
     // Event handling
     static void WifiMgmtEventHandler(net_mgmt_event_callback * cb, uint32_t mgmtEvent, net_if * iface);
     static void ScanResultHandler(Platform::UniquePtr<uint8_t> data);
     static void ScanDoneHandler(Platform::UniquePtr<uint8_t> data);
     static void ConnectHandler(Platform::UniquePtr<uint8_t> data);
-    static void DisconnectHandler(Platform::UniquePtr<uint8_t> data);
+    static void NetworkDrivenDisconnectHandler(Platform::UniquePtr<uint8_t> data);
+    static void ApplicationDrivenDisconnectHandler(Platform::UniquePtr<uint8_t> data);
     static void PostConnectivityStatusChange(ConnectivityChange changeType);
     static void SendRouterSolicitation(System::Layer * layer, void * param);
 
@@ -240,10 +239,13 @@ private:
     bool mSsidFound{ false };
     uint32_t mConnectionRecoveryCounter{ 0 };
     uint32_t mConnectionRecoveryTimeMs{ kConnectionRecoveryMinIntervalMs };
-    bool mRecoveryTimerAborted{ false };
+    bool mRecoveryArmed{ false };
+    bool mApplicationDisconnectRequested{ false };
+    // TODO Workaround for recovery mechanism to wait before the next scan request until the WiFi supplicant is not busy.
+    static constexpr uint32_t kWifiSupplicantWorkaroundTime = 8000;
 
     static const Map<wifi_iface_state, StationStatus, 10> sStatusMap;
-    static const Map<uint32_t, NetEventHandler, 4> sEventHandlerMap;
+    static const Map<uint32_t, NetEventHandler, 5> sEventHandlerMap;
 };
 
 } // namespace DeviceLayer

@@ -68,10 +68,10 @@ static_library("efr32") {
 
   if (chip_enable_ble_rs911x) {
     sources += [
-      "rs911x/BLEManagerImpl.cpp",
-      "rs911x/rsi_ble_config.h",
-      "rs911x/wfx_sl_ble_init.c",
-      "rs911x/wfx_sl_ble_init.h",
+      "../rs911x/BLEManagerImpl.cpp",
+      "../rs911x/rsi_ble_config.h",
+      "../rs911x/wfx_sl_ble_init.c",
+      "../rs911x/wfx_sl_ble_init.h",
     ]
   } else {
     sources += [ "BLEManagerImpl.cpp" ]
@@ -85,6 +85,7 @@ static_library("efr32") {
   }
 
   public_deps = [ "${chip_root}/src/platform:platform_base" ]
+  deps = [ "${chip_root}/src/platform/logging:headers" ]
 
   # Add platform crypto implementation
   if (chip_crypto == "platform") {
@@ -105,7 +106,7 @@ static_library("efr32") {
   if (chip_enable_openthread) {
     public_deps += [ "${chip_root}/third_party/openthread:openthread" ]
 
-    deps = [ "${chip_root}/third_party/openthread:openthread_cli" ]
+    deps += [ "${chip_root}/third_party/openthread:openthread_cli" ]
 
     sources += [
       "${silabs_platform_dir}/ThreadStackManagerImpl.h",
@@ -115,7 +116,11 @@ static_library("efr32") {
     ]
 
     if (chip_mdns == "platform") {
-      sources += [ "../../OpenThread/DnssdImpl.cpp" ]
+      sources += [
+        "../../OpenThread/DnssdImpl.cpp",
+        "../../OpenThread/OpenThreadDnssdImpl.cpp",
+        "../../OpenThread/OpenThreadDnssdImpl.h",
+      ]
       deps += [ "${chip_root}/src/lib/dnssd:platform_header" ]
     }
 

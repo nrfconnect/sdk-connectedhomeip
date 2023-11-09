@@ -30,7 +30,7 @@ namespace DataModel {
 /**
  * NullNullable is an alias for NullOptional, for better readability.
  */
-constexpr auto NullNullable = NullOptional;
+inline constexpr auto NullNullable = NullOptional;
 
 /*
  * Dedicated type for nullable things, to differentiate them from optional
@@ -65,7 +65,7 @@ struct Nullable : protected Optional<T>
     template <
         typename U = std::decay_t<T>,
         typename std::enable_if_t<(std::is_integral<U>::value && !std::is_same<U, bool>::value) || std::is_enum<U>::value, int> = 0>
-    constexpr bool HasValidValue() const
+    constexpr bool ExistingValueInEncodableRange() const
     {
         return NumericAttributeTraits<T>::CanRepresentValue(/* isNullable = */ true, Value());
     }
@@ -74,7 +74,7 @@ struct Nullable : protected Optional<T>
     template <typename U                     = std::decay_t<T>,
               typename std::enable_if_t<(!std::is_integral<U>::value || std::is_same<U, bool>::value) && !std::is_enum<U>::value,
                                         int> = 0>
-    constexpr bool HasValidValue() const
+    constexpr bool ExistingValueInEncodableRange() const
     {
         return true;
     }

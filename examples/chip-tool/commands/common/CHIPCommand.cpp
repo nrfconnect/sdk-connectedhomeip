@@ -25,6 +25,7 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ScopedBuffer.h>
 #include <lib/support/TestGroupData.h>
+#include <platform/LockTracker.h>
 
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
 #include "TraceDecoder.h"
@@ -48,6 +49,7 @@ const chip::Credentials::AttestationTrustStore * CHIPCommand::sTrustStore = null
 chip::Credentials::GroupDataProviderImpl CHIPCommand::sGroupDataProvider{ kMaxGroupsPerFabric, kMaxGroupKeysPerFabric };
 
 namespace {
+
 CHIP_ERROR GetAttestationTrustStore(const char * paaTrustStorePath, const chip::Credentials::AttestationTrustStore ** trustStore)
 {
     if (paaTrustStorePath == nullptr)
@@ -77,6 +79,7 @@ CHIP_ERROR GetAttestationTrustStore(const char * paaTrustStorePath, const chip::
     *trustStore = &attestationTrustStore;
     return CHIP_NO_ERROR;
 }
+
 } // namespace
 
 CHIP_ERROR CHIPCommand::MaybeSetUpStack()
@@ -93,7 +96,7 @@ CHIP_ERROR CHIPCommand::MaybeSetUpStack()
     ReturnLogErrorOnFailure(chip::DeviceLayer::Internal::BLEMgrImpl().ConfigureBle(mBleAdapterId.ValueOr(0), true));
 #endif
 
-    ReturnLogErrorOnFailure(mDefaultStorage.Init());
+    ReturnLogErrorOnFailure(mDefaultStorage.Init(nullptr, GetStorageDirectory().ValueOr(nullptr)));
     ReturnLogErrorOnFailure(mOperationalKeystore.Init(&mDefaultStorage));
     ReturnLogErrorOnFailure(mOpCertStore.Init(&mDefaultStorage));
 
@@ -220,17 +223,17 @@ CHIP_ERROR CHIPCommand::Run()
 
     CHIP_ERROR err = StartWaiting(GetWaitDuration());
 
-    bool deferCleanup = (IsInteractive() && DeferInteractiveCleanup());
-
-    Shutdown();
-
-    if (deferCleanup)
+    if (IsInteractive())
     {
-        sDeferredCleanups.insert(this);
+        bool timedOut;
+        // Give it 2 hours to run our cleanup; that should never get hit in practice.
+        CHIP_ERROR cleanupErr = RunOnMatterQueue(RunCommandCleanup, chip::System::Clock::Seconds16(7200), &timedOut);
+        VerifyOrDie(cleanupErr == CHIP_NO_ERROR);
+        VerifyOrDie(!timedOut);
     }
     else
     {
-        Cleanup();
+        CleanupAfterRun();
     }
 
     MaybeTearDownStack();
@@ -240,6 +243,14 @@ CHIP_ERROR CHIPCommand::Run()
 
 void CHIPCommand::StartTracing()
 {
+    if (mTraceTo.HasValue())
+    {
+        for (const auto & destination : mTraceTo.Value())
+        {
+            mTracingSetup.EnableTracingFor(destination.c_str());
+        }
+    }
+
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
     chip::trace::InitTrace();
 
@@ -266,6 +277,8 @@ void CHIPCommand::StartTracing()
 
 void CHIPCommand::StopTracing()
 {
+    mTracingSetup.StopTracing();
+
 #if CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
     chip::trace::DeInitTrace();
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
@@ -326,7 +339,7 @@ CHIP_ERROR CHIPCommand::GetIdentityNodeId(std::string identity, chip::NodeId * n
         return CHIP_NO_ERROR;
     }
 
-    ReturnLogErrorOnFailure(mCommissionerStorage.Init(identity.c_str()));
+    ReturnLogErrorOnFailure(mCommissionerStorage.Init(identity.c_str(), GetStorageDirectory().ValueOr(nullptr)));
 
     *nodeId = mCommissionerStorage.GetLocalNodeId();
 
@@ -419,7 +432,7 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, 
         // TODO - OpCreds should only be generated for pairing command
         //        store the credentials in persistent storage, and
         //        generate when not available in the storage.
-        ReturnLogErrorOnFailure(mCommissionerStorage.Init(identity.mName.c_str()));
+        ReturnLogErrorOnFailure(mCommissionerStorage.Init(identity.mName.c_str(), GetStorageDirectory().ValueOr(nullptr)));
         if (mUseMaxSizedCerts.HasValue())
         {
             auto option = CredentialIssuerCommands::CredentialIssuerOptions::kMaximizeCertificateSizes;
@@ -451,7 +464,7 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, 
 
     // TODO: Initialize IPK epoch key in ExampleOperationalCredentials issuer rather than relying on DefaultIpkValue
     commissionerParams.operationalCredentialsDelegate = mCredIssuerCmds->GetCredentialIssuer();
-    commissionerParams.controllerVendorId             = chip::VendorId::TestVendor1;
+    commissionerParams.controllerVendorId             = mCommissionerVendorId.ValueOr(chip::VendorId::TestVendor1);
 
     ReturnLogErrorOnFailure(DeviceControllerFactory::GetInstance().SetupCommissioner(commissionerParams, *(commissioner.get())));
 
@@ -492,6 +505,56 @@ void CHIPCommand::RunQueuedCommand(intptr_t commandArg)
     }
 }
 
+void CHIPCommand::RunCommandCleanup(intptr_t commandArg)
+{
+    auto * command = reinterpret_cast<CHIPCommand *>(commandArg);
+    command->CleanupAfterRun();
+    command->StopWaiting();
+}
+
+void CHIPCommand::CleanupAfterRun()
+{
+    assertChipStackLockedByCurrentThread();
+    bool deferCleanup = (IsInteractive() && DeferInteractiveCleanup());
+
+    Shutdown();
+
+    if (deferCleanup)
+    {
+        sDeferredCleanups.insert(this);
+    }
+    else
+    {
+        Cleanup();
+    }
+}
+
+CHIP_ERROR CHIPCommand::RunOnMatterQueue(MatterWorkCallback callback, chip::System::Clock::Timeout timeout, bool * timedOut)
+{
+    {
+        std::lock_guard<std::mutex> lk(cvWaitingForResponseMutex);
+        mWaitingForResponse = true;
+    }
+
+    auto err = chip::DeviceLayer::PlatformMgr().ScheduleWork(callback, reinterpret_cast<intptr_t>(this));
+    if (CHIP_NO_ERROR != err)
+    {
+        {
+            std::lock_guard<std::mutex> lk(cvWaitingForResponseMutex);
+            mWaitingForResponse = false;
+        }
+        return err;
+    }
+
+    auto waitingUntil = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::seconds>(timeout);
+    {
+        std::unique_lock<std::mutex> lk(cvWaitingForResponseMutex);
+        *timedOut = !cvWaitingForResponse.wait_until(lk, waitingUntil, [this]() { return !this->mWaitingForResponse; });
+    }
+
+    return CHIP_NO_ERROR;
+}
+
 #if !CONFIG_USE_SEPARATE_EVENTLOOP
 static void OnResponseTimeout(chip::System::Layer *, void * appState)
 {
@@ -514,28 +577,15 @@ CHIP_ERROR CHIPCommand::StartWaiting(chip::System::Clock::Timeout duration)
     }
     else
     {
-        {
-            std::lock_guard<std::mutex> lk(cvWaitingForResponseMutex);
-            mWaitingForResponse = true;
-        }
-
-        auto err = chip::DeviceLayer::PlatformMgr().ScheduleWork(RunQueuedCommand, reinterpret_cast<intptr_t>(this));
+        bool timedOut;
+        CHIP_ERROR err = RunOnMatterQueue(RunQueuedCommand, duration, &timedOut);
         if (CHIP_NO_ERROR != err)
         {
-            {
-                std::lock_guard<std::mutex> lk(cvWaitingForResponseMutex);
-                mWaitingForResponse = false;
-            }
             return err;
         }
-
-        auto waitingUntil = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::seconds>(duration);
+        if (timedOut)
         {
-            std::unique_lock<std::mutex> lk(cvWaitingForResponseMutex);
-            if (!cvWaitingForResponse.wait_until(lk, waitingUntil, [this]() { return !this->mWaitingForResponse; }))
-            {
-                mCommandExitStatus = CHIP_ERROR_TIMEOUT;
-            }
+            mCommandExitStatus = CHIP_ERROR_TIMEOUT;
         }
     }
     if (!IsInteractive())

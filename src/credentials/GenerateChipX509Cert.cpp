@@ -142,7 +142,10 @@ CHIP_ERROR EncodeKeyUsageExtension(uint16_t keyUsageBits, ASN1Writer & writer)
 
         // KeyUsage extension MUST be marked as critical.
         ASN1_ENCODE_BOOLEAN(true);
-        ASN1_START_OCTET_STRING_ENCAPSULATED { ASN1_ENCODE_BIT_STRING(keyUsageBits); }
+        ASN1_START_OCTET_STRING_ENCAPSULATED
+        {
+            ASN1_ENCODE_BIT_STRING(keyUsageBits);
+        }
         ASN1_END_ENCAPSULATED;
     }
     ASN1_END_SEQUENCE;
@@ -326,14 +329,15 @@ CHIP_ERROR EncodeTBSCert(const X509CertRequestParams & requestParams, const Cryp
                          const Crypto::P256PublicKey & issuerPubkey, ASN1Writer & writer)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    uint8_t certType;
+    CertType certType;
     bool isCA;
 
     VerifyOrReturnError(requestParams.SerialNumber >= 0, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(requestParams.ValidityEnd >= requestParams.ValidityStart, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(requestParams.ValidityEnd == kNullCertTime || requestParams.ValidityEnd >= requestParams.ValidityStart,
+                        CHIP_ERROR_INVALID_ARGUMENT);
 
     ReturnErrorOnFailure(requestParams.SubjectDN.GetCertType(certType));
-    isCA = (certType == kCertType_ICA || certType == kCertType_Root);
+    isCA = (certType == CertType::kICA || certType == CertType::kRoot);
 
     ASN1_START_SEQUENCE
     {
@@ -347,7 +351,10 @@ CHIP_ERROR EncodeTBSCert(const X509CertRequestParams & requestParams, const Cryp
 
         ReturnErrorOnFailure(writer.PutInteger(requestParams.SerialNumber));
 
-        ASN1_START_SEQUENCE { ASN1_ENCODE_OBJECT_ID(kOID_SigAlgo_ECDSAWithSHA256); }
+        ASN1_START_SEQUENCE
+        {
+            ASN1_ENCODE_OBJECT_ID(kOID_SigAlgo_ECDSAWithSHA256);
+        }
         ASN1_END_SEQUENCE;
 
         // issuer Name
@@ -388,7 +395,10 @@ CHIP_ERROR NewChipX509Cert(const X509CertRequestParams & requestParams, const Cr
     {
         ReturnErrorOnFailure(EncodeTBSCert(requestParams, subjectPubkey, issuerKeypair.Pubkey(), writer));
 
-        ASN1_START_SEQUENCE { ASN1_ENCODE_OBJECT_ID(kOID_SigAlgo_ECDSAWithSHA256); }
+        ASN1_START_SEQUENCE
+        {
+            ASN1_ENCODE_OBJECT_ID(kOID_SigAlgo_ECDSAWithSHA256);
+        }
         ASN1_END_SEQUENCE;
 
         ReturnErrorOnFailure(EncodeChipECDSASignature(signature, writer));
@@ -404,10 +414,10 @@ exit:
 DLL_EXPORT CHIP_ERROR NewRootX509Cert(const X509CertRequestParams & requestParams, Crypto::P256Keypair & issuerKeypair,
                                       MutableByteSpan & x509Cert)
 {
-    uint8_t certType;
+    CertType certType;
 
     ReturnErrorOnFailure(requestParams.SubjectDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_Root, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(certType == CertType::kRoot, CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(requestParams.SubjectDN.IsEqual(requestParams.IssuerDN), CHIP_ERROR_INVALID_ARGUMENT);
 
     return NewChipX509Cert(requestParams, issuerKeypair.Pubkey(), issuerKeypair, x509Cert);
@@ -416,13 +426,13 @@ DLL_EXPORT CHIP_ERROR NewRootX509Cert(const X509CertRequestParams & requestParam
 DLL_EXPORT CHIP_ERROR NewICAX509Cert(const X509CertRequestParams & requestParams, const Crypto::P256PublicKey & subjectPubkey,
                                      Crypto::P256Keypair & issuerKeypair, MutableByteSpan & x509Cert)
 {
-    uint8_t certType;
+    CertType certType;
 
     ReturnErrorOnFailure(requestParams.SubjectDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_ICA, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(certType == CertType::kICA, CHIP_ERROR_INVALID_ARGUMENT);
 
     ReturnErrorOnFailure(requestParams.IssuerDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_Root, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(certType == CertType::kRoot, CHIP_ERROR_INVALID_ARGUMENT);
 
     return NewChipX509Cert(requestParams, subjectPubkey, issuerKeypair, x509Cert);
 }
@@ -431,13 +441,13 @@ DLL_EXPORT CHIP_ERROR NewNodeOperationalX509Cert(const X509CertRequestParams & r
                                                  const Crypto::P256PublicKey & subjectPubkey, Crypto::P256Keypair & issuerKeypair,
                                                  MutableByteSpan & x509Cert)
 {
-    uint8_t certType;
+    CertType certType;
 
     ReturnErrorOnFailure(requestParams.SubjectDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_Node, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(certType == CertType::kNode, CHIP_ERROR_INVALID_ARGUMENT);
 
     ReturnErrorOnFailure(requestParams.IssuerDN.GetCertType(certType));
-    VerifyOrReturnError(certType == kCertType_ICA || certType == kCertType_Root, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(certType == CertType::kICA || certType == CertType::kRoot, CHIP_ERROR_INVALID_ARGUMENT);
 
     return NewChipX509Cert(requestParams, subjectPubkey, issuerKeypair, x509Cert);
 }

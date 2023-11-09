@@ -233,6 +233,10 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
         // Inject ACL storage. (Don't initialize it.)
         this->aclStorage = &sAclStorage;
 
+        // Inject certificate validation policy compatible with non-wall-clock-time-synced
+        // embedded systems.
+        this->certificateValidityPolicy = &sDefaultCertValidityPolicy;
+
 #if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS
         ChipLogProgress(AppServer, "Initializing subscription resumption storage...");
         ReturnErrorOnFailure(sSubscriptionResumptionStorage.Init(this->persistentStorageDelegate));
@@ -249,6 +253,7 @@ private:
     static PersistentStorageOperationalKeystore sPersistentStorageOperationalKeystore;
     static Credentials::PersistentStorageOpCertStore sPersistentStorageOpCertStore;
     static Credentials::GroupDataProviderImpl sGroupDataProvider;
+    static Credentials::IgnoreCertificateValidityPeriodPolicy sDefaultCertValidityPolicy;
 #if CHIP_CONFIG_ENABLE_SESSION_RESUMPTION
     static SimpleSessionResumptionStorage sSessionResumptionStorage;
 #endif
@@ -548,10 +553,6 @@ private:
 #if CONFIG_NETWORK_LAYER_BLE
     Ble::BleLayer * mBleLayer = nullptr;
 #endif
-
-    // By default, use a certificate validation policy compatible with non-wall-clock-time-synced
-    // embedded systems.
-    static Credentials::IgnoreCertificateValidityPeriodPolicy sDefaultCertValidityPolicy;
 
     ServerTransportMgr mTransports;
     SessionManager mSessions;

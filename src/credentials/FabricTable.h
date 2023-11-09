@@ -220,27 +220,18 @@ protected:
         return TLV::EstimateStructOverhead(sizeof(uint16_t), Crypto::P256SerializedKeypair::Capacity());
     }
 
-    NodeId mNodeId     = kUndefinedNodeId;
-    FabricId mFabricId = kUndefinedFabricId;
+    NodeId mNodeId           = kUndefinedNodeId;
+    FabricId mFabricId       = kUndefinedFabricId;
+    FabricIndex mFabricIndex = kUndefinedFabricIndex;
     // We cache the compressed fabric id since it's used so often and costly to get.
     CompressedFabricId mCompressedFabricId = kUndefinedCompressedFabricId;
     // We cache the root public key since it's used so often and costly to get.
     Crypto::P256PublicKey mRootPublicKey;
 
-    // mFabricLabel is 33 bytes, so ends on a 1 mod 4 byte boundary.
+    VendorId mVendorId                                  = VendorId::NotSpecified;
     char mFabricLabel[kFabricLabelMaxLengthInBytes + 1] = { '\0' };
-
-    // mFabricIndex, mVendorId, mHasExternallyOwnedOperationalKey are 4 bytes
-    // and do not end up with any padding if they come after the 33-byte
-    // mFabricLabel, so end on a 1 mod 4 byte boundary.
-    FabricIndex mFabricIndex               = kUndefinedFabricIndex;
-    VendorId mVendorId                     = VendorId::NotSpecified;
-    bool mHasExternallyOwnedOperationalKey = false;
-
-    // 3 bytes of padding here, since mOperationalKey needs to be void*-aligned,
-    // so has to be at a 0 mod 4 byte location.
-
-    mutable Crypto::P256Keypair * mOperationalKey = nullptr;
+    mutable Crypto::P256Keypair * mOperationalKey       = nullptr;
+    bool mHasExternallyOwnedOperationalKey              = false;
 
     CHIP_ERROR CommitToStorage(PersistentStorageDelegate * storage) const;
     CHIP_ERROR LoadFromStorage(PersistentStorageDelegate * storage, FabricIndex newFabricIndex, const ByteSpan & rcac,

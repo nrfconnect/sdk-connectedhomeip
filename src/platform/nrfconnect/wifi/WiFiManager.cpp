@@ -168,7 +168,7 @@ CHIP_ERROR WiFiManager::Init()
 
         if (maddr && !net_if_ipv6_maddr_is_joined(maddr) && !net_ipv6_is_addr_mcast_link_all_nodes(&addr))
         {
-            net_if_ipv6_maddr_join(iface, maddr);
+            net_if_ipv6_maddr_join(maddr);
         }
 
         return CHIP_NO_ERROR;
@@ -224,12 +224,12 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
             workaroundDone = true;
             return CHIP_NO_ERROR;
         }
-        else
+        else 
         {
             // TODO The workaround has not worked, so reboot the device
             ChipLogError(DeviceLayer, "WiFi driver does not respond, resetting the device...");
             workaroundDone = false;
-            PlatformMgr().Shutdown();
+            PlatformMgr().Shutdown();      
         }
         return CHIP_ERROR_INTERNAL;
     }

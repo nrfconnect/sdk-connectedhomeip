@@ -829,7 +829,7 @@ CHIP_ERROR Engine::SetDirty(AttributePathParams & aAttributePath)
 
     bool intersectsInterestPath = false;
     InteractionModelEngine::GetInstance()->mReadHandlers.ForEachActiveObject(
-        [&aAttributePath, &intersectsInterestPath, this](ReadHandler * handler) {
+        [&aAttributePath, &intersectsInterestPath](ReadHandler * handler) {
             // We call SetDirty for both read interactions and subscribe interactions, since we may send inconsistent attribute data
             // between two chunks. SetDirty will be ignored automatically by read handlers which are waiting for a response to the
             // last message chunk for read interactions.
@@ -839,8 +839,6 @@ CHIP_ERROR Engine::SetDirty(AttributePathParams & aAttributePath)
                 {
                     if (object->mValue.Intersects(aAttributePath))
                     {
-                        // TODO: This is a workaround for Matter 1.1.0.1, remove it after upmerge to Matter 1.2
-                        this->InsertPathIntoDirtySet(aAttributePath);
                         handler->SetDirty(aAttributePath);
                         intersectsInterestPath = true;
                         break;
@@ -855,6 +853,7 @@ CHIP_ERROR Engine::SetDirty(AttributePathParams & aAttributePath)
     {
         return CHIP_NO_ERROR;
     }
+    ReturnErrorOnFailure(InsertPathIntoDirtySet(aAttributePath));
 
     return CHIP_NO_ERROR;
 }

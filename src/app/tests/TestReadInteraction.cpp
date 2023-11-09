@@ -64,12 +64,6 @@ chip::EndpointId kInvalidTestEndpointId = 3;
 chip::DataVersion kTestDataVersion1     = 3;
 chip::DataVersion kTestDataVersion2     = 5;
 
-// Number of items in the list for MockAttributeId(4).
-constexpr int kMockAttribute4ListLength = 6;
-
-static chip::System::Clock::Internal::MockClock gMockClock;
-static chip::System::Clock::ClockBase * gRealClock;
-
 class TestContext : public chip::Test::AppContext
 {
 public:
@@ -1197,8 +1191,7 @@ void TestReadInteraction::TestReadChunking(nlTestSuite * apSuite, void * apConte
     NL_TEST_ASSERT(apSuite, !delegate.mGotEventResponse);
 
     chip::app::AttributePathParams attributePathParams[1];
-    // Mock Attribute 4 is a big attribute, with kMockAttribute4ListLength large
-    // OCTET_STRING elements.
+    // Mock Attribute 4 is a big attribute, with 6 large OCTET_STRING
     attributePathParams[0].mEndpointId  = Test::kMockEndpoint3;
     attributePathParams[0].mClusterId   = Test::MockClusterId(2);
     attributePathParams[0].mAttributeId = Test::MockAttributeId(4);
@@ -1218,10 +1211,8 @@ void TestReadInteraction::TestReadChunking(nlTestSuite * apSuite, void * apConte
 
         ctx.DrainAndServiceIO();
 
-        // We get one chunk with 4 array elements, and then one chunk per
-        // element, and the total size of the array is
-        // kMockAttribute4ListLength.
-        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 1 + (kMockAttribute4ListLength - 4));
+        // We get one chunk with 3 array elements, and then one chunk per element.
+        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 4);
         NL_TEST_ASSERT(apSuite, delegate.mNumArrayItems == 6);
         NL_TEST_ASSERT(apSuite, delegate.mGotReport);
         NL_TEST_ASSERT(apSuite, !delegate.mReadError);
@@ -1366,16 +1357,13 @@ void TestReadInteraction::TestSetDirtyBetweenChunks(nlTestSuite * apSuite, void 
 
         ctx.DrainAndServiceIO();
 
-        // Our list has length kMockAttribute4ListLength.  Since the underlying
-        // path iterator should be reset to the beginning of the cluster it is
-        // currently iterating, we expect to get another value for our
-        // attribute.  The way the packet boundaries happen to fall, that value
-        // will encode 4 items in the first IB and then one IB per item.
-        const int expectedIBs = 1 + (kMockAttribute4ListLength - 4);
+        // We should receive another (3 + 1) = 4 attribute reports represeting 6
+        // array items, since the underlying path iterator should be reset to
+        // the beginning of the cluster it is currently iterating.
         ChipLogError(DataManagement, "OLD: %d\n", currentAttributeResponsesWhenSetDirty);
         ChipLogError(DataManagement, "NEW: %d\n", delegate.mNumAttributeResponse);
-        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == currentAttributeResponsesWhenSetDirty + expectedIBs);
-        NL_TEST_ASSERT(apSuite, delegate.mNumArrayItems == currentArrayItemsWhenSetDirty + kMockAttribute4ListLength);
+        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == currentAttributeResponsesWhenSetDirty + 4);
+        NL_TEST_ASSERT(apSuite, delegate.mNumArrayItems == currentArrayItemsWhenSetDirty + 6);
         NL_TEST_ASSERT(apSuite, delegate.mGotReport);
         NL_TEST_ASSERT(apSuite, !delegate.mReadError);
         // By now we should have closed all exchanges and sent all pending acks, so
@@ -1909,47 +1897,16 @@ void TestReadInteraction::TestSubscribeWildcard(nlTestSuite * apSuite, void * ap
 
         NL_TEST_ASSERT(apSuite, delegate.mGotReport);
 
-#if CHIP_CONFIG_ENABLE_EVENTLIST_ATTRIBUTE
-        // Mock attribute storage in src/app/util/mock/attribute-storage.cpp
-        // has the following items
-        // - Endpoint 0xFFFE
-        //    - cluster 0xFFF1'FC01 (2 attributes)
-        //    - cluster 0xFFF1'FC02 (3 attributes)
-        // - Endpoint 0xFFFD
-        //    - cluster 0xFFF1'FC01 (2 attributes)
-        //    - cluster 0xFFF1'FC02 (4 attributes)
-        //    - cluster 0xFFF1'FC03 (5 attributes)
-        // - Endpoint 0xFFFC
-        //    - cluster 0xFFF1'FC01 (3 attributes)
-        //    - cluster 0xFFF1'FC02 (6 attributes)
-        //    - cluster 0xFFF1'FC03 (2 attributes)
-        //    - cluster 0xFFF1'FC04 (2 attributes)
-        //
-        // For at total of 29 attributes. There are two wildcard subscription
-        // paths, for a total of 58 attributes.
-        //
-        // Attribute 0xFFFC::0xFFF1'FC02::0xFFF1'0004 (kMockEndpoint3::MockClusterId(2)::MockAttributeId(4))
-        // is a list of kMockAttribute4ListLength elements of size 256 bytes each, which cannot fit in a single
-        // packet, so gets list chunking applied to it.
-        //
-        // Because delegate.mNumAttributeResponse counts AttributeDataIB instances, not attributes,
-        // the count will depend on exactly how the list for attribute
-        // 0xFFFC::0xFFF1'FC02::0xFFF1'0004 is chunked.  For each of the two instances of that attribute
-        // in the response, there will be one AttributeDataIB for the start of the list (which will include
-        // some number of 256-byte elements), then one AttributeDataIB for each of the remaining elements.
-        //
-        // When EventList is enabled, for the first report for the list attribute we receive three
-        // of its items in the initial list, then the remaining items.  For the second report we
-        // receive 2 items in the initial list followed by the remaining items.
-        constexpr size_t kExpectedAttributeResponse = 29 * 2 + (kMockAttribute4ListLength - 3) + (kMockAttribute4ListLength - 2);
-#else
+        // Thus we should receive 29*2 + 4 + 6 = 68 attribute data in total.
+
         // When EventList is not enabled, the packet boundaries shift and for the first
-        // report for the list attribute we receive four of its items in the initial list,
-        // then additional items.  For the second report we receive 4 items in
-        // the initial list followed by additional items.
-        constexpr size_t kExpectedAttributeResponse = 29 * 2 + (kMockAttribute4ListLength - 4) + (kMockAttribute4ListLength - 4);
-#endif
-        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == kExpectedAttributeResponse);
+        // report for the list attribute we receive two of its items in the initial list,
+        // then 4 additional items.  For the second report we receive 3 items in
+        // the initial list followed by 3 additional items.
+        //
+        // Thus we should receive 29*2 + 4 + 3 = 65 attribute data when the eventlist
+        // attribute is not available.
+        NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 65);
         NL_TEST_ASSERT(apSuite, delegate.mNumArrayItems == 12);
         NL_TEST_ASSERT(apSuite, engine->GetNumActiveReadHandlers(ReadHandler::InteractionType::Subscribe) == 1);
         NL_TEST_ASSERT(apSuite, engine->ActiveHandlerAt(0) != nullptr);
@@ -3037,10 +2994,9 @@ void TestReadInteraction::TestPostSubscribeRoundtripChunkReport(nlTestSuite * ap
         }
         ctx.DrainAndServiceIO();
     }
-    // We get one chunk with 4 array elements, and then one chunk per
-    // element, and the total size of the array is
-    // kMockAttribute4ListLength.
-    NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 1 + (kMockAttribute4ListLength - 4));
+    // Two chunked reports carry 4 attributeDataIB: 1 with a list of 3 items,
+    // and then one per remaining item.
+    NL_TEST_ASSERT(apSuite, delegate.mNumAttributeResponse == 4);
     NL_TEST_ASSERT(apSuite, delegate.mNumArrayItems == 6);
 
     NL_TEST_ASSERT(apSuite, engine->GetNumActiveReadClients() == 0);

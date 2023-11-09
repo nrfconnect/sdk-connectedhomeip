@@ -22,11 +22,10 @@
 #include <messaging/ExchangeContext.h>
 #include <protocols/interaction_model/Constants.h>
 #include <system/TLVPacketBufferBackingStore.h>
-#include <transport/raw/MessageHeader.h>
 
 namespace chip {
 namespace app {
-static constexpr size_t kMaxSecureSduLengthBytes = kMaxAppMessageLen + kMaxTagLen;
+static constexpr size_t kMaxSecureSduLengthBytes = 1024;
 
 class StatusResponse
 {

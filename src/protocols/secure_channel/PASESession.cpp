@@ -829,7 +829,7 @@ CHIP_ERROR PASESession::OnMessageReceived(ExchangeContext * exchange, const Payl
     if (msgType == MsgType::PBKDFParamRequest || msgType == MsgType::PBKDFParamResponse || msgType == MsgType::PASE_Pake1 ||
         msgType == MsgType::PASE_Pake2 || msgType == MsgType::PASE_Pake3)
     {
-        SuccessOrExit(err = mExchangeCtxt->FlushAcks());
+        SuccessOrExit(mExchangeCtxt->FlushAcks());
     }
 #endif // CHIP_CONFIG_SLOW_CRYPTO
 

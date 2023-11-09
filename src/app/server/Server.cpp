@@ -140,7 +140,7 @@ CHIP_ERROR Server::Init(const ServerInitParams & initParams)
 
     // Set up attribute persistence before we try to bring up the data model
     // handler.
-    SuccessOrExit(err = mAttributePersister.Init(mDeviceStorage));
+    SuccessOrExit(mAttributePersister.Init(mDeviceStorage));
     SetAttributePersistenceProvider(&mAttributePersister);
 
     {

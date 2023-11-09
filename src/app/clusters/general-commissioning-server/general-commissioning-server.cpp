@@ -287,21 +287,10 @@ bool emberAfGeneralCommissioningClusterSetRegulatoryConfigCallback(app::CommandH
     DeviceControlServer * server = &DeviceLayer::DeviceControlServer::DeviceControlSvr();
     Commands::SetRegulatoryConfigResponse::Type response;
 
-    auto & countryCode = commandData.countryCode;
-    bool isValidLength = countryCode.size() == DeviceLayer::ConfigurationManager::kMaxLocationLength;
-    if (!isValidLength)
-    {
-        ChipLogError(Zcl, "Invalid country code: '%.*s'", static_cast<int>(countryCode.size()), countryCode.data());
-        commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::ConstraintError);
-        return true;
-    }
-
     if (commandData.newRegulatoryConfig > RegulatoryLocationType::kIndoorOutdoor)
     {
         response.errorCode = CommissioningError::kValueOutsideRange;
-        // TODO: How does using the country code in debug text make sense, if
-        // the real issue is the newRegulatoryConfig value?
-        response.debugText = countryCode;
+        response.debugText = commandData.countryCode;
     }
     else
     {
@@ -315,13 +304,11 @@ bool emberAfGeneralCommissioningClusterSetRegulatoryConfigCallback(app::CommandH
         if ((locationCapability != to_underlying(RegulatoryLocationType::kIndoorOutdoor)) && (location != locationCapability))
         {
             response.errorCode = CommissioningError::kValueOutsideRange;
-            // TODO: How does using the country code in debug text make sense, if
-            // the real issue is the newRegulatoryConfig value?
-            response.debugText = countryCode;
+            response.debugText = commandData.countryCode;
         }
         else
         {
-            CheckSuccess(server->SetRegulatoryConfig(location, countryCode), Failure);
+            CheckSuccess(server->SetRegulatoryConfig(location, commandData.countryCode), Failure);
             Breadcrumb::Set(commandPath.mEndpointId, commandData.breadcrumb);
             response.errorCode = CommissioningError::kOk;
         }

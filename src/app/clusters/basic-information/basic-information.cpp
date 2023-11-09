@@ -344,11 +344,7 @@ CHIP_ERROR BasicAttrAccess::WriteLocation(AttributeValueDecoder & aDecoder)
     ReturnErrorOnFailure(aDecoder.Decode(location));
 
     bool isValidLength = location.size() == DeviceLayer::ConfigurationManager::kMaxLocationLength;
-    if (!isValidLength)
-    {
-        ChipLogError(Zcl, "Invalid country code: '%.*s'", static_cast<int>(location.size()), location.data());
-        return CHIP_IM_GLOBAL_STATUS(ConstraintError);
-    }
+    VerifyOrReturnError(isValidLength, StatusIB(Protocols::InteractionModel::Status::InvalidValue).ToChipError());
 
     return DeviceLayer::ConfigurationMgr().StoreCountryCode(location.data(), location.size());
 }

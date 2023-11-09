@@ -131,12 +131,12 @@ config CHIP_DFU_OVER_BT_SMP
 	imply CHIP_SPI_NOR if BOARD_NRF7002DK_NRF5340_CPUAPP
 	imply BOOTLOADER_MCUBOOT
 	select MCUMGR
-	select MCUMGR_TRANSPORT_BT
-	select MCUMGR_GRP_IMG
-	select MCUMGR_GRP_OS
+	select MCUMGR_SMP_BT
+	select MCUMGR_CMD_IMG_MGMT
+	select MCUMGR_CMD_OS_MGMT
 	# Enable custom SMP request to erase settings partition.
-	select MCUMGR_GRP_ZBASIC
-	select MCUMGR_GRP_ZBASIC_STORAGE_ERASE
+	select MCUMGR_GRP_ZEPHYR_BASIC
+	select MCUMGR_GRP_BASIC_CMD_STORAGE_ERASE
 	help
 	  Enables Device Firmware Upgrade over Bluetooth LE with SMP and configures
 	  the set of options related to that feature.
@@ -144,10 +144,10 @@ config CHIP_DFU_OVER_BT_SMP
 if CHIP_DFU_OVER_BT_SMP
 
 # MCU Manager and SMP configuration
-config MCUMGR_TRANSPORT_BT_AUTHEN
+config MCUMGR_SMP_BT_AUTHEN
 	default n
 
-config MCUMGR_TRANSPORT_NETBUF_COUNT
+config MCUMGR_BUF_COUNT
 	default 6
 
 config MCUMGR_MGMT_NOTIFICATION_HOOKS
@@ -169,8 +169,8 @@ config BT_L2CAP_TX_MTU
 config BT_BUF_ACL_RX_SIZE
 	default 502
 
-# Increase MCUMGR_TRANSPORT_NETBUF_SIZE, as it must be big enough to fit MAX MTU + overhead and for single-image DFU default is 384 B
-config MCUMGR_TRANSPORT_NETBUF_SIZE
+# Increase MCUMGR_BUF_SIZE, as it must be big enough to fit MAX MTU + overhead and for single-image DFU default is 384 B
+config MCUMGR_BUF_SIZE
 	default 1024
 
 # Increase system workqueue size, as SMP is processed within it
@@ -180,10 +180,10 @@ config SYSTEM_WORKQUEUE_STACK_SIZE
 if SOC_SERIES_NRF53X
 
 # Enable custom SMP request to erase settings partition.
-config MCUMGR_GRP_ZBASIC
+config MCUMGR_GRP_ZEPHYR_BASIC
 	default y
 
-config MCUMGR_GRP_ZBASIC_STORAGE_ERASE
+config MCUMGR_GRP_BASIC_CMD_STORAGE_ERASE
 	default y
 
 endif # SOC_SERIES_NRF53X

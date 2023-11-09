@@ -279,7 +279,7 @@ void AppTask::FunctionHandler(const AppEvent & event)
         {
             Instance().CancelTimer();
 
-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
+#ifdef CONFIG_MCUMGR_SMP_BT
             GetDFUOverSMP().StartServer();
 #else
             LOG_INF("Software update is disabled");

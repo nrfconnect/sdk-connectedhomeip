@@ -925,7 +925,6 @@ bool emberAfEndpointEnableDisable(EndpointId endpoint, bool enable)
         else
         {
             shutdownEndpoint(&(emAfEndpoints[index]));
-            emAfEndpoints[index].bitmask &= EMBER_AF_ENDPOINT_DISABLED;
         }
 
         EndpointId parentEndpointId = emberAfParentEndpointFromIndex(index);
@@ -944,6 +943,11 @@ bool emberAfEndpointEnableDisable(EndpointId endpoint, bool enable)
 
         MatterReportingAttributeChangeCallback(/* endpoint = */ 0, app::Clusters::Descriptor::Id,
                                                app::Clusters::Descriptor::Attributes::PartsList::Id);
+    }
+
+    if (!enable)
+    {
+        emAfEndpoints[index].bitmask &= EMBER_AF_ENDPOINT_DISABLED;
     }
 
     return true;

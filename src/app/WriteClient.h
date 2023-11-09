@@ -297,6 +297,7 @@ private:
         {
             // If it failed with no memory, then we create a new chunk for it.
             mWriteRequestBuilder.GetWriteRequests().Rollback(backupWriter);
+            mWriteRequestBuilder.GetWriteRequests().ResetError();
             ReturnErrorOnFailure(StartNewMessage());
             ReturnErrorOnFailure(TryEncodeSingleAttributeDataIB(attributePath, value));
         }

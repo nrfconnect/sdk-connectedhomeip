@@ -349,9 +349,21 @@ public:
      */
     virtual CHIP_ERROR UpdateCommissionableInstanceName() = 0;
 
-    /// Provides the system-wide implementation of the service advertiser
+    /**
+     * Provides the system-wide implementation of the service advertiser.
+     */
     static ServiceAdvertiser & Instance();
+
+    /**
+     * Overrides the default implementation of the service advertiser.
+     */
+    static void SetInstance(ServiceAdvertiser & advertiser);
+
+private:
+    static ServiceAdvertiser * sInstance;
 };
+
+extern ServiceAdvertiser & GetDefaultAdvertiser();
 
 } // namespace Dnssd
 } // namespace chip

@@ -484,7 +484,17 @@ public:
      * Provides the system-wide implementation of the service resolver
      */
     static Resolver & Instance();
+
+    /**
+     * Overrides the default implementation of the service resolver
+     */
+    static void SetInstance(Resolver & resolver);
+
+private:
+    static Resolver * sInstance;
 };
+
+extern Resolver & GetDefaultResolver();
 
 } // namespace Dnssd
 } // namespace chip

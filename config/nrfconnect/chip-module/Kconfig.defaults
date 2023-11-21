@@ -272,12 +272,6 @@ config NRF_WIFI_LOW_POWER
 config NRF700X_RX_NUM_BUFS
     default 16
 
-config NRF700X_TX_MAX_DATA_SIZE
-    default 1280
-
-config NRF700X_RX_MAX_DATA_SIZE
-    default 1280
-
 config NRF700X_MAX_TX_TOKENS
     default 10
 

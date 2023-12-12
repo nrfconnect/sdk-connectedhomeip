@@ -213,10 +213,11 @@ private:
     // mNextExpectedMsg is set when we are expecting a message.
     Optional<Protocols::SecureChannel::MsgType> mNextExpectedMsg;
 
-#elif CHIP_CRYPTO_PSA_SPAKE2P
+#if CHIP_CRYPTO_PSA_SPAKE2P
     PSASpake2p_P256_SHA256_HKDF_HMAC mSpake2p;
+#else
     Spake2p_P256_SHA256_HKDF_HMAC mSpake2p;
-
+#endif
     Spake2pVerifier mPASEVerifier;
 
     uint32_t mSetupPINCode;

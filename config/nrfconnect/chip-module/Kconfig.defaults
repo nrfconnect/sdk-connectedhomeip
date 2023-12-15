@@ -135,7 +135,7 @@ config BT_DEVICE_NAME_MAX
     default 15
 
 config BT_MAX_CONN
-    default 1
+    default 2
 
 config BT_L2CAP_TX_MTU
     default 247

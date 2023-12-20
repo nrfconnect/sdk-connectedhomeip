@@ -54,6 +54,10 @@
 #endif // CHIP_CONFIG_SHA256_CONTEXT_ALIGN
 #endif // CONFIG_CHIP_CRYPTO_PSA
 
+#ifndef CHIP_CONFIG_CRYPTO_PSA_KEY_ID_BASE
+#define CHIP_CONFIG_CRYPTO_PSA_KEY_ID_BASE 0x30000
+#endif // CHIP_CONFIG_CRYPTO_PSA_KEY_ID_BASE
+
 // ==================== General Configuration Overrides ====================
 
 #ifndef CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS

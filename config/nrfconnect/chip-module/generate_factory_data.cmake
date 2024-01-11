@@ -77,10 +77,6 @@ elseif(CONFIG_CHIP_FACTORY_DATA_CERT_SOURCE_USER)
     string(APPEND script_args "--dac_cert \"${CONFIG_CHIP_FACTORY_DATA_USER_CERTS_DAC_CERT}\"\n")
     string(APPEND script_args "--dac_key \"${CONFIG_CHIP_FACTORY_DATA_USER_CERTS_DAC_KEY}\"\n")
     string(APPEND script_args "--pai_cert \"${CONFIG_CHIP_FACTORY_DATA_USER_CERTS_PAI_CERT}\"\n")
-else()
-    find_program(chip_cert_exe NAMES chip-cert REQUIRED)
-    string(APPEND script_args "--gen_cd\n")
-    string(APPEND script_args "--chip_cert_path ${chip_cert_exe}\n")
 endif()
 
 # add Password-Authenticated Key Exchange parameters

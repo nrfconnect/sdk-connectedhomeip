@@ -99,8 +99,6 @@ def gen_test_certs(chip_cert_exe: str,
                    vendor_id: int,
                    product_id: int,
                    device_name: str,
-                   generate_cd: bool = False,
-                   cd_type: int = 1,
                    paa_cert_path: str = None,
                    paa_key_path: str = None):
     """
@@ -115,7 +113,6 @@ def gen_test_certs(chip_cert_exe: str,
         vendor_id (int): an identification number specific to Vendor
         product_id (int): an identification number specific to Product
         device_name (str): human-readable device name
-        generate_cd (bool, optional): Generate Certificate Declaration and store it in thee output directory. Defaults to False.
         paa_cert_path (str, optional): provide PAA certification path. Defaults to None - a path will be set to
         /credentials/test/attestation directory.
         paa_key_path (str, optional): provide PAA key path. Defaults to None - a path will be set to
@@ -127,8 +124,6 @@ def gen_test_certs(chip_cert_exe: str,
                      "DAC_KEY": (str)<path to DAC key .der file>]
     """
 
-    CD_PATH = MATTER_ROOT + "/credentials/test/certification-declaration/Chip-Test-CD-Signing-Cert.pem"
-    CD_KEY_PATH = MATTER_ROOT + "/credentials/test/certification-declaration/Chip-Test-CD-Signing-Key.pem"
     PAA_PATH = paa_cert_path if paa_cert_path is not None else (MATTER_ROOT +
                                                                 "/credentials/test/attestation/Chip-Test-PAA-NoVID-Cert.pem")
     PAA_KEY_PATH = paa_key_path if paa_key_path is not None else (MATTER_ROOT +
@@ -138,23 +133,6 @@ def gen_test_certs(chip_cert_exe: str,
 
     log.info("Generating new certificates using chip-cert...")
 
-    if generate_cd:
-        # generate Certification Declaration
-        cmd = [chip_cert_exe, "gen-cd",
-               "--key", CD_KEY_PATH,
-               "--cert", CD_PATH,
-               "--out", output + "/CD.der",
-               "--format-version",  "1",
-               "--vendor-id",  hex(vendor_id),
-               "--product-id",  hex(product_id),
-               "--device-type-id", "0",
-               "--certificate-id", "FFFFFFFFFFFFFFFFFFF",
-               "--security-level",  "0",
-               "--security-info",  "0",
-               "--certification-type",  str(cd_type),
-               "--version-number", "0xFFFF",
-               ]
-        subprocess.run(cmd)
 
     new_certificates = {"PAI_CERT": output + "/PAI_cert",
                         "PAI_KEY": output + "/PAI_key",
@@ -232,8 +210,8 @@ class FactoryDataGenerator:
                 self._user_data = json.loads(self._args.user)
             except json.decoder.JSONDecodeError as e:
                 raise AssertionError("Provided wrong user data, this is not a JSON format! {}".format(e))
-        assert self._args.spake2_verifier or self._args.passcode, \
-            "Cannot find Spake2+ verifier, to generate a new one please provide passcode (--passcode)"
+        assert self._args.passcode, \
+            "Cannot find passcode, to generate spake2 verifier. Please provide passcode (--passcode)"
         assert (self._args.chip_cert_path or (self._args.dac_cert and self._args.pai_cert and self._args.dac_key)), \
             "Cannot find paths to DAC or PAI certificates .der files. To generate a new ones please provide a path to chip-cert executable (--chip_cert_path)"
         assert self._args.output.endswith(".json"), \
@@ -247,11 +225,9 @@ class FactoryDataGenerator:
 
         To validate generated JSON data a scheme must be provided within script's arguments.
 
-        - In the first part, if the rotating device id unique id has been not provided
-          as an argument, it will be created.
-        - If user-provided passcode and Spake2+ verifier have been not provided
-          as an argument, it will be created using an external script
-        - Passcode is not stored in JSON by default. To store it for debugging purposes, add --include_passcode argument.
+        - if the rotating device id unique id has been not provided and the generate boolean 
+          has been set then rotating device id will be generated.
+        - based on provided passcode, the spake2 verifier will be generated
         - Validating output JSON is not mandatory, but highly recommended.
 
         """
@@ -265,10 +241,12 @@ class FactoryDataGenerator:
         else:
             rd_uid = HEX_PREFIX + self._args.rd_uid
 
-        if not self._args.spake2_verifier:
+        if self._args.passcode:
             spake_2_verifier = self._generate_spake2_verifier()
-        else:
+        elif self._args.spake2_verifier:
             spake_2_verifier = self._args.spake2_verifier
+        else:
+            raise RuntimeError('Passcode or spake2 verfied are not provided.')
 
         # convert salt to bytestring to be coherent with Spake2+ verifier type
         spake_2_salt = self._args.spake2_salt

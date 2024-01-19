@@ -40,6 +40,10 @@
 #include <zephyr/settings/settings.h>
 #endif
 
+#ifdef CONFIG_NET_L2_OPENTHREAD
+#include <platform/ThreadStackManager.h>
+#endif 
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -176,6 +180,11 @@ void ConfigurationManagerImpl::RunConfigUnitTest(void)
 void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 {
     ChipLogProgress(DeviceLayer, "Performing factory reset");
+
+// Lock the Thread stack to avoid unwanted interaction with settings NVS during factory reset.
+#ifdef CONFIG_NET_L2_OPENTHREAD
+    ThreadStackMgr().LockThreadStack();
+#endif
 
 #ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_NVS
     void * storage = nullptr;

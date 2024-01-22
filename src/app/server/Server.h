@@ -40,11 +40,7 @@
 #include <credentials/PersistentStorageOpCertStore.h>
 #include <crypto/DefaultSessionKeystore.h>
 #include <crypto/OperationalKeystore.h>
-#if CHIP_CRYPTO_PSA
-#include <crypto/PSAOperationalKeystore.h>
-#else
 #include <crypto/PersistentStorageOperationalKeystore.h>
-#endif
 #include <inet/InetConfig.h>
 #include <lib/core/CHIPConfig.h>
 #include <lib/support/SafeInt.h>
@@ -207,14 +203,10 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
         // PersistentStorageDelegate "software-based" operational key access injection
         if (this->operationalKeystore == nullptr)
         {
-#if CHIP_CRYPTO_PSA
-            this->operationalKeystore = &sPSAOperationalKeystore;
-#else
             // WARNING: PersistentStorageOperationalKeystore::Finish() is never called. It's fine for
             //          for examples and for now.
             ReturnErrorOnFailure(sPersistentStorageOperationalKeystore.Init(this->persistentStorageDelegate));
             this->operationalKeystore = &sPersistentStorageOperationalKeystore;
-#endif
         }
 
         // OpCertStore can be injected but default to persistent storage default
@@ -270,11 +262,7 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
 
 private:
     static KvsPersistentStorageDelegate sKvsPersistenStorageDelegate;
-#if CHIP_CRYPTO_PSA
-    static PSAOperationalKeystore sPSAOperationalKeystore;
-#else
     static PersistentStorageOperationalKeystore sPersistentStorageOperationalKeystore;
-#endif
     static Credentials::PersistentStorageOpCertStore sPersistentStorageOpCertStore;
     static Credentials::GroupDataProviderImpl sGroupDataProvider;
     static chip::app::DefaultTimerDelegate sTimerDelegate;

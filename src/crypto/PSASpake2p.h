@@ -18,6 +18,7 @@
 #pragma once
 
 #include "CHIPCryptoPAL.h"
+#include <crypto/SessionKeystore.h>
 
 #include <psa/crypto.h>
 
@@ -144,14 +145,14 @@ public:
     CHIP_ERROR KeyConfirm(const uint8_t * in, size_t in_len);
 
     /**
-     * @brief Return the shared secret.
+     * @brief Return the HKDF Key handle containing a key reference to the shared secret.
      *
-     * @param out     The output secret.
-     * @param out_len The output secret length.
+     * @param keystore The session keystore for managing the HKDF key lifetime.
+     * @param key The output HKDF key.
      *
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR GetKeys(uint8_t * out, size_t * out_len);
+    CHIP_ERROR GetKeys(SessionKeystore & keystore, HkdfKeyHandle & key);
 
 private:
     psa_pake_operation_t mOperation = PSA_PAKE_OPERATION_INIT;

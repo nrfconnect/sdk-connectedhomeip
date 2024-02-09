@@ -95,6 +95,17 @@ inline const PsaP256KeypairContext & ToConstPsaContext(const P256KeypairContext 
     return *SafePointerCast<const PsaP256KeypairContext *>(&context);
 }
 
+struct PsaHkdfKeyHandle
+{
+    union
+    {
+        psa_key_id_t mKeyId;
+        psa_key_derivation_operation_t * mKeyDerivationOp;
+    };
+
+    bool mIsKeyId = true;
+};
+
 /**
  * @brief Wrapper for PSA key derivation API.
  */
@@ -145,11 +156,11 @@ public:
     CHIP_ERROR DeriveKey(const psa_key_attributes_t & attributes, psa_key_id_t & keyId);
 
 private:
-    CHIP_ERROR InitOperation(psa_key_id_t hkdfKey, const ByteSpan & salt, const ByteSpan & info);
+    CHIP_ERROR InitOperation(PsaHkdfKeyHandle hkdfKey, const ByteSpan & salt, const ByteSpan & info);
 
-    psa_key_id_t mSecretKeyId                 = 0;
-    psa_key_derivation_operation_t mOperation = PSA_KEY_DERIVATION_OPERATION_INIT;
+    psa_key_id_t mSecretKeyId                             = PSA_KEY_ID_NULL;
+    psa_key_derivation_operation_t mOperation             = PSA_KEY_DERIVATION_OPERATION_INIT;
+    psa_key_derivation_operation_t * mDerivationOperation = nullptr;
 };
-
 } // namespace Crypto
 } // namespace chip

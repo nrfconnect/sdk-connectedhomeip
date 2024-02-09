@@ -253,7 +253,7 @@ void PASESession::OnResponseTimeout(ExchangeContext * ec)
     NotifySessionEstablishmentError(CHIP_ERROR_TIMEOUT);
 }
 
-CHIP_ERROR PASESession::DeriveSecureSession(CryptoContext & session) const
+CHIP_ERROR PASESession::DeriveSecureSession(CryptoContext & session)
 {
     VerifyOrReturnError(mPairingComplete, CHIP_ERROR_INCORRECT_STATE);
 

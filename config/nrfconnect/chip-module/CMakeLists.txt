@@ -67,9 +67,8 @@ if (CONFIG_NRF_SECURITY)
         zephyr_include_directories($<TARGET_PROPERTY:platform_cc3xx,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
     matter_add_flags(-DMBEDTLS_CONFIG_FILE=<nrf-config.h>)
-    if(CONFIG_CHIP_CRYPTO_PSA)
-        matter_add_flags(-DMBEDTLS_USER_CONFIG_FILE=<nrf-config-user.h>)
-    endif()
+    matter_add_flags(-DMBEDTLS_PSA_CRYPTO_CONFIG_FILE=<nrf-psa-crypto-want-config.h>)
+    matter_add_flags(-DMBEDTLS_PSA_CRYPTO_USER_CONFIG_FILE=<nrf-psa-crypto-config.h>)
 elseif(CONFIG_MBEDTLS)
     zephyr_include_directories($<TARGET_PROPERTY:mbedTLS,INTERFACE_INCLUDE_DIRECTORIES>)
     zephyr_compile_definitions($<TARGET_PROPERTY:mbedTLS,INTERFACE_COMPILE_DEFINITIONS>)
@@ -89,7 +88,7 @@ matter_add_cxxflags(${ZEPHYR_GNU_CPP_STD})
 # Set up custom OpenThread configuration
 
 if (CONFIG_CHIP_OPENTHREAD_CONFIG)
-    get_filename_component(CHIP_OPENTHREAD_CONFIG 
+    get_filename_component(CHIP_OPENTHREAD_CONFIG
         ${CONFIG_CHIP_OPENTHREAD_CONFIG}
         REALPATH
         BASE_DIR ${CMAKE_SOURCE_DIR}

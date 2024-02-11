@@ -804,6 +804,20 @@ CHIP_ERROR InterfaceId::InterfaceNameToId(const char * intfName, InterfaceId & i
     return INET_ERROR_UNKNOWN_INTERFACE;
 }
 
+#if INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+
+void InterfaceId::ConfirmPeerReachability(const IPAddress & addr) const
+{
+    net_if * const iface = mPlatformInterface ? net_if_get_by_index(mPlatformInterface) : net_if_get_default();
+
+    if (iface) {
+        const struct in6_addr peerAddr = addr.ToIPv6();
+        net_if_nbr_reachability_hint(iface, &peerAddr);
+    }
+}
+
+#endif // INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+
 InterfaceIterator::InterfaceIterator() : mCurrentInterface(net_if_get_by_index(mCurrentId)) {}
 
 bool InterfaceIterator::HasCurrent(void)

@@ -341,6 +341,9 @@ config MBEDTLS_SHA256_C
 config MBEDTLS_PK_C
     default y
 
+config MBEDTLS_PKCS5_C
+    default y
+
 config MBEDTLS_PK_WRITE_C
     default y
 

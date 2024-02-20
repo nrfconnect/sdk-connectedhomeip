@@ -617,6 +617,16 @@ CHIP_ERROR ThreadStackManagerImpl::_RemoveInvalidSrpServices()
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR ThreadStackManagerImpl::_ClearAllSrpHostAndServices()
+{
+    for (auto it = mSrpClientServices.begin(); it != mSrpClientServices.end();)
+    {
+        ReturnErrorOnFailure(_RemoveSrpService(it->mInstanceName, it->mName));
+        it = mSrpClientServices.erase(it);
+    }
+    return CHIP_NO_ERROR;
+}
+
 void ThreadStackManagerImpl::_ThreadIpAddressCb(int index, char * ipAddr, thread_ipaddr_type_e ipAddrType, void * userData)
 {
     int threadErr = THREAD_ERROR_NONE;

@@ -425,8 +425,10 @@ config LOG_DEFAULT_LEVEL
 config CHIP_LOG_SIZE_OPTIMIZATION
     default y
 
+# disable synchronous printk to avoid blocking IRQs which
+# may affect time sensitive components
 config PRINTK_SYNC
-    default y
+    default n
 
 endif # LOG
 

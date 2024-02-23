@@ -297,9 +297,7 @@ config MBEDTLS_HEAP_SIZE
 
 config CHIP_CRYPTO_PSA
     default y if !CHIP_WIFI
-    imply PSA_WANT_ALG_SPAKE2P
-    # Set SPAKE2P to version 4 to be compatible with Matter specification.
-    imply PSA_CRYPTO_SPAKE2P_USE_VERSION_04
+    imply PSA_WANT_ALG_SPAKE2P_MATTER
 
 if CHIP_CRYPTO_PSA
 
@@ -308,9 +306,6 @@ config PSA_CRYPTO_DRIVER_CC3XX
 
 config PSA_WANT_ALG_SHA_224
     default n
-
-config PSA_WANT_ALG_SPAKE2P
-    default y
 
 # Extend the maximum number of PSA key slots to fit Matter requirements
 config MBEDTLS_PSA_KEY_SLOT_COUNT

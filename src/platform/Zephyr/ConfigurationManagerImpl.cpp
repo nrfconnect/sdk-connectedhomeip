@@ -42,7 +42,7 @@
 
 #ifdef CONFIG_NET_L2_OPENTHREAD
 #include <platform/ThreadStackManager.h>
-#endif 
+#endif
 
 namespace chip {
 namespace DeviceLayer {
@@ -180,6 +180,10 @@ void ConfigurationManagerImpl::RunConfigUnitTest(void)
 void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 {
     ChipLogProgress(DeviceLayer, "Performing factory reset");
+
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+    ThreadStackMgr().ClearAllSrpHostAndServices();
+#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
 
 // Lock the Thread stack to avoid unwanted interaction with settings NVS during factory reset.
 #ifdef CONFIG_NET_L2_OPENTHREAD

@@ -519,8 +519,6 @@ void Instance::OnFinished(Status status, CharSpan debugText, ThreadScanResponseI
     }
 
     mLastNetworkingStatusValue.SetNonNull(status);
-    mLastConnectErrorValue.SetNull();
-    mLastNetworkIDLen = 0;
 
     TLV::TLVWriter * writer;
     TLV::TLVType listContainerType;
@@ -633,8 +631,6 @@ void Instance::OnFinished(Status status, CharSpan debugText, WiFiScanResponseIte
     }
 
     mLastNetworkingStatusValue.SetNonNull(status);
-    mLastConnectErrorValue.SetNull();
-    mLastNetworkIDLen = 0;
 
     TLV::TLVWriter * writer;
     TLV::TLVType listContainerType;

@@ -367,6 +367,9 @@ config MBEDTLS_PKCS5_C
 config MBEDTLS_PK_WRITE_C
     default y
 
+config MBEDTLS_X509_LIBRARY
+    default y
+
 config MBEDTLS_X509_CREATE_C
     default y
 

@@ -244,6 +244,8 @@ void Instance::OnNetworkingStatusChange(NetworkCommissioning::Status aCommission
 void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetworks::DecodableType & req)
 {
     MATTER_TRACE_SCOPE("HandleScanNetwork", "NetworkCommissioning");
+
+    mScanningWasDirected = false;
     if (mFeatureFlags.Has(Feature::kWiFiNetworkInterface))
     {
         ByteSpan ssid;
@@ -266,6 +268,7 @@ void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetw
             ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidCommand);
             return;
         }
+        mScanningWasDirected        = !ssid.empty();
         mCurrentOperationBreadcrumb = req.breadcrumb;
         mAsyncCommandHandle         = CommandHandler::Handle(&ctx.mCommandHandler);
         ctx.mCommandHandler.FlushAcksRightAwayOnSlowCommand();
@@ -516,6 +519,13 @@ void Instance::OnFinished(Status status, CharSpan debugText, ThreadScanResponseI
         // When the platform shutted down, interaction model engine will invalidate all commandHandle to avoid dangling references.
         // We may receive the callback after it and should make it noop.
         return;
+    }
+
+    // If drivers are failing to respond NetworkNotFound on empty results, force it for them.
+    bool resultsMissing = !networks || (networks->Count() == 0);
+    if ((status == Status::kSuccess) && mScanningWasDirected && resultsMissing)
+    {
+        status = Status::kNetworkNotFound;
     }
 
     mLastNetworkingStatusValue.SetNonNull(status);

@@ -188,6 +188,13 @@ CHIP_ERROR WiFiManager::Scan(const ByteSpan & ssid, ScanResultCallback resultCal
     mWiFiState          = WIFI_STATE_SCANNING;
     mSsidFound          = false;
 
+    if ((ssid.size() > 0) && (!mInternalScan))
+    {
+        mDirectScanNetwork.Erase();
+        memcpy(mDirectScanNetwork.ssid, ssid.data(), ssid.size());
+        mDirectScanNetwork.ssidLen = ssid.size();
+    }
+
     if (0 != net_mgmt(NET_REQUEST_WIFI_SCAN, mNetIf, NULL, 0))
     {
         ChipLogError(DeviceLayer, "Scan request failed");
@@ -334,7 +341,11 @@ void WiFiManager::ScanResultHandler(Platform::UniquePtr<uint8_t> data)
 
     if (Instance().mScanResultCallback && !Instance().mInternalScan)
     {
-        Instance().mScanResultCallback(ToScanResponse(scanResult));
+        if (Instance().mDirectScanNetwork.GetSsidSpan().empty() ||
+            Instance().mDirectScanNetwork.GetSsidSpan().data_equal(ByteSpan(scanResult->ssid, scanResult->ssid_length)))
+        {
+            Instance().mScanResultCallback(ToScanResponse(scanResult));
+        }
     }
 }
 
@@ -344,6 +355,11 @@ void WiFiManager::ScanDoneHandler(Platform::UniquePtr<uint8_t> data)
         Platform::UniquePtr<uint8_t> safePtr(capturedData);
         uint8_t * rawData          = safePtr.get();
         const wifi_status * status = reinterpret_cast<const wifi_status *>(rawData);
+
+        if (Instance().mDirectScanNetwork.GetSsidSpan().size() > 0)
+        {
+            Instance().mDirectScanNetwork.Erase();
+        }
 
         if (status->status)
         {
@@ -420,8 +436,8 @@ void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
 {
     CHIP_ERROR err = SystemLayer().ScheduleLambda([capturedData = data.get()] {
         Platform::UniquePtr<uint8_t> safePtr(capturedData);
-        uint8_t * rawData               = safePtr.get();
-        const wifi_status * status      = reinterpret_cast<const wifi_status *>(rawData);
+        uint8_t * rawData          = safePtr.get();
+        const wifi_status * status = reinterpret_cast<const wifi_status *>(rawData);
 
         if (status->status)
         {

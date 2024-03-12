@@ -102,6 +102,8 @@ private:
 
     Optional<uint64_t> mCurrentOperationBreadcrumb;
 
+    bool mScanningWasDirected = false;
+
     // Commits the breadcrumb value saved in mCurrentOperationBreadcrumb to the breadcrumb attribute in GeneralCommissioning
     // cluster. Will set mCurrentOperationBreadcrumb to NullOptional.
     void CommitSavedBreadcrumb();

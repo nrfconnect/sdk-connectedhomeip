@@ -33,6 +33,7 @@
 #include <app/util/basic-types.h>
 #include <credentials/GroupDataProvider.h>
 #include <inttypes.h>
+#include <inet/InetConfig.h>
 #include <lib/core/CHIPKeyIds.h>
 #include <lib/core/Global.h>
 #include <lib/support/CodeUtils.h>
@@ -764,6 +765,13 @@ void SessionManager::SecureUnicastMessageDispatch(const PacketHeader & partialPa
     if (isDuplicate == SessionMessageDelegate::DuplicateMessage::No)
     {
         secureSession->GetSessionMessageCounter().GetPeerMessageCounter().CommitEncryptedUnicast(packetHeader.GetMessageCounter());
+
+#if INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+        if (payloadHeader.IsAckMsg() && payloadHeader.GetAckMessageCounter().HasValue() && peerAddress.GetIPAddress().IsIPv6())
+        {
+            peerAddress.GetInterface().ConfirmPeerReachability(peerAddress.GetIPAddress());
+        }
+#endif // INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
     }
 
     // TODO: once mDNS address resolution is available reconsider if this is required

@@ -465,7 +465,7 @@ config SHELL_STACK_SIZE
     default 2616 if CHIP_WIFI
 
 config SHELL_MINIMAL
-    default y
+    default y if !CHIP_MEMORY_PROFILING
 
 config KERNEL_SHELL
     default n

@@ -37,7 +37,7 @@ data secure by applying hardware write protection.
       - [Appearance field description](#appearance-field-description)
   - [Enabling factory data support](#enabling-factory-data-support)
   - [Generating factory data](#generating-factory-data)
-    - [Creating the factory data JSON file with the first script](#creating-the-factory-data-json-file-with-the-first-script)
+    - [Creating the factory data JSON and HEX files with the first script](#creating-the-factory-data-json-and-hex-files-with-the-first-script)
     - [How to set user data](#how-to-set-user-data)
       - [How to handle user data](#how-to-handle-user-data)
     - [Verifying using the JSON Schema tool](#verifying-using-the-json-schema-tool)
@@ -597,7 +597,7 @@ To generate a manual pairing code and a QR code, complete the following steps:
     ```
 
 2. Complete steps 1, 2, and 3 from the
-   [Creating the factory data JSON file with the first script](#creating-the-factory-data-json-file-with-the-first-script)
+   [Creating the factory data JSON and HEX files with the first script](#creating-the-factory-data-json-and-hex-files-with-the-first-script)
    section to prepare the final invocation of the Python script.
 
 3. Add the `--generate_onboarding` argument to the Python script final

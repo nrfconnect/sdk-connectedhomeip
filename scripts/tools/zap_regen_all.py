@@ -279,7 +279,7 @@ class JinjaCodegenTarget:
     def generate(self) -> TargetRunStats:
         generate_start = time.time()
 
-        subprocess.check_call(self.command)
+        subprocess.check_call(NormalizePythonCommand(self.command))
 
         generate_end = time.time()
 

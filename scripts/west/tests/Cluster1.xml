@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<configurator>
+  <cluster>
+    <domain>General</domain>
+    <name>Cluster 1</name>
+    <code>0xfff1fc01</code>
+    <define>CLUSTER_1</define>
+    <description>Cluster1</description>
+    <command source="client" code="0xfff10000" name="Command1" optional="false">
+      <description>Command desc</description>
+      <arg name="Action" type="Enum1" optional="false"/>
+    </command>
+    <attribute side="server" code="0xfff10000" define="ATTR_1" type="Enum1" writable="true" optional="false" name="attr1"/>
+    <attribute side="server" code="0xfff10001" define="ATTR_2" type="Struct1" writable="true" optional="false" name="attr2"/>
+    <event side="server" code="0xfff10000" name="UserButtonChanged" priority="info" optional="false">
+      <description>Event desc.</description>
+    </event>
+  </cluster>
+  <enum name="Enum1" type="int8u">
+    <cluster code="0xfff1fc01"/>
+    <item name="Off" value="0"/>
+    <item name="On" value="1"/>
+    <item name="Toggle" value="2"/>
+  </enum>
+<struct name="Struct1" isFabricScoped="true">
+   <cluster code="0xfff1fc01"/>
+   <item fieldId="1" name="Data" type="octet_string" length="128" isFabricSensitive="true"/>
+</struct>
+  <deviceType>
+    <name>new-device</name>
+    <domain>CHIP</domain>
+    <typeName>NewDevice</typeName>
+    <profileId editable="false">0x10402</profileId>
+    <deviceId editable="false">0xfff10001</deviceId>
+    <class>Simple</class>
+    <scope>Endpoint</scope>
+    <clusters lockOthers="true">
+      <include cluster="Cluster1" client="false" server="true" clientLocked="false" serverLocked="false"/>
+    </clusters>
+  </deviceType>
+</configurator>

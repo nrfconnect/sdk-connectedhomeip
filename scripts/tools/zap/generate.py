@@ -324,7 +324,6 @@ def runClangPrettifier(templates_file, output_dir):
             clang_format = getClangFormatBinary()
             args = [clang_format, '-i']
             args.extend(clangOutputs)
-            subprocess.check_call(args)
             print('Formatted %d files using %s (%s)' %
                   (len(clangOutputs), clang_format, subprocess.check_output([clang_format, '--version'])))
             for outputName in clangOutputs:

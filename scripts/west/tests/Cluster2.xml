@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<configurator>
+  <cluster>
+    <domain>General</domain>
+    <name>Cluster 2</name>
+    <code>0xfff1fc02</code>
+    <define>CLUSTER_2</define>
+    <description>Cluster1</description>
+    <command source="client" code="0xfff10000" name="Command2" optional="false">
+      <description>Command desc</description>
+      <arg name="Action" type="Enum1" optional="false"/>
+    </command>
+    <attribute side="server" code="0xfff10000" define="ATTR_2" type="Enum2" writable="true" optional="false" name="attr2"/>
+  </cluster>
+  <enum name="Enum2" type="int8u">
+    <cluster code="0xfff1fc02"/>
+    <item name="Off" value="0"/>
+    <item name="On" value="1"/>
+    <item name="Toggle" value="2"/>
+  </enum>
+<struct name="Struct2" isFabricScoped="true">
+   <cluster code="0xfff1fc02"/>
+   <item fieldId="1" name="Data" type="octet_string" length="128" isFabricSensitive="true"/>
+</struct>
+</configurator>

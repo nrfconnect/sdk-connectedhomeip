@@ -20,6 +20,7 @@ import logging
 import multiprocessing
 import os
 import os.path
+import platform
 import shlex
 import shutil
 import subprocess
@@ -38,6 +39,12 @@ CHIP_ROOT_DIR = os.path.realpath(
 
 # TODO: Can we share this constant definition with generate.py?
 DEFAULT_DATA_MODEL_DESCRIPTION_FILE = 'src/app/zap-templates/zcl/zcl.json'
+
+
+def NormalizePythonCommand(cmd: List[str]) -> List[str]:
+    if platform.system() == 'Windows':
+        cmd = [sys.executable] + [str(x) for x in cmd]
+    return cmd
 
 
 class TargetType(Flag):
@@ -211,7 +218,8 @@ class ZAPGenerateTarget:
         log.info("Generating target: %s", shlex.join(cmd))
 
         generate_start = time.time()
-        subprocess.check_call(cmd)
+
+        subprocess.check_call(NormalizePythonCommand(cmd))
         generate_end = time.time()
 
         if self.zap_config.is_for_chef_example:
@@ -250,7 +258,8 @@ class GoldenTestImageTarget():
 
     def generate(self) -> TargetRunStats:
         generate_start = time.time()
-        subprocess.check_call(self.command)
+
+        subprocess.check_call(NormalizePythonCommand(self.command))
         generate_end = time.time()
 
         return TargetRunStats(
@@ -280,7 +289,7 @@ class JinjaCodegenTarget():
     def generate(self) -> TargetRunStats:
         generate_start = time.time()
 
-        subprocess.check_call(self.command)
+        subprocess.check_call(NormalizePythonCommand(self.command))
 
         generate_end = time.time()
 

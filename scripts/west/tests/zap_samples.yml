@@ -1,0 +1,15 @@
+# This file is used to generate the ZAP files for the samples.
+# Use this file as an argument to the west zap-generate command:
+#
+# west zap-generate -y zap_samples.yml
+#
+
+# Base dir related to ZEPHYR_BASE
+- base_dir: ../modules/lib/matter/test_dir
+
+- name: test
+  zap_file: test_full.zap
+  full: true
+  zcl_file: zcl_appended.json
+  clusters:
+      [../scripts/west/tests/Cluster1.xml, ../scripts/west/tests/Cluster2.xml]

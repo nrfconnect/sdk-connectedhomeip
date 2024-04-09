@@ -1,0 +1,12 @@
+# Keep the help strings in sync with the values in the .py files!
+west-commands:
+  - file: scripts/west/zap_generate.py
+    commands:
+      - name: zap-generate
+        class: ZapGenerate
+        help: Generate ZAP code
+  - file: scripts/west/zap_gui.py
+    commands:
+      - name: zap-gui
+        class: ZapGui
+        help: Run Matter ZCL Advanced Platform (ZAP) GUI

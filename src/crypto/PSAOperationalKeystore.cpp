@@ -22,6 +22,10 @@
 
 #include <psa/crypto.h>
 
+// TODO: This is a temporary workaround until the PSA Core is not thread-safe.
+// The fix is going to be provided in MbedTLS 3.6.0
+#include <platform/CHIPDeviceLayer.h> // nogncheck
+
 namespace chip {
 namespace Crypto {
 
@@ -63,6 +67,12 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
 
     Destroy();
 
+// TODO: This is a temporary workaround until the PSA Core is not thread-safe.
+// The fix is going to be provided in MbedTLS 3.6.0
+#ifdef CONFIG_NET_L2_OPENTHREAD
+    chip::DeviceLayer::ThreadStackMgr().LockThreadStack();
+#endif
+
     // Type based on ECC with the elliptic curve SECP256r1 -> PSA_ECC_FAMILY_SECP_R1
     psa_set_key_type(&attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&attributes, kP256_PrivateKey_Length * 8);
@@ -79,6 +89,11 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
     VerifyOrExit(publicKeyLength == kP256_PublicKey_Length, error = CHIP_ERROR_INTERNAL);
 
 exit:
+// TODO: This is a temporary workaround until the PSA Core is not thread-safe.
+// The fix is going to be provided in MbedTLS 3.6.0
+#ifdef CONFIG_NET_L2_OPENTHREAD
+    chip::DeviceLayer::ThreadStackMgr().UnlockThreadStack();
+#endif
     psa_reset_key_attributes(&attributes);
 
     return error;

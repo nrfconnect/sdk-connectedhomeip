@@ -219,6 +219,13 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     for (uint32_t keyID = static_cast<uint32_t>(chip::Crypto::KeyIdBase::Minimum);
          keyID <= static_cast<uint32_t>(chip::Crypto::KeyIdBase::Maximum); keyID++)
     {
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+        // Prevent from removing DAC Private Key
+        if (keyID == static_cast<uint32_t>(chip::Crypto::KeyIdBase::DACPrivKey))
+        {
+            continue;
+        }
+#endif
         psa_destroy_key(static_cast<psa_key_id_t>(keyID));
     }
 #endif

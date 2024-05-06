@@ -42,7 +42,11 @@
 
 #ifdef CONFIG_NET_L2_OPENTHREAD
 #include <platform/ThreadStackManager.h>
-#endif 
+#endif
+
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_PSA_ITS
+#include <crypto/CHIPCryptoPALPSA.h>
+#endif
 
 namespace chip {
 namespace DeviceLayer {
@@ -208,6 +212,15 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     }
 
     ConnectivityMgr().ErasePersistentInfo();
+#endif
+
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_PSA_ITS
+    // Ensure that all persistent PSA crypto materials are removed.
+    for (uint32_t keyID = static_cast<uint32_t>(chip::Crypto::KeyIdBase::Minimum);
+         keyID <= static_cast<uint32_t>(chip::Crypto::KeyIdBase::Maximum); keyID++)
+    {
+        psa_destroy_key(static_cast<psa_key_id_t>(keyID));
+    }
 #endif
 
     PlatformMgr().Shutdown();

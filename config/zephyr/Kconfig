@@ -433,6 +433,14 @@ config CHIP_FACTORY_RESET_ERASE_NVS
 	  configuration is supposed to be cleared on a factory reset, including
 	  device-specific entries.
 
+config CHIP_FACTORY_RESET_ERASE_PSA_ITS
+	bool "Erase all Matter-related crypto material from PSA ITS storage"
+	depends on CHIP_CRYPTO_PSA
+	help
+	  Erases all crypto materials from PSA ITS (Internal Trusted Storage)
+	  dedicated to Matter purposes. Crypto materials can be defined for example
+	  as Persistent Session keys.
+
 config CHIP_MALLOC_SYS_HEAP
 	bool "Memory allocator based on Zephyr sys_heap"
 	imply SYS_HEAP_RUNTIME_STATS

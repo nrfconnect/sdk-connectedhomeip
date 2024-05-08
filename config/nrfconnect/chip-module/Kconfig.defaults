@@ -229,7 +229,6 @@ config IEEE802154_NRF5_RX_STACK_SIZE
     default 1024
 
 config OPENTHREAD_THREAD_STACK_SIZE
-    default 6144 if PSA_CRYPTO_DRIVER_CC3XX && PSA_CRYPTO_DRIVER_OBERON
     default 4096
 
 config OPENTHREAD_DEFAULT_TX_POWER
@@ -318,14 +317,6 @@ config PSA_WANT_ALG_SHA_224
 # Extend the maximum number of PSA key slots to fit Matter requirements
 config MBEDTLS_PSA_KEY_SLOT_COUNT
     default 64
-
-if PSA_CRYPTO_DRIVER_CC3XX && PSA_CRYPTO_DRIVER_OBERON
-
-# Do not use CC3XX hash driver when both Oberon and CC3xx are enabled.
-config PSA_USE_CC3XX_HASH_DRIVER
-    default n
-
-endif
 
 endif
 

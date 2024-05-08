@@ -347,21 +347,21 @@ config CHIP_ICD_FAST_POLLING_INTERVAL
 	  Provides the Intermittently Connected Device fast polling interval in milliseconds while the
 	  device is in the active mode. It determines the fastest frequency at which the device will be able
 	  to receive the messages in the active mode. The CHIP_ICD_FAST_POLLING_INTERVAL shall be smaller than
-	  CHIP_ICD_ACTIVE_MODE_DURATION.
+	  CHIP_ICD_ACTIVE_MODE_INTERVAL.
 
-config CHIP_ICD_IDLE_MODE_DURATION
-	int "Intermittently Connected Device idle mode duration (s)"
+config CHIP_ICD_IDLE_MODE_INTERVAL
+	int "Intermittently Connected Device idle mode interval (s)"
 	default 120
 	help
-	  Provides the Intermittently Connected Device idle mode duration in seconds.
+	  Provides the Intermittently Connected Device idle mode interval in seconds.
 	  It determines the maximum amount of time the device can stay in the idle mode, which means the
 	  device may be unreachable and not able to receive messages.
 
-config CHIP_ICD_ACTIVE_MODE_DURATION
-	int "Intermittently Connected Device active mode duration (ms)"
+config CHIP_ICD_ACTIVE_MODE_INTERVAL
+	int "Intermittently Connected Device active mode interval (ms)"
 	default 300
 	help
-	  Provides the Intermittently Connected Device active mode duration in milliseconds.
+	  Provides the Intermittently Connected Device active mode interval in milliseconds.
 	  It determines the minimum amount of time the device shall stay in the active mode.
 
 config CHIP_ICD_ACTIVE_MODE_THRESHOLD

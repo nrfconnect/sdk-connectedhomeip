@@ -19,7 +19,6 @@
 
 #include "CHIPCryptoPALPSA.h"
 
-#include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 
 #include <psa/crypto.h>
@@ -180,30 +179,22 @@ CHIP_ERROR PSASpake2p_P256_SHA256_HKDF_HMAC::KeyConfirm(const uint8_t * in, size
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR PSASpake2p_P256_SHA256_HKDF_HMAC::GetKeys(SessionKeystore & keystore, HkdfKeyHandle & key)
+CHIP_ERROR PSASpake2p_P256_SHA256_HKDF_HMAC::GetKeys(uint8_t * out, size_t * out_len)
 {
+    VerifyOrReturnError(out != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(out_len != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
     /*
-     * TODO: use psa_pake_shared_secret() proposed in https://github.com/ARM-software/psa-api/issues/86
+     * TODO: either:
+     * - use psa_pake_shared_secret() proposed in https://github.com/ARM-software/psa-api/issues/86
+     * - refactor Matter's GetKeys API to take an abstract shared secret instead of raw secret bytes.
      */
+    oberon_spake2p_operation_t & oberonCtx = mOperation.MBEDTLS_PRIVATE(ctx).oberon_pake_ctx.ctx.oberon_spake2p_ctx;
 
-    psa_key_derivation_operation_t * kdf = Platform::New<psa_key_derivation_operation_t>();
-    Platform::UniquePtr<psa_key_derivation_operation_t> kdfPtr(kdf);
+    VerifyOrReturnError((oberonCtx.hash_len / 2) <= *out_len, CHIP_ERROR_BUFFER_TOO_SMALL);
 
-    VerifyOrReturnError(kdfPtr, CHIP_ERROR_NO_MEMORY);
-
-    *kdfPtr = PSA_KEY_DERIVATION_OPERATION_INIT;
-
-    psa_status_t status = psa_key_derivation_setup(kdfPtr.get(), PSA_ALG_HKDF(PSA_ALG_SHA_256));
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
-
-    status = psa_pake_get_implicit_key(&mOperation, kdfPtr.get());
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
-
-    auto & hkdfKeyHandle           = key.AsMutable<PsaHkdfKeyHandle>();
-    hkdfKeyHandle.mKeyDerivationOp = kdfPtr.get();
-    hkdfKeyHandle.mIsKeyId         = false;
-
-    kdfPtr.release();
+    memcpy(out, oberonCtx.shared, oberonCtx.hash_len / 2);
+    *out_len = oberonCtx.hash_len / 2;
 
     return CHIP_NO_ERROR;
 }

@@ -138,7 +138,6 @@ matter_add_gn_arg_bool  ("chip_system_config_provide_statistics"  CONFIG_CHIP_ST
 matter_add_gn_arg_bool  ("chip_enable_icd_server"                 CONFIG_CHIP_ENABLE_ICD_SUPPORT)
 matter_add_gn_arg_bool  ("chip_mdns_minimal"                      CONFIG_WIFI_NRF700X)
 matter_add_gn_arg_bool  ("chip_mdns_platform"                     CONFIG_NET_L2_OPENTHREAD)
-matter_add_gn_arg_bool  ("chip_enable_read_client"                CONFIG_CHIP_ENABLE_READ_CLIENT)
 
 if (CONFIG_CHIP_FACTORY_DATA)
     matter_add_gn_arg_bool("chip_use_transitional_commissionable_data_provider" FALSE)

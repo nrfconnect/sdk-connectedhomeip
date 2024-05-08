@@ -183,7 +183,7 @@ struct TestAesKey
 public:
     TestAesKey(nlTestSuite * inSuite, const uint8_t * keyBytes, size_t keyLength)
     {
-        Crypto::Symmetric128BitsKeyByteArray keyMaterial;
+        Crypto::Aes128KeyByteArray keyMaterial;
         memcpy(&keyMaterial, keyBytes, keyLength);
 
         CHIP_ERROR err = keystore.CreateKey(keyMaterial, key);

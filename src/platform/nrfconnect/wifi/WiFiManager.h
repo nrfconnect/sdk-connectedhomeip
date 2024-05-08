@@ -220,7 +220,6 @@ private:
     void ResetRecoveryTime();
     System::Clock::Milliseconds32 CalculateNextRecoveryTime();
 
-    net_if * mNetIf{ nullptr };
     ConnectionParams mWiFiParams{};
     ConnectionHandling mHandling;
     wifi_iface_state mWiFiState;

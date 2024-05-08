@@ -69,14 +69,10 @@ endfunction()
 #                   supported by the application.
 #   IDL             .matter IDL file to use for codegen. Inferred from ZAP_FILE
 #                   if not provided
-#   EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
-#                   will not be used nor required for these clusters.
-#                   Format: MY_CUSTOM_CLUSTER'.
 #
-
 function(chip_configure_data_model APP_TARGET)
     set(SCOPE PRIVATE)
-    cmake_parse_arguments(ARG "INCLUDE_SERVER;BYPASS_IDL" "SCOPE;ZAP_FILE;GEN_DIR;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
+    cmake_parse_arguments(ARG "INCLUDE_SERVER;BYPASS_IDL" "ZAP_FILE;GEN_DIR;IDL" "" ${ARGN})
 
     if(ARG_SCOPE)
         set(SCOPE ${ARG_SCOPE})

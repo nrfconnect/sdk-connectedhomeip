@@ -467,17 +467,7 @@ void CommandHandler::AddStatus(const ConcreteCommandPath & aCommandPath, const P
 {
     // Return prematurely in case of requests targeted to a group that should not add the status for response purposes.
     VerifyOrReturn(!IsGroupRequest());
-
-    CHIP_ERROR error = FallibleAddStatus(aCommandPath, aStatus, context);
-
-    if (error != CHIP_NO_ERROR)
-    {
-        ChipLogError(DataManagement, "Failed to add command status: %" CHIP_ERROR_FORMAT, error.Format());
-
-        // Do not crash if the status has not been added due to running out of packet buffers or other resources.
-        // It is better to drop a single response than to go offline and lose all sessions and subscriptions.
-        VerifyOrDie(error == CHIP_ERROR_NO_MEMORY);
-    }
+    VerifyOrDie(FallibleAddStatus(aCommandPath, aStatus, context) == CHIP_NO_ERROR);
 }
 
 CHIP_ERROR CommandHandler::FallibleAddStatus(const ConcreteCommandPath & path, const Protocols::InteractionModel::Status status,

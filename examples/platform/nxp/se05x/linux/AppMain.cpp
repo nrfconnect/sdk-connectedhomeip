@@ -69,8 +69,7 @@
 #endif // CHIP_CONFIG_TRANSPORT_TRACE_ENABLED
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-#include <app/TestEventTriggerDelegate.h>
-#include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/clusters/ota-requestor/OTATestEventTriggerDelegate.h>
 #endif
 
 #include <signal.h>
@@ -316,12 +315,9 @@ void ChipLinuxAppMainLoop(AppMainLoopImplementation * impl)
     }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-    static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
-    static OTATestEventTriggerHandler sOtaTestEventTriggerHandler{};
-    VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey)) ==
-                CHIP_NO_ERROR);
-    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sOtaTestEventTriggerHandler) == CHIP_NO_ERROR);
-    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
+    static OTATestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(
+        LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey) };
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
 #endif
 
     // We need to set DeviceInfoProvider before Server::Init to setup the storage of DeviceInfoProvider properly.

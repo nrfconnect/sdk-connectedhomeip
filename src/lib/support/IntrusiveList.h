@@ -439,14 +439,6 @@ public:
     void Remove(T * value) { IntrusiveListBase::Remove(Hook::ToNode(value)); }
     void Replace(T * original, T * replacement) { IntrusiveListBase::Replace(Hook::ToNode(original), Hook::ToNode(replacement)); }
     bool Contains(const T * value) const { return IntrusiveListBase::Contains(Hook::ToNode(value)); }
-
-    void Clear()
-    {
-        while (begin() != end())
-        {
-            Remove(&(*begin()));
-        }
-    }
 };
 
 } // namespace chip

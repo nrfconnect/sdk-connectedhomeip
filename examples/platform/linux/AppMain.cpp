@@ -74,21 +74,11 @@
 #endif
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-#include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/clusters/ota-requestor/OTATestEventTriggerDelegate.h>
 #endif
 #if CHIP_DEVICE_CONFIG_ENABLE_SMOKE_CO_TRIGGER
-#include <app/clusters/smoke-co-alarm-server/SmokeCOTestEventTriggerHandler.h>
+#include <app/clusters/smoke-co-alarm-server/SmokeCOTestEventTriggerDelegate.h>
 #endif
-#if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
-#include <app/clusters/boolean-state-configuration-server/BooleanStateConfigurationTestEventTriggerHandler.h> // nogncheck
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_ENERGY_EVSE_TRIGGER
-#include <app/clusters/energy-evse-server/EnergyEvseTestEventTriggerHandler.h> // nogncheck
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_ENERGY_REPORTING_TRIGGER
-#include <app/clusters/electrical-energy-measurement-server/EnergyReportingTestEventTriggerHandler.h> // nogncheck
-#endif
-
 #include <app/TestEventTriggerDelegate.h>
 
 #include <signal.h>
@@ -325,13 +315,34 @@ static bool EnsureWiFiIsStarted()
 }
 #endif
 
-class SampleTestEventTriggerHandler : public TestEventTriggerHandler
+class SampleTestEventTriggerDelegate : public TestEventTriggerDelegate
 {
-    /// NOTE: If you copy this for NON-STANDARD CLUSTERS OR USAGES, please use the reserved range FFFF_FFFF_<VID_HEX>_xxxx for your
-    /// trigger codes. NOTE: Standard codes are <CLUSTER_ID_HEX>_xxxx_xxxx_xxxx.
+public:
+    /// NOTE: If you copy this, please use the reserved range FFFF_FFFF_<VID_HEX>_xxxx for your trigger codes.
     static constexpr uint64_t kSampleTestEventTriggerAlwaysSuccess = static_cast<uint64_t>(0xFFFF'FFFF'FFF1'0000ull);
 
-public:
+    SampleTestEventTriggerDelegate() { memset(&mEnableKey[0], 0, sizeof(mEnableKey)); }
+
+    /**
+     * @brief Initialize the delegate with a key and an optional other handler
+     *
+     * The `otherDelegate` will be called if there is no match of the eventTrigger
+     * when HandleEventTrigger is called, if it is non-null.
+     *
+     * @param enableKey - EnableKey to use for this instance.
+     * @param otherDelegate - Other delegate (e.g. OTA delegate) where defer trigger. Can be nullptr
+     * @return CHIP_NO_ERROR on success, CHIP_ERROR_INVALID_ARGUMENT if enableKey is wrong size.
+     */
+    CHIP_ERROR Init(ByteSpan enableKey, TestEventTriggerDelegate * otherDelegate)
+    {
+        VerifyOrReturnError(enableKey.size() == sizeof(mEnableKey), CHIP_ERROR_INVALID_ARGUMENT);
+        mOtherDelegate = otherDelegate;
+        MutableByteSpan ourEnableKeySpan(mEnableKey);
+        return CopySpanToMutableSpan(enableKey, ourEnableKeySpan);
+    }
+
+    bool DoesEnableKeyMatch(const ByteSpan & enableKey) const override { return enableKey.data_equal(ByteSpan(mEnableKey)); }
+
     CHIP_ERROR HandleEventTrigger(uint64_t eventTrigger) override
     {
         ChipLogProgress(Support, "Saw TestEventTrigger: " ChipLogFormatX64, ChipLogValueX64(eventTrigger));
@@ -343,8 +354,12 @@ public:
             return CHIP_NO_ERROR;
         }
 
-        return CHIP_ERROR_INVALID_ARGUMENT;
+        return (mOtherDelegate != nullptr) ? mOtherDelegate->HandleEventTrigger(eventTrigger) : CHIP_ERROR_INVALID_ARGUMENT;
     }
+
+private:
+    uint8_t mEnableKey[TestEventTriggerDelegate::kEnableKeyLength];
+    TestEventTriggerDelegate * mOtherDelegate = nullptr;
 };
 
 int ChipLinuxAppInit(int argc, char * const argv[], OptionSet * customOptions,
@@ -517,36 +532,25 @@ void ChipLinuxAppMainLoop(AppMainLoopImplementation * impl)
         initParams.operationalKeystore = &LinuxDeviceOptions::GetInstance().mCSRResponseOptions.badCsrOperationalKeyStoreForTest;
     }
 
-    // For general testing of TestEventTrigger, we have a common "core" event trigger delegate.
-    static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate;
-    static SampleTestEventTriggerHandler sTestEventTriggerHandler;
-    VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey)) ==
-                CHIP_NO_ERROR);
-    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sTestEventTriggerHandler) == CHIP_NO_ERROR);
-
+    TestEventTriggerDelegate * otherDelegate = nullptr;
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
     // We want to allow triggering OTA queries if OTA requestor is enabled
-    static OTATestEventTriggerHandler sOtaTestEventTriggerHandler;
-    sTestEventTriggerDelegate.AddHandler(&sOtaTestEventTriggerHandler);
+    static OTATestEventTriggerDelegate otaTestEventTriggerDelegate{ ByteSpan(
+        LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey) };
+    otherDelegate = &otaTestEventTriggerDelegate;
 #endif
 #if CHIP_DEVICE_CONFIG_ENABLE_SMOKE_CO_TRIGGER
-    static SmokeCOTestEventTriggerHandler sSmokeCOTestEventTriggerHandler;
-    sTestEventTriggerDelegate.AddHandler(&sSmokeCOTestEventTriggerHandler);
+    static SmokeCOTestEventTriggerDelegate smokeCOTestEventTriggerDelegate{
+        ByteSpan(LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey), otherDelegate
+    };
+    otherDelegate = &smokeCOTestEventTriggerDelegate;
 #endif
-#if CHIP_DEVICE_CONFIG_ENABLE_BOOLEAN_STATE_CONFIGURATION_TRIGGER
-    static BooleanStateConfigurationTestEventTriggerHandler sBooleanStateConfigurationTestEventTriggerHandler;
-    sTestEventTriggerDelegate.AddHandler(&sBooleanStateConfigurationTestEventTriggerHandler);
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_ENERGY_EVSE_TRIGGER
-    static EnergyEvseTestEventTriggerHandler sEnergyEvseTestEventTriggerHandler;
-    sTestEventTriggerDelegate.AddHandler(&sEnergyEvseTestEventTriggerHandler);
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_ENERGY_REPORTING_TRIGGER
-    static EnergyReportingTestEventTriggerHandler sEnergyReportingTestEventTriggerHandler;
-    sTestEventTriggerDelegate.AddHandler(&sEnergyReportingTestEventTriggerHandler);
-#endif
+    // For general testing of TestEventTrigger, we have a common "core" event trigger delegate.
+    static SampleTestEventTriggerDelegate testEventTriggerDelegate;
+    VerifyOrDie(testEventTriggerDelegate.Init(ByteSpan(LinuxDeviceOptions::GetInstance().testEventTriggerEnableKey),
+                                              otherDelegate) == CHIP_NO_ERROR);
 
-    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
 
     // We need to set DeviceInfoProvider before Server::Init to setup the storage of DeviceInfoProvider properly.
     DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);

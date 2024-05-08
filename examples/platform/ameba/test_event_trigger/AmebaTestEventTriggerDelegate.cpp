@@ -28,4 +28,10 @@ bool AmebaTestEventTriggerDelegate::DoesEnableKeyMatch(const ByteSpan & enableKe
     return !mEnableKey.empty() && mEnableKey.data_equal(enableKey);
 }
 
+CHIP_ERROR AmebaTestEventTriggerDelegate::HandleEventTrigger(uint64_t eventTrigger)
+{
+    bool success = emberAfHandleEventTrigger(eventTrigger);
+    return success ? CHIP_NO_ERROR : CHIP_ERROR_INVALID_ARGUMENT;
+}
+
 } // namespace chip

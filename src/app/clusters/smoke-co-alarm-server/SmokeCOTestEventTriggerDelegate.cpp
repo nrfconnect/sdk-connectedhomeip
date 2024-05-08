@@ -1,7 +1,6 @@
 /*
  *
- *    Copyright (c) 2022 Project CHIP Authors
- *    All rights reserved.
+ *    Copyright (c) 2023 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,25 +15,27 @@
  *    limitations under the License.
  */
 
-#include "OTATestEventTriggerHandler.h"
+#include "SmokeCOTestEventTriggerDelegate.h"
 
-#include "OTARequestorInterface.h"
-
-#include <lib/support/CodeUtils.h>
+using namespace chip::app::Clusters::SmokeCoAlarm;
 
 namespace chip {
 
-CHIP_ERROR OTATestEventTriggerHandler::HandleEventTrigger(uint64_t eventTrigger)
+bool SmokeCOTestEventTriggerDelegate::DoesEnableKeyMatch(const ByteSpan & enableKey) const
 {
-    if ((eventTrigger & ~kOtaQueryFabricIndexMask) == kOtaQueryTrigger)
+    return !mEnableKey.empty() && mEnableKey.data_equal(enableKey);
+}
+
+CHIP_ERROR SmokeCOTestEventTriggerDelegate::HandleEventTrigger(uint64_t eventTrigger)
+{
+    if (HandleSmokeCOTestEventTrigger(eventTrigger))
     {
-        OTARequestorInterface * requestor = GetRequestorInstance();
-        const FabricIndex fabricIndex     = eventTrigger & kOtaQueryFabricIndexMask;
-
-        VerifyOrReturnError(requestor != nullptr, CHIP_ERROR_INCORRECT_STATE);
-        return requestor->TriggerImmediateQuery(fabricIndex);
+        return CHIP_NO_ERROR;
     }
-
+    if (mOtherDelegate != nullptr)
+    {
+        return mOtherDelegate->HandleEventTrigger(eventTrigger);
+    }
     return CHIP_ERROR_INVALID_ARGUMENT;
 }
 

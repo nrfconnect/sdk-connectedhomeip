@@ -16,7 +16,7 @@
  *    limitations under the License.
  */
 
-#include "GenericFaultTestEventTriggerHandler.h"
+#include "GenericFaultTestEventTriggerDelegate.h"
 
 #include <app/clusters/general-diagnostics-server/general-diagnostics-server.h>
 #include <lib/support/CodeUtils.h>
@@ -25,10 +25,15 @@ using namespace ::chip::DeviceLayer;
 
 namespace chip {
 
-CHIP_ERROR GenericFaultTestEventTriggerHandler::HandleEventTrigger(uint64_t eventTrigger)
+bool GenericFaultTestEventTriggerDelegate::DoesEnableKeyMatch(const ByteSpan & enableKey) const
+{
+    return !mEnableKey.empty() && mEnableKey.data_equal(enableKey);
+}
+
+CHIP_ERROR GenericFaultTestEventTriggerDelegate::HandleEventTrigger(uint64_t eventTrigger)
 {
 
-    if (eventTrigger == kGenericFaultQueryTrigger)
+    if ((eventTrigger & ~kGenericFaultQueryFabricIndexMask) == kGenericFaultQueryTrigger)
     {
         // Fault injection
         GeneralFaults<kMaxHardwareFaults> hwFaultsPrevious;

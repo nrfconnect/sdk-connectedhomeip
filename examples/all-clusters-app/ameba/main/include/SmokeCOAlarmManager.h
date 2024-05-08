@@ -22,6 +22,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+bool emberAfHandleEventTrigger(uint64_t eventTrigger);
+
 class SmokeCoAlarmManager
 {
 public:

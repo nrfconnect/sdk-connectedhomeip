@@ -26,9 +26,8 @@
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <OTAConfig.h>
 #endif
-#include <app/TestEventTriggerDelegate.h>
 #include <app/clusters/identify-server/identify-server.h>
-#include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/clusters/ota-requestor/OTATestEventTriggerDelegate.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
@@ -192,13 +191,10 @@ void InitApp(intptr_t args)
     // Print QR Code URL
     PrintOnboardingCodes(chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE));
     /* Start CHIP datamodel server */
-    static chip::SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
-    static chip::OTATestEventTriggerHandler sOtaTestEventTriggerHandler{};
-    VerifyOrDie(sTestEventTriggerDelegate.Init(chip::ByteSpan(sTestEventTriggerEnableKey)) == CHIP_NO_ERROR);
-    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sOtaTestEventTriggerHandler) == CHIP_NO_ERROR);
+    static chip::OTATestEventTriggerDelegate testEventTriggerDelegate{ chip::ByteSpan(sTestEventTriggerEnableKey) };
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
     gExampleDeviceInfoProvider.SetStorageDelegate(initParams.persistentStorageDelegate);
     chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
     chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;

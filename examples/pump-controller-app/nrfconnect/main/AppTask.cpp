@@ -25,8 +25,7 @@
 
 #include <DeviceInfoProviderImpl.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
-#include <app/TestEventTriggerDelegate.h>
-#include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/clusters/ota-requestor/OTATestEventTriggerDelegate.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -185,12 +184,9 @@ CHIP_ERROR AppTask::Init()
 #endif
 
     static CommonCaseDeviceServerInitParams initParams;
-    static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
-    static OTATestEventTriggerHandler sOtaTestEventTriggerHandler{};
-    VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(sTestEventTriggerEnableKey)) == CHIP_NO_ERROR);
-    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sOtaTestEventTriggerHandler) == CHIP_NO_ERROR);
+    static OTATestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
+    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
     ReturnErrorOnFailure(chip::Server::GetInstance().Init(initParams));
     AppFabricTableDelegate::Init();
 

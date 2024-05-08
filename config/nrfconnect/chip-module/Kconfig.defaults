@@ -260,10 +260,6 @@ config NRF700X_MAX_TX_TOKENS
 config NRF700X_MAX_TX_AGGREGATION
     default 1
 
-# it saves 25kB of FLASH
-config WPA_SUPP_ADVANCED_FEATURES
-    default n
-
 endif # CHIP_WIFI
 
 # ==============================================================================

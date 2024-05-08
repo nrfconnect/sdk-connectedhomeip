@@ -27,13 +27,16 @@
 #include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread.hpp>
 #include <platform/Zephyr/ThreadStackManagerImpl.h>
 
+#include <inet/UDPEndPointImpl.h>
 #include <lib/support/CodeUtils.h>
+#include <platform/OpenThread/OpenThreadUtils.h>
 #include <platform/ThreadStackManager.h>
 
 namespace chip {
 namespace DeviceLayer {
 
 using namespace ::chip::DeviceLayer::Internal;
+using namespace ::chip::Inet;
 
 ThreadStackManagerImpl ThreadStackManagerImpl::sInstance;
 
@@ -42,6 +45,18 @@ CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
     otInstance * const instance = openthread_get_default_instance();
 
     ReturnErrorOnFailure(GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(instance));
+
+    UDPEndPointImplSockets::SetMulticastGroupHandler([](InterfaceId, const IPAddress & address, bool join) {
+        const otIp6Address otAddress = ToOpenThreadIP6Address(address);
+        const auto handler           = join ? otIp6SubscribeMulticastAddress : otIp6UnsubscribeMulticastAddress;
+        otError error;
+
+        ThreadStackMgr().LockThreadStack();
+        error = handler(openthread_get_default_instance(), &otAddress);
+        ThreadStackMgr().UnlockThreadStack();
+
+        return MapOpenThreadError(error);
+    });
 
     return CHIP_NO_ERROR;
 }

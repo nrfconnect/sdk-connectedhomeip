@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (c) 2024 Project CHIP Authors
+# Copyright (c) 2023 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 # limitations under the License.
 #
 
-#
 # The script parses integrations/docker/images/chip-build/Dockerfile file
 # from the Matter repository and looks for ENV ZAP_VERSION= string to find
 # currently recommended ZAP version. After that the package matching this version
@@ -87,11 +86,11 @@ def download_recommended_zap_package(version, package_name, location):
         month = f'{int(splitted_version[1]):02d}'
         day = f'{int(splitted_version[2]):02d}'
         merged_version = f"{splitted_version[0]}.{month}.{day}"
+
         url = f"https://github.com/project-chip/zap/releases/download/v{merged_version}-nightly/{package_name}.zip"
         print(f"Downloading {url} into {os.path.join(location, f'{package_name}.zip')}")
         wget.download(url, out=location)
         print("\n")
-
     except Exception as e:
         raise RuntimeError("Invalid URL to download ZAP tool package {}".format(e))
 
@@ -103,7 +102,6 @@ def clear_old_artifacts(location, overwrite):
             consent = input("The ZAP directory already exists in this location. Do you agree to overwrite it? Yes[y]/No[n]:")
             if consent.lower() != 'yes' and consent.lower() != 'y':
                 raise RuntimeError("Couldn't download ZAP package, as the file already exists in this location.")
-
         shutil.rmtree(location)
 
 
@@ -120,26 +118,19 @@ def set_executable(location, package_name, filename):
 
 
 def unzip_zap_package(location, package_name):
-    package = location + f"/{package_name}.zip"
-    destination = location + "/" + package_name
-
     try:
-        if (platform.system() == 'Darwin'):
-            subprocess.check_call(['unzip', package, '-d', destination])
-        else:
-            zip = ZipFile(os.path.join(location, f"{package_name}.zip"))
-            zip.extractall(os.path.join(location, package_name))
-            zip.close()
-
+        zip = ZipFile(os.path.join(location, f"{package_name}.zip"))
+        zip.extractall(os.path.join(location, package_name))
+        zip.close()
     except Exception as e:
         raise RuntimeError("Encountered problem when trying to unzip the ZAP tool package. {}".format(e))
-
     finally:
         remove_zip(location, package_name)
 
 
 def print_paths_warning(paths_to_print):
     messages = ["Please add the following location(s) to the system PATH:"] + paths_to_print
+
     longest_message = max(messages, key=len)
 
     for item in range(len(messages)):
@@ -169,7 +160,6 @@ def install_zap_package(version, location, overwrite):
         zap_cli_executable = 'zap-cli'
     else:
         raise RuntimeError(f"Couldn't find the proper ZAP tool package for the currently used operating system: {current_os}")
-
     clear_old_artifacts(os.path.join(location, package), overwrite)
     download_recommended_zap_package(version, package, location)
     unzip_zap_package(location, package)
@@ -185,9 +175,12 @@ def install_zap_package(version, location, overwrite):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Script helping to download the ZAP tool in the currently recommended revision.')
-    parser.add_argument("-l", "--location", help="Path to the location that should be used for storing ZAP tool package.", type=str, required=True)
-    parser.add_argument("-o", "--overwrite", help="Overwrite files without asking, in case they already exist in given location", action="store_true")
+    parser = argparse.ArgumentParser(
+        description='Script helping to download the ZAP tool in the currently recommended revision.')
+    parser.add_argument(
+        "-l", "--location", help="Path to the location that should be used for storing ZAP tool package.", type=str, required=True)
+    parser.add_argument(
+        "-o", "--overwrite", help="Overwrite files without asking, in case they already exist in given location", action="store_true")
     args = parser.parse_args()
 
     location = os.path.abspath(args.location)

@@ -23,11 +23,6 @@
  *
  */
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-#define __STDC_FORMAT_MACROS
-
 #include "TestInetCommonOptions.h"
 
 #include <assert.h>

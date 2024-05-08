@@ -48,7 +48,7 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
     }
     else if (clusterId == LevelControl::Id && attributeId == LevelControl::Attributes::CurrentLevel::Id)
     {
-        if (GetAppTask().GetPWMDevice().IsTurnedOn())
+        if (GetAppTask().GetLightingDevice().IsTurnedOn())
         {
             ChipLogDetail(Zcl, "Cluster LevelControl: attribute CurrentLevel set to %u", *value);
             GetAppTask().SetInitiateAction(PWMDevice::LEVEL_ACTION, static_cast<int32_t>(AppEvent::kEventType_Lighting), value);
@@ -130,15 +130,15 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
  */
 void emberAfOnOffClusterInitCallback(EndpointId endpoint)
 {
-    EmberAfStatus status;
+    Protocols::InteractionModel::Status status;
     bool storedValue;
 
     // Read storedValue on/off value
     status = Attributes::OnOff::Get(1, &storedValue);
-    if (status == EMBER_ZCL_STATUS_SUCCESS)
+    if (status == Protocols::InteractionModel::Status::Success)
     {
         // Set actual state to stored before reboot
-        GetAppTask().GetPWMDevice().Set(storedValue);
+        GetAppTask().GetLightingDevice().Set(storedValue);
     }
 
     GetAppTask().UpdateClusterState();

@@ -15,7 +15,12 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-#include "TLVTags.h"
+#include <lib/core/TLVTags.h>
+
+#include <inttypes.h>
+
+#include <lib/support/StringBuilder.h>
+#include <lib/support/logging/TextOnlyLogging.h>
 
 namespace chip {
 namespace TLV {
@@ -38,7 +43,7 @@ StringBuilderBase & Tag::AppendTo(StringBuilderBase & out)
     }
     else
     {
-        out.AddFormat("UnknownTag(0x%" PRIX64 ")", mVal);
+        out.AddFormat("UnknownTag(0x" ChipLogFormatX64 ")", ChipLogValueX64(mVal));
     }
 
     return out;

@@ -70,13 +70,13 @@ void Light::UpdateState()
 {
     if (mTargetLightIsOn.HasValue())
     {
-        EmberAfStatus status = OnOffServer::Instance().setOnOffValue(
+        chip::Protocols::InteractionModel::Status status = OnOffServer::Instance().setOnOffValue(
             mEndpointId, mTargetLightIsOn.Value() ? OnOff::Commands::On::Id : OnOff::Commands::Off::Id,
             false /* initiatedByLevelChange */);
 
-        if (status != EMBER_ZCL_STATUS_SUCCESS)
+        if (status != chip::Protocols::InteractionModel::Status::Success)
         {
-            ChipLogError(AppServer, "Failed to set on/off value: %d", status);
+            ChipLogError(AppServer, "Failed to set on/off value: %d", chip::to_underlying(status));
         }
 
         mTargetLightIsOn.ClearValue();
@@ -89,8 +89,8 @@ void Light::UpdateState()
         LevelControl::Commands::MoveToLevel::DecodableType data;
 
         data.level = mTargetLevel.Value();
-        data.optionsMask.Set(LevelControl::LevelControlOptions::kExecuteIfOff);
-        data.optionsOverride.Set(LevelControl::LevelControlOptions::kExecuteIfOff);
+        data.optionsMask.Set(LevelControl::OptionsBitmap::kExecuteIfOff);
+        data.optionsOverride.Set(LevelControl::OptionsBitmap::kExecuteIfOff);
 
         (void) LevelControlServer::MoveToLevel(mEndpointId, data);
 
@@ -155,14 +155,14 @@ void Light::Render()
     ImGui::Text("Color Control:");
     ImGui::Indent();
     const char * mode = // based on ColorMode attribute: spec 3.2.7.9
-        (mColorMode == EMBER_ZCL_COLOR_MODE_CURRENT_HUE_AND_CURRENT_SATURATION) ? "Hue/Saturation"
-        : (mColorMode == EMBER_ZCL_COLOR_MODE_CURRENT_X_AND_CURRENT_Y)          ? "X/Y"
-        : (mColorMode == EMBER_ZCL_COLOR_MODE_COLOR_TEMPERATURE)                ? "Temperature/Mireds"
-                                                                                : "UNKNOWN";
+        (mColorMode == kColorModeCurrentHueAndCurrentSaturation) ? "Hue/Saturation"
+        : (mColorMode == kColorModeCurrentXAndCurrentY)          ? "X/Y"
+        : (mColorMode == kColorModeColorTemperature)             ? "Temperature/Mireds"
+                                                                 : "UNKNOWN";
 
     ImGui::Text("Mode: %s", mode);
 
-    if (mColorMode == EMBER_ZCL_COLOR_MODE_CURRENT_HUE_AND_CURRENT_SATURATION)
+    if (mColorMode == kColorModeCurrentHueAndCurrentSaturation)
     {
         const float hueDegrees        = (mColorHue * 360.0f) / 254.0f;
         const float saturationPercent = 100.0f * (mColorSaturation / 254.0f);
@@ -173,12 +173,12 @@ void Light::Render()
         ImGui::ColorButton("LightColor", HueSaturationToColor(hueDegrees, saturationPercent), 0 /* ImGuiColorEditFlags_* */,
                            ImVec2(80, 80));
     }
-    else if (mColorMode == EMBER_ZCL_COLOR_MODE_CURRENT_X_AND_CURRENT_Y)
+    else if (mColorMode == kColorModeCurrentXAndCurrentY)
     {
         ImGui::Text("Current X: %d", mColorX);
         ImGui::Text("Current Y: %d", mColorY);
     }
-    else if (mColorMode == EMBER_ZCL_COLOR_MODE_COLOR_TEMPERATURE)
+    else if (mColorMode == kColorModeColorTemperature)
     {
         ImGui::Text("Color Temperature Mireds: %d", mColorTemperatureMireds);
     }

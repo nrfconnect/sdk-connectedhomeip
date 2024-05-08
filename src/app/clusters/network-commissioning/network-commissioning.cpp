@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2021-2024 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,8 @@
  *    limitations under the License.
  */
 
+#include <limits>
+
 #include "network-commissioning.h"
 
 #include <app-common/zap-generated/attributes/Accessors.h>
@@ -23,31 +25,47 @@
 #include <app/CommandHandlerInterface.h>
 #include <app/InteractionModelEngine.h>
 #include <app/clusters/general-commissioning-server/general-commissioning-server.h>
+#include <app/data-model/Nullable.h>
+#include <app/reporting/reporting.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
+#include <credentials/CHIPCert.h>
+#include <lib/core/CHIPConfig.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/SortUtils.h>
 #include <lib/support/ThreadOperationalDataset.h>
+#include <platform/CHIPDeviceConfig.h>
+#include <platform/ConnectivityManager.h>
 #include <platform/DeviceControlServer.h>
 #include <platform/PlatformManager.h>
 #include <platform/internal/DeviceNetworkInfo.h>
 #include <tracing/macros.h>
 
-using namespace chip;
-using namespace chip::app;
-using namespace chip::app::Clusters;
-using namespace chip::app::Clusters::NetworkCommissioning;
+#include <array>
+#include <utility>
 
 namespace chip {
 namespace app {
 namespace Clusters {
 namespace NetworkCommissioning {
 
+using namespace Credentials;
+using namespace DataModel;
 using namespace DeviceLayer::NetworkCommissioning;
 
 namespace {
-// For WiFi and Thread scan results, each item will cose ~60 bytes in TLV, thus 15 is a safe upper bound of scan results.
+
+// For WiFi and Thread scan results, each item will cost ~60 bytes in TLV, thus 15 is a safe upper bound of scan results.
 constexpr size_t kMaxNetworksInScanResponse = 15;
+
+constexpr uint16_t kCurrentClusterRevision = 2;
+
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+constexpr size_t kPossessionNonceSize = 32;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+
+// Note: CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE can be 0, this disables debug text
+using DebugTextStorage = std::array<char, CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE>;
 
 enum ValidWiFiCredentialLength
 {
@@ -58,11 +76,67 @@ enum ValidWiFiCredentialLength
     kWPAPSKHex = 64,
 };
 
+template <typename T, typename Func>
+static void EnumerateAndRelease(Iterator<T> * iterator, Func func)
+{
+    if (iterator != nullptr)
+    {
+        T element;
+        while (iterator->Next(element) && func(element) == Loop::Continue)
+        {
+            /* continue */
+        }
+        iterator->Release();
+    }
+}
+
+template <typename T>
+static size_t CountAndRelease(Iterator<T> * iterator)
+{
+    size_t count = 0;
+    if (iterator != nullptr)
+    {
+        count = iterator->Count();
+        iterator->Release();
+    }
+
+    return count;
+}
+
+BitFlags<Feature> WiFiFeatures(WiFiDriver * driver)
+{
+    BitFlags<Feature> features = Feature::kWiFiNetworkInterface;
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+    features.Set(Feature::kPerDeviceCredentials, driver->SupportsPerDeviceCredentials());
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+    return features;
+}
+
 } // namespace
+
+Instance::Instance(EndpointId aEndpointId, WiFiDriver * apDelegate) :
+    CommandHandlerInterface(Optional<EndpointId>(aEndpointId), Id), AttributeAccessInterface(Optional<EndpointId>(aEndpointId), Id),
+    mEndpointId(aEndpointId), mFeatureFlags(WiFiFeatures(apDelegate)), mpWirelessDriver(apDelegate), mpBaseDriver(apDelegate)
+{
+    mpDriver.Set<WiFiDriver *>(apDelegate);
+}
+
+Instance::Instance(EndpointId aEndpointId, ThreadDriver * apDelegate) :
+    CommandHandlerInterface(Optional<EndpointId>(aEndpointId), Id), AttributeAccessInterface(Optional<EndpointId>(aEndpointId), Id),
+    mEndpointId(aEndpointId), mFeatureFlags(Feature::kThreadNetworkInterface), mpWirelessDriver(apDelegate),
+    mpBaseDriver(apDelegate)
+{
+    mpDriver.Set<ThreadDriver *>(apDelegate);
+}
+
+Instance::Instance(EndpointId aEndpointId, EthernetDriver * apDelegate) :
+    CommandHandlerInterface(Optional<EndpointId>(aEndpointId), Id), AttributeAccessInterface(Optional<EndpointId>(aEndpointId), Id),
+    mEndpointId(aEndpointId), mFeatureFlags(Feature::kEthernetNetworkInterface), mpWirelessDriver(nullptr), mpBaseDriver(apDelegate)
+{}
 
 CHIP_ERROR Instance::Init()
 {
-    ReturnErrorOnFailure(chip::app::InteractionModelEngine::GetInstance()->RegisterCommandHandler(this));
+    ReturnErrorOnFailure(InteractionModelEngine::GetInstance()->RegisterCommandHandler(this));
     VerifyOrReturnError(registerAttributeAccessOverride(this), CHIP_ERROR_INCORRECT_STATE);
     ReturnErrorOnFailure(DeviceLayer::PlatformMgrImpl().AddEventHandler(OnPlatformEventHandler, reinterpret_cast<intptr_t>(this)));
     ReturnErrorOnFailure(mpBaseDriver->Init(this));
@@ -75,6 +149,62 @@ CHIP_ERROR Instance::Init()
 void Instance::Shutdown()
 {
     mpBaseDriver->Shutdown();
+}
+
+#if !CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
+void Instance::SendNonConcurrentConnectNetworkResponse()
+{
+    auto commandHandleRef = std::move(mAsyncCommandHandle);
+    auto commandHandle    = commandHandleRef.Get();
+    if (commandHandle == nullptr)
+    {
+        return;
+    }
+
+#if CONFIG_NETWORK_LAYER_BLE
+    DeviceLayer::ConnectivityMgr().GetBleLayer()->IndicateBleClosing();
+#endif // CONFIG_NETWORK_LAYER_BLE
+    ChipLogProgress(NetworkProvisioning, "Non-concurrent mode. Send ConnectNetworkResponse(Success)");
+    Commands::ConnectNetworkResponse::Type response;
+    response.networkingStatus = NetworkCommissioning::Status::kSuccess;
+    commandHandle->AddResponse(mPath, response);
+}
+#endif // CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
+
+void Instance::SetLastNetworkingStatusValue(Attributes::LastNetworkingStatus::TypeInfo::Type networkingStatusValue)
+{
+    if (mLastNetworkingStatusValue.Update(networkingStatusValue))
+    {
+        MatterReportingAttributeChangeCallback(mEndpointId, Clusters::NetworkCommissioning::Id,
+                                               Attributes::LastNetworkingStatus::TypeInfo::GetAttributeId());
+    }
+}
+
+void Instance::SetLastConnectErrorValue(Attributes::LastConnectErrorValue::TypeInfo::Type connectErrorValue)
+{
+    if (mLastConnectErrorValue.Update(connectErrorValue))
+    {
+        MatterReportingAttributeChangeCallback(mEndpointId, Clusters::NetworkCommissioning::Id,
+                                               Attributes::LastConnectErrorValue::TypeInfo::GetAttributeId());
+    }
+}
+
+void Instance::SetLastNetworkId(ByteSpan lastNetworkId)
+{
+    ByteSpan prevLastNetworkId{ mLastNetworkID, mLastNetworkIDLen };
+    VerifyOrReturn(lastNetworkId.size() <= kMaxNetworkIDLen);
+    VerifyOrReturn(!prevLastNetworkId.data_equal(lastNetworkId));
+
+    memcpy(mLastNetworkID, lastNetworkId.data(), lastNetworkId.size());
+    mLastNetworkIDLen = static_cast<uint8_t>(lastNetworkId.size());
+    MatterReportingAttributeChangeCallback(mEndpointId, Clusters::NetworkCommissioning::Id,
+                                           Attributes::LastNetworkID::TypeInfo::GetAttributeId());
+}
+
+void Instance::ReportNetworksListChanged() const
+{
+    MatterReportingAttributeChangeCallback(mEndpointId, Clusters::NetworkCommissioning::Id,
+                                           Attributes::Networks::TypeInfo::GetAttributeId());
 }
 
 void Instance::InvokeCommand(HandlerContext & ctxt)
@@ -117,17 +247,26 @@ void Instance::InvokeCommand(HandlerContext & ctxt)
             ctxt, [this](HandlerContext & ctx, const auto & req) { HandleRemoveNetwork(ctx, req); });
         return;
 
-    case Commands::ConnectNetwork::Id:
+    case Commands::ConnectNetwork::Id: {
         VerifyOrReturn(mFeatureFlags.Has(Feature::kWiFiNetworkInterface) || mFeatureFlags.Has(Feature::kThreadNetworkInterface));
+
         HandleCommand<Commands::ConnectNetwork::DecodableType>(
             ctxt, [this](HandlerContext & ctx, const auto & req) { HandleConnectNetwork(ctx, req); });
         return;
+    }
 
     case Commands::ReorderNetwork::Id:
         VerifyOrReturn(mFeatureFlags.Has(Feature::kWiFiNetworkInterface) || mFeatureFlags.Has(Feature::kThreadNetworkInterface));
         HandleCommand<Commands::ReorderNetwork::DecodableType>(
             ctxt, [this](HandlerContext & ctx, const auto & req) { HandleReorderNetwork(ctx, req); });
         return;
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+    case Commands::QueryIdentity::Id:
+        VerifyOrReturn(mFeatureFlags.Has(Feature::kPerDeviceCredentials));
+        HandleCommand<Commands::QueryIdentity::DecodableType>(
+            ctxt, [this](HandlerContext & ctx, const auto & req) { HandleQueryIdentity(ctx, req); });
+        return;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
     }
 }
 
@@ -140,22 +279,25 @@ CHIP_ERROR Instance::Read(const ConcreteReadAttributePath & aPath, AttributeValu
 
     case Attributes::Networks::Id:
         return aEncoder.EncodeList([this](const auto & encoder) {
-            auto networks  = mpBaseDriver->GetNetworks();
             CHIP_ERROR err = CHIP_NO_ERROR;
             Structs::NetworkInfoStruct::Type networkForEncode;
-            NetworkCommissioning::Network network;
-            for (; networks != nullptr && networks->Next(network);)
-            {
+            EnumerateAndRelease(mpBaseDriver->GetNetworks(), [&](const Network & network) {
                 networkForEncode.networkID = ByteSpan(network.networkID, network.networkIDLen);
                 networkForEncode.connected = network.connected;
-                SuccessOrExit(err = encoder.Encode(networkForEncode));
-            }
-        exit:
-            if (networks != nullptr)
-            {
-                networks->Release();
-            }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+                // These fields are both optional and nullable in NetworkInfoStruct.
+                // If PDC is supported, the fields are always present but may be null.
+                if (mFeatureFlags.Has(Feature::kPerDeviceCredentials))
+                {
+                    networkForEncode.networkIdentifier = MakeOptional(Nullable<ByteSpan>(network.networkIdentifier));
+                    networkForEncode.clientIdentifier  = MakeOptional(Nullable<ByteSpan>(network.clientIdentifier));
+                }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+
+                err = encoder.Encode(networkForEncode);
+                return (err == CHIP_NO_ERROR) ? Loop::Continue : Loop::Break;
+            });
             return err;
         });
 
@@ -195,6 +337,79 @@ CHIP_ERROR Instance::Read(const ConcreteReadAttributePath & aPath, AttributeValu
     case Attributes::FeatureMap::Id:
         return aEncoder.Encode(mFeatureFlags);
 
+    case Attributes::ClusterRevision::Id:
+        return aEncoder.Encode(kCurrentClusterRevision);
+
+    case Attributes::SupportedWiFiBands::Id: {
+#if (CHIP_DEVICE_CONFIG_ENABLE_WIFI_STATION || CHIP_DEVICE_CONFIG_ENABLE_WIFI_AP)
+        // TODO https://github.com/project-chip/connectedhomeip/issues/31431
+        // This is a case of shared zap config where mandatory wifi attributes are enabled for a thread platform (e.g
+        // all-cluster-app). Real world product must only enable the attributes tied to the network technology supported by their
+        // product. Temporarily return an list of 1 element of value 0 when wifi is not supported or WiFiNetworkInterface is not
+        // enabled until a solution is implemented with the attribute list.
+        // Final implementation will return UnsupportedAttribute if we get here without the needed WiFi support .
+        // VerifyOrReturnError(mFeatureFlags.Has(Feature::kWiFiNetworkInterface), CHIP_IM_GLOBAL_STATUS(UnsupportedAttribute));
+        if (mFeatureFlags.Has(Feature::kWiFiNetworkInterface))
+        {
+            return aEncoder.EncodeList([this](const auto & encoder) {
+                uint32_t bands = mpDriver.Get<WiFiDriver *>()->GetSupportedWiFiBandsMask();
+
+                // Extract every band from the bitmap of supported bands, starting positionally on the right.
+                for (uint32_t band_bit_pos = 0; band_bit_pos < std::numeric_limits<uint32_t>::digits; ++band_bit_pos)
+                {
+                    uint32_t band_mask = static_cast<uint32_t>(1UL << band_bit_pos);
+                    if ((bands & band_mask) != 0)
+                    {
+                        ReturnErrorOnFailure(encoder.Encode(static_cast<WiFiBandEnum>(band_bit_pos)));
+                    }
+                }
+                return CHIP_NO_ERROR;
+            });
+        }
+#endif
+        return aEncoder.EncodeList([](const auto & encoder) {
+            WiFiBandEnum bands = WiFiBandEnum::k2g4;
+            ReturnErrorOnFailure(encoder.Encode(bands));
+            return CHIP_NO_ERROR;
+        });
+    }
+    break;
+    case Attributes::SupportedThreadFeatures::Id: {
+        // TODO https://github.com/project-chip/connectedhomeip/issues/31431
+        BitMask<ThreadCapabilities> ThreadCapabilities = 0;
+#if (CHIP_DEVICE_CONFIG_ENABLE_THREAD)
+        // This is a case of shared zap config where mandatory thread attributes are enabled for a wifi platform (e.g
+        // all-cluster-app). Real world product must only enable the attributes tied to the network technology supported by their
+        // product. Temporarily encode a value of 0 reflecting no thread capabilities hen CHIP_DEVICE_CONFIG_ENABLE_THREAD or
+        // ThreadNetworkInterface are not enabled until a solution is implemented with the attribute list.
+        // Final implementation will return UnsupportedAttribute if we get here without the needed thread support
+        // VerifyOrReturnError(mFeatureFlags.Has(Feature::kThreadNetworkInterface), CHIP_IM_GLOBAL_STATUS(UnsupportedAttribute));
+        if (mFeatureFlags.Has(Feature::kThreadNetworkInterface))
+        {
+            ThreadCapabilities = mpDriver.Get<ThreadDriver *>()->GetSupportedThreadFeatures();
+        }
+#endif
+        return aEncoder.Encode(ThreadCapabilities);
+    }
+    break;
+    case Attributes::ThreadVersion::Id: {
+        // TODO https://github.com/project-chip/connectedhomeip/issues/31431ß
+        uint16_t threadVersion = 0;
+#if (CHIP_DEVICE_CONFIG_ENABLE_THREAD)
+        // This is a case of shared zap config where mandatory thread attributes are enabled for a wifi platform (e.g
+        // all-cluster-app) Real world product must only enable the attributes tied to the network technology supported by their
+        // product. Temporarily encode a value of 0 reflecting no thread version when CHIP_DEVICE_CONFIG_ENABLE_THREAD or
+        // ThreadNetworkInterface are not enabled until a solution is implemented with the attribute list.
+        // Final implementation will return UnsupportedAttribute if we get here without the needed thread support
+        // VerifyOrReturnError(mFeatureFlags.Has(Feature::kThreadNetworkInterface), CHIP_IM_GLOBAL_STATUS(UnsupportedAttribute));
+        if (mFeatureFlags.Has(Feature::kThreadNetworkInterface))
+        {
+            threadVersion = mpDriver.Get<ThreadDriver *>()->GetThreadVersion();
+        }
+#endif
+        return aEncoder.Encode(threadVersion);
+    }
+    break;
     default:
         return CHIP_NO_ERROR;
     }
@@ -209,41 +424,40 @@ CHIP_ERROR Instance::Write(const ConcreteDataAttributePath & aPath, AttributeVal
         ReturnErrorOnFailure(aDecoder.Decode(value));
         return mpBaseDriver->SetEnabled(value);
     default:
-        return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+        return CHIP_IM_GLOBAL_STATUS(InvalidAction);
     }
 }
 
-void Instance::OnNetworkingStatusChange(NetworkCommissioning::Status aCommissioningError, Optional<ByteSpan> aNetworkId,
-                                        Optional<int32_t> aConnectStatus)
+void Instance::OnNetworkingStatusChange(Status aCommissioningError, Optional<ByteSpan> aNetworkId, Optional<int32_t> aConnectStatus)
 {
-    if (aNetworkId.HasValue() && aNetworkId.Value().size() > kMaxNetworkIDLen)
-    {
-        ChipLogError(DeviceLayer, "Invalid network id received when calling OnNetworkingStatusChange");
-        return;
-    }
-    mLastNetworkingStatusValue.SetNonNull(aCommissioningError);
     if (aNetworkId.HasValue())
     {
-        memcpy(mLastNetworkID, aNetworkId.Value().data(), aNetworkId.Value().size());
-        mLastNetworkIDLen = static_cast<uint8_t>(aNetworkId.Value().size());
+        if (aNetworkId.Value().size() > kMaxNetworkIDLen)
+        {
+            ChipLogError(DeviceLayer, "Overly large network ID received when calling OnNetworkingStatusChange");
+        }
+        else
+        {
+            SetLastNetworkId(aNetworkId.Value());
+        }
     }
-    else
-    {
-        mLastNetworkIDLen = 0;
-    }
+
+    SetLastNetworkingStatusValue(MakeNullable(aCommissioningError));
     if (aConnectStatus.HasValue())
     {
-        mLastConnectErrorValue.SetNonNull(aConnectStatus.Value());
+        SetLastConnectErrorValue(MakeNullable(aConnectStatus.Value()));
     }
     else
     {
-        mLastConnectErrorValue.SetNull();
+        SetLastConnectErrorValue(NullNullable);
     }
 }
 
 void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetworks::DecodableType & req)
 {
     MATTER_TRACE_SCOPE("HandleScanNetwork", "NetworkCommissioning");
+
+    mScanningWasDirected = false;
     if (mFeatureFlags.Has(Feature::kWiFiNetworkInterface))
     {
         ByteSpan ssid;
@@ -263,9 +477,13 @@ void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetw
         }
         if (ssid.size() > DeviceLayer::Internal::kMaxWiFiSSIDLength)
         {
-            ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidCommand);
+            // Clients should never use too large a SSID.
+            ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError);
+            SetLastNetworkingStatusValue(MakeNullable(Status::kUnknownError));
             return;
         }
+
+        mScanningWasDirected        = !ssid.empty();
         mCurrentOperationBreadcrumb = req.breadcrumb;
         mAsyncCommandHandle         = CommandHandler::Handle(&ctx.mCommandHandler);
         ctx.mCommandHandler.FlushAcksRightAwayOnSlowCommand();
@@ -273,6 +491,18 @@ void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetw
     }
     else if (mFeatureFlags.Has(Feature::kThreadNetworkInterface))
     {
+        // NOTE: the following lines were commented out due to issue #32875. In short, a popular
+        // commissioner is passing a null SSID argument and this logic breaks interoperability as a result.
+        // The spec has some inconsistency on this which also needs to be fixed. The commissioner maker is
+        // fixing its code and will return to un-comment this code, with that work tracked by Issue #32887.
+        //
+        // SSID present on Thread violates the `[WI]` conformance.
+        // if (req.ssid.HasValue())
+        // {
+        //     ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidCommand);
+        //     return;
+        // }
+
         mCurrentOperationBreadcrumb = req.breadcrumb;
         mAsyncCommandHandle         = CommandHandler::Handle(&ctx.mCommandHandler);
         ctx.mCommandHandler.FlushAcksRightAwayOnSlowCommand();
@@ -285,14 +515,13 @@ void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetw
 }
 
 namespace {
-
 void FillDebugTextAndNetworkIndex(Commands::NetworkConfigResponse::Type & response, MutableCharSpan debugText, uint8_t networkIndex)
 {
     if (!debugText.empty())
     {
-        response.debugText.SetValue(CharSpan(debugText.data(), debugText.size()));
+        response.debugText.SetValue(debugText);
     }
-    if (response.networkingStatus == NetworkCommissioningStatusEnum::kSuccess)
+    if (response.networkingStatus == Status::kSuccess)
     {
         response.networkIndex.SetValue(networkIndex);
     }
@@ -319,6 +548,26 @@ void Instance::HandleAddOrUpdateWiFiNetwork(HandlerContext & ctx, const Commands
 
     VerifyOrReturn(CheckFailSafeArmed(ctx));
 
+    if (req.ssid.empty() || req.ssid.size() > DeviceLayer::Internal::kMaxWiFiSSIDLength)
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "ssid");
+        return;
+    }
+
+    // Presence of a Network Identity indicates we're configuring for Per-Device Credentials
+    if (req.networkIdentity.HasValue())
+    {
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+        if (mFeatureFlags.Has(Feature::kWiFiNetworkInterface))
+        {
+            HandleAddOrUpdateWiFiNetworkWithPDC(ctx, req);
+            return;
+        }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidCommand);
+        return;
+    }
+
     // Spec 11.8.8.4
     // Valid Credentials length are:
     // - 0 bytes: Unsecured (open) connection
@@ -342,7 +591,7 @@ void Instance::HandleAddOrUpdateWiFiNetwork(HandlerContext & ctx, const Commands
         {
             if (!isxdigit(req.credentials.data()[d]))
             {
-                ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidCommand);
+                ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError);
                 return;
             }
         }
@@ -350,26 +599,130 @@ void Instance::HandleAddOrUpdateWiFiNetwork(HandlerContext & ctx, const Commands
     else
     {
         // Invalid length
-        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidCommand);
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError);
         return;
     }
 
     Commands::NetworkConfigResponse::Type response;
-    MutableCharSpan debugText;
-#if CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE
-    char debugTextBuffer[CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE];
-    debugText = MutableCharSpan(debugTextBuffer);
-#endif
+    DebugTextStorage debugTextBuffer;
+    MutableCharSpan debugText(debugTextBuffer);
     uint8_t outNetworkIndex = 0;
     response.networkingStatus =
         mpDriver.Get<WiFiDriver *>()->AddOrUpdateNetwork(req.ssid, req.credentials, debugText, outNetworkIndex);
     FillDebugTextAndNetworkIndex(response, debugText, outNetworkIndex);
     ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-    if (response.networkingStatus == NetworkCommissioningStatusEnum::kSuccess)
+    if (response.networkingStatus == Status::kSuccess)
     {
         UpdateBreadcrumb(req.breadcrumb);
+        ReportNetworksListChanged();
     }
 }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+void Instance::HandleAddOrUpdateWiFiNetworkWithPDC(HandlerContext & ctx,
+                                                   const Commands::AddOrUpdateWiFiNetwork::DecodableType & req)
+{
+    // Credentials must be empty when configuring for PDC, it's only present to keep the command shape compatible.
+    if (!req.credentials.empty())
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "credentials");
+        return;
+    }
+
+    auto && networkIdentity = req.networkIdentity.Value(); // presence checked by caller
+    if (networkIdentity.size() > kMaxCHIPCompactNetworkIdentityLength ||
+        Credentials::ValidateChipNetworkIdentity(networkIdentity) != CHIP_NO_ERROR)
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "networkIdentity");
+        return;
+    }
+
+    if (req.clientIdentifier.HasValue() && req.clientIdentifier.Value().size() != CertificateKeyId::size())
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "clientIdentifier");
+        return;
+    }
+
+    bool provePossession = req.possessionNonce.HasValue();
+    if (provePossession && req.possessionNonce.Value().size() != kPossessionNonceSize)
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "possessionNonce");
+        return;
+    }
+
+    auto err = CHIP_NO_ERROR;
+    {
+        auto driver = mpDriver.Get<WiFiDriver *>();
+
+        // If the client is requesting re-use of a Client Identity, find the existing network it belongs to
+        Optional<uint8_t> clientIdentityNetworkIndex;
+        if (req.clientIdentifier.HasValue())
+        {
+            CertificateKeyId clientIdentifier(req.clientIdentifier.Value().data());
+            uint8_t networkIndex = 0;
+            EnumerateAndRelease(driver->GetNetworks(), [&](const Network & network) {
+                if (network.clientIdentifier.HasValue() && clientIdentifier.data_equal(network.clientIdentifier.Value()))
+                {
+                    clientIdentityNetworkIndex.SetValue(networkIndex);
+                    return Loop::Break;
+                }
+                networkIndex++;
+                return Loop::Continue;
+            });
+            if (!clientIdentityNetworkIndex.HasValue())
+            {
+                ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::NotFound, "clientIdentifier");
+                return;
+            }
+        }
+
+        // Allocate a buffer to hold the client identity, and leave enough room to append the possession nonce if needed.
+        chip::Platform::ScopedMemoryBuffer<uint8_t> identityBuffer;
+        size_t identityBufferSize = kMaxCHIPCompactNetworkIdentityLength + (provePossession ? kPossessionNonceSize : 0);
+        VerifyOrExit(identityBuffer.Alloc(identityBufferSize), /**/);
+
+        // Add/Update the network at the driver level
+        MutableByteSpan clientIdentity(identityBuffer.Get(), kMaxCHIPCompactNetworkIdentityLength);
+        Optional<P256ECDSASignature> possessionSignature;
+        Status status = Status::kUnknownError;
+        DebugTextStorage debugTextBuffer;
+        MutableCharSpan debugText(debugTextBuffer);
+        uint8_t networkIndex;
+        SuccessOrExit(err = driver->AddOrUpdateNetworkWithPDC(req.ssid, networkIdentity, clientIdentityNetworkIndex, status,
+                                                              debugText, clientIdentity, networkIndex));
+
+        Commands::NetworkConfigResponse::Type response;
+        response.networkingStatus = status;
+        FillDebugTextAndNetworkIndex(response, debugText, networkIndex);
+
+        if (status == Status::kSuccess)
+        {
+            response.clientIdentity.SetValue(clientIdentity);
+
+            if (provePossession)
+            {
+                // PossessionSignature TBS message = (NetworkClientIdentity || PossessionNonce)
+                memcpy(clientIdentity.end(), req.possessionNonce.Value().data(), kPossessionNonceSize);
+                ByteSpan tbsMessage(clientIdentity.data(), clientIdentity.size() + kPossessionNonceSize);
+                SuccessOrExit(err = driver->SignWithClientIdentity(networkIndex, tbsMessage, possessionSignature.Emplace()));
+                response.possessionSignature.SetValue(possessionSignature.Value().Span());
+            }
+
+            ReportNetworksListChanged();
+            UpdateBreadcrumb(req.breadcrumb);
+        }
+
+        ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
+    }
+
+exit:
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Zcl, "AddOrUpdateWiFiNetwork with PDC failed: %" CHIP_ERROR_FORMAT, err.Format());
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::Failure);
+    }
+}
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
 
 void Instance::HandleAddOrUpdateThreadNetwork(HandlerContext & ctx, const Commands::AddOrUpdateThreadNetwork::DecodableType & req)
 {
@@ -378,18 +731,16 @@ void Instance::HandleAddOrUpdateThreadNetwork(HandlerContext & ctx, const Comman
     VerifyOrReturn(CheckFailSafeArmed(ctx));
 
     Commands::NetworkConfigResponse::Type response;
-    MutableCharSpan debugText;
-#if CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE
-    char debugTextBuffer[CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE];
-    debugText = MutableCharSpan(debugTextBuffer);
-#endif
+    DebugTextStorage debugTextBuffer;
+    MutableCharSpan debugText(debugTextBuffer);
     uint8_t outNetworkIndex = 0;
     response.networkingStatus =
         mpDriver.Get<ThreadDriver *>()->AddOrUpdateNetwork(req.operationalDataset, debugText, outNetworkIndex);
     FillDebugTextAndNetworkIndex(response, debugText, outNetworkIndex);
     ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-    if (response.networkingStatus == NetworkCommissioningStatusEnum::kSuccess)
+    if (response.networkingStatus == Status::kSuccess)
     {
+        ReportNetworksListChanged();
         UpdateBreadcrumb(req.breadcrumb);
     }
 }
@@ -415,27 +766,33 @@ void Instance::HandleRemoveNetwork(HandlerContext & ctx, const Commands::RemoveN
     VerifyOrReturn(CheckFailSafeArmed(ctx));
 
     Commands::NetworkConfigResponse::Type response;
-    MutableCharSpan debugText;
-#if CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE
-    char debugTextBuffer[CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE];
-    debugText = MutableCharSpan(debugTextBuffer);
-#endif
+    DebugTextStorage debugTextBuffer;
+    MutableCharSpan debugText(debugTextBuffer);
     uint8_t outNetworkIndex   = 0;
     response.networkingStatus = mpWirelessDriver->RemoveNetwork(req.networkID, debugText, outNetworkIndex);
     FillDebugTextAndNetworkIndex(response, debugText, outNetworkIndex);
     ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-    if (response.networkingStatus == NetworkCommissioningStatusEnum::kSuccess)
+    if (response.networkingStatus == Status::kSuccess)
     {
+        ReportNetworksListChanged();
         UpdateBreadcrumb(req.breadcrumb);
+
+        // If no networks are left, clear-out errors;
+        if (CountAndRelease(mpBaseDriver->GetNetworks()) == 0)
+        {
+            SetLastNetworkId(ByteSpan{});
+            SetLastConnectErrorValue(NullNullable);
+            SetLastNetworkingStatusValue(NullNullable);
+        }
     }
 }
 
 void Instance::HandleConnectNetwork(HandlerContext & ctx, const Commands::ConnectNetwork::DecodableType & req)
 {
     MATTER_TRACE_SCOPE("HandleConnectNetwork", "NetworkCommissioning");
-    if (req.networkID.size() > DeviceLayer::NetworkCommissioning::kMaxNetworkIDLen)
+    if (req.networkID.size() > kMaxNetworkIDLen)
     {
-        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::InvalidValue);
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError);
         return;
     }
 
@@ -445,37 +802,143 @@ void Instance::HandleConnectNetwork(HandlerContext & ctx, const Commands::Connec
     memcpy(mConnectingNetworkID, req.networkID.data(), mConnectingNetworkIDLen);
     mAsyncCommandHandle         = CommandHandler::Handle(&ctx.mCommandHandler);
     mCurrentOperationBreadcrumb = req.breadcrumb;
+
+#if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
     mpWirelessDriver->ConnectNetwork(req.networkID, this);
+#else
+    // In Non-concurrent mode postpone the final execution of ConnectNetwork until the operational
+    // network has been fully brought up and kOperationalNetworkStarted is delivered.
+    // mConnectingNetworkIDLen and mConnectingNetworkID contain the received SSID
+    // As per spec, send the ConnectNetworkResponse(Success) prior to releasing the commissioning channel
+    SendNonConcurrentConnectNetworkResponse();
+#endif
+}
+
+void Instance::HandleNonConcurrentConnectNetwork()
+{
+    ByteSpan nonConcurrentNetworkID = ByteSpan(mConnectingNetworkID, mConnectingNetworkIDLen);
+    ChipLogProgress(NetworkProvisioning, "Non-concurrent mode, Connect to Network SSID=%.*s", mConnectingNetworkIDLen,
+                    mConnectingNetworkID);
+    mpWirelessDriver->ConnectNetwork(nonConcurrentNetworkID, this);
 }
 
 void Instance::HandleReorderNetwork(HandlerContext & ctx, const Commands::ReorderNetwork::DecodableType & req)
 {
     MATTER_TRACE_SCOPE("HandleReorderNetwork", "NetworkCommissioning");
     Commands::NetworkConfigResponse::Type response;
-    MutableCharSpan debugText;
-#if CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE
-    char debugTextBuffer[CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE];
-    debugText = MutableCharSpan(debugTextBuffer);
-#endif
+    DebugTextStorage debugTextBuffer;
+    MutableCharSpan debugText(debugTextBuffer);
     response.networkingStatus = mpWirelessDriver->ReorderNetwork(req.networkID, req.networkIndex, debugText);
     FillDebugTextAndNetworkIndex(response, debugText, req.networkIndex);
     ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
-    if (response.networkingStatus == NetworkCommissioningStatusEnum::kSuccess)
+    if (response.networkingStatus == Status::kSuccess)
     {
+        ReportNetworksListChanged();
         UpdateBreadcrumb(req.breadcrumb);
     }
 }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+void Instance::HandleQueryIdentity(HandlerContext & ctx, const Commands::QueryIdentity::DecodableType & req)
+{
+    MATTER_TRACE_SCOPE("HandleQueryIdentity", "NetworkCommissioning");
+
+    if (req.keyIdentifier.size() != CertificateKeyId::size())
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "keyIdentifier");
+        return;
+    }
+    CertificateKeyId keyIdentifier(req.keyIdentifier.data());
+
+    bool provePossession = req.possessionNonce.HasValue();
+    if (provePossession && req.possessionNonce.Value().size() != kPossessionNonceSize)
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, Protocols::InteractionModel::Status::ConstraintError, "possessionNonce");
+        return;
+    }
+
+    auto err      = CHIP_NO_ERROR;
+    auto status   = Protocols::InteractionModel::Status::Success;
+    auto driver   = mpDriver.Get<WiFiDriver *>();
+    auto networks = driver->GetNetworks();
+    VerifyOrExit(networks != nullptr && networks->Count() > 0, status = Protocols::InteractionModel::Status::NotFound);
+
+    {
+        // Allocate a buffer to hold the identity, and leave enough room to append the possession nonce if needed.
+        chip::Platform::ScopedMemoryBuffer<uint8_t> identityBuffer;
+        size_t identityBufferSize = kMaxCHIPCompactNetworkIdentityLength + (provePossession ? kPossessionNonceSize : 0);
+        VerifyOrExit(identityBuffer.Alloc(identityBufferSize), /**/);
+
+        MutableByteSpan identity(identityBuffer.Get(), kMaxCHIPCompactNetworkIdentityLength);
+        Optional<P256ECDSASignature> possessionSignature;
+
+        Network network;
+        for (uint8_t networkIndex = 0;; networkIndex++)
+        {
+            VerifyOrExit(networks->Next(network), status = Protocols::InteractionModel::Status::NotFound);
+
+            if (network.clientIdentifier.HasValue() && keyIdentifier.data_equal(network.clientIdentifier.Value()))
+            {
+                SuccessOrExit(err = driver->GetClientIdentity(networkIndex, identity));
+                if (provePossession)
+                {
+                    // PossessionSignature TBS message = (NetworkClientIdentity || PossessionNonce)
+                    memcpy(identity.end(), req.possessionNonce.Value().data(), kPossessionNonceSize);
+                    ByteSpan tbsMessage(identity.data(), identity.size() + kPossessionNonceSize);
+                    SuccessOrExit(err = driver->SignWithClientIdentity(networkIndex, tbsMessage, possessionSignature.Emplace()));
+                }
+                break;
+            }
+            if (!provePossession && // Proof-of-possession is not possible for network identities
+                network.networkIdentifier.HasValue() && keyIdentifier.data_equal(network.networkIdentifier.Value()))
+            {
+                SuccessOrExit(err = driver->GetNetworkIdentity(networkIndex, identity));
+                break;
+            }
+        }
+
+        Commands::QueryIdentityResponse::Type response;
+        response.identity = identity;
+        if (possessionSignature.HasValue())
+        {
+            response.possessionSignature.SetValue(possessionSignature.Value().Span());
+        }
+        ctx.mCommandHandler.AddResponse(ctx.mRequestPath, response);
+    }
+
+exit:
+    if (networks != nullptr)
+    {
+        networks->Release();
+    }
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(Zcl, "QueryIdentity failed: %" CHIP_ERROR_FORMAT, err.Format());
+        status = Protocols::InteractionModel::Status::Failure;
+    }
+    if (status != Protocols::InteractionModel::Status::Success)
+    {
+        ctx.mCommandHandler.AddStatus(ctx.mRequestPath, status);
+    }
+}
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
+
 void Instance::OnResult(Status commissioningError, CharSpan debugText, int32_t interfaceStatus)
 {
     auto commandHandleRef = std::move(mAsyncCommandHandle);
-    auto commandHandle    = commandHandleRef.Get();
+
+    // In Non-concurrent mode the commandHandle will be null here, the ConnectNetworkResponse
+    // has already been sent and the BLE will have been stopped, however the other functionality
+    // is still required
+#if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
+    auto commandHandle = commandHandleRef.Get();
     if (commandHandle == nullptr)
     {
         // When the platform shutted down, interaction model engine will invalidate all commandHandle to avoid dangling references.
         // We may receive the callback after it and should make it noop.
         return;
     }
+#endif // CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
 
     Commands::ConnectNetworkResponse::Type response;
     response.networkingStatus = commissioningError;
@@ -487,20 +950,27 @@ void Instance::OnResult(Status commissioningError, CharSpan debugText, int32_t i
     {
         DeviceLayer::DeviceControlServer::DeviceControlSvr().PostConnectedToOperationalNetworkEvent(
             ByteSpan(mLastNetworkID, mLastNetworkIDLen));
-        mLastConnectErrorValue.SetNull();
+        SetLastConnectErrorValue(NullNullable);
     }
     else
     {
         response.errorValue.SetNonNull(interfaceStatus);
-        mLastConnectErrorValue.SetNonNull(interfaceStatus);
+        SetLastConnectErrorValue(MakeNullable(interfaceStatus));
     }
 
-    mLastNetworkIDLen = mConnectingNetworkIDLen;
-    memcpy(mLastNetworkID, mConnectingNetworkID, mLastNetworkIDLen);
-    mLastNetworkingStatusValue.SetNonNull(commissioningError);
+    SetLastNetworkId(ByteSpan{ mConnectingNetworkID, mConnectingNetworkIDLen });
+    SetLastNetworkingStatusValue(MakeNullable(commissioningError));
 
+#if CONFIG_NETWORK_LAYER_BLE && !CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
+    ChipLogProgress(NetworkProvisioning, "Non-concurrent mode, ConnectNetworkResponse will NOT be sent");
+    // Do not send the ConnectNetworkResponse if in non-concurrent mode
+    // TODO(#30576) raised to modify CommandHandler to notify it if no response required
+    // -----> Is this required here: commandHandle->FinishCommand();
+#else
     commandHandle->AddResponse(mPath, response);
-    if (commissioningError == NetworkCommissioningStatusEnum::kSuccess)
+#endif // CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
+
+    if (commissioningError == Status::kSuccess)
     {
         CommitSavedBreadcrumb();
     }
@@ -518,19 +988,19 @@ void Instance::OnFinished(Status status, CharSpan debugText, ThreadScanResponseI
         return;
     }
 
-    mLastNetworkingStatusValue.SetNonNull(status);
-    mLastConnectErrorValue.SetNull();
-    mLastNetworkIDLen = 0;
+    SetLastNetworkingStatusValue(MakeNullable(status));
 
     TLV::TLVWriter * writer;
     TLV::TLVType listContainerType;
     ThreadScanResponse scanResponse;
-    chip::Platform::ScopedMemoryBuffer<ThreadScanResponse> scanResponseArray;
+    Platform::ScopedMemoryBuffer<ThreadScanResponse> scanResponseArray;
     size_t scanResponseArrayLength = 0;
     uint8_t extendedAddressBuffer[Thread::kSizeExtendedPanId];
 
-    SuccessOrExit(err = commandHandle->PrepareCommand(
-                      ConcreteCommandPath(mPath.mEndpointId, NetworkCommissioning::Id, Commands::ScanNetworksResponse::Id)));
+    const CommandHandler::InvokeResponseParameters prepareParams(mPath);
+    SuccessOrExit(
+        err = commandHandle->PrepareInvokeResponseCommand(
+            ConcreteCommandPath(mPath.mEndpointId, NetworkCommissioning::Id, Commands::ScanNetworksResponse::Id), prepareParams));
     VerifyOrExit((writer = commandHandle->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
     SuccessOrExit(err = writer->Put(TLV::ContextTag(Commands::ScanNetworksResponse::Fields::kNetworkingStatus), status));
@@ -543,7 +1013,7 @@ void Instance::OnFinished(Status status, CharSpan debugText, ThreadScanResponseI
                                                TLV::TLVType::kTLVType_Array, listContainerType));
 
     // If no network was found, we encode an empty list, don't call a zero-sized alloc.
-    if (networks->Count() > 0)
+    if ((status == Status::kSuccess) && (networks->Count() > 0))
     {
         VerifyOrExit(scanResponseArray.Alloc(chip::min(networks->Count(), kMaxNetworksInScanResponse)), err = CHIP_ERROR_NO_MEMORY);
         for (; networks != nullptr && networks->Next(scanResponse);)
@@ -611,9 +1081,9 @@ void Instance::OnFinished(Status status, CharSpan debugText, ThreadScanResponseI
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(Zcl, "Failed to encode response: %s", err.AsString());
+        ChipLogError(Zcl, "Failed to encode response: %" CHIP_ERROR_FORMAT, err.Format());
     }
-    if (status == NetworkCommissioningStatusEnum::kSuccess)
+    if (status == Status::kSuccess)
     {
         CommitSavedBreadcrumb();
     }
@@ -632,17 +1102,24 @@ void Instance::OnFinished(Status status, CharSpan debugText, WiFiScanResponseIte
         return;
     }
 
-    mLastNetworkingStatusValue.SetNonNull(status);
-    mLastConnectErrorValue.SetNull();
-    mLastNetworkIDLen = 0;
+    // If drivers are failing to respond NetworkNotFound on empty results, force it for them.
+    bool resultsMissing = !networks || (networks->Count() == 0);
+    if ((status == Status::kSuccess) && mScanningWasDirected && resultsMissing)
+    {
+        status = Status::kNetworkNotFound;
+    }
+
+    SetLastNetworkingStatusValue(MakeNullable(status));
 
     TLV::TLVWriter * writer;
     TLV::TLVType listContainerType;
     WiFiScanResponse scanResponse;
     size_t networksEncoded = 0;
 
-    SuccessOrExit(err = commandHandle->PrepareCommand(
-                      ConcreteCommandPath(mPath.mEndpointId, NetworkCommissioning::Id, Commands::ScanNetworksResponse::Id)));
+    const CommandHandler::InvokeResponseParameters prepareParams(mPath);
+    SuccessOrExit(
+        err = commandHandle->PrepareInvokeResponseCommand(
+            ConcreteCommandPath(mPath.mEndpointId, NetworkCommissioning::Id, Commands::ScanNetworksResponse::Id), prepareParams));
     VerifyOrExit((writer = commandHandle->GetCommandDataIBTLVWriter()) != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
     SuccessOrExit(err = writer->Put(TLV::ContextTag(Commands::ScanNetworksResponse::Fields::kNetworkingStatus), status));
@@ -654,27 +1131,36 @@ void Instance::OnFinished(Status status, CharSpan debugText, WiFiScanResponseIte
     SuccessOrExit(err = writer->StartContainer(TLV::ContextTag(Commands::ScanNetworksResponse::Fields::kWiFiScanResults),
                                                TLV::TLVType::kTLVType_Array, listContainerType));
 
-    for (; networks != nullptr && networks->Next(scanResponse) && networksEncoded < kMaxNetworksInScanResponse; networksEncoded++)
+    // Only encode results on success, to avoid stale contents on partial failure.
+    if ((status == Status::kSuccess) && (networks != nullptr))
     {
-        Structs::WiFiInterfaceScanResultStruct::Type result;
-        result.security = scanResponse.security;
-        result.ssid     = ByteSpan(scanResponse.ssid, scanResponse.ssidLen);
-        result.bssid    = ByteSpan(scanResponse.bssid, sizeof(scanResponse.bssid));
-        result.channel  = scanResponse.channel;
-        result.wiFiBand = scanResponse.wiFiBand;
-        result.rssi     = scanResponse.rssi;
-        SuccessOrExit(err = DataModel::Encode(*writer, TLV::AnonymousTag(), result));
+        while (networks->Next(scanResponse))
+        {
+            Structs::WiFiInterfaceScanResultStruct::Type result;
+            result.security = scanResponse.security;
+            result.ssid     = ByteSpan(scanResponse.ssid, scanResponse.ssidLen);
+            result.bssid    = ByteSpan(scanResponse.bssid, sizeof(scanResponse.bssid));
+            result.channel  = scanResponse.channel;
+            result.wiFiBand = scanResponse.wiFiBand;
+            result.rssi     = scanResponse.rssi;
+            SuccessOrExit(err = DataModel::Encode(*writer, TLV::AnonymousTag(), result));
+
+            ++networksEncoded;
+            if (networksEncoded >= kMaxNetworksInScanResponse)
+            {
+                break;
+            }
+        }
     }
 
     SuccessOrExit(err = writer->EndContainer(listContainerType));
     SuccessOrExit(err = commandHandle->FinishCommand());
-
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(Zcl, "Failed to encode response: %s", err.AsString());
+        ChipLogError(Zcl, "Failed to encode response: %" CHIP_ERROR_FORMAT, err.Format());
     }
-    if (status == NetworkCommissioningStatusEnum::kSuccess)
+    if (status == Status::kSuccess)
     {
         CommitSavedBreadcrumb();
     }
@@ -696,6 +1182,13 @@ void Instance::OnPlatformEventHandler(const DeviceLayer::ChipDeviceEvent * event
     {
         this_->OnFailSafeTimerExpired();
     }
+    else if ((event->Type == DeviceLayer::DeviceEventType::kWiFiDeviceAvailable) ||
+             (event->Type == DeviceLayer::DeviceEventType::kOperationalNetworkStarted))
+
+    {
+        // In Non-Concurrent mode connect the operational channel, as BLE has been stopped
+        this_->HandleNonConcurrentConnectNetwork();
+    }
 }
 
 void Instance::OnCommissioningComplete()
@@ -713,45 +1206,56 @@ void Instance::OnFailSafeTimerExpired()
     ChipLogDetail(Zcl, "Failsafe timeout, tell platform driver to revert network credentials.");
     mpWirelessDriver->RevertConfiguration();
     mAsyncCommandHandle.Release();
+
+    // Mark the network list changed since `mpWirelessDriver->RevertConfiguration()` may have updated it.
+    ReportNetworksListChanged();
+
+    // If no networks are left, clear-out errors;
+    if (mpBaseDriver && (CountAndRelease(mpBaseDriver->GetNetworks()) == 0))
+    {
+        SetLastNetworkId(ByteSpan{});
+        SetLastConnectErrorValue(NullNullable);
+        SetLastNetworkingStatusValue(NullNullable);
+    }
 }
 
 CHIP_ERROR Instance::EnumerateAcceptedCommands(const ConcreteClusterPath & cluster, CommandIdCallback callback, void * context)
 {
     using namespace Clusters::NetworkCommissioning::Commands;
 
-    constexpr CommandId acceptedCommandsListWiFi[] = {
-        ScanNetworks::Id, AddOrUpdateWiFiNetwork::Id, RemoveNetwork::Id, ConnectNetwork::Id, ReorderNetwork::Id,
-    };
-    constexpr CommandId acceptedCommandsListThread[] = {
-        ScanNetworks::Id, AddOrUpdateThreadNetwork::Id, RemoveNetwork::Id, ConnectNetwork::Id, ReorderNetwork::Id,
-    };
-
     if (mFeatureFlags.Has(Feature::kThreadNetworkInterface))
     {
-        for (const auto & cmd : acceptedCommandsListThread)
+        for (auto && cmd : {
+                 ScanNetworks::Id,
+                 AddOrUpdateThreadNetwork::Id,
+                 RemoveNetwork::Id,
+                 ConnectNetwork::Id,
+                 ReorderNetwork::Id,
+             })
         {
-            if (callback(cmd, context) != Loop::Continue)
-            {
-                break;
-            }
+            VerifyOrExit(callback(cmd, context) == Loop::Continue, /**/);
         }
-
-        return CHIP_NO_ERROR;
     }
-
-    if (mFeatureFlags.Has(Feature::kWiFiNetworkInterface))
+    else if (mFeatureFlags.Has(Feature::kWiFiNetworkInterface))
     {
-        for (const auto & cmd : acceptedCommandsListWiFi)
+        for (auto && cmd : {
+                 ScanNetworks::Id,
+                 AddOrUpdateWiFiNetwork::Id,
+                 RemoveNetwork::Id,
+                 ConnectNetwork::Id,
+                 ReorderNetwork::Id,
+             })
         {
-            if (callback(cmd, context) != Loop::Continue)
-            {
-                break;
-            }
+            VerifyOrExit(callback(cmd, context) == Loop::Continue, /**/);
         }
-
-        return CHIP_NO_ERROR;
     }
 
+    if (mFeatureFlags.Has(Feature::kPerDeviceCredentials))
+    {
+        VerifyOrExit(callback(QueryIdentity::Id, context) == Loop::Continue, /**/);
+    }
+
+exit:
     return CHIP_NO_ERROR;
 }
 
@@ -759,20 +1263,20 @@ CHIP_ERROR Instance::EnumerateGeneratedCommands(const ConcreteClusterPath & clus
 {
     using namespace Clusters::NetworkCommissioning::Commands;
 
-    constexpr CommandId generatedCommandsListWireless[] = { ScanNetworksResponse::Id, NetworkConfigResponse::Id,
-                                                            ConnectNetworkResponse::Id };
-
     if (mFeatureFlags.HasAny(Feature::kWiFiNetworkInterface, Feature::kThreadNetworkInterface))
     {
-        for (const auto & cmd : generatedCommandsListWireless)
+        for (auto && cmd : { ScanNetworksResponse::Id, NetworkConfigResponse::Id, ConnectNetworkResponse::Id })
         {
-            if (callback(cmd, context) != Loop::Continue)
-            {
-                break;
-            }
+            VerifyOrExit(callback(cmd, context) == Loop::Continue, /**/);
         }
     }
 
+    if (mFeatureFlags.Has(Feature::kPerDeviceCredentials))
+    {
+        VerifyOrExit(callback(QueryIdentityResponse::Id, context) == Loop::Continue, /**/);
+    }
+
+exit:
     return CHIP_NO_ERROR;
 }
 
@@ -788,7 +1292,7 @@ uint8_t NullNetworkDriver::GetMaxNetworks()
     return 1;
 }
 
-DeviceLayer::NetworkCommissioning::NetworkIterator * NullNetworkDriver::GetNetworks()
+NetworkIterator * NullNetworkDriver::GetNetworks()
 {
     // Instance::Read accepts nullptr as an empty NetworkIterator.
     return nullptr;

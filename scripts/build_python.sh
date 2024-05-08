@@ -44,6 +44,7 @@ declare case_retry_delta
 declare install_virtual_env
 declare clean_virtual_env=yes
 declare install_pytest_requirements=yes
+declare install_jupyterlab=no
 
 help() {
 
@@ -67,6 +68,7 @@ Input Options:
   --include_pytest_deps  <yes|no>                           Install requirements.txt for running scripts/tests and
                                                             src/python_testing scripts.
                                                             Defaults to yes.
+  -j, --jupyter-lab                                         Install jupyterlab requirements.
   --extra_packages PACKAGES                                 Install extra Python packages from PyPI
   -z --pregen_dir DIRECTORY                                 Directory where generated zap files have been pre-generated.
 "
@@ -132,6 +134,9 @@ while (($#)); do
             pregen_dir=$2
             shift
             ;;
+        --jupyter-lab | -j)
+            install_jupyterlab=yes
+            ;;
         -*)
             help
             echo "Unknown Option \"$1\""
@@ -146,6 +151,20 @@ echo "Input values: chip_detail_logging = $chip_detail_logging , chip_mdns = \"$
 
 # Ensure we have a compilation environment
 source "$CHIP_ROOT/scripts/activate.sh"
+
+# This is to prevent python compiled for previous versions reporting 10.16 as a version
+# which breaks the ability to install python wheels.
+#
+# See https://eclecticlight.co/2020/08/13/macos-version-numbering-isnt-so-simple/ for
+# some explanation
+#
+# TLDR:
+#
+#   > import platform
+#   > print(platform.mac_ver()[0])
+#     11.7.3   // (example) if SYSTEM_VERSION_COMPAT is 0
+#     10.16    // SYSTEM_VERSION_COMPAT is unset or 1
+export SYSTEM_VERSION_COMPAT=0
 
 # Generates ninja files
 [[ -n "$chip_mdns" ]] && chip_mdns_arg="chip_mdns=\"$chip_mdns\"" || chip_mdns_arg=""
@@ -216,10 +235,19 @@ if [ -n "$install_virtual_env" ]; then
         "$ENVIRONMENT_ROOT"/bin/pip install -r "$CHIP_ROOT/src/python_testing/requirements.txt"
     fi
 
+    if [ "$install_jupyterlab" = "yes" ]; then
+        echo_blue "Installing JupyterLab kernels and lsp..."
+        "$ENVIRONMENT_ROOT"/bin/pip install -r "$CHIP_ROOT/scripts/jupyterlab_requirements.txt"
+    fi
+
     echo ""
     echo_green "Compilation completed and WHL package installed in: "
     echo_blue "  $ENVIRONMENT_ROOT"
     echo ""
     echo_green "To use please run:"
     echo_bold_white "  source $ENVIRONMENT_ROOT/bin/activate"
+
+    if [ "$install_jupyterlab" = "yes" ]; then
+        echo_bold_white "  jupyter-lab"
+    fi
 fi

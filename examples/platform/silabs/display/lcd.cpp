@@ -25,7 +25,7 @@
 #include "dmd.h"
 #include "glib.h"
 
-#if (SIWX_917)
+#if (SLI_SI91X_MCU_INTERFACE)
 #include "rsi_chip.h"
 #endif
 
@@ -66,7 +66,7 @@ CHIP_ERROR SilabsLCD::Init(uint8_t * name, bool initialState)
     }
 
     /* Enable the memory lcd */
-#if (SIWX_917)
+#if (SLI_SI91X_MCU_INTERFACE)
     RSI_NPSSGPIO_InputBufferEn(SL_BOARD_ENABLE_DISPLAY_PIN, 1U);
     RSI_NPSSGPIO_SetPinMux(SL_BOARD_ENABLE_DISPLAY_PIN, 0);
     RSI_NPSSGPIO_SetDir(SL_BOARD_ENABLE_DISPLAY_PIN, 0);
@@ -192,11 +192,11 @@ void SilabsLCD::WriteStatus()
     GLIB_drawStringOnLine(&glibContext, str, lineNb++, GLIB_ALIGN_LEFT, 0, 0, true);
     sprintf(str, "Advertising : %c", mStatus.advertising ? 'Y' : 'N');
     GLIB_drawStringOnLine(&glibContext, str, lineNb++, GLIB_ALIGN_LEFT, 0, 0, true);
-#if CHIP_CONFIG_ENABLE_ICD_SERVER
-    GLIB_drawStringOnLine(&glibContext, "Is ICD : Y", lineNb++, GLIB_ALIGN_LEFT, 0, 0, true);
-#else
-    GLIB_drawStringOnLine(&glibContext, "Is ICD : N", lineNb++, GLIB_ALIGN_LEFT, 0, 0, true);
-#endif
+    if (mStatus.icdMode != NotICD)
+    {
+        sprintf(str, "ICD : %s", mStatus.icdMode == SIT ? "SIT" : "LIT");
+        GLIB_drawStringOnLine(&glibContext, str, lineNb++, GLIB_ALIGN_LEFT, 0, 0, true);
+    }
 
     updateDisplay();
 }

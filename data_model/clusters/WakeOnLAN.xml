@@ -54,18 +54,23 @@ This notice and disclaimer must be included on all copies of this document.
 Connectivity Standards Alliance
 508 Second Street, Suite 206
 Davis, CA 95616, USA
+
+:xrefstyle: basic
 -->
-<cluster xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="types types.xsd cluster cluster.xsd" id="0x0503" name="Wake on LAN" revision="1">
+<cluster xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="types types.xsd cluster cluster.xsd" id="0x0503" name="Wake On LAN" revision="1">
   <revisionHistory>
     <revision revision="1" summary="Initial Release"/>
   </revisionHistory>
+  <clusterIds>
+    <clusterId id="0x0503" name="Wake on LAN"/>
+  </clusterIds>
   <classification hierarchy="base" role="application" picsCode="WAKEONLAN" scope="Endpoint"/>
   <attributes>
-    <attribute id="0x0000" name="MACAddress" type="hwadr">
+    <attribute id="0x0000" name="MACAddress" type="string">
       <access read="true" readPrivilege="view"/>
       <quality changeOmitted="false" nullable="false" scene="false" persistence="fixed" reportable="false"/>
       <optionalConform/>
-      <constraint type="desc"/>
+      <constraint type="maxLength" value="12"/>
     </attribute>
     <attribute id="0x0001" name="LinkLocalAddress" type="ipv6adr">
       <access read="true" readPrivilege="view"/>

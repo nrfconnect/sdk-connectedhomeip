@@ -25,10 +25,10 @@
 #import "MatterCallbacks.h"
 #import "OnboardingPayload.h"
 
+#include <app/data-model/ListLargeSystemExtensions.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/attestation_verifier/DefaultDeviceAttestationVerifier.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
-#include <lib/support/CHIPListUtils.h>
 #include <lib/support/CHIPMem.h>
 #include <platform/PlatformManager.h>
 
@@ -1076,7 +1076,7 @@
                                              void (^callback)(uint32_t) =
                                                  [[CastingServerBridge getSharedInstance].subscriptionReadSuccessCallbacks
                                                      objectForKey:@"contentLauncher_subscribeSupportedStreamingProtocols"];
-                                             callback(supportedStreamingProtocols);
+                                             callback(supportedStreamingProtocols.Raw());
                                          },
                                          [](void * context, CHIP_ERROR err) {
                                              void (^callback)(MatterError *) =
@@ -1121,7 +1121,7 @@
                                      [ConversionUtils convertToCppTargetEndpointInfoFrom:contentApp outTargetEndpointInfo:endpoint];
 
                                      return castingServer->LevelControl_Step(&endpoint,
-                                         static_cast<chip::app::Clusters::LevelControl::StepMode>(stepMode), stepSize,
+                                         static_cast<chip::app::Clusters::LevelControl::StepModeEnum>(stepMode), stepSize,
                                          transitionTime, optionMask, optionOverride, responseFunction);
                                  }];
 }
@@ -2154,7 +2154,7 @@
                                      [ConversionUtils convertToCppTargetEndpointInfoFrom:contentApp outTargetEndpointInfo:endpoint];
 
                                      return castingServer->KeypadInput_SendKey(&endpoint,
-                                         static_cast<chip::app::Clusters::KeypadInput::CecKeyCode>(keyCode), responseFunction);
+                                         static_cast<chip::app::Clusters::KeypadInput::CECKeyCodeEnum>(keyCode), responseFunction);
                                  }];
 }
 

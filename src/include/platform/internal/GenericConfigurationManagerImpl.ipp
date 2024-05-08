@@ -244,9 +244,11 @@ CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::Init()
     mLifetimePersistedCounter.Init(CHIP_CONFIG_LIFETIIME_PERSISTED_COUNTER_KEY);
 #endif
 
+#if CHIP_USE_TRANSITIONAL_DEVICE_INSTANCE_INFO_PROVIDER
     static GenericDeviceInstanceInfoProvider<ConfigClass> sGenericDeviceInstanceInfoProvider(*this);
 
     SetDeviceInstanceInfoProvider(&sGenericDeviceInstanceInfoProvider);
+#endif
 
 #if CHIP_USE_TRANSITIONAL_COMMISSIONABLE_DATA_PROVIDER
     // Using a temporary singleton here because the overall GenericConfigurationManagerImpl is
@@ -372,19 +374,21 @@ CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::GetPrimaryMACAddress(Mu
     if (buf.size() != ConfigurationManager::kPrimaryMACAddressLength)
         return CHIP_ERROR_INVALID_ARGUMENT;
 
-    memset(buf.data(), 0, buf.size());
+    memset(buf.data(), 0, buf.size()); // zero the whole buffer, in case the caller ignores buf.size()
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
     if (chip::DeviceLayer::ThreadStackMgr().GetPrimary802154MACAddress(buf.data()) == CHIP_NO_ERROR)
     {
         ChipLogDetail(DeviceLayer, "Using Thread extended MAC for hostname.");
+        buf.reduce_size(kThreadMACAddressLength);
         return CHIP_NO_ERROR;
     }
 #endif
 
     if (chip::DeviceLayer::ConfigurationMgr().GetPrimaryWiFiMACAddress(buf.data()) == CHIP_NO_ERROR)
     {
-        ChipLogDetail(DeviceLayer, "Using wifi MAC for hostname");
+        ChipLogDetail(DeviceLayer, "Using WiFi MAC for hostname");
+        buf.reduce_size(kEthernetMACAddressLength);
         return CHIP_NO_ERROR;
     }
 
@@ -395,7 +399,7 @@ template <class ConfigClass>
 CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::GetPrimary802154MACAddress(uint8_t * buf)
 {
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-    return ThreadStackManager().GetPrimary802154MACAddress(buf);
+    return ThreadStackMgr().GetPrimary802154MACAddress(buf);
 #else
     return CHIP_DEVICE_ERROR_CONFIG_NOT_FOUND;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
@@ -663,15 +667,14 @@ CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::GetSecondaryPairingInst
     return CHIP_NO_ERROR;
 }
 
+#if CHIP_CONFIG_TEST
 template <class ConfigClass>
-CHIP_ERROR GenericConfigurationManagerImpl<ConfigClass>::RunUnitTests()
+void GenericConfigurationManagerImpl<ConfigClass>::RunUnitTests()
 {
-#if !defined(NDEBUG)
     ChipLogProgress(DeviceLayer, "Running configuration unit test");
     RunConfigUnitTest();
-#endif
-    return CHIP_NO_ERROR;
 }
+#endif
 
 template <class ConfigClass>
 void GenericConfigurationManagerImpl<ConfigClass>::LogDeviceConfig()

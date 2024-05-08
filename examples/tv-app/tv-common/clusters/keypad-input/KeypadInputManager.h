@@ -23,7 +23,7 @@
 using chip::app::CommandResponseHelper;
 using KeypadInputDelegate = chip::app::Clusters::KeypadInput::Delegate;
 using SendKeyResponseType = chip::app::Clusters::KeypadInput::Commands::SendKeyResponse::Type;
-using CecKeyCodeType      = chip::app::Clusters::KeypadInput::CecKeyCode;
+using CecKeyCodeType      = chip::app::Clusters::KeypadInput::CECKeyCodeEnum;
 
 class KeypadInputManager : public KeypadInputDelegate
 {
@@ -34,5 +34,5 @@ public:
 
 private:
     // TODO: set this based upon meta data from app
-    uint32_t mDynamicEndpointFeatureMap = 7;
+    static constexpr uint32_t kEndpointFeatureMap = 7;
 };

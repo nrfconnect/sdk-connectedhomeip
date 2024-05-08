@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 ## Contents
 
 This folder contains a machine-readable representation of matter clusters.
@@ -13,7 +17,7 @@ update the spec XML files, however this is not done automatically.
 You will require access to the following tools locally:
 
 -   `scraper`. A binary copy generally available
-    [here](https://github.com/csa-data-model/projects/tree/main/DM-Editor/bin/1.2.0/scrape)
+    [here](https://github.com/csa-data-model/projects/tree/main/DM-Editor/bin/scrape)
 -   Specification repository checkout from
     https://github.com/CHIP-Specifications/connectedhomeip-spec
 

@@ -20,10 +20,10 @@ import os
 from typing import List, Optional, Set
 
 from matter_idl.generators import CodeGenerator, GeneratorStorage
-from matter_idl.generators.types import (BasicInteger, BasicString, FundamentalType, IdlBitmapType, IdlEnumType, IdlType,
-                                         ParseDataType, TypeLookupContext)
-from matter_idl.matter_idl_types import (Attribute, Cluster, ClusterSide, Command, DataType, Field, FieldQuality, Idl, Struct,
-                                         StructQuality, StructTag)
+from matter_idl.generators.type_definitions import (BasicInteger, BasicString, FundamentalType, IdlBitmapType, IdlEnumType, IdlType,
+                                                    ParseDataType, TypeLookupContext)
+from matter_idl.matter_idl_types import (Attribute, Cluster, Command, DataType, Field, FieldQuality, Idl, Struct, StructQuality,
+                                         StructTag)
 from stringcase import capitalcase
 
 
@@ -114,7 +114,6 @@ _KNOWN_DECODABLE_TYPES = {
     'event_no': 'chip::EventNumber',
     'fabric_id': 'chip::FabricId',
     'fabric_idx': 'chip::FabricIndex',
-    'fabric_idx': 'chip::FabricIndex',
     'field_id': 'chip::FieldId',
     'group_id': 'chip::GroupId',
     'node_id': 'chip::NodeId',
@@ -126,8 +125,6 @@ _KNOWN_DECODABLE_TYPES = {
     # non-named enums
     'enum8': 'uint8_t',
     'enum16': 'uint16_t',
-    'enum32': 'uint32_t',
-    'enum64': 'uint64_t',
 }
 
 
@@ -320,8 +317,6 @@ def _IsUsingGlobalCallback(field: Field, context: TypeLookupContext):
         "int64u",
         "enum8",
         "enum16",
-        "enum32",
-        "enum64",
         "bitmap8",
         "bitmap16",
         "bitmap32",
@@ -508,6 +503,37 @@ class EncodableValue:
                 return "Integer"
         else:
             return "Object"
+
+    @property
+    def java_tlv_type(self):
+        t = ParseDataType(self.data_type, self.context)
+
+        if isinstance(t, FundamentalType):
+            if t == FundamentalType.BOOL:
+                return "Boolean"
+            elif t == FundamentalType.FLOAT:
+                return "Float"
+            elif t == FundamentalType.DOUBLE:
+                return "Double"
+            else:
+                raise Exception("Unknown fundamental type")
+        elif isinstance(t, BasicInteger):
+            # the >= 3 will include int24_t to be considered "long"
+            if t.is_signed:
+                return "Int"
+            else:
+                return "UInt"
+        elif isinstance(t, BasicString):
+            if t.is_binary:
+                return "ByteArray"
+            else:
+                return "String"
+        elif isinstance(t, IdlEnumType):
+            return "UInt"
+        elif isinstance(t, IdlBitmapType):
+            return "UInt"
+        else:
+            return "Any"
 
     @property
     def kotlin_type(self):
@@ -735,60 +761,6 @@ class JavaJNIGenerator(__JavaCodeGenerator):
         Renders .CPP files required for JNI support.
         """
 
-        large_targets = [
-            GenerateTarget(template="CHIPCallbackTypes.jinja",
-                           output_name="jni/CHIPCallbackTypes.h"),
-            GenerateTarget(template="CHIPReadCallbacks_h.jinja",
-                           output_name="jni/CHIPReadCallbacks.h"),
-            GenerateTarget(template="CHIPGlobalCallbacks_cpp.jinja",
-                           output_name="jni/CHIPGlobalCallbacks.cpp"),
-        ]
-
-        for target in large_targets:
-            self.internal_render_one_output(
-                template_path=target.template,
-                output_file_name=target.output_name,
-                vars={
-                    'idl': self.idl,
-                    'clientClusters': [c for c in self.idl.clusters if c.side == ClusterSide.CLIENT],
-                    'globalTypes': _GLOBAL_TYPES,
-                }
-            )
-
-        cluster_targets = [
-            GenerateTarget(template="ChipClustersRead.jinja",
-                           output_name="jni/{cluster_name}Client-ReadImpl.cpp"),
-            GenerateTarget(template="ChipClustersCpp.jinja",
-                           output_name="jni/{cluster_name}Client-InvokeSubscribeImpl.cpp"),
-        ]
-
-        self.internal_render_one_output(
-            template_path="CHIPCallbackTypes.jinja",
-            output_file_name="jni/CHIPCallbackTypes.h",
-            vars={
-                'idl': self.idl,
-                'clientClusters': [c for c in self.idl.clusters if c.side == ClusterSide.CLIENT],
-            }
-        )
-
-        # Every cluster has its own impl, to avoid
-        # very large compilations (running out of RAM)
-        for cluster in self.idl.clusters:
-            if cluster.side != ClusterSide.CLIENT:
-                continue
-
-            for target in cluster_targets:
-                self.internal_render_one_output(
-                    template_path=target.template,
-                    output_file_name=target.output_name.format(
-                        cluster_name=cluster.name),
-                    vars={
-                        'cluster': cluster,
-                        'typeLookup': TypeLookupContext(self.idl, cluster),
-                        'globalTypes': _GLOBAL_TYPES,
-                    }
-                )
-
 
 class JavaClassGenerator(__JavaCodeGenerator):
     """Generates .java files """
@@ -801,8 +773,7 @@ class JavaClassGenerator(__JavaCodeGenerator):
         Renders .java files required for java matter support
         """
 
-        clientClusters = [
-            c for c in self.idl.clusters if c.side == ClusterSide.CLIENT]
+        clientClusters = self.idl.clusters
 
         self.internal_render_one_output(
             template_path="ClusterReadMapping.jinja",
@@ -879,9 +850,6 @@ class JavaClassGenerator(__JavaCodeGenerator):
         # Every cluster has its own impl, to avoid
         # very large compilations (running out of RAM)
         for cluster in self.idl.clusters:
-            if cluster.side != ClusterSide.CLIENT:
-                continue
-
             for struct in cluster.structs:
                 if struct.tag:
                     continue

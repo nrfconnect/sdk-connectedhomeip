@@ -47,6 +47,7 @@ CHIP_ERROR GenericThreadDriver::Init(Internal::BaseDriver::NetworkStatusChangeCa
 {
     ThreadStackMgrImpl().SetNetworkStatusChangeCallback(statusChangeCallback);
     ThreadStackMgrImpl().GetThreadProvision(mStagingNetwork);
+    ReturnErrorOnFailure(PlatformMgr().AddEventHandler(OnThreadStateChangeHandler, reinterpret_cast<intptr_t>(this)));
 
     // If the network configuration backup exists, it means that the device has been rebooted with
     // the fail-safe armed. Since OpenThread persists all operational dataset changes, the backup
@@ -54,6 +55,16 @@ CHIP_ERROR GenericThreadDriver::Init(Internal::BaseDriver::NetworkStatusChangeCa
     RevertConfiguration();
 
     return CHIP_NO_ERROR;
+}
+
+void GenericThreadDriver::OnThreadStateChangeHandler(const ChipDeviceEvent * event, intptr_t arg)
+{
+    if ((event->Type == DeviceEventType::kThreadStateChange) &&
+        (event->ThreadStateChange.OpenThread.Flags & OT_CHANGED_THREAD_PANID))
+    {
+        // Update the mStagingNetwork when thread panid changed
+        ThreadStackMgrImpl().GetThreadProvision(reinterpret_cast<GenericThreadDriver *>(arg)->mStagingNetwork);
+    }
 }
 
 void GenericThreadDriver::Shutdown()
@@ -243,6 +254,24 @@ bool GenericThreadDriver::ThreadNetworkIterator::Next(Network & item)
     item.connected = true;
 
     return true;
+}
+
+ThreadCapabilities GenericThreadDriver::GetSupportedThreadFeatures()
+{
+    BitMask<ThreadCapabilities> capabilites = 0;
+    capabilites.SetField(ThreadCapabilities::kIsBorderRouterCapable,
+                         CHIP_DEVICE_CONFIG_THREAD_BORDER_ROUTER /*OPENTHREAD_CONFIG_BORDER_ROUTER_ENABLE*/);
+    capabilites.SetField(ThreadCapabilities::kIsRouterCapable, CHIP_DEVICE_CONFIG_THREAD_FTD);
+    capabilites.SetField(ThreadCapabilities::kIsSleepyEndDeviceCapable, !CHIP_DEVICE_CONFIG_THREAD_FTD);
+    capabilites.SetField(ThreadCapabilities::kIsFullThreadDevice, CHIP_DEVICE_CONFIG_THREAD_FTD);
+    capabilites.SetField(ThreadCapabilities::kIsSynchronizedSleepyEndDeviceCapable,
+                         (!CHIP_DEVICE_CONFIG_THREAD_FTD && CHIP_DEVICE_CONFIG_THREAD_SSED));
+    return capabilites;
+}
+
+uint16_t GenericThreadDriver::GetThreadVersion()
+{
+    return otThreadGetVersion();
 }
 
 } // namespace NetworkCommissioning

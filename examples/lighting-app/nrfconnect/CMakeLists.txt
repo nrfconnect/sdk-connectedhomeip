@@ -72,6 +72,7 @@ if(CONFIG_CHIP_OTA_REQUESTOR OR CONFIG_MCUMGR_TRANSPORT_BT)
 endif()
 
 if(CONFIG_MCUMGR_TRANSPORT_BT)
+    zephyr_library_link_libraries(MCUBOOT_BOOTUTIL)
     target_sources(app PRIVATE ${NRFCONNECT_COMMON}/util/DFUOverSMP.cpp)
 endif()
 
@@ -217,7 +218,6 @@ target_link_libraries(app PRIVATE
   thread_service.nanopb_rpc
   pw_checksum
   pw_hdlc
-  pw_hdlc.pw_rpc
   pw_log
   pw_rpc.server
   pw_sys_io

@@ -15,9 +15,12 @@
  *    limitations under the License.
  */
 
-#include <app/icd/ICDNotifier.h>
-#include <app/reporting/reporting.h>
+#include <app/icd/server/ICDServerConfig.h>
 #include <app/server/CommissioningWindowManager.h>
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+#include <app/icd/server/ICDNotifier.h> // nogncheck
+#endif
+#include <app/reporting/reporting.h>
 #include <app/server/Dnssd.h>
 #include <app/server/Server.h>
 #include <lib/dnssd/Advertiser.h>
@@ -64,7 +67,8 @@ void CommissioningWindowManager::OnPlatformEvent(const DeviceLayer::ChipDeviceEv
         Cleanup();
         mServer->GetSecureSessionManager().ExpireAllPASESessions();
         // That should have cleared out mPASESession.
-#if CONFIG_NETWORK_LAYER_BLE
+#if CONFIG_NETWORK_LAYER_BLE && CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
+        // If in NonConcurrentConnection, this will already have been completed
         mServer->GetBleLayerObject()->CloseAllBleConnections();
 #endif
     }
@@ -82,6 +86,13 @@ void CommissioningWindowManager::OnPlatformEvent(const DeviceLayer::ChipDeviceEv
         app::DnssdServer::Instance().AdvertiseOperational();
         ChipLogProgress(AppServer, "Operational advertising enabled");
     }
+#if CONFIG_NETWORK_LAYER_BLE
+    else if (event->Type == DeviceLayer::DeviceEventType::kCloseAllBleConnections)
+    {
+        ChipLogProgress(AppServer, "Received kCloseAllBleConnections:%d", static_cast<int>(event->Type));
+        mServer->GetBleLayerObject()->Shutdown();
+    }
+#endif
 }
 
 void CommissioningWindowManager::Shutdown()
@@ -216,7 +227,7 @@ void CommissioningWindowManager::OnSessionEstablished(const SessionHandle & sess
     }
 }
 
-CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow(Seconds16 commissioningTimeout)
+CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow(Seconds32 commissioningTimeout)
 {
     VerifyOrReturnError(commissioningTimeout <= MaxCommissioningTimeout() && commissioningTimeout >= MinCommissioningTimeout(),
                         CHIP_ERROR_INVALID_ARGUMENT);
@@ -276,7 +287,7 @@ CHIP_ERROR CommissioningWindowManager::AdvertiseAndListenForPASE()
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CommissioningWindowManager::OpenBasicCommissioningWindow(Seconds16 commissioningTimeout,
+CHIP_ERROR CommissioningWindowManager::OpenBasicCommissioningWindow(Seconds32 commissioningTimeout,
                                                                     CommissioningWindowAdvertisement advertisementMode)
 {
     RestoreDiscriminator();
@@ -304,7 +315,7 @@ CHIP_ERROR CommissioningWindowManager::OpenBasicCommissioningWindow(Seconds16 co
 
 CHIP_ERROR
 CommissioningWindowManager::OpenBasicCommissioningWindowForAdministratorCommissioningCluster(
-    System::Clock::Seconds16 commissioningTimeout, FabricIndex fabricIndex, VendorId vendorId)
+    System::Clock::Seconds32 commissioningTimeout, FabricIndex fabricIndex, VendorId vendorId)
 {
     ReturnErrorOnFailure(OpenBasicCommissioningWindow(commissioningTimeout, CommissioningWindowAdvertisement::kDnssdOnly));
 
@@ -314,7 +325,7 @@ CommissioningWindowManager::OpenBasicCommissioningWindowForAdministratorCommissi
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR CommissioningWindowManager::OpenEnhancedCommissioningWindow(Seconds16 commissioningTimeout, uint16_t discriminator,
+CHIP_ERROR CommissioningWindowManager::OpenEnhancedCommissioningWindow(Seconds32 commissioningTimeout, uint16_t discriminator,
                                                                        Spake2pVerifier & verifier, uint32_t iterations,
                                                                        ByteSpan salt, FabricIndex fabricIndex, VendorId vendorId)
 {
@@ -544,14 +555,14 @@ void CommissioningWindowManager::UpdateWindowStatus(CommissioningWindowStatusEnu
     {
         mWindowStatus = aNewStatus;
 #if CHIP_CONFIG_ENABLE_ICD_SERVER
-        app::ICDListener::KeepActiveFlags request = app::ICDListener::KeepActiveFlags::kCommissioningWindowOpen;
+        app::ICDListener::KeepActiveFlags request = app::ICDListener::KeepActiveFlag::kCommissioningWindowOpen;
         if (mWindowStatus != CommissioningWindowStatusEnum::kWindowNotOpen)
         {
-            app::ICDNotifier::GetInstance().BroadcastActiveRequestNotification(request);
+            app::ICDNotifier::GetInstance().NotifyActiveRequestNotification(request);
         }
         else
         {
-            app::ICDNotifier::GetInstance().BroadcastActiveRequestWithdrawal(request);
+            app::ICDNotifier::GetInstance().NotifyActiveRequestWithdrawal(request);
         }
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
     }

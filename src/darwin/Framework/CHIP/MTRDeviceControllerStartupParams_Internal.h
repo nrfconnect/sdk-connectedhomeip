@@ -52,6 +52,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithParams:(MTRDeviceControllerStartupParams *)params;
 @end
 
+@interface MTRDeviceControllerAbstractParameters ()
+// Allow init from our subclasses.
+- (instancetype)_initInternal;
+@end
+
 @interface MTRDeviceControllerParameters ()
 
 - (instancetype)initWithStorageDelegate:(id<MTRDeviceControllerStorageDelegate>)storageDelegate
@@ -86,7 +91,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-MTR_HIDDEN
 @interface MTRDeviceControllerStartupParamsInternal : MTRDeviceControllerStartupParams
 
 // Fabric table we can use to do things like allocate operational keys.

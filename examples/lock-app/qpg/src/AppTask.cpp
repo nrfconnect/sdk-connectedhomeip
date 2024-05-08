@@ -26,7 +26,8 @@
 #include <app/server/OnboardingCodesUtil.h>
 
 #include <app-common/zap-generated/attributes/Accessors.h>
-#include <app/clusters/general-diagnostics-server/GenericFaultTestEventTriggerDelegate.h>
+#include <app/TestEventTriggerDelegate.h>
+#include <app/clusters/general-diagnostics-server/GenericFaultTestEventTriggerHandler.h>
 #include <app/clusters/general-diagnostics-server/general-diagnostics-server.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/server/Dnssd.h>
@@ -189,10 +190,13 @@ void AppTask::InitServer(intptr_t arg)
     nativeParams.openThreadInstancePtr = chip::DeviceLayer::ThreadStackMgrImpl().OTInstance();
     initParams.endpointNativeParams    = static_cast<void *>(&nativeParams);
 
-    // Use GenericFaultTestEventTriggerDelegate to inject faults
-    static GenericFaultTestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
+    // Use GenericFaultTestEventTriggerHandler to inject faults
+    static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
+    static GenericFaultTestEventTriggerHandler sFaultTestEventTriggerHandler{};
+    VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(sTestEventTriggerEnableKey)) == CHIP_NO_ERROR);
+    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sFaultTestEventTriggerHandler) == CHIP_NO_ERROR);
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
 
     chip::Server::GetInstance().Init(initParams);
 
@@ -260,6 +264,23 @@ void AppTask::AppTaskMain(void * pvParameter)
     }
 }
 
+void AppTask::JammedLockEventHandler(AppEvent * aEvent)
+{
+    SystemLayer().ScheduleLambda([] {
+        bool retVal;
+
+        retVal = DoorLockServer::Instance().SendLockAlarmEvent(QPG_LOCK_ENDPOINT_ID, AlarmCodeEnum::kLockJammed);
+        if (!retVal)
+        {
+            ChipLogProgress(NotSpecified, "[BTN] Lock jammed event send failed");
+        }
+        else
+        {
+            ChipLogProgress(NotSpecified, "[BTN] Lock jammed event sent");
+        }
+    });
+}
+
 void AppTask::LockActionEventHandler(AppEvent * aEvent)
 {
     bool initiated = false;
@@ -302,7 +323,7 @@ void AppTask::LockActionEventHandler(AppEvent * aEvent)
 
 void AppTask::ButtonEventHandler(uint8_t btnIdx, bool btnPressed)
 {
-    if (btnIdx != APP_LOCK_BUTTON && btnIdx != APP_FUNCTION_BUTTON)
+    if (btnIdx != APP_LOCK_BUTTON && btnIdx != APP_FUNCTION_BUTTON && btnIdx != APP_LOCK_JAMMED_BUTTON)
     {
         return;
     }
@@ -315,6 +336,10 @@ void AppTask::ButtonEventHandler(uint8_t btnIdx, bool btnPressed)
     if (btnIdx == APP_LOCK_BUTTON && btnPressed == true)
     {
         button_event.Handler = LockActionEventHandler;
+    }
+    else if (btnIdx == APP_LOCK_JAMMED_BUTTON && btnPressed == true)
+    {
+        button_event.Handler = JammedLockEventHandler;
     }
     else if (btnIdx == APP_FUNCTION_BUTTON)
     {
@@ -511,6 +536,11 @@ void AppTask::ActionInitiated(BoltLockManager::Action_t aAction, int32_t aActor)
         sAppTask.mSyncClusterToButtonAction = true;
     }
 
+    if (aActor == AppEvent::kEventType_Lock)
+    {
+        sAppTask.mNotifyState = true;
+    }
+
     qvIO_LedBlink(LOCK_STATE_LED, 50, 50);
 }
 
@@ -532,10 +562,11 @@ void AppTask::ActionCompleted(BoltLockManager::Action_t aAction)
         qvIO_LedSet(LOCK_STATE_LED, false);
     }
 
-    if (sAppTask.mSyncClusterToButtonAction)
+    if (sAppTask.mSyncClusterToButtonAction || sAppTask.mNotifyState)
     {
         sAppTask.UpdateClusterState();
         sAppTask.mSyncClusterToButtonAction = false;
+        sAppTask.mNotifyState               = false;
     }
 }
 
@@ -585,21 +616,32 @@ void AppTask::UpdateClusterState(void)
     auto newValue = BoltLockMgr().IsUnlocked() ? DoorLock::DlLockState::kUnlocked : DoorLock::DlLockState::kLocked;
 
     SystemLayer().ScheduleLambda([newValue] {
+        bool retVal = true;
         chip::app::DataModel::Nullable<chip::app::Clusters::DoorLock::DlLockState> currentLockState;
         chip::app::Clusters::DoorLock::Attributes::LockState::Get(QPG_LOCK_ENDPOINT_ID, currentLockState);
 
         if (currentLockState.IsNull())
         {
-            EmberAfStatus status = DoorLock::Attributes::LockState::Set(QPG_LOCK_ENDPOINT_ID, newValue);
-            if (status != EMBER_ZCL_STATUS_SUCCESS)
+            Protocols::InteractionModel::Status status = DoorLock::Attributes::LockState::Set(QPG_LOCK_ENDPOINT_ID, newValue);
+            if (status != Protocols::InteractionModel::Status::Success)
             {
-                ChipLogError(NotSpecified, "ERR: updating DoorLock %x", status);
+                ChipLogError(NotSpecified, "ERR: updating DoorLock %x", to_underlying(status));
             }
         }
         else
         {
             ChipLogProgress(NotSpecified, "Updating LockState attribute");
-            if (!DoorLockServer::Instance().SetLockState(QPG_LOCK_ENDPOINT_ID, newValue))
+            if (sAppTask.mSyncClusterToButtonAction)
+            {
+                retVal = DoorLockServer::Instance().SetLockState(QPG_LOCK_ENDPOINT_ID, newValue, OperationSourceEnum::kManual);
+            }
+
+            if (retVal && sAppTask.mNotifyState)
+            {
+                retVal = DoorLockServer::Instance().SetLockState(QPG_LOCK_ENDPOINT_ID, newValue, OperationSourceEnum::kRemote);
+            }
+
+            if (!retVal)
             {
                 ChipLogError(NotSpecified, "ERR: updating DoorLock");
             }

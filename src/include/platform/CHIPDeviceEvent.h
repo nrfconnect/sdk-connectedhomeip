@@ -148,13 +148,6 @@ enum PublicEventTypes
     kTimeSyncChange,
 
     /**
-     * SED Interval Change
-     *
-     * Signals a change to the sleepy end device interval.
-     */
-    kICDPollingIntervalChange,
-
-    /**
      * CHIPoBLE Connection Established
      *
      * Signals that an external entity has established a new CHIPoBLE connection with the device.
@@ -167,6 +160,19 @@ enum PublicEventTypes
      * Signals that an external entity has closed existing CHIPoBLE connection with the device.
      */
     kCHIPoBLEConnectionClosed,
+
+    /**
+     * Request BLE connections to be closed.
+     * This is used in the supportsConcurrentConnection = False case.
+     */
+    kCloseAllBleConnections,
+
+    /**
+     * When supportsConcurrentConnection = False, the ConnectNetwork command cannot start until
+     * the BLE device is closed and the Operation Network device (e.g. WiFi) has been started.
+     */
+    kWiFiDeviceAvailable,
+    kOperationalNetworkStarted,
 
     /**
      * Thread State Change
@@ -239,6 +245,11 @@ enum PublicEventTypes
      * sending messages to other nodes.
      */
     kServerReady,
+
+    /**
+     * Signals that BLE is deinitialized.
+     */
+    kBLEDeinitialized,
 };
 
 /**
@@ -258,6 +269,12 @@ enum InternalEventTypes
     kCHIPoBLEUnsubscribe,
     kCHIPoBLEWriteReceived,
     kCHIPoBLEIndicateConfirm,
+
+    /**
+     * Post this event in case of a BLE connection error. This event should be posted
+     * if the BLE central disconnects without unsubscribing from the BLE characteristic.
+     * This event should populate CHIPoBLEConnectionError structure.
+     */
     kCHIPoBLEConnectionError,
     kCHIPoBLENotifyConfirm
 };
@@ -505,16 +522,6 @@ struct ChipDeviceEvent final
             bool addNocCommandHasBeenInvoked;
             bool updateNocCommandHasBeenInvoked;
         } FailSafeTimerExpired;
-
-        struct
-        {
-            bool armed;
-        } FailSafeState;
-
-        struct
-        {
-            bool open;
-        } CommissioningWindowStatus;
 
         struct
         {

@@ -28,12 +28,20 @@
 #include <lib/core/CHIPError.h>
 #include <lib/support/Base64.h>
 #include <lib/support/BytesToHex.h>
+#include <lib/support/CHIPMemString.h>
+#include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
 
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
 #if ENABLE_TRACING
 #include <TracingCommandLineArgument.h> // nogncheck
+#endif
+
+#if CHIP_WITH_NLFAULTINJECTION
+#include <inet/InetFaultInjection.h>
+#include <lib/support/CHIPFaultInjection.h>
+#include <system/SystemFaultInjection.h>
 #endif
 
 using namespace chip;
@@ -84,6 +92,19 @@ enum
     kCommissionerOption_FabricID                        = 0x1020,
     kTraceTo                                            = 0x1021,
     kOptionSimulateNoInternalTime                       = 0x1022,
+#if defined(PW_RPC_ENABLED)
+    kOptionRpcServerPort = 0x1023,
+#endif
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    kDeviceOption_SubscriptionCapacity = 0x1024,
+#endif
+    kDeviceOption_WiFiSupports5g = 0x1025,
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    kDeviceOption_SubscriptionResumptionRetryIntervalSec = 0x1026,
+#endif
+#if CHIP_WITH_NLFAULTINJECTION
+    kDeviceOption_FaultInjection = 0x1027,
+#endif
 };
 
 constexpr unsigned kAppUsageLength = 64;
@@ -94,6 +115,7 @@ OptionDef sDeviceOptionDefs[] = {
 #endif // CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
     { "wifi", kNoArgument, kDeviceOption_WiFi },
+    { "wifi-supports-5g", kNoArgument, kDeviceOption_WiFiSupports5g },
 #endif // CHIP_DEVICE_CONFIG_ENABLE_WPA
 #if CHIP_ENABLE_OPENTHREAD
     { "thread", kNoArgument, kDeviceOption_Thread },
@@ -138,6 +160,16 @@ OptionDef sDeviceOptionDefs[] = {
     { "trace-to", kArgumentRequired, kTraceTo },
 #endif
     { "simulate-no-internal-time", kNoArgument, kOptionSimulateNoInternalTime },
+#if defined(PW_RPC_ENABLED)
+    { "rpc-server-port", kArgumentRequired, kOptionRpcServerPort },
+#endif
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    { "subscription-capacity", kArgumentRequired, kDeviceOption_SubscriptionCapacity },
+    { "subscription-resumption-retry-interval", kArgumentRequired, kDeviceOption_SubscriptionResumptionRetryIntervalSec },
+#endif
+#if CHIP_WITH_NLFAULTINJECTION
+    { "faults", kArgumentRequired, kDeviceOption_FaultInjection },
+#endif
     {}
 };
 
@@ -149,8 +181,13 @@ const char * sDeviceOptionHelp =
 #if CHIP_DEVICE_CONFIG_ENABLE_WPA
     "\n"
     "  --wifi\n"
-    "       Enable WiFi management via wpa_supplicant.\n"
+    "       Enable Wi-Fi management via wpa_supplicant.\n"
 #endif // CHIP_DEVICE_CONFIG_ENABLE_WPA
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+    "\n"
+    "  --wifi-supports-5g\n"
+    "       Indicate that local Wi-Fi hardware should report 5GHz support.\n"
+#endif // CHIP_DEVICE_CONFIG_ENABLE_WIFI
 #if CHIP_ENABLE_OPENTHREAD
     "\n"
     "  --thread\n"
@@ -254,6 +291,20 @@ const char * sDeviceOptionHelp =
 #endif
     "  --simulate-no-internal-time\n"
     "       Time cluster does not use internal platform time\n"
+#if defined(PW_RPC_ENABLED)
+    "  --rpc-server-port\n"
+    "       Start RPC server on specified port\n"
+#endif
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    "  --subscription-capacity\n"
+    "       Max number of subscriptions the device will allow\n"
+    "  --subscription-resumption-retry-interval\n"
+    "       subscription timeout resumption retry interval in seconds\n"
+#endif
+#if CHIP_WITH_NLFAULTINJECTION
+    "  --faults <fault-string,...>\n"
+    "       Inject specified fault(s) at runtime.\n"
+#endif
     "\n";
 
 bool Base64ArgToVector(const char * arg, size_t maxSize, std::vector<uint8_t> & outVector)
@@ -289,6 +340,10 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
 
     case kDeviceOption_WiFi:
         LinuxDeviceOptions::GetInstance().mWiFi = true;
+        break;
+
+    case kDeviceOption_WiFiSupports5g:
+        LinuxDeviceOptions::GetInstance().wifiSupports5g = true;
         break;
 
     case kDeviceOption_Thread:
@@ -507,6 +562,33 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
     case kOptionSimulateNoInternalTime:
         LinuxDeviceOptions::GetInstance().mSimulateNoInternalTime = true;
         break;
+#if defined(PW_RPC_ENABLED)
+    case kOptionRpcServerPort:
+        LinuxDeviceOptions::GetInstance().rpcServerPort = static_cast<uint16_t>(atoi(aValue));
+        break;
+#endif
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    case kDeviceOption_SubscriptionCapacity:
+        LinuxDeviceOptions::GetInstance().subscriptionCapacity = static_cast<int32_t>(atoi(aValue));
+        break;
+    case kDeviceOption_SubscriptionResumptionRetryIntervalSec:
+        LinuxDeviceOptions::GetInstance().subscriptionResumptionRetryIntervalSec = static_cast<int32_t>(atoi(aValue));
+        break;
+#endif
+#if CHIP_WITH_NLFAULTINJECTION
+    case kDeviceOption_FaultInjection: {
+        constexpr nl::FaultInjection::GetManagerFn faultManagerFns[] = { FaultInjection::GetManager,
+                                                                         Inet::FaultInjection::GetManager,
+                                                                         System::FaultInjection::GetManager };
+        Platform::ScopedMemoryString mutableArg(aValue, strlen(aValue)); // ParseFaultInjectionStr may mutate
+        if (!nl::FaultInjection::ParseFaultInjectionStr(mutableArg.Get(), faultManagerFns, ArraySize(faultManagerFns)))
+        {
+            PrintArgError("%s: Invalid fault injection specification\n", aProgram);
+            retval = false;
+        }
+        break;
+    }
+#endif
     default:
         PrintArgError("%s: INTERNAL ERROR: Unhandled option: %s\n", aProgram, aName);
         retval = false;

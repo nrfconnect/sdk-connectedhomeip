@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include <app-common/zap-generated/enums.h>
 #include <app/app-platform/ContentApp.h>
 #include <app/app-platform/ContentAppPlatform.h>
 #include <app/util/attribute-storage.h>
@@ -36,6 +35,7 @@
 #include "../include/account-login/AccountLoginManager.h"
 #include "../include/application-basic/ApplicationBasicManager.h"
 #include "../include/application-launcher/ApplicationLauncherManager.h"
+#include "../include/content-control/ContentController.h"
 #include "../include/content-launcher/AppContentLauncherManager.h"
 #include "../include/media-playback/AppMediaPlaybackManager.h"
 #include "../include/target-navigator/TargetNavigatorManager.h"
@@ -48,6 +48,7 @@
 #include <app/clusters/application-basic-server/application-basic-delegate.h>
 #include <app/clusters/application-launcher-server/application-launcher-delegate.h>
 #include <app/clusters/channel-server/channel-delegate.h>
+#include <app/clusters/content-control-server/content-control-delegate.h>
 #include <app/clusters/content-launch-server/content-launch-delegate.h>
 #include <app/clusters/keypad-input-server/keypad-input-delegate.h>
 #include <app/clusters/media-playback-server/media-playback-delegate.h>
@@ -73,10 +74,11 @@ using ApplicationBasicDelegate    = app::Clusters::ApplicationBasic::Delegate;
 using ApplicationLauncherDelegate = app::Clusters::ApplicationLauncher::Delegate;
 using ChannelDelegate             = app::Clusters::Channel::Delegate;
 using ContentLauncherDelegate     = app::Clusters::ContentLauncher::Delegate;
+using ContentControlDelegate      = app::Clusters::ContentControl::Delegate;
 using KeypadInputDelegate         = app::Clusters::KeypadInput::Delegate;
 using MediaPlaybackDelegate       = app::Clusters::MediaPlayback::Delegate;
 using TargetNavigatorDelegate     = app::Clusters::TargetNavigator::Delegate;
-using SupportedStreamingProtocol  = app::Clusters::ContentLauncher::SupportedStreamingProtocol;
+using SupportedProtocolsBitmap    = app::Clusters::ContentLauncher::SupportedProtocolsBitmap;
 using ContentAppAttributeDelegate = chip::AppPlatform::ContentAppAttributeDelegate;
 using ContentAppCommandDelegate   = chip::AppPlatform::ContentAppCommandDelegate;
 
@@ -95,8 +97,7 @@ public:
                                   szApplicationVersion),
         mAccountLoginDelegate(commandDelegate, setupPIN),
         mContentLauncherDelegate(attributeDelegate, { "image/*", "video/*" },
-                                 to_underlying(SupportedStreamingProtocol::kDash) |
-                                     to_underlying(SupportedStreamingProtocol::kHls)),
+                                 to_underlying(SupportedProtocolsBitmap::kDash) | to_underlying(SupportedProtocolsBitmap::kHls)),
         mMediaPlaybackDelegate(attributeDelegate),
         mTargetNavigatorDelegate(attributeDelegate, { "home", "search", "info", "guide", "menu" }, 0){};
     virtual ~ContentAppImpl() {}
@@ -113,6 +114,11 @@ public:
     {
         mContentLauncherDelegate.SetEndpointId(GetEndpointId());
         return &mContentLauncherDelegate;
+    };
+    ContentControlDelegate * GetContentControlDelegate() override
+    {
+        mContentControlDelegate.SetEndpointId(GetEndpointId());
+        return &mContentControlDelegate;
     };
     KeypadInputDelegate * GetKeypadInputDelegate() override { return &mKeypadInputDelegate; };
     MediaPlaybackDelegate * GetMediaPlaybackDelegate() override
@@ -131,6 +137,7 @@ protected:
     AccountLoginManager mAccountLoginDelegate;
     ApplicationLauncherManager mApplicationLauncherDelegate;
     ChannelManager mChannelDelegate;
+    ContentController mContentControlDelegate;
     AppContentLauncherManager mContentLauncherDelegate;
     KeypadInputManager mKeypadInputDelegate;
     AppMediaPlaybackManager mMediaPlaybackDelegate;

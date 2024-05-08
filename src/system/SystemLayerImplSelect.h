@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include "system/SystemConfig.h"
+
 #if CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
 #include <sys/select.h>
 #endif
@@ -63,6 +65,7 @@ public:
     CHIP_ERROR StartTimer(Clock::Timeout delay, TimerCompleteCallback onComplete, void * appState) override;
     CHIP_ERROR ExtendTimerTo(Clock::Timeout delay, TimerCompleteCallback onComplete, void * appState) override;
     bool IsTimerActive(TimerCompleteCallback onComplete, void * appState) override;
+    Clock::Timeout GetRemainingTime(TimerCompleteCallback onComplete, void * appState) override;
     void CancelTimer(TimerCompleteCallback onComplete, void * appState) override;
     CHIP_ERROR ScheduleWork(TimerCompleteCallback onComplete, void * appState) override;
 

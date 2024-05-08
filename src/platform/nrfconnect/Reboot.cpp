@@ -42,7 +42,7 @@ SoftwareRebootReason GetSoftwareRebootReason()
 
 #else
 
-using RetainedReason = decltype(nrf_power_gpregret_get(NRF_POWER));
+using RetainedReason = decltype(nrf_power_gpregret_get(NRF_POWER, 0));
 
 constexpr RetainedReason EncodeReason(SoftwareRebootReason reason)
 {
@@ -56,23 +56,17 @@ void Reboot(SoftwareRebootReason reason)
 {
     const RetainedReason retainedReason = EncodeReason(reason);
 
-    // The parameter passed to sys_reboot() is retained in GPREGRET (general-purpose
-    // retention register) on nRF52 SOC family, but nRF53 ignores the parameter, so
-    // set it manually.
-
-#ifdef CONFIG_SOC_SERIES_NRF53X
-    nrf_power_gpregret_set(NRF_POWER, retainedReason);
-#endif
+    nrf_power_gpregret_set(NRF_POWER, 0, retainedReason);
 
     sys_reboot(retainedReason);
 }
 
 SoftwareRebootReason GetSoftwareRebootReason()
 {
-    switch (nrf_power_gpregret_get(NRF_POWER))
+    switch (nrf_power_gpregret_get(NRF_POWER, 0))
     {
     case EncodeReason(SoftwareRebootReason::kSoftwareUpdate):
-        nrf_power_gpregret_set(NRF_POWER, 0);
+        nrf_power_gpregret_set(NRF_POWER, 0, 0);
         return SoftwareRebootReason::kSoftwareUpdate;
     default:
         return SoftwareRebootReason::kOther;

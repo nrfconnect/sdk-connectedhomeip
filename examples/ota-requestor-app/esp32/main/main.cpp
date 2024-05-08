@@ -16,7 +16,6 @@
  */
 
 #include "DeviceCallbacks.h"
-#include "app/util/af-enums.h"
 #include "app/util/af.h"
 #include "esp_heap_caps_init.h"
 #include "esp_log.h"
@@ -58,7 +57,7 @@ using namespace chip::Shell;
 using namespace ::chip::Credentials;
 
 namespace {
-const char * TAG = "ota-requester-app";
+extern const char TAG[] = "ota-requester-app";
 static AppDeviceCallbacks EchoCallbacks;
 
 constexpr EndpointId kNetworkCommissioningEndpointSecondary = 0xFFFE;

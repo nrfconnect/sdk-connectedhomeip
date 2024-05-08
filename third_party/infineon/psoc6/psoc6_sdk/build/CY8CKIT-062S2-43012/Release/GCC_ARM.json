@@ -186,8 +186,9 @@
         "-I./libs/wifi-host-driver/WiFi_Host_Driver/src",
         "-I./libs/wifi-host-driver/WiFi_Host_Driver/src/bus_protocols",
         "-I./libs/wifi-host-driver/WiFi_Host_Driver/src/include",
-        "-I./libs/wifi-mw-core",
-        "-I./libs/wifi-mw-core/lwip-whd-port",
+        "-I./libs/lwip-network-interface-integration",
+        "-I./libs/lwip-network-interface-integration/source",
+        "-I./libs/lwip-network-interface-integration/include",
         "-I./ota/config"
     ],
     "defines": [
@@ -220,7 +221,11 @@
         "-DCOMPONENT_SOFTFP",
         "-DCOMPONENT_WICED_BLE",
         "-DNDEBUG",
-        "-DCY_SUPPORTS_DEVICE_VALIDATION"
+        "-DCY_SUPPORTS_DEVICE_VALIDATION",
+        "-DCY_CRYPTO_HAL_DISABLE",
+        "-DCOMPONENT_SECURE_SOCKETS",
+        "-DCOMPONENT_PSOC6_FREERTOS",
+        "-DOPTIGA_LIB_EXTERNAL=<optiga_lib_config_mtb.h>"
     ],
     "c_source": [
         "./libs/abstraction-rtos/source/cy_worker_thread.c",
@@ -557,8 +562,8 @@
         "./libs/wifi-host-driver/WiFi_Host_Driver/src/whd_wifi.c",
         "./libs/wifi-host-driver/WiFi_Host_Driver/src/whd_wifi_api.c",
         "./libs/wifi-host-driver/WiFi_Host_Driver/src/whd_wifi_p2p.c",
-        "./libs/wifi-mw-core/lwip-whd-port/cy_lwip.c",
-        "./libs/wifi-mw-core/lwip-whd-port/cy_lwip_dhcp_server.c",
+        "./libs/lwip-network-interface-integration/source/cy_network_mw_core.c",
+        "./libs/lwip-network-interface-integration/source/cy_lwip_dhcp_server.c",
         "./libs/clib-support/TOOLCHAIN_GCC_ARM/cy_clib_support_newlib.c",
         "./libs/TARGET_CY8CKIT-062S2-43012/bluetooth/cybsp_bt_config.c",
         "./libs/TARGET_CY8CKIT-062S2-43012/cybsp.c",
@@ -616,7 +621,7 @@
         "./libs/secure-sockets/source/COMPONENT_MBEDTLS/cy_tls.c",
         "./libs/secure-sockets/source/COMPONENT_MBEDTLS/iot_crypto.c",
         "./libs/whd-bsp-integration/COMPONENT_LWIP/cy_network_buffer_lwip.c",
-        "./libs/wifi-connection-manager/source/COMPONENT_LWIP/cy_wcm.c",
+        "./libs/wifi-connection-manager/source/cy_wcm.c",
         "./libs/wifi-connection-manager/source/COMPONENT_MBEDTLS/cy_wps_aes_ctr_ccm.c",
         "./libs/wifi-connection-manager/source/COMPONENT_MBEDTLS/cy_wps_crypto.c",
         "./libs/wifi-host-driver/WiFi_Host_Driver/resources/clm/COMPONENT_43012/43012C0-mfgtest_clm_blob.c",

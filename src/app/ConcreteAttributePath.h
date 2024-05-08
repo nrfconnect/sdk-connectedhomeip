@@ -48,6 +48,8 @@ struct ConcreteAttributePath : public ConcreteClusterPath
         mExpanded = false;
     }
 
+    bool IsValid() const { return ConcreteClusterPath::HasValidIds() && IsValidAttributeId(mAttributeId); }
+
     bool operator==(const ConcreteAttributePath & aOther) const
     {
         return ConcreteClusterPath::operator==(aOther) && (mAttributeId == aOther.mAttributeId);
@@ -84,6 +86,10 @@ struct ConcreteReadAttributePath : public ConcreteAttributePath
     {
         mListIndex.SetValue(aListIndex);
     }
+
+    bool operator==(const ConcreteReadAttributePath & aOther) const = delete;
+    bool operator!=(const ConcreteReadAttributePath & aOther) const = delete;
+    bool operator<(const ConcreteReadAttributePath & aOther) const  = delete;
 
     Optional<uint16_t> mListIndex;
 };
@@ -129,6 +135,24 @@ struct ConcreteDataAttributePath : public ConcreteAttributePath
 
     bool IsListOperation() const { return mListOp != ListOperation::NotList; }
     bool IsListItemOperation() const { return ((mListOp != ListOperation::NotList) && (mListOp != ListOperation::ReplaceAll)); }
+
+    void LogPath() const
+    {
+        ChipLogProgress(DataManagement, "Concrete Attribute Path: (%d, " ChipLogFormatMEI ", " ChipLogFormatMEI ") ", mEndpointId,
+                        ChipLogValueMEI(mClusterId), ChipLogValueMEI(mAttributeId));
+    }
+
+    bool MatchesConcreteAttributePath(const ConcreteAttributePath & aOther) { return ConcreteAttributePath::operator==(aOther); }
+
+    bool operator==(const ConcreteDataAttributePath & aOther) const
+    {
+        return ConcreteAttributePath::operator==(aOther) && (mListIndex == aOther.mListIndex) && (mListOp == aOther.mListOp) &&
+            (mDataVersion == aOther.mDataVersion);
+    }
+
+    bool operator!=(const ConcreteDataAttributePath & aOther) const { return !(*this == aOther); }
+
+    bool operator<(const ConcreteDataAttributePath & aOther) const = delete;
 
     //
     // This index is only valid if `mListOp` is set to a list item operation, i.e

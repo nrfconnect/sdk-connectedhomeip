@@ -43,12 +43,20 @@ public:
         InvalidScreen,
     } Screen_e;
 
+    typedef enum icdMode
+    {
+        NotICD = 0,
+        SIT,
+        LIT,
+    } ICDMode_e;
+
     typedef struct dStatus
     {
         uint8_t nbFabric     = 0;
         bool connected       = false;
         char networkName[50] = { "TODO" };
         bool advertising     = false;
+        ICDMode_e icdMode    = NotICD;
     } DisplayStatus_t;
 
     typedef void (*customUICB)(GLIB_Context_t * context);
@@ -63,6 +71,7 @@ public:
     void SetScreen(Screen_e screen);
     void CycleScreens(void);
     void SetStatus(DisplayStatus_t & status);
+    void WriteStatus();
 
 #ifdef QR_CODE_ENABLED
     void SetQRCode(uint8_t * str, uint32_t size);
@@ -77,7 +86,6 @@ private:
     } DemoState_t;
 
     void WriteDemoUI();
-    void WriteStatus();
 
 #ifdef QR_CODE_ENABLED
     void WriteQRCode();

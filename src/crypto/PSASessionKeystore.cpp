@@ -17,8 +17,6 @@
 
 #include "PSASessionKeystore.h"
 
-#include <crypto/CHIPCryptoPALPSA.h>
-
 #include <psa/crypto.h>
 
 namespace chip {
@@ -47,15 +45,80 @@ private:
     psa_key_attributes_t mAttrs = PSA_KEY_ATTRIBUTES_INIT;
 };
 
+class HmacKeyAttributes
+{
+public:
+    HmacKeyAttributes()
+    {
+        psa_set_key_type(&mAttrs, PSA_KEY_TYPE_HMAC);
+        psa_set_key_algorithm(&mAttrs, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+        psa_set_key_usage_flags(&mAttrs, PSA_KEY_USAGE_SIGN_MESSAGE);
+        psa_set_key_bits(&mAttrs, CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES * 8);
+    }
+
+    ~HmacKeyAttributes() { psa_reset_key_attributes(&mAttrs); }
+
+    const psa_key_attributes_t & Get() { return mAttrs; }
+
+private:
+    psa_key_attributes_t mAttrs = PSA_KEY_ATTRIBUTES_INIT;
+};
+
+class HkdfKeyAttributes
+{
+public:
+    HkdfKeyAttributes()
+    {
+        psa_set_key_type(&mAttrs, PSA_KEY_TYPE_DERIVE);
+        psa_set_key_algorithm(&mAttrs, PSA_ALG_HKDF(PSA_ALG_SHA_256));
+        psa_set_key_usage_flags(&mAttrs, PSA_KEY_USAGE_DERIVE);
+    }
+
+    ~HkdfKeyAttributes() { psa_reset_key_attributes(&mAttrs); }
+
+    const psa_key_attributes_t & Get() { return mAttrs; }
+
+private:
+    psa_key_attributes_t mAttrs = PSA_KEY_ATTRIBUTES_INIT;
+};
+
 } // namespace
 
-CHIP_ERROR PSASessionKeystore::CreateKey(const Aes128KeyByteArray & keyMaterial, Aes128KeyHandle & key)
+CHIP_ERROR PSASessionKeystore::CreateKey(const Symmetric128BitsKeyByteArray & keyMaterial, Aes128KeyHandle & key)
 {
     // Destroy the old key if already allocated
     psa_destroy_key(key.As<psa_key_id_t>());
 
     AesKeyAttributes attrs;
-    psa_status_t status = psa_import_key(&attrs.Get(), keyMaterial, sizeof(Aes128KeyByteArray), &key.AsMutable<psa_key_id_t>());
+    psa_status_t status =
+        psa_import_key(&attrs.Get(), keyMaterial, sizeof(Symmetric128BitsKeyByteArray), &key.AsMutable<psa_key_id_t>());
+    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PSASessionKeystore::CreateKey(const Symmetric128BitsKeyByteArray & keyMaterial, Hmac128KeyHandle & key)
+{
+    // Destroy the old key if already allocated
+    psa_destroy_key(key.As<psa_key_id_t>());
+
+    HmacKeyAttributes attrs;
+    psa_status_t status =
+        psa_import_key(&attrs.Get(), keyMaterial, sizeof(Symmetric128BitsKeyByteArray), &key.AsMutable<psa_key_id_t>());
+
+    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PSASessionKeystore::CreateKey(const ByteSpan & keyMaterial, HkdfKeyHandle & key)
+{
+    // Destroy the old key if already allocated
+    psa_destroy_key(key.As<psa_key_id_t>());
+
+    HkdfKeyAttributes attrs;
+    psa_status_t status = psa_import_key(&attrs.Get(), keyMaterial.data(), keyMaterial.size(), &key.AsMutable<psa_key_id_t>());
+
     VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
 
     return CHIP_NO_ERROR;
@@ -65,7 +128,7 @@ CHIP_ERROR PSASessionKeystore::DeriveKey(const P256ECDHDerivedSecret & secret, c
                                          Aes128KeyHandle & key)
 {
     PsaKdf kdf;
-    ReturnErrorOnFailure(kdf.Init(PSA_ALG_HKDF(PSA_ALG_SHA_256), secret.Span(), salt, info));
+    ReturnErrorOnFailure(kdf.Init(secret.Span(), salt, info));
 
     AesKeyAttributes attrs;
 
@@ -77,8 +140,24 @@ CHIP_ERROR PSASessionKeystore::DeriveSessionKeys(const ByteSpan & secret, const 
                                                  AttestationChallenge & attestationChallenge)
 {
     PsaKdf kdf;
-    ReturnErrorOnFailure(kdf.Init(PSA_ALG_HKDF(PSA_ALG_SHA_256), secret, salt, info));
+    ReturnErrorOnFailure(kdf.Init(secret, salt, info));
 
+    return DeriveSessionKeys(kdf, i2rKey, r2iKey, attestationChallenge);
+}
+
+CHIP_ERROR PSASessionKeystore::DeriveSessionKeys(const HkdfKeyHandle & hkdfKey, const ByteSpan & salt, const ByteSpan & info,
+                                                 Aes128KeyHandle & i2rKey, Aes128KeyHandle & r2iKey,
+                                                 AttestationChallenge & attestationChallenge)
+{
+    PsaKdf kdf;
+    ReturnErrorOnFailure(kdf.Init(hkdfKey, salt, info));
+
+    return DeriveSessionKeys(kdf, i2rKey, r2iKey, attestationChallenge);
+}
+
+CHIP_ERROR PSASessionKeystore::DeriveSessionKeys(PsaKdf & kdf, Aes128KeyHandle & i2rKey, Aes128KeyHandle & r2iKey,
+                                                 AttestationChallenge & attestationChallenge)
+{
     CHIP_ERROR error;
     AesKeyAttributes attrs;
 
@@ -96,12 +175,20 @@ exit:
     return error;
 }
 
-void PSASessionKeystore::DestroyKey(Aes128KeyHandle & key)
+void PSASessionKeystore::DestroyKey(Symmetric128BitsKeyHandle & key)
 {
     auto & keyId = key.AsMutable<psa_key_id_t>();
 
     psa_destroy_key(keyId);
     keyId = 0;
+}
+
+void PSASessionKeystore::DestroyKey(HkdfKeyHandle & key)
+{
+    auto & keyId = key.AsMutable<psa_key_id_t>();
+
+    psa_destroy_key(keyId);
+    keyId = PSA_KEY_ID_NULL;
 }
 
 } // namespace Crypto

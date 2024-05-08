@@ -35,7 +35,7 @@ enum CommissioningStage : uint8_t
     kError,
     kSecurePairing,              ///< Establish a PASE session with the device
     kReadCommissioningInfo,      ///< Query General Commissioning Attributes, Network Features and Time Synchronization Cluster
-    kCheckForMatchingFabric,     ///< Read the current fabrics on the commissionee
+    kReadCommissioningInfo2,     ///< Query SupportsConcurrentConnection, ICD state, check for matching fabric
     kArmFailsafe,                ///< Send ArmFailSafe (0x30:0) command to the device
     kConfigRegulatory,           ///< Send SetRegulatoryConfig (0x30:2) command to the device
     kConfigureUTCTime,           ///< SetUTCTime if the DUT has a time cluster
@@ -52,15 +52,22 @@ enum CommissioningStage : uint8_t
     kSendTrustedRootCert,        ///< Send AddTrustedRootCertificate (0x3E:11) command to the device
     kSendNOC,                    ///< Send AddNOC (0x3E:6) command to the device
     kConfigureTrustedTimeSource, ///< Configure a trusted time source if one is required and available (must be done after SendNOC)
+    kICDGetRegistrationInfo,     ///< Waiting for the higher layer to provide ICD registraion informations.
+    kICDRegistration,            ///< Register for ICD management
     kWiFiNetworkSetup,           ///< Send AddOrUpdateWiFiNetwork (0x31:2) command to the device
     kThreadNetworkSetup,         ///< Send AddOrUpdateThreadNetwork (0x31:3) command to the device
     kFailsafeBeforeWiFiEnable,   ///< Extend the fail-safe before doing kWiFiNetworkEnable
     kFailsafeBeforeThreadEnable, ///< Extend the fail-safe before doing kThreadNetworkEnable
     kWiFiNetworkEnable,          ///< Send ConnectNetwork (0x31:6) command to the device for the WiFi network
     kThreadNetworkEnable,        ///< Send ConnectNetwork (0x31:6) command to the device for the Thread network
-    kFindOperational,            ///< Perform operational discovery and establish a CASE session with the device
-    kSendComplete,               ///< Send CommissioningComplete (0x30:4) command to the device
-    kCleanup,                    ///< Call delegates with status, free memory, clear timers and state
+    kEvictPreviousCaseSessions,  ///< Evict previous stale case sessions from a commissioned device with this node ID before
+    kFindOperationalForStayActive, ///< Perform operational discovery and establish a CASE session with the device for ICD
+                                   ///< StayActive command
+    kFindOperationalForCommissioningComplete, ///< Perform operational discovery and establish a CASE session with the device for
+                                              ///< Commissioning Complete command
+    kSendComplete,                            ///< Send CommissioningComplete (0x30:4) command to the device
+    kICDSendStayActive,                       ///< Send Keep Alive to ICD
+    kCleanup,                                 ///< Call delegates with status, free memory, clear timers and state
     /// Send ScanNetworks (0x31:0) command to the device.
     /// ScanNetworks can happen anytime after kArmFailsafe.
     /// However, the cirque tests fail if it is earlier in the list
@@ -69,6 +76,13 @@ enum CommissioningStage : uint8_t
     /// Call CHIPDeviceController::NetworkCredentialsReady() when CommissioningParameters is populated with
     /// network credentials to use in kWiFiNetworkSetup or kThreadNetworkSetup steps.
     kNeedsNetworkCreds,
+};
+
+enum ICDRegistrationStrategy : uint8_t
+{
+    kIgnore,         ///< Do not check whether the device is an ICD during commissioning
+    kBeforeComplete, ///< Do commissioner self-registration or external controller registration,
+                     ///< Controller should provide a ICDKey manager for generating symmetric key
 };
 
 const char * StageToString(CommissioningStage stage);
@@ -136,6 +150,10 @@ public:
     {
         return mDeviceRegulatoryLocation;
     }
+
+    // Value to determine whether the node supports Concurrent Connections as read from the GeneralCommissioning cluster.
+    // In the AutoCommissioner, this is automatically set from from the kReadCommissioningInfo2 stage.
+    Optional<bool> GetSupportsConcurrentConnection() const { return mSupportsConcurrentConnection; }
 
     // The country code to be used for the node, if set.
     Optional<CharSpan> GetCountryCode() const { return mCountryCode; }
@@ -298,6 +316,12 @@ public:
         return *this;
     }
 
+    CommissioningParameters & SetSupportsConcurrentConnection(bool concurrentConnection)
+    {
+        mSupportsConcurrentConnection.SetValue(concurrentConnection);
+        return *this;
+    }
+
     // The lifetime of the buffer countryCode is pointing to should exceed the
     // lifetime of CommissioningParameters object.
     CommissioningParameters & SetCountryCode(CharSpan countryCode)
@@ -350,9 +374,12 @@ public:
         mAttestationNonce.SetValue(attestationNonce);
         return *this;
     }
+
+    // If a WiFiCredentials is provided, then the WiFiNetworkScan will not be attempted
     CommissioningParameters & SetWiFiCredentials(WiFiCredentials wifiCreds)
     {
         mWiFiCreds.SetValue(wifiCreds);
+        mAttemptWiFiNetworkScan.SetValue(false);
         return *this;
     }
 
@@ -493,6 +520,42 @@ public:
         return *this;
     }
 
+    ICDRegistrationStrategy GetICDRegistrationStrategy() const { return mICDRegistrationStrategy; }
+    CommissioningParameters & SetICDRegistrationStrategy(ICDRegistrationStrategy icdRegistrationStrategy)
+    {
+        mICDRegistrationStrategy = icdRegistrationStrategy;
+        return *this;
+    }
+
+    Optional<NodeId> GetICDCheckInNodeId() const { return mICDCheckInNodeId; }
+    CommissioningParameters & SetICDCheckInNodeId(NodeId icdCheckInNodeId)
+    {
+        mICDCheckInNodeId = MakeOptional(icdCheckInNodeId);
+        return *this;
+    }
+
+    Optional<uint64_t> GetICDMonitoredSubject() const { return mICDMonitoredSubject; }
+    CommissioningParameters & SetICDMonitoredSubject(uint64_t icdMonitoredSubject)
+    {
+        mICDMonitoredSubject = MakeOptional(icdMonitoredSubject);
+        return *this;
+    }
+
+    Optional<ByteSpan> GetICDSymmetricKey() const { return mICDSymmetricKey; }
+    CommissioningParameters & SetICDSymmetricKey(ByteSpan icdSymmetricKey)
+    {
+        mICDSymmetricKey = MakeOptional(icdSymmetricKey);
+        return *this;
+    }
+
+    Optional<uint32_t> GetICDStayActiveDurationMsec() const { return mICDStayActiveDurationMsec; }
+    CommissioningParameters & SetICDStayActiveDurationMsec(uint32_t stayActiveDurationMsec)
+    {
+        mICDStayActiveDurationMsec = MakeOptional(stayActiveDurationMsec);
+        return *this;
+    }
+    void ClearICDStayActiveDurationMsec() { mICDStayActiveDurationMsec.ClearValue(); }
+
     // Clear all members that depend on some sort of external buffer.  Can be
     // used to make sure that we are not holding any dangling pointers.
     void ClearExternalBufferDependentValues()
@@ -513,6 +576,8 @@ public:
         mDAC.ClearValue();
         mTimeZone.ClearValue();
         mDSTOffsets.ClearValue();
+        mDefaultNTP.ClearValue();
+        mICDSymmetricKey.ClearValue();
     }
 
 private:
@@ -546,13 +611,20 @@ private:
     Optional<uint16_t> mRemoteProductId;
     Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> mDefaultRegulatoryLocation;
     Optional<app::Clusters::GeneralCommissioning::RegulatoryLocationTypeEnum> mLocationCapability;
+    Optional<bool> mSupportsConcurrentConnection;
     CompletionStatus completionStatus;
     Credentials::DeviceAttestationDelegate * mDeviceAttestationDelegate =
         nullptr; // Delegate to handle device attestation failures during commissioning
     Optional<bool> mAttemptWiFiNetworkScan;
     Optional<bool> mAttemptThreadNetworkScan; // This automatically gets set to false when a ThreadOperationalDataset is set
     Optional<bool> mSkipCommissioningComplete;
-    bool mCheckForMatchingFabric = false;
+
+    Optional<NodeId> mICDCheckInNodeId;
+    Optional<uint64_t> mICDMonitoredSubject;
+    Optional<ByteSpan> mICDSymmetricKey;
+    Optional<uint32_t> mICDStayActiveDurationMsec;
+    ICDRegistrationStrategy mICDRegistrationStrategy = ICDRegistrationStrategy::kIgnore;
+    bool mCheckForMatchingFabric                     = false;
 };
 
 struct RequestedCertificate
@@ -622,21 +694,40 @@ struct GeneralCommissioningInfo
     ;
 };
 
+// ICDManagementClusterInfo is populated when the controller reads information from
+// the ICD Management cluster, and is used to communicate that information.
+struct ICDManagementClusterInfo
+{
+    // Whether the ICD is capable of functioning as a LIT device.  If false, the ICD can only be a SIT device.
+    bool isLIT;
+    // Whether the ICD supports the check-in protocol.  LIT devices have to support it, but SIT devices
+    // might or might not.
+    bool checkInProtocolSupport;
+
+    // userActiveModeTriggerHint indicates which user action(s) will trigger the ICD to switch to Active mode.
+    // For a LIT: The device is required to provide a value for the bitmap.
+    // For a SIT: The device may not provide a value.  In that case, none of the bits will be set.
+    //
+    // userActiveModeTriggerInstruction may provide additional information for users for some specific
+    // userActiveModeTriggerHint values.
+    BitMask<app::Clusters::IcdManagement::UserActiveModeTriggerBitmap> userActiveModeTriggerHint;
+    CharSpan userActiveModeTriggerInstruction;
+};
+
 struct ReadCommissioningInfo
 {
     NetworkClusters network;
     BasicClusterInfo basic;
     GeneralCommissioningInfo general;
-    bool requiresUTC               = false;
-    bool requiresTimeZone          = false;
-    bool requiresDefaultNTP        = false;
-    bool requiresTrustedTimeSource = false;
-    uint8_t maxTimeZoneSize        = 1;
-    uint8_t maxDSTSize             = 1;
-};
-struct MatchingFabricInfo
-{
-    NodeId nodeId = kUndefinedNodeId;
+    bool requiresUTC                  = false;
+    bool requiresTimeZone             = false;
+    bool requiresDefaultNTP           = false;
+    bool requiresTrustedTimeSource    = false;
+    uint8_t maxTimeZoneSize           = 1;
+    uint8_t maxDSTSize                = 1;
+    NodeId remoteNodeId               = kUndefinedNodeId;
+    bool supportsConcurrentConnection = true;
+    ICDManagementClusterInfo icd;
 };
 
 struct TimeZoneResponseInfo
@@ -669,8 +760,8 @@ class CommissioningDelegate
 public:
     virtual ~CommissioningDelegate(){};
     /* CommissioningReport is returned after each commissioning step is completed. The reports for each step are:
-     * kReadCommissioningInfo - ReadCommissioningInfo
-     * kCheckForMatchingFabric = MatchingFabricInfo
+     * kReadCommissioningInfo: Reported together with ReadCommissioningInfo2
+     * kReadCommissioningInfo2: ReadCommissioningInfo
      * kArmFailsafe: CommissioningErrorInfo if there is an error
      * kConfigRegulatory: CommissioningErrorInfo if there is an error
      * kConfigureUTCTime: None
@@ -684,19 +775,22 @@ public:
      * kSendOpCertSigningRequest: CSRResponse
      * kGenerateNOCChain: NocChain
      * kSendTrustedRootCert: None
-     * kSendNOC: none
+     * kSendNOC: None
      * kConfigureTrustedTimeSource: None
      * kWiFiNetworkSetup: NetworkCommissioningStatusInfo if there is an error
      * kThreadNetworkSetup: NetworkCommissioningStatusInfo if there is an error
      * kWiFiNetworkEnable: NetworkCommissioningStatusInfo if there is an error
      * kThreadNetworkEnable: NetworkCommissioningStatusInfo if there is an error
-     * kFindOperational: OperationalNodeFoundData
+     * kEvictPreviousCaseSessions: None
+     * kFindOperationalForStayActive OperationalNodeFoundData
+     * kFindOperationalForCommissioningComplete: OperationalNodeFoundData
+     * kICDSendStayActive: CommissioningErrorInfo if there is an error
      * kSendComplete: CommissioningErrorInfo if there is an error
-     * kCleanup: none
+     * kCleanup: None
      */
-    struct CommissioningReport : Variant<RequestedCertificate, AttestationResponse, CSRResponse, NocChain, OperationalNodeFoundData,
-                                         ReadCommissioningInfo, AttestationErrorInfo, CommissioningErrorInfo,
-                                         NetworkCommissioningStatusInfo, MatchingFabricInfo, TimeZoneResponseInfo>
+    struct CommissioningReport
+        : Variant<RequestedCertificate, AttestationResponse, CSRResponse, NocChain, OperationalNodeFoundData, ReadCommissioningInfo,
+                  AttestationErrorInfo, CommissioningErrorInfo, NetworkCommissioningStatusInfo, TimeZoneResponseInfo>
     {
         CommissioningReport() : stageCompleted(CommissioningStage::kError) {}
         CommissioningStage stageCompleted;

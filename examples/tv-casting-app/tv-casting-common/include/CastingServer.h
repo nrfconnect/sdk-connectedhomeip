@@ -27,6 +27,7 @@
 #include "KeypadInput.h"
 #include "LevelControl.h"
 #include "MediaPlayback.h"
+#include "Messages.h"
 #include "OnOff.h"
 #include "PersistenceManager.h"
 #include "TargetEndpointInfo.h"
@@ -148,7 +149,7 @@ public:
     /**
      * @brief Level Control cluster
      */
-    CHIP_ERROR LevelControl_Step(TargetEndpointInfo * endpoint, chip::app::Clusters::LevelControl::StepMode stepMode,
+    CHIP_ERROR LevelControl_Step(TargetEndpointInfo * endpoint, chip::app::Clusters::LevelControl::StepModeEnum stepMode,
                                  uint8_t stepSize, uint16_t transitionTime, uint8_t optionMask, uint8_t optionOverride,
                                  std::function<void(CHIP_ERROR)> responseCallback);
     CHIP_ERROR LevelControl_MoveToLevel(TargetEndpointInfo * endpoint, uint8_t level, uint16_t transitionTime, uint8_t optionMask,
@@ -185,6 +186,12 @@ public:
     CHIP_ERROR OnOff_On(TargetEndpointInfo * endpoint, std::function<void(CHIP_ERROR)> responseCallback);
     CHIP_ERROR OnOff_Off(TargetEndpointInfo * endpoint, std::function<void(CHIP_ERROR)> responseCallback);
     CHIP_ERROR OnOff_Toggle(TargetEndpointInfo * endpoint, std::function<void(CHIP_ERROR)> responseCallback);
+
+    /**
+     * @brief Messages cluster
+     */
+    CHIP_ERROR Messages_PresentMessagesRequest(TargetEndpointInfo * endpoint, const char * messageText,
+                                               std::function<void(CHIP_ERROR)> responseCallback);
 
     /**
      * @brief Media Playback cluster
@@ -303,7 +310,7 @@ public:
     /**
      * @brief Keypad Input cluster
      */
-    CHIP_ERROR KeypadInput_SendKey(TargetEndpointInfo * endpoint, const chip::app::Clusters::KeypadInput::CecKeyCode keyCode,
+    CHIP_ERROR KeypadInput_SendKey(TargetEndpointInfo * endpoint, const chip::app::Clusters::KeypadInput::CECKeyCodeEnum keyCode,
                                    std::function<void(CHIP_ERROR)> responseCallback);
 
     /**
@@ -509,6 +516,11 @@ private:
     OnCommand mOnCommand;
     OffCommand mOffCommand;
     ToggleCommand mToggleCommand;
+
+    /**
+     * @brief OnOff cluster
+     */
+    PresentMessagesRequestCommand mPresentMessagesRequestCommand;
 
     /**
      * @brief Media Playback cluster

@@ -15,23 +15,32 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <lib/core/TLVReader.h>
 
-/**
- *    @file
- *      This file implements a parser for the CHIP TLV (Tag-Length-Value) encoding format.
- *
- */
+#include <stdint.h>
+#include <string.h>
 
-#include <stdlib.h>
-
-#include <lib/core/CHIPCore.h>
+#include <lib/core/CHIPConfig.h>
 #include <lib/core/CHIPEncoding.h>
+#include <lib/core/CHIPError.h>
 #include <lib/core/CHIPSafeCasts.h>
-#include <lib/core/TLV.h>
+#include <lib/core/DataModelTypes.h>
+#include <lib/core/Optional.h>
+#include <lib/core/TLVBackingStore.h>
+#include <lib/core/TLVCommon.h>
+#include <lib/core/TLVTags.h>
+#include <lib/core/TLVTypes.h>
+#include <lib/support/BufferWriter.h>
 #include <lib/support/BytesToHex.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
+#include <lib/support/Span.h>
+#include <lib/support/logging/TextOnlyLogging.h>
+
+#if CHIP_CONFIG_TLV_VALIDATE_CHAR_STRING_ON_READ
+#include <lib/support/utf8.h>
+#endif
 
 namespace chip {
 namespace TLV {
@@ -39,6 +48,12 @@ namespace TLV {
 using namespace chip::Encoding;
 
 static const uint8_t sTagSizes[] = { 0, 1, 2, 4, 2, 4, 6, 8 };
+
+TLVReader::TLVReader() :
+    ImplicitProfileId(kProfileIdNotSpecified), AppData(nullptr), mElemLenOrVal(0), mBackingStore(nullptr), mReadPoint(nullptr),
+    mBufEnd(nullptr), mLenRead(0), mMaxLen(0), mContainerType(kTLVType_NotSpecified), mControlByte(kTLVControlByte_NotSpecified),
+    mContainerOpen(false)
+{}
 
 void TLVReader::Init(const uint8_t * data, size_t dataLen)
 {
@@ -330,6 +345,25 @@ CHIP_ERROR TLVReader::Get(CharSpan & v) const
     }
 
     v = CharSpan(Uint8::to_const_char(bytes), len);
+#if CHIP_CONFIG_TLV_VALIDATE_CHAR_STRING_ON_READ
+    // Spec requirement: A.11.2. UTF-8 and Octet Strings
+    //
+    // For UTF-8 strings, the value octets SHALL encode a valid
+    // UTF-8 character (code points) sequence.
+    //
+    // Senders SHALL NOT include a terminating null character to
+    // mark the end of a string.
+
+    if (!Utf8::IsValid(v))
+    {
+        return CHIP_ERROR_INVALID_UTF8;
+    }
+
+    if (!v.empty() && (v.back() == 0))
+    {
+        return CHIP_ERROR_INVALID_TLV_CHAR_STRING;
+    }
+#endif // CHIP_CONFIG_TLV_VALIDATE_CHAR_STRING_ON_READ
     return CHIP_NO_ERROR;
 }
 
@@ -583,23 +617,31 @@ CHIP_ERROR TLVReader::Next()
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR TLVReader::Expect(Tag expectedTag)
+{
+    VerifyOrReturnError(GetType() != kTLVType_NotSpecified, CHIP_ERROR_WRONG_TLV_TYPE);
+    VerifyOrReturnError(GetTag() == expectedTag, CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
+    return CHIP_NO_ERROR;
+}
+
 CHIP_ERROR TLVReader::Next(Tag expectedTag)
 {
-    CHIP_ERROR err = Next();
-    if (err != CHIP_NO_ERROR)
-        return err;
-    if (mElemTag != expectedTag)
-        return CHIP_ERROR_UNEXPECTED_TLV_ELEMENT;
+    ReturnErrorOnFailure(Next());
+    ReturnErrorOnFailure(Expect(expectedTag));
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR TLVReader::Expect(TLVType expectedType, Tag expectedTag)
+{
+    VerifyOrReturnError(GetType() == expectedType, CHIP_ERROR_WRONG_TLV_TYPE);
+    VerifyOrReturnError(GetTag() == expectedTag, CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TLVReader::Next(TLVType expectedType, Tag expectedTag)
 {
-    CHIP_ERROR err = Next(expectedTag);
-    if (err != CHIP_NO_ERROR)
-        return err;
-    if (GetType() != expectedType)
-        return CHIP_ERROR_WRONG_TLV_TYPE;
+    ReturnErrorOnFailure(Next());
+    ReturnErrorOnFailure(Expect(expectedType, expectedTag));
     return CHIP_NO_ERROR;
 }
 

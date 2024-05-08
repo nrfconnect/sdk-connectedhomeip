@@ -11,7 +11,8 @@
         "darwin/Framework/CHIP/templates/helper.js"
     ],
     "resources": {
-        "availability-data": "availability.yaml"
+        "availability-data": "availability.yaml",
+        "config-data": "config-data.yaml"
     },
     "override": "../../../../../src/app/zap-templates/common/override.js",
     "partials": [
@@ -80,11 +81,6 @@
             "output": "src/darwin/Framework/CHIP/zap-generated/MTRClusters.mm"
         },
         {
-            "path": "MTRClusters-swift.zapt",
-            "name": "Swift ZCL synchronous API Header extensions",
-            "output": "src/darwin/Framework/CHIP/zap-generated/MTRClusters.swift"
-        },
-        {
             "path": "MTRStructsObjc.zapt",
             "name": "Objc reflections of MTR spec structs header",
             "output": "src/darwin/Framework/CHIP/zap-generated/MTRStructsObjc.h"
@@ -123,6 +119,11 @@
             "path": "MTRClusterConstants.zapt",
             "name": "Constants for cluster IDs",
             "output": "src/darwin/Framework/CHIP/zap-generated/MTRClusterConstants.h"
+        },
+        {
+            "path": "MTRClusterNames-src.zapt",
+            "name": "Objc Cluster Names API",
+            "output": "src/darwin/Framework/CHIP/zap-generated/MTRClusterNames.mm"
         },
         {
             "path": "MTRAttributeSpecifiedCheck-src.zapt",

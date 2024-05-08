@@ -14,6 +14,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <app/icd/server/ICDServerConfig.h>
 #include <lib/dnssd/Advertiser.h>
 
 #include <string>
@@ -79,7 +80,6 @@ OperationalAdvertisingParameters operationalParams1 =
         .SetMac(ByteSpan(kMac))
         .SetPort(CHIP_PORT)
         .EnableIpV4(true)
-        .SetTcpSupported(chip::Optional<bool>(false))
         .SetLocalMRPConfig(chip::Optional<ReliableMessageProtocolConfig>::Value(
             32_ms32, 30_ms32)); // Match SII, SAI. SAT not provided so it uses default 4000ms
 OperationalAdvertisingParameters operationalParams2 =
@@ -92,7 +92,7 @@ OperationalAdvertisingParameters operationalParams5 =
     OperationalAdvertisingParameters().SetPeerId(kPeerId5).SetMac(ByteSpan(kMac)).SetPort(CHIP_PORT).EnableIpV4(true);
 OperationalAdvertisingParameters operationalParams6 =
     OperationalAdvertisingParameters().SetPeerId(kPeerId6).SetMac(ByteSpan(kMac)).SetPort(CHIP_PORT).EnableIpV4(true);
-const QNamePart txtOperational1Parts[]  = { "SII=32", "SAI=30", "SAT=4000", "T=0" };
+const QNamePart txtOperational1Parts[]  = { "SII=32", "SAI=30", "SAT=4000" };
 PtrResourceRecord ptrOperationalService = PtrResourceRecord(kDnsSdQueryName, kMatterOperationalQueryName);
 PtrResourceRecord ptrOperational1       = PtrResourceRecord(kMatterOperationalQueryName, kInstanceName1);
 SrvResourceRecord srvOperational1       = SrvResourceRecord(kInstanceName1, kHostnameName, CHIP_PORT);
@@ -180,15 +180,40 @@ CommissionAdvertisingParameters commissionableNodeParamsLargeEnhanced =
         .SetPairingInstruction(chip::Optional<const char *>("Pair me"))
         .SetProductId(chip::Optional<uint16_t>(897))
         .SetRotatingDeviceId(chip::Optional<const char *>("id_that_spins"))
-        .SetTcpSupported(chip::Optional<bool>(true))
+        .SetICDModeToAdvertise(ICDModeAdvertise::kSIT)
         // 3600005 is more than the max so should be adjusted down
         .SetLocalMRPConfig(Optional<ReliableMessageProtocolConfig>::Value(3600000_ms32, 3600005_ms32, 65535_ms16));
 QNamePart txtCommissionableNodeParamsLargeEnhancedParts[] = { "D=22",          "VP=555+897",       "CM=2",       "DT=70000",
                                                               "DN=testy-test", "RI=id_that_spins", "PI=Pair me", "PH=3",
-                                                              "SAI=3600000",   "SII=3600000",      "SAT=65535",  "T=1" };
+                                                              "SAI=3600000",   "SII=3600000",      "SAT=65535",  "ICD=0" };
 FullQName txtCommissionableNodeParamsLargeEnhancedName    = FullQName(txtCommissionableNodeParamsLargeEnhancedParts);
 TxtResourceRecord txtCommissionableNodeParamsLargeEnhanced =
     TxtResourceRecord(instanceName, txtCommissionableNodeParamsLargeEnhancedName);
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+CommissionAdvertisingParameters commissionableNodeParamsEnhancedAsICDLIT =
+    CommissionAdvertisingParameters()
+        .SetCommissionAdvertiseMode(CommssionAdvertiseMode::kCommissionableNode)
+        .SetMac(ByteSpan(kMac, sizeof(kMac)))
+        .SetLongDiscriminator(22)
+        .SetShortDiscriminator(2)
+        .SetVendorId(chip::Optional<uint16_t>(555))
+        .SetDeviceType(chip::Optional<uint32_t>(70000))
+        .SetCommissioningMode(CommissioningMode::kEnabledEnhanced)
+        .SetDeviceName(chip::Optional<const char *>("testy-test"))
+        .SetPairingHint(chip::Optional<uint16_t>(3))
+        .SetPairingInstruction(chip::Optional<const char *>("Pair me"))
+        .SetProductId(chip::Optional<uint16_t>(897))
+        .SetICDModeToAdvertise(ICDModeAdvertise::kLIT)
+        .SetLocalMRPConfig(Optional<ReliableMessageProtocolConfig>::Value(3600000_ms32, 3600000_ms32, 65535_ms16));
+// With ICD Operation as LIT, SII key will not be added to the advertisement
+QNamePart txtCommissionableNodeParamsEnhancedAsICDLITParts[] = { "D=22",          "VP=555+897", "CM=2", "DT=70000",
+                                                                 "DN=testy-test", "PI=Pair me", "PH=3", "SAI=3600000",
+                                                                 "SAT=65535",     "ICD=1" };
+FullQName txtCommissionableNodeParamsEnhancedAsICDLITName    = FullQName(txtCommissionableNodeParamsEnhancedAsICDLITParts);
+TxtResourceRecord txtCommissionableNodeParamsEnhancedAsICDLIT =
+    TxtResourceRecord(instanceName, txtCommissionableNodeParamsEnhancedAsICDLITName);
+#endif
 
 // Our server doesn't do anything with this, blank is fine.
 Inet::IPPacketInfo packetInfo;
@@ -452,6 +477,28 @@ void CommissionableAdverts(nlTestSuite * inSuite, void * inContext)
     NL_TEST_ASSERT(inSuite, SendQuery(instanceName) == CHIP_NO_ERROR);
     NL_TEST_ASSERT(inSuite, server.GetSendCalled());
     NL_TEST_ASSERT(inSuite, server.GetHeaderFound());
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    NL_TEST_ASSERT(inSuite, mdnsAdvertiser.Advertise(commissionableNodeParamsEnhancedAsICDLIT) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, mdnsAdvertiser.FinalizeServiceUpdate() == CHIP_NO_ERROR);
+    ChipLogProgress(Discovery, "Testing response to _matterc._udp.local for enhanced parameters With ICD as LIT");
+    server.Reset();
+    server.AddExpectedRecord(&ptrCommissionableNode);
+    server.AddExpectedRecord(&srvCommissionableNode);
+    server.AddExpectedRecord(&txtCommissionableNodeParamsEnhancedAsICDLIT);
+    NL_TEST_ASSERT(inSuite, SendQuery(kMatterCommissionableNodeQueryName) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, server.GetHeaderFound());
+
+    ChipLogProgress(Discovery, "Testing response to instance name for enhanced parameters With ICD as LIT");
+    server.Reset();
+    // Just the SRV and TXT should return
+    server.AddExpectedRecord(&srvCommissionableNode);
+    server.AddExpectedRecord(&txtCommissionableNodeParamsEnhancedAsICDLIT);
+    NL_TEST_ASSERT(inSuite, SendQuery(instanceName) == CHIP_NO_ERROR);
+    NL_TEST_ASSERT(inSuite, server.GetSendCalled());
+    NL_TEST_ASSERT(inSuite, server.GetHeaderFound());
+#endif
 }
 
 void CommissionableAndOperationalAdverts(nlTestSuite * inSuite, void * inContext)

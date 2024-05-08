@@ -29,6 +29,7 @@ using chip::app::CommandResponseHelper;
 using ContentLauncherDelegate     = chip::app::Clusters::ContentLauncher::Delegate;
 using LaunchResponseType          = chip::app::Clusters::ContentLauncher::Commands::LauncherResponse::Type;
 using ParameterType               = chip::app::Clusters::ContentLauncher::Structs::ParameterStruct::DecodableType;
+using PlaybackPreferencesType     = chip::app::Clusters::ContentLauncher::Structs::PlaybackPreferencesStruct::DecodableType;
 using BrandingInformationType     = chip::app::Clusters::ContentLauncher::Structs::BrandingInformationStruct::Type;
 using ContentAppAttributeDelegate = chip::AppPlatform::ContentAppAttributeDelegate;
 
@@ -40,7 +41,9 @@ public:
 
     void HandleLaunchContent(CommandResponseHelper<LaunchResponseType> & helper,
                              const chip::app::DataModel::DecodableList<ParameterType> & parameterList, bool autoplay,
-                             const CharSpan & data) override;
+                             const CharSpan & data, const chip::Optional<PlaybackPreferencesType> playbackPreferences,
+                             bool useCurrentContext) override;
+
     void HandleLaunchUrl(CommandResponseHelper<LaunchResponseType> & helper, const CharSpan & contentUrl,
                          const CharSpan & displayString, const BrandingInformationType & brandingInformation) override;
     CHIP_ERROR HandleGetAcceptHeaderList(AttributeValueEncoder & aEncoder) override;
@@ -49,6 +52,7 @@ public:
     void SetEndpointId(EndpointId epId) { mEndpointId = epId; };
 
     uint32_t GetFeatureMap(chip::EndpointId endpoint) override;
+    uint16_t GetClusterRevision(chip::EndpointId endpoint) override;
 
 protected:
     std::list<std::string> mAcceptHeaderList;
@@ -58,7 +62,7 @@ private:
     EndpointId mEndpointId;
 
     // TODO: set this based upon meta data from app
-    uint32_t mDynamicEndpointFeatureMap = 3;
-
+    static constexpr uint32_t kEndpointFeatureMap = 3;
+    static constexpr uint16_t kClusterRevision    = 2;
     ContentAppAttributeDelegate * mAttributeDelegate;
 };

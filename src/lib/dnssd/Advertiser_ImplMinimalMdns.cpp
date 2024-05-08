@@ -23,6 +23,7 @@
 #include "MinimalMdnsServer.h"
 #include "ServiceNaming.h"
 
+#include <app/icd/server/ICDServerConfig.h>
 #include <crypto/RandUtils.h>
 #include <lib/dnssd/Advertiser_ImplMinimalMdnsAllocator.h>
 #include <lib/dnssd/minimal_mdns/AddressPolicy.h>
@@ -219,6 +220,7 @@ private:
         char sessionActiveThresholdBuf[KeySize(TxtFieldKey::kSessionActiveThreshold) +
                                        ValSize(TxtFieldKey::kSessionActiveThreshold) + 2];
         char tcpSupportedBuf[KeySize(TxtFieldKey::kTcpSupported) + ValSize(TxtFieldKey::kTcpSupported) + 2];
+        char operatingICDAsLITBuf[KeySize(TxtFieldKey::kLongIdleTimeICD) + ValSize(TxtFieldKey::kLongIdleTimeICD) + 2];
     };
     template <class Derived>
     CHIP_ERROR AddCommonTxtEntries(const BaseAdvertisingParams<Derived> & params, CommonTxtEntryStorage & storage,
@@ -229,6 +231,10 @@ private:
         if (optionalMrp.HasValue())
         {
             auto mrp = optionalMrp.Value();
+
+            // An ICD operating as a LIT shall not advertise its slow polling interval.
+            // Don't include the SII key in the advertisement when operating as so.
+            if (params.GetICDModeToAdvertise() != ICDModeAdvertise::kLIT)
             {
                 if (mrp.mIdleRetransTimeout > kMaxRetryInterval)
                 {
@@ -279,6 +285,15 @@ private:
             VerifyOrReturnError((writtenCharactersNumber > 0) && (writtenCharactersNumber < sizeof(storage.tcpSupportedBuf)),
                                 CHIP_ERROR_INVALID_STRING_LENGTH);
             txtFields[numTxtFields++] = storage.tcpSupportedBuf;
+        }
+        if (params.GetICDModeToAdvertise() != ICDModeAdvertise::kNone)
+        {
+            size_t writtenCharactersNumber =
+                static_cast<size_t>(snprintf(storage.operatingICDAsLITBuf, sizeof(storage.operatingICDAsLITBuf), "ICD=%d",
+                                             (params.GetICDModeToAdvertise() == ICDModeAdvertise::kLIT)));
+            VerifyOrReturnError((writtenCharactersNumber > 0) && (writtenCharactersNumber < sizeof(storage.operatingICDAsLITBuf)),
+                                CHIP_ERROR_INVALID_STRING_LENGTH);
+            txtFields[numTxtFields++] = storage.operatingICDAsLITBuf;
         }
         return CHIP_NO_ERROR;
     }
@@ -830,6 +845,10 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
     char txtRotatingDeviceId[chip::Dnssd::kKeyRotatingDeviceIdMaxLength + 4];
     char txtPairingHint[chip::Dnssd::kKeyPairingInstructionMaxLength + 4];
     char txtPairingInstr[chip::Dnssd::kKeyPairingInstructionMaxLength + 4];
+
+    // the following sub types only apply to commissioner discovery advertisements
+    char txtCommissionerPasscode[chip::Dnssd::kKeyCommissionerPasscodeMaxLength + 4];
+
     if (params.GetCommissionAdvertiseMode() == CommssionAdvertiseMode::kCommissionableNode)
     {
         // a discriminator always exists
@@ -855,6 +874,14 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
         {
             snprintf(txtPairingInstr, sizeof(txtPairingInstr), "PI=%s", params.GetPairingInstruction().Value());
             txtFields[numTxtFields++] = txtPairingInstr;
+        }
+    }
+    else
+    {
+        if (params.GetCommissionerPasscodeSupported().ValueOr(false))
+        {
+            snprintf(txtCommissionerPasscode, sizeof(txtCommissionerPasscode), "CP=%d", static_cast<int>(1));
+            txtFields[numTxtFields++] = txtCommissionerPasscode;
         }
     }
     if (numTxtFields == 0)
@@ -948,10 +975,14 @@ void AdvertiserMinMdns::AdvertiseRecords(BroadcastAdvertiseType type)
 AdvertiserMinMdns gAdvertiser;
 } // namespace
 
-ServiceAdvertiser & ServiceAdvertiser::Instance()
+#if CHIP_DNSSD_DEFAULT_MINIMAL
+
+ServiceAdvertiser & GetDefaultAdvertiser()
 {
     return gAdvertiser;
 }
+
+#endif // CHIP_DNSSD_DEFAULT_MINIMAL
 
 } // namespace Dnssd
 } // namespace chip

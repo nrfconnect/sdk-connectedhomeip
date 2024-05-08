@@ -27,6 +27,9 @@
 #pragma once
 
 #include <crypto/CHIPCryptoPAL.h>
+#if CHIP_CRYPTO_PSA_SPAKE2P
+#include <crypto/PSASpake2p.h>
+#endif
 #include <lib/support/Base64.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeDelegate.h>
@@ -41,8 +44,8 @@
 
 namespace chip {
 
-extern const char * kSpake2pI2RSessionInfo;
-extern const char * kSpake2pR2ISessionInfo;
+extern const char kSpake2pI2RSessionInfo[];
+extern const char kSpake2pR2ISessionInfo[];
 
 inline constexpr uint16_t kPBKDFParamRandomNumberSize = 32;
 
@@ -138,7 +141,7 @@ public:
      * @param session     Reference to the secure session that will be initialized once pairing is complete
      * @return CHIP_ERROR The result of session derivation
      */
-    CHIP_ERROR DeriveSecureSession(CryptoContext & session) const override;
+    CHIP_ERROR DeriveSecureSession(CryptoContext & session) override;
 
     // TODO: remove Clear, we should create a new instance instead reset the old instance.
     /** @brief This function zeroes out and resets the memory used by the object.
@@ -203,14 +206,19 @@ private:
     CHIP_ERROR HandleMsg3(System::PacketBufferHandle && msg);
 
     void OnSuccessStatusReport() override;
-    CHIP_ERROR OnFailureStatusReport(Protocols::SecureChannel::GeneralStatusCode generalCode, uint16_t protocolCode) override;
+    CHIP_ERROR OnFailureStatusReport(Protocols::SecureChannel::GeneralStatusCode generalCode, uint16_t protocolCode,
+                                     Optional<uintptr_t> protocolData) override;
 
     void Finish();
 
     // mNextExpectedMsg is set when we are expecting a message.
     Optional<Protocols::SecureChannel::MsgType> mNextExpectedMsg;
 
-    Spake2p_P256_SHA256_HKDF_HMAC mSpake2p;
+#if CHIP_CRYPTO_PSA_SPAKE2P
+    Crypto::PSASpake2p_P256_SHA256_HKDF_HMAC mSpake2p;
+#else
+    Crypto::Spake2p_P256_SHA256_HKDF_HMAC mSpake2p;
+#endif
 
     Spake2pVerifier mPASEVerifier;
 

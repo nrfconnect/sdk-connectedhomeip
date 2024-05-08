@@ -25,9 +25,7 @@
 #include "AppEvent.h"
 #include "AppTask.h"
 
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
-#include "LEDWidget.h"
-#endif // ENABLE_WSTK_LEDS
+#include <app/server/Server.h>
 
 #ifdef DISPLAY_ENABLED
 #include "lcd.h"
@@ -37,9 +35,10 @@
 #endif // DISPLAY_ENABLED
 
 #include "SilabsDeviceDataProvider.h"
-#include <app/icd/ICDNotifier.h>
+#if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
+#include <app/icd/server/ICDNotifier.h> // nogncheck
+#endif
 #include <app/server/OnboardingCodesUtil.h>
-#include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
 #include <assert.h>
 #include <lib/support/CodeUtils.h>
@@ -80,10 +79,12 @@
 #define APP_TASK_STACK_SIZE (4096)
 #endif
 #define APP_TASK_PRIORITY 2
+#ifndef APP_EVENT_QUEUE_SIZE // Allow apps to define a different app queue size
 #define APP_EVENT_QUEUE_SIZE 10
+#endif
 #define EXAMPLE_VENDOR_ID 0xcafe
 
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
+#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
 #define SYSTEM_STATE_LED 0
 #endif // ENABLE_WSTK_LEDS
 #define APP_FUNCTION_BUTTON 0
@@ -99,13 +100,12 @@ namespace {
  * Variable declarations
  *********************************************************/
 
-TimerHandle_t sFunctionTimer; // FreeRTOS app sw timer.
-TimerHandle_t sLightTimer;
+osTimerId_t sFunctionTimer;
+osTimerId_t sLightTimer;
+osThreadId_t sAppTaskHandle;
+osMessageQueueId_t sAppEventQueue;
 
-TaskHandle_t sAppTaskHandle;
-QueueHandle_t sAppEventQueue;
-
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
+#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
 LEDWidget sStatusLED;
 #endif // ENABLE_WSTK_LEDS
 
@@ -120,20 +120,30 @@ bool sIsAttached         = false;
 bool sHaveBLEConnections = false;
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 
+constexpr uint32_t kLightTimerPeriod = static_cast<uint32_t>(pdMS_TO_TICKS(10));
+
 uint8_t sAppEventQueueBuffer[APP_EVENT_QUEUE_SIZE * sizeof(AppEvent)];
-StaticQueue_t sAppEventQueueStruct;
+StaticQueue_t sAppEventQueueStruct; // TODO abstract type for static controlblock
+constexpr osMessageQueueAttr_t appEventQueueAttr = { .cb_mem  = &sAppEventQueueStruct,
+                                                     .cb_size = sizeof(sAppEventQueueBuffer),
+                                                     .mq_mem  = sAppEventQueueBuffer,
+                                                     .mq_size = sizeof(sAppEventQueueBuffer) };
 
-StackType_t appStack[APP_TASK_STACK_SIZE / sizeof(StackType_t)];
-StaticTask_t appTaskStruct;
-
-BaseApplication::Function_t mFunction;
-bool mFunctionTimerActive;
+uint8_t appStack[APP_TASK_STACK_SIZE];
+StaticTask_t appTaskStruct; // TODO abstract type for static controlblock
+constexpr osThreadAttr_t appTaskAttr = { .name       = APP_TASK_NAME,
+                                         .attr_bits  = osThreadDetached,
+                                         .cb_mem     = &appTaskStruct,
+                                         .cb_size    = sizeof(appTaskStruct),
+                                         .stack_mem  = appStack,
+                                         .stack_size = APP_TASK_STACK_SIZE,
+                                         .priority   = osPriorityNormal };
 
 #ifdef DISPLAY_ENABLED
 SilabsLCD slLCD;
 #endif
 
-#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
 Clusters::Identify::EffectIdentifierEnum sIdentifyEffect = Clusters::Identify::EffectIdentifierEnum::kStopEffect;
 
 Identify gIdentify = {
@@ -144,9 +154,15 @@ Identify gIdentify = {
     BaseApplication::OnTriggerIdentifyEffect,
 };
 
-#endif // EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#endif // MATTER_DM_PLUGIN_IDENTIFY_SERVER
 } // namespace
-bool BaseApplication::sIsProvisioned = false;
+
+bool BaseApplication::sIsProvisioned           = false;
+bool BaseApplication::sIsFactoryResetTriggered = false;
+LEDWidget * BaseApplication::sAppActionLed     = nullptr;
+#if CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
+BaseApplicationDelegate BaseApplication::sAppDelegate = BaseApplicationDelegate();
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
 
 #ifdef DIC_ENABLE
 namespace {
@@ -164,13 +180,35 @@ void AppSpecificConnectivityEventCallback(const ChipDeviceEvent * event, intptr_
 } // namespace
 #endif // DIC_ENABLE
 
+#if CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
+void BaseApplicationDelegate::OnCommissioningSessionStarted()
+{
+    isComissioningStarted = true;
+}
+void BaseApplicationDelegate::OnCommissioningSessionStopped()
+{
+    isComissioningStarted = false;
+}
+void BaseApplicationDelegate::OnCommissioningWindowClosed()
+{
+    if (!BaseApplication::GetProvisionStatus() && !isComissioningStarted)
+    {
+        int32_t status = wfx_power_save(RSI_SLEEP_MODE_8, STANDBY_POWER_SAVE_WITH_RAM_RETENTION);
+        if (status != SL_STATUS_OK)
+        {
+            ChipLogError(DeviceLayer, "Failed to enable the TA Deep Sleep");
+        }
+    }
+}
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER && SLI_SI917
+
 /**********************************************************
  * AppTask Definitions
  *********************************************************/
 
-CHIP_ERROR BaseApplication::StartAppTask(TaskFunction_t taskFunction)
+CHIP_ERROR BaseApplication::StartAppTask(osThreadFunc_t taskFunction)
 {
-    sAppEventQueue = xQueueCreateStatic(APP_EVENT_QUEUE_SIZE, sizeof(AppEvent), sAppEventQueueBuffer, &sAppEventQueueStruct);
+    sAppEventQueue = osMessageQueueNew(APP_EVENT_QUEUE_SIZE, sizeof(AppEvent), &appEventQueueAttr);
     if (sAppEventQueue == NULL)
     {
         SILABS_LOG("Failed to allocate app event queue");
@@ -178,8 +216,7 @@ CHIP_ERROR BaseApplication::StartAppTask(TaskFunction_t taskFunction)
     }
 
     // Start App task.
-    sAppTaskHandle =
-        xTaskCreateStatic(taskFunction, APP_TASK_NAME, ArraySize(appStack), &sAppEventQueue, 1, appStack, &appTaskStruct);
+    sAppTaskHandle = osThreadNew(taskFunction, &sAppEventQueue, &appTaskAttr);
     if (sAppTaskHandle == nullptr)
     {
         SILABS_LOG("Failed to create app task");
@@ -210,12 +247,11 @@ CHIP_ERROR BaseApplication::Init()
 
 #endif
 
-    // Create FreeRTOS sw timer for Function Selection.
-    sFunctionTimer = xTimerCreate("FnTmr",                  // Just a text name, not used by the RTOS kernel
-                                  pdMS_TO_TICKS(1),         // == default timer period
-                                  false,                    // no timer reload (==one-shot)
-                                  (void *) this,            // init timer id = app task obj context
-                                  FunctionTimerEventHandler // timer callback handler
+    // Create cmsis os sw timer for Function Selection.
+    sFunctionTimer = osTimerNew(FunctionTimerEventHandler, // timer callback handler
+                                osTimerOnce,               // no timer reload (one-shot timer)
+                                (void *) this,             // pass the app task obj context
+                                NULL                       // No osTimerAttr_t to provide.
     );
     if (sFunctionTimer == NULL)
     {
@@ -223,12 +259,11 @@ CHIP_ERROR BaseApplication::Init()
         appError(APP_ERROR_CREATE_TIMER_FAILED);
     }
 
-    // Create FreeRTOS sw timer for LED Management.
-    sLightTimer = xTimerCreate("LightTmr",            // Text Name
-                               pdMS_TO_TICKS(10),     // Default timer period
-                               true,                  // reload timer
-                               (void *) this,         // Timer Id
-                               LightTimerEventHandler // Timer callback handler
+    // Create cmsis os sw timer for LED Management.
+    sLightTimer = osTimerNew(LightTimerEventHandler, // Timer callback handler"LightTmr",
+                             osTimerPeriodic,        // timer repeats automatically
+                             (void *) this,          // pass the app task obj context
+                             NULL                    // No osTimerAttr_t to provide.
     );
     if (sLightTimer == NULL)
     {
@@ -246,7 +281,7 @@ CHIP_ERROR BaseApplication::Init()
     ConfigurationMgr().LogDeviceConfig();
 
     OutputQrCode(true /*refreshLCD at init*/);
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
+#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
     LEDWidget::InitGpio();
     sStatusLED.Init(SYSTEM_STATE_LED);
 #endif // ENABLE_WSTK_LEDS
@@ -262,54 +297,30 @@ CHIP_ERROR BaseApplication::Init()
 #if CHIP_ENABLE_OPENTHREAD
     BaseApplication::sIsProvisioned = ConnectivityMgr().IsThreadProvisioned();
 #endif
-
     return err;
 }
 
-void BaseApplication::FunctionTimerEventHandler(TimerHandle_t xTimer)
+void BaseApplication::FunctionTimerEventHandler(void * timerCbArg)
 {
     AppEvent event;
     event.Type               = AppEvent::kEventType_Timer;
-    event.TimerEvent.Context = (void *) xTimer;
+    event.TimerEvent.Context = timerCbArg;
     event.Handler            = FunctionEventHandler;
     PostEvent(&event);
 }
 
 void BaseApplication::FunctionEventHandler(AppEvent * aEvent)
 {
-    if (aEvent->Type != AppEvent::kEventType_Timer)
-    {
-        return;
-    }
-
+    VerifyOrReturn(aEvent->Type == AppEvent::kEventType_Timer);
     // If we reached here, the button was held past FACTORY_RESET_TRIGGER_TIMEOUT,
-    // initiate factory reset
-    if (mFunctionTimerActive && mFunction == kFunction_StartBleAdv)
+    if (!sIsFactoryResetTriggered)
     {
-        SILABS_LOG("Factory Reset Triggered. Release button within %ums to cancel.", FACTORY_RESET_CANCEL_WINDOW_TIMEOUT);
-
-        // Start timer for FACTORY_RESET_CANCEL_WINDOW_TIMEOUT to allow user to
-        // cancel, if required.
-        StartFunctionTimer(FACTORY_RESET_CANCEL_WINDOW_TIMEOUT);
-
-#if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
-        StartStatusLEDTimer();
-#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
-
-        mFunction = kFunction_FactoryReset;
-
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
-        // Turn off all LEDs before starting blink to make sure blink is
-        // co-ordinated.
-        sStatusLED.Set(false);
-        sStatusLED.Blink(500);
-#endif // ENABLE_WSTK_LEDS
+        StartFactoryResetSequence();
     }
-    else if (mFunctionTimerActive && mFunction == kFunction_FactoryReset)
+    else
     {
-        // Actually trigger Factory Reset
-        mFunction = kFunction_NoneSelected;
-
+        // The factory reset sequence was in motion. The cancellation window expired.
+        // Factory Reset the device now.
 #if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
         StopStatusLEDTimer();
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
@@ -321,8 +332,8 @@ void BaseApplication::FunctionEventHandler(AppEvent * aEvent)
 bool BaseApplication::ActivateStatusLedPatterns()
 {
     bool isPatternSet = false;
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
-#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
+#ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
     if (gIdentify.mActive)
     {
         // Identify in progress
@@ -366,7 +377,7 @@ bool BaseApplication::ActivateStatusLedPatterns()
         }
         isPatternSet = true;
     }
-#endif // EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#endif // MATTER_DM_PLUGIN_IDENTIFY_SERVER
 
 #if !(defined(CHIP_CONFIG_ENABLE_ICD_SERVER) && CHIP_CONFIG_ENABLE_ICD_SERVER)
     // Identify Patterns have priority over Status patterns
@@ -421,19 +432,13 @@ void BaseApplication::LightEventHandler()
 #endif /* CHIP_ENABLE_OPENTHREAD */
         sHaveBLEConnections = (ConnectivityMgr().NumBLEConnections() != 0);
 
-#ifdef DISPLAY_ENABLED
-        SilabsLCD::DisplayStatus_t status;
-        status.connected   = sIsEnabled && sIsAttached;
-        status.advertising = chip::Server::GetInstance().GetCommissioningWindowManager().IsCommissioningWindowOpen();
-        status.nbFabric    = chip::Server::GetInstance().GetFabricTable().FabricCount();
-        slLCD.SetStatus(status);
-#endif
         PlatformMgr().UnlockChipStack();
     }
 
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
+#if defined(ENABLE_WSTK_LEDS)
+#ifdef SL_CATALOG_SIMPLE_LED_LED1_PRESENT
     // Update the status LED if factory reset has not been initiated.
     //
     // If system has "full connectivity", keep the LED On constantly.
@@ -446,13 +451,18 @@ void BaseApplication::LightEventHandler()
     // the LEDs at an even rate of 100ms.
     //
     // Otherwise, blink the LED ON for a very short time.
-    if (mFunction != kFunction_FactoryReset)
+    if (!sIsFactoryResetTriggered)
     {
         ActivateStatusLedPatterns();
     }
 
     sStatusLED.Animate();
-#endif // ENABLE_WSTK_LEDS && SL_CATALOG_SIMPLE_LED_LED1_PRESENT
+#endif // SL_CATALOG_SIMPLE_LED_LED1_PRESENT
+    if (sAppActionLed)
+    {
+        sAppActionLed->Animate();
+    }
+#endif // ENABLE_WSTK_LEDS
 }
 
 void BaseApplication::ButtonHandler(AppEvent * aEvent)
@@ -466,25 +476,24 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
     // start blinking within the FACTORY_RESET_CANCEL_WINDOW_TIMEOUT
     if (aEvent->ButtonEvent.Action == static_cast<uint8_t>(SilabsPlatform::ButtonAction::ButtonPressed))
     {
-        if (!mFunctionTimerActive && mFunction == kFunction_NoneSelected)
-        {
-            StartFunctionTimer(FACTORY_RESET_TRIGGER_TIMEOUT);
-            mFunction = kFunction_StartBleAdv;
-        }
+        StartFunctionTimer(FACTORY_RESET_TRIGGER_TIMEOUT);
     }
     else
     {
-        // If the button was released before factory reset got initiated, open the commissioning window and start BLE advertissement
-        // in fast mode
-        if (mFunctionTimerActive && mFunction == kFunction_StartBleAdv)
+        if (sIsFactoryResetTriggered)
         {
+            CancelFactoryResetSequence();
+        }
+        else
+        {
+            // The factory reset sequence was not initiated,
+            // Press and Release:
+            // - Open the commissioning window and start BLE advertisement in fast mode when not  commissioned
+            // - Output qr code in logs
+            // - Cycle LCD screen
             CancelFunctionTimer();
-            mFunction = kFunction_NoneSelected;
 
-            OutputQrCode(false);
-#ifdef DISPLAY_ENABLED
-            slLCD.CycleScreens();
-#endif
+            AppTask::GetAppTask().UpdateDisplay();
 
 #ifdef SL_WIFI
             if (!ConnectivityMgr().IsWiFiStationProvisioned())
@@ -503,65 +512,85 @@ void BaseApplication::ButtonHandler(AppEvent * aEvent)
             }
             else
             {
-                SILABS_LOG("Network is already provisioned, Ble advertissement not enabled");
+                SILABS_LOG("Network is already provisioned, Ble advertisement not enabled");
 #if CHIP_CONFIG_ENABLE_ICD_SERVER
                 // Temporarily claim network activity, until we implement a "user trigger" reason for ICD wakeups.
                 PlatformMgr().LockChipStack();
-                ICDNotifier::GetInstance().BroadcastNetworkActivityNotification();
+                ICDNotifier::GetInstance().NotifyNetworkActivityNotification();
                 PlatformMgr().UnlockChipStack();
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
             }
         }
-        else if (mFunctionTimerActive && mFunction == kFunction_FactoryReset)
-        {
-            CancelFunctionTimer();
-
-#if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
-            StopStatusLEDTimer();
-#endif
-
-            // Change the function to none selected since factory reset has been
-            // canceled.
-            mFunction = kFunction_NoneSelected;
-            SILABS_LOG("Factory Reset has been Canceled");
-        }
     }
+}
+
+void BaseApplication::UpdateDisplay()
+{
+    OutputQrCode(false);
+#ifdef DISPLAY_ENABLED
+    UpdateLCDStatusScreen();
+    slLCD.CycleScreens();
+#endif
 }
 
 void BaseApplication::CancelFunctionTimer()
 {
-    if (xTimerStop(sFunctionTimer, pdMS_TO_TICKS(0)) == pdFAIL)
+    if (osTimerStop(sFunctionTimer) == osError)
     {
         SILABS_LOG("app timer stop() failed");
         appError(APP_ERROR_STOP_TIMER_FAILED);
     }
-
-    mFunctionTimerActive = false;
 }
 
 void BaseApplication::StartFunctionTimer(uint32_t aTimeoutInMs)
 {
-    if (xTimerIsTimerActive(sFunctionTimer))
-    {
-        SILABS_LOG("app timer already started!");
-        CancelFunctionTimer();
-    }
-
-    // timer is not active, change its period to required value (== restart).
-    // FreeRTOS- Block for a maximum of 100 ms if the change period command
-    // cannot immediately be sent to the timer command queue.
-    if (xTimerChangePeriod(sFunctionTimer, pdMS_TO_TICKS(aTimeoutInMs), pdMS_TO_TICKS(100)) != pdPASS)
+    // Starts or restarts the function timer
+    if (osTimerStart(sFunctionTimer, pdMS_TO_TICKS(aTimeoutInMs)) != osOK)
     {
         SILABS_LOG("app timer start() failed");
         appError(APP_ERROR_START_TIMER_FAILED);
     }
+}
 
-    mFunctionTimerActive = true;
+void BaseApplication::StartFactoryResetSequence()
+{
+    // Initiate the factory reset sequence
+    SILABS_LOG("Factory Reset Triggered. Release button within %ums to cancel.", FACTORY_RESET_CANCEL_WINDOW_TIMEOUT);
+
+    // Start timer for FACTORY_RESET_CANCEL_WINDOW_TIMEOUT to allow user to
+    // cancel, if required.
+    StartFunctionTimer(FACTORY_RESET_CANCEL_WINDOW_TIMEOUT);
+
+    sIsFactoryResetTriggered = true;
+#if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
+    StartStatusLEDTimer();
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
+
+#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
+    // Turn off all LEDs before starting blink to make sure blink is
+    // co-ordinated.
+    sStatusLED.Set(false);
+    sStatusLED.Blink(500);
+#endif // ENABLE_WSTK_LEDS
+}
+
+void BaseApplication::CancelFactoryResetSequence()
+{
+    CancelFunctionTimer();
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
+    StopStatusLEDTimer();
+#endif
+    if (sIsFactoryResetTriggered)
+    {
+        sIsFactoryResetTriggered = false;
+        SILABS_LOG("Factory Reset has been Canceled");
+    }
 }
 
 void BaseApplication::StartStatusLEDTimer()
 {
-    if (pdPASS != xTimerStart(sLightTimer, pdMS_TO_TICKS(0)))
+    if (osTimerStart(sLightTimer, kLightTimerPeriod) != osOK)
     {
         SILABS_LOG("Light Time start failed");
         appError(APP_ERROR_START_TIMER_FAILED);
@@ -570,18 +599,18 @@ void BaseApplication::StartStatusLEDTimer()
 
 void BaseApplication::StopStatusLEDTimer()
 {
-#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT) || defined(SIWX_917)))
+#if (defined(ENABLE_WSTK_LEDS) && (defined(SL_CATALOG_SIMPLE_LED_LED1_PRESENT)))
     sStatusLED.Set(false);
 #endif // ENABLE_WSTK_LEDS
 
-    if (xTimerStop(sLightTimer, pdMS_TO_TICKS(100)) != pdPASS)
+    if (osTimerStop(sLightTimer) == osError)
     {
         SILABS_LOG("Light Time start failed");
-        appError(APP_ERROR_START_TIMER_FAILED);
+        appError(APP_ERROR_STOP_TIMER_FAILED);
     }
 }
 
-#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
 void BaseApplication::OnIdentifyStart(Identify * identify)
 {
     ChipLogProgress(Zcl, "onIdentifyStart");
@@ -648,9 +677,9 @@ void BaseApplication::OnTriggerIdentifyEffect(Identify * identify)
         ChipLogProgress(Zcl, "No identifier effect");
     }
 }
-#endif // EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#endif // MATTER_DM_PLUGIN_IDENTIFY_SERVER
 
-void BaseApplication::LightTimerEventHandler(TimerHandle_t xTimer)
+void BaseApplication::LightTimerEventHandler(void * timerCbArg)
 {
     LightEventHandler();
 }
@@ -660,39 +689,45 @@ SilabsLCD & BaseApplication::GetLCD(void)
 {
     return slLCD;
 }
+
+void BaseApplication::UpdateLCDStatusScreen(void)
+{
+    SilabsLCD::DisplayStatus_t status;
+    bool enabled, attached;
+    chip::DeviceLayer::PlatformMgr().LockChipStack();
+#ifdef SL_WIFI
+    enabled  = ConnectivityMgr().IsWiFiStationEnabled();
+    attached = ConnectivityMgr().IsWiFiStationConnected();
+#endif /* SL_WIFI */
+#if CHIP_ENABLE_OPENTHREAD
+    enabled  = ConnectivityMgr().IsThreadEnabled();
+    attached = ConnectivityMgr().IsThreadAttached();
+#endif /* CHIP_ENABLE_OPENTHREAD */
+    status.connected   = enabled && attached;
+    status.advertising = chip::Server::GetInstance().GetCommissioningWindowManager().IsCommissioningWindowOpen();
+    status.nbFabric    = chip::Server::GetInstance().GetFabricTable().FabricCount();
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    status.icdMode = (ICDConfigurationData::GetInstance().GetICDMode() == ICDConfigurationData::ICDMode::SIT)
+        ? SilabsLCD::ICDMode_e::SIT
+        : SilabsLCD::ICDMode_e::LIT;
+#endif
+    chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+    slLCD.SetStatus(status);
+}
 #endif
 
 void BaseApplication::PostEvent(const AppEvent * aEvent)
 {
-    if (sAppEventQueue != NULL)
+    if (sAppEventQueue != nullptr)
     {
-        BaseType_t status;
-        if (xPortIsInsideInterrupt())
-        {
-            BaseType_t higherPrioTaskWoken = pdFALSE;
-            status                         = xQueueSendFromISR(sAppEventQueue, aEvent, &higherPrioTaskWoken);
-
-#ifdef portYIELD_FROM_ISR
-            portYIELD_FROM_ISR(higherPrioTaskWoken);
-#elif portEND_SWITCHING_ISR // portYIELD_FROM_ISR or portEND_SWITCHING_ISR
-            portEND_SWITCHING_ISR(higherPrioTaskWoken);
-#else                       // portYIELD_FROM_ISR or portEND_SWITCHING_ISR
-#error "Must have portYIELD_FROM_ISR or portEND_SWITCHING_ISR"
-#endif // portYIELD_FROM_ISR or portEND_SWITCHING_ISR
-        }
-        else
-        {
-            status = xQueueSend(sAppEventQueue, aEvent, 1);
-        }
-
-        if (!status)
+        if (osMessageQueuePut(sAppEventQueue, aEvent, osPriorityNormal, 0) != osOK)
         {
             SILABS_LOG("Failed to post event to app task event queue");
         }
     }
     else
     {
-        SILABS_LOG("Event Queue is NULL should never happen");
+        SILABS_LOG("App Event Queue is uninitialized");
     }
 }
 
@@ -751,7 +786,7 @@ void BaseApplication::OutputQrCode(bool refreshLCD)
     }
 }
 
-bool BaseApplication::getWifiProvisionStatus()
+bool BaseApplication::GetProvisionStatus()
 {
     return BaseApplication::sIsProvisioned;
 }

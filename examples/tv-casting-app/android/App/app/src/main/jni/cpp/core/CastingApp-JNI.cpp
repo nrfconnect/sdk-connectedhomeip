@@ -19,7 +19,7 @@
 #include "CastingApp-JNI.h"
 
 #include "../JNIDACProvider.h"
-#include "../support/ErrorConverter-JNI.h"
+#include "../support/Converters-JNI.h"
 #include "../support/RotatingDeviceIdUniqueIdProvider-JNI.h"
 
 // from tv-casting-common
@@ -47,16 +47,16 @@ jobject extractJAppParameter(jobject jAppParameters, const char * methodName, co
 JNI_METHOD(jobject, finishInitialization)(JNIEnv *, jobject, jobject jAppParameters)
 {
     chip::DeviceLayer::StackLock lock;
-    ChipLogProgress(AppServer, "JNI_METHOD CastingAppJNI.finishInitialization called");
-    VerifyOrReturnValue(jAppParameters != nullptr, support::createJMatterError(CHIP_ERROR_INVALID_ARGUMENT));
+    ChipLogProgress(AppServer, "JNI_METHOD CastingApp-JNI::finishInitialization() called");
+    VerifyOrReturnValue(jAppParameters != nullptr, support::convertMatterErrorFromCppToJava(CHIP_ERROR_INVALID_ARGUMENT));
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     jobject jUniqueIdProvider =
         extractJAppParameter(jAppParameters, "getRotatingDeviceIdUniqueIdProvider", "()Lcom/matter/casting/support/DataProvider;");
-    VerifyOrReturnValue(jUniqueIdProvider != nullptr, support::createJMatterError(CHIP_ERROR_INCORRECT_STATE));
+    VerifyOrReturnValue(jUniqueIdProvider != nullptr, support::convertMatterErrorFromCppToJava(CHIP_ERROR_INCORRECT_STATE));
     support::RotatingDeviceIdUniqueIdProviderJNI * uniqueIdProvider = new support::RotatingDeviceIdUniqueIdProviderJNI();
     err                                                             = uniqueIdProvider->Initialize(jUniqueIdProvider);
-    VerifyOrReturnValue(err == CHIP_NO_ERROR, support::createJMatterError(CHIP_ERROR_INVALID_ARGUMENT));
+    VerifyOrReturnValue(err == CHIP_NO_ERROR, support::convertMatterErrorFromCppToJava(CHIP_ERROR_INVALID_ARGUMENT));
 
     // set the RotatingDeviceIdUniqueId
 #if CHIP_ENABLE_ROTATING_DEVICE_ID
@@ -69,19 +69,19 @@ JNI_METHOD(jobject, finishInitialization)(JNIEnv *, jobject, jobject jAppParamet
 
     // get the DACProvider
     jobject jDACProvider = extractJAppParameter(jAppParameters, "getDacProvider", "()Lcom/matter/casting/support/DACProvider;");
-    VerifyOrReturnValue(jDACProvider != nullptr, support::createJMatterError(CHIP_ERROR_INCORRECT_STATE));
+    VerifyOrReturnValue(jDACProvider != nullptr, support::convertMatterErrorFromCppToJava(CHIP_ERROR_INCORRECT_STATE));
 
     // set the DACProvider
     JNIDACProvider * dacProvider = new JNIDACProvider(jDACProvider);
     chip::Credentials::SetDeviceAttestationCredentialsProvider(dacProvider);
 
-    return support::createJMatterError(CHIP_NO_ERROR);
+    return support::convertMatterErrorFromCppToJava(CHIP_NO_ERROR);
 }
 
 JNI_METHOD(jobject, finishStartup)(JNIEnv *, jobject)
 {
     chip::DeviceLayer::StackLock lock;
-    ChipLogProgress(AppServer, "JNI_METHOD CastingAppJNI.finishStartup called");
+    ChipLogProgress(AppServer, "JNI_METHOD CastingAppJNI::finishStartup() called");
 
     CHIP_ERROR err = CHIP_NO_ERROR;
     auto & server  = chip::Server::GetInstance();
@@ -92,27 +92,45 @@ JNI_METHOD(jobject, finishStartup)(JNIEnv *, jobject)
     // Initialize binding handlers
     err = chip::BindingManager::GetInstance().Init(
         { &server.GetFabricTable(), server.GetCASESessionManager(), &server.GetPersistentStorage() });
-    VerifyOrReturnValue(err == CHIP_NO_ERROR, support::createJMatterError(err),
+    VerifyOrReturnValue(err == CHIP_NO_ERROR, support::convertMatterErrorFromCppToJava(err),
                         ChipLogError(AppServer, "Failed to init BindingManager %" CHIP_ERROR_FORMAT, err.Format()));
 
     // TODO: Set FabricDelegate
     // chip::Server::GetInstance().GetFabricTable().AddFabricDelegate(&mPersistenceManager);
 
     err = chip::DeviceLayer::PlatformMgrImpl().AddEventHandler(support::ChipDeviceEventHandler::Handle, 0);
-    VerifyOrReturnValue(err == CHIP_NO_ERROR, support::createJMatterError(err),
+    VerifyOrReturnValue(err == CHIP_NO_ERROR, support::convertMatterErrorFromCppToJava(err),
                         ChipLogError(AppServer, "Failed to register ChipDeviceEventHandler %" CHIP_ERROR_FORMAT, err.Format()));
 
-    return support::createJMatterError(CHIP_NO_ERROR);
+    return support::convertMatterErrorFromCppToJava(CHIP_NO_ERROR);
+}
+
+JNI_METHOD(jobject, shutdownAllSubscriptions)(JNIEnv * env, jobject)
+{
+    chip::DeviceLayer::StackLock lock;
+    ChipLogProgress(AppServer, "JNI_METHOD CastingApp-JNI::shutdownAllSubscriptions called");
+
+    CHIP_ERROR err = matter::casting::core::CastingApp::GetInstance()->ShutdownAllSubscriptions();
+    return support::convertMatterErrorFromCppToJava(err);
+}
+
+JNI_METHOD(jobject, clearCache)(JNIEnv * env, jobject)
+{
+    chip::DeviceLayer::StackLock lock;
+    ChipLogProgress(AppServer, "JNI_METHOD CastingApp-JNI::clearCache called");
+
+    CHIP_ERROR err = matter::casting::core::CastingApp::GetInstance()->ClearCache();
+    return support::convertMatterErrorFromCppToJava(err);
 }
 
 jobject extractJAppParameter(jobject jAppParameters, const char * methodName, const char * methodSig)
 {
-    ChipLogProgress(AppServer, "JNI_METHOD extractJAppParameter called");
+    ChipLogProgress(AppServer, "JNI_METHOD CastingApp-JNI::extractJAppParameter() called");
     JNIEnv * env = chip::JniReferences::GetInstance().GetEnvForCurrentThread();
 
     jclass jAppParametersClass;
     CHIP_ERROR err =
-        chip::JniReferences::GetInstance().GetClassRef(env, "com/matter/casting/support/AppParameters", jAppParametersClass);
+        chip::JniReferences::GetInstance().GetLocalClassRef(env, "com/matter/casting/support/AppParameters", jAppParametersClass);
     VerifyOrReturnValue(err == CHIP_NO_ERROR, nullptr);
 
     // get the RotatingDeviceIdUniqueIdProvider

@@ -160,7 +160,7 @@ CHIP_ERROR AppTask::Init()
     if (rc != 0)
     {
         P6_LOG("boot_set_confirmed failed");
-        appError(CHIP_ERROR_WELL_UNINITIALIZED);
+        appError(CHIP_ERROR_UNINITIALIZED);
     }
 #endif
     // Register the callback to init the MDNS server when connectivity is available
@@ -406,11 +406,11 @@ void AppTask::OnOffUpdateClusterState(intptr_t context)
     uint8_t onoff = sLightLED.Get();
 
     // write the new on/off value
-    EmberAfStatus status = app::Clusters::OnOff::Attributes::OnOff::Set(2, onoff);
+    Protocols::InteractionModel::Status status = app::Clusters::OnOff::Attributes::OnOff::Set(2, onoff);
 
-    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    if (status != Protocols::InteractionModel::Status::Success)
     {
-        P6_LOG("ERR: updating on/off %x", status);
+        P6_LOG("ERR: updating on/off %x", to_underlying(status));
     }
 }
 

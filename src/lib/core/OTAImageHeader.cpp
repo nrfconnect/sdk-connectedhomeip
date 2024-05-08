@@ -14,12 +14,19 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <lib/core/OTAImageHeader.h>
 
-#include "OTAImageHeader.h"
-
-#include <lib/core/TLV.h>
+#include <lib/core/CHIPError.h>
+#include <lib/core/Optional.h>
+#include <lib/core/TLVReader.h>
+#include <lib/core/TLVTags.h>
+#include <lib/core/TLVTypes.h>
 #include <lib/support/BufferReader.h>
 #include <lib/support/CodeUtils.h>
+#include <lib/support/ScopedBuffer.h>
+#include <lib/support/Span.h>
+
+#include <string.h>
 
 namespace chip {
 
@@ -163,7 +170,7 @@ CHIP_ERROR OTAImageHeaderParser::DecodeTlv(OTAImageHeader & header)
         ReturnErrorOnFailure(tlvReader.Next());
     }
 
-    VerifyOrReturnError(tlvReader.GetTag() == TLV::ContextTag(Tag::kImageDigestType), CHIP_ERROR_UNEXPECTED_TLV_ELEMENT);
+    ReturnErrorOnFailure(tlvReader.Expect(TLV::ContextTag(Tag::kImageDigestType)));
     ReturnErrorOnFailure(tlvReader.Get(header.mImageDigestType));
     ReturnErrorOnFailure(tlvReader.Next(TLV::ContextTag(Tag::kImageDigest)));
     ReturnErrorOnFailure(tlvReader.Get(header.mImageDigest));

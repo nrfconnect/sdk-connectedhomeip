@@ -28,8 +28,32 @@ using namespace ::chip;
     if (self = [super init]) {
         // TODO consider range-checking the incoming number to make sure it's
         // actually in the EndpointId range
-        _endpoint = endpointID.unsignedShortValue;
+        _endpointID = endpointID;
         _callbackQueue = queue;
+    }
+    return self;
+}
+
+@end
+
+@implementation MTRGenericBaseCluster
+
+- (instancetype)initWithDevice:(MTRBaseDevice *)device endpointID:(NSNumber *)endpointID queue:(dispatch_queue_t)queue
+{
+    if (self = [super initWithEndpointID:endpointID queue:queue]) {
+        _device = device;
+    }
+    return self;
+}
+
+@end
+
+@implementation MTRGenericCluster
+
+- (instancetype)initWithDevice:(MTRDevice *)device endpointID:(NSNumber *)endpointID queue:(dispatch_queue_t)queue
+{
+    if (self = [super initWithEndpointID:endpointID queue:queue]) {
+        _device = device;
     }
     return self;
 }

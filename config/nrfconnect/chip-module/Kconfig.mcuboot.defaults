@@ -19,16 +19,7 @@
 config MAIN_STACK_SIZE
     default 10240
 
-config BOOT_SWAP_SAVE_ENCTLV
-    default n
-
-config BOOT_ENCRYPT_RSA
-    default n
-
-config BOOT_ENCRYPT_EC256
-    default n
-
-config BOOT_ENCRYPT_X25519
+config BOOT_ENCRYPT_IMAGE
     default n
 
 config BOOT_BOOTSTRAP
@@ -43,13 +34,14 @@ config FLASH
 config FPROTECT
     default y
 
+choice LIBC_IMPLEMENTATION
+    default MINIMAL_LIBC
+endchoice
+
 # nRF7002DK uses SPI NOR external flash
-if BOARD_NRF7002DK_NRF5340_CPUAPP
+if BOARD_NRF7002DK_NRF5340_CPUAPP || BOARD_NRF7002DK_NRF7001_NRF5340_CPUAPP
 
 config SPI
-    default y
-
-config SPI_NOR
     default y
 
 choice SPI_NOR_SFDP
@@ -69,9 +61,6 @@ endif
 
 # All boards beside nRF7002DK use QSPI NOR external flash
 if BOARD_NRF5340DK_NRF5340_CPUAPP || BOARD_NRF52840DK_NRF52840
-
-config NORDIC_QSPI_NOR
-    default y
 
 config NORDIC_QSPI_NOR_FLASH_LAYOUT_PAGE_SIZE
     default 4096
@@ -138,6 +127,9 @@ config FLASH_SIMULATOR_STATS
 
 # Enable custom command to erase settings partition.
 config ENABLE_MGMT_PERUSER
+    default y
+
+config ZCBOR
     default y
 
 config BOOT_MGMT_CUSTOM_STORAGE_ERASE

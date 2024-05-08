@@ -112,10 +112,10 @@ void emberAfDoorLockClusterInitCallback(EndpointId endpoint)
 {
     DoorLockServer::Instance().InitServer(endpoint);
 
-    const auto logOnFailure = [](EmberAfStatus status, const char * attributeName) {
-        if (status != EMBER_ZCL_STATUS_SUCCESS)
+    const auto logOnFailure = [](Protocols::InteractionModel::Status status, const char * attributeName) {
+        if (status != Protocols::InteractionModel::Status::Success)
         {
-            ChipLogError(Zcl, "Failed to set DoorLock %s: %x", attributeName, status);
+            ChipLogError(Zcl, "Failed to set DoorLock %s: %x", attributeName, to_underlying(status));
         }
     };
 
@@ -128,7 +128,7 @@ void emberAfDoorLockClusterInitCallback(EndpointId endpoint)
 
     // Set FeatureMap to (kUser|kPinCredential), default is:
     // (kUser|kAccessSchedules|kRfidCredential|kPinCredential) 0x113
-    logOnFailure(DoorLock::Attributes::FeatureMap::Set(endpoint, 0x101), "feature map");
+    logOnFailure(DoorLock::Attributes::FeatureMap::Set(endpoint, 0x181), "feature map");
 
     AppTask::Instance().UpdateClusterState(BoltLockMgr().GetState(), BoltLockManager::OperationSource::kUnspecified);
 }

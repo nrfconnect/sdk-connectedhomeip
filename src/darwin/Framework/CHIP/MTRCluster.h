@@ -29,6 +29,7 @@ typedef void (^MTRStatusCompletion)(NSError * _Nullable error);
 typedef void (^MTRSubscriptionEstablishedHandler)(void);
 
 @class MTRBaseDevice;
+@class MTRDevice;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -36,6 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
  * MTRCluster
  *    This is the base class for clusters.
  */
+MTR_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRCluster : NSObject
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;
@@ -43,7 +45,25 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * The endpoint this cluster lives on.
  */
-@property (nonatomic, readonly) NSNumber * endpointID NS_REFINED_FOR_SWIFT MTR_NEWLY_AVAILABLE;
+@property (nonatomic, readonly) NSNumber * endpointID NS_REFINED_FOR_SWIFT MTR_AVAILABLE(ios(17.4), macos(14.4), watchos(10.4), tvos(17.4));
+@end
+
+/**
+ * Base for all MTRBaseCluster* types.
+ */
+MTR_AVAILABLE(ios(17.4), macos(14.4), watchos(10.4), tvos(17.4))
+@interface MTRGenericBaseCluster : MTRCluster
+@end
+
+/**
+ * Base for all MTRCluster* types.
+ */
+MTR_AVAILABLE(ios(17.4), macos(14.4), watchos(10.4), tvos(17.4))
+@interface MTRGenericCluster : MTRCluster
+/**
+ * The device this cluster object is associated with.
+ */
+@property (nonatomic, strong, readonly) MTRDevice * device;
 @end
 
 /**
@@ -52,6 +72,7 @@ NS_ASSUME_NONNULL_BEGIN
  *    If not provided (i.e. nil passed for the CHIPWriteParams argument), will be
  *    treated as if a default-initialized object was passed in.
  */
+MTR_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRWriteParams : NSObject <NSCopying>
 
 /**
@@ -87,6 +108,7 @@ NS_ASSUME_NONNULL_BEGIN
  *    If not provided (i.e. nil passed for the MTRReadParams argument), will be
  *    treated as if a default-initialized object was passed in.
  */
+MTR_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRReadParams : NSObject <NSCopying>
 
 /**
@@ -118,6 +140,7 @@ NS_ASSUME_NONNULL_BEGIN
  *    provided (i.e. nil passed for the MTRSubscribeParams argument), will be
  *    treated as if a default-initialized object was passed in.
  */
+MTR_AVAILABLE(ios(16.1), macos(13.0), watchos(9.1), tvos(16.1))
 @interface MTRSubscribeParams : MTRReadParams
 
 /**

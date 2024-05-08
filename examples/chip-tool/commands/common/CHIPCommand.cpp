@@ -19,8 +19,8 @@
 #include "CHIPCommand.h"
 
 #include <controller/CHIPDeviceControllerFactory.h>
-#include <core/CHIPBuildConfig.h>
 #include <credentials/attestation_verifier/FileAttestationTrustStore.h>
+#include <lib/core/CHIPConfig.h>
 #include <lib/core/CHIPVendorIdentifiers.hpp>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/ScopedBuffer.h>
@@ -37,16 +37,21 @@ std::set<CHIPCommand *> CHIPCommand::sDeferredCleanups;
 
 using DeviceControllerFactory = chip::Controller::DeviceControllerFactory;
 
-constexpr chip::FabricId kIdentityNullFabricId    = chip::kUndefinedFabricId;
-constexpr chip::FabricId kIdentityAlphaFabricId   = 1;
-constexpr chip::FabricId kIdentityBetaFabricId    = 2;
-constexpr chip::FabricId kIdentityGammaFabricId   = 3;
-constexpr chip::FabricId kIdentityOtherFabricId   = 4;
-constexpr const char * kPAATrustStorePathVariable = "CHIPTOOL_PAA_TRUST_STORE_PATH";
-constexpr const char * kCDTrustStorePathVariable  = "CHIPTOOL_CD_TRUST_STORE_PATH";
+constexpr chip::FabricId kIdentityNullFabricId  = chip::kUndefinedFabricId;
+constexpr chip::FabricId kIdentityAlphaFabricId = 1;
+constexpr chip::FabricId kIdentityBetaFabricId  = 2;
+constexpr chip::FabricId kIdentityGammaFabricId = 3;
+constexpr chip::FabricId kIdentityOtherFabricId = 4;
+constexpr char kPAATrustStorePathVariable[]     = "CHIPTOOL_PAA_TRUST_STORE_PATH";
+constexpr char kCDTrustStorePathVariable[]      = "CHIPTOOL_CD_TRUST_STORE_PATH";
 
 const chip::Credentials::AttestationTrustStore * CHIPCommand::sTrustStore = nullptr;
 chip::Credentials::GroupDataProviderImpl CHIPCommand::sGroupDataProvider{ kMaxGroupsPerFabric, kMaxGroupKeysPerFabric };
+// All fabrics share the same ICD client storage.
+chip::app::DefaultICDClientStorage CHIPCommand::sICDClientStorage;
+chip::Crypto::RawKeySessionKeystore CHIPCommand::sSessionKeystore;
+chip::app::DefaultCheckInDelegate CHIPCommand::sCheckInDelegate;
+chip::app::CheckInHandler CHIPCommand::sCheckInHandler;
 
 namespace {
 
@@ -100,13 +105,19 @@ CHIP_ERROR CHIPCommand::MaybeSetUpStack()
     ReturnLogErrorOnFailure(mOperationalKeystore.Init(&mDefaultStorage));
     ReturnLogErrorOnFailure(mOpCertStore.Init(&mDefaultStorage));
 
+    // chip-tool uses a non-persistent keystore.
+    // ICD storage lifetime is currently tied to the chip-tool's lifetime. Since chip-tool interactive mode is currently used for
+    // ICD commissioning and check-in validation, this temporary storage meets the test requirements.
+    // TODO: Implement persistent ICD storage for the chip-tool.
+    ReturnLogErrorOnFailure(sICDClientStorage.Init(&mDefaultStorage, &sSessionKeystore));
+
     chip::Controller::FactoryInitParams factoryInitParams;
 
     factoryInitParams.fabricIndependentStorage = &mDefaultStorage;
     factoryInitParams.operationalKeystore      = &mOperationalKeystore;
     factoryInitParams.opCertStore              = &mOpCertStore;
     factoryInitParams.enableServerInteractions = NeedsOperationalAdvertising();
-    factoryInitParams.sessionKeystore          = &mSessionKeystore;
+    factoryInitParams.sessionKeystore          = &sSessionKeystore;
 
     // Init group data provider that will be used for all group keys and IPKs for the
     // chip-tool-configured fabrics. This is OK to do once since the fabric tables
@@ -128,7 +139,21 @@ CHIP_ERROR CHIPCommand::MaybeSetUpStack()
     factoryInitParams.listenPort = port;
     ReturnLogErrorOnFailure(DeviceControllerFactory::GetInstance().Init(factoryInitParams));
 
+    auto systemState = chip::Controller::DeviceControllerFactory::GetInstance().GetSystemState();
+    VerifyOrReturnError(nullptr != systemState, CHIP_ERROR_INCORRECT_STATE);
+
+    auto server = systemState->BDXTransferServer();
+    VerifyOrReturnError(nullptr != server, CHIP_ERROR_INCORRECT_STATE);
+
+    server->SetDelegate(&BDXDiagnosticLogsServerDelegate::GetInstance());
+
     ReturnErrorOnFailure(GetAttestationTrustStore(mPaaTrustStorePath.ValueOr(nullptr), &sTrustStore));
+
+    auto engine = chip::app::InteractionModelEngine::GetInstance();
+    VerifyOrReturnError(engine != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    ReturnLogErrorOnFailure(sCheckInDelegate.Init(&sICDClientStorage, engine));
+    ReturnLogErrorOnFailure(sCheckInHandler.Init(DeviceControllerFactory::GetInstance().GetSystemState()->ExchangeMgr(),
+                                                 &sICDClientStorage, &sCheckInDelegate, engine));
 
     CommissionerIdentity nullIdentity{ kIdentityNull, chip::kUndefinedNodeId };
     ReturnLogErrorOnFailure(InitializeCommissioner(nullIdentity, kIdentityNullFabricId));
@@ -141,7 +166,8 @@ CHIP_ERROR CHIPCommand::MaybeSetUpStack()
             cdTrustStorePath = getenv(kCDTrustStorePathVariable);
         }
 
-        auto additionalCdCerts = chip::Credentials::LoadAllX509DerCerts(cdTrustStorePath);
+        auto additionalCdCerts =
+            chip::Credentials::LoadAllX509DerCerts(cdTrustStorePath, chip::Credentials::CertificateValidationMode::kPublicKeyOnly);
         if (cdTrustStorePath != nullptr && additionalCdCerts.size() == 0)
         {
             ChipLogError(chipTool, "Warning: no CD signing certs found in path: %s, only defaults will be used", cdTrustStorePath);
@@ -460,6 +486,7 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, 
         commissionerParams.controllerICAC               = icacSpan;
         commissionerParams.controllerNOC                = nocSpan;
         commissionerParams.permitMultiControllerFabrics = true;
+        commissionerParams.enableServerInteractions     = NeedsOperationalAdvertising();
     }
 
     // TODO: Initialize IPK epoch key in ExampleOperationalCredentials issuer rather than relying on DefaultIpkValue
@@ -484,6 +511,8 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, 
         ReturnLogErrorOnFailure(
             chip::Credentials::SetSingleIpkEpochKey(&sGroupDataProvider, fabricIndex, defaultIpk, compressed_fabric_id_span));
     }
+
+    CHIPCommand::sICDClientStorage.UpdateFabricList(commissioner->GetFabricIndex());
 
     mCommissioners[identity] = std::move(commissioner);
 

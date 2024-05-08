@@ -94,8 +94,8 @@ void DBusInterface::SetCurrentLevel(uint8_t value)
 void DBusInterface::SetColorMode(chip::app::Clusters::ColorControl::ColorMode colorMode)
 {
     InternalSetGuard guard(this);
-    if (light_app_color_control_get_color_mode(mIfaceColorControl) != colorMode)
-        light_app_color_control_set_color_mode(mIfaceColorControl, colorMode);
+    if (light_app_color_control_get_color_mode(mIfaceColorControl) != chip::to_underlying(colorMode))
+        light_app_color_control_set_color_mode(mIfaceColorControl, chip::to_underlying(colorMode));
 }
 
 void DBusInterface::SetColorTemperature(uint16_t value)
@@ -173,8 +173,8 @@ gboolean DBusInterface::OnCurrentLevelChanged(LightAppLevelControl * levelContro
 
     Clusters::LevelControl::Commands::MoveToLevel::DecodableType data;
     data.level = light_app_level_control_get_current_level(levelControl);
-    data.optionsMask.Set(Clusters::LevelControl::LevelControlOptions::kExecuteIfOff);
-    data.optionsOverride.Set(Clusters::LevelControl::LevelControlOptions::kExecuteIfOff);
+    data.optionsMask.Set(Clusters::LevelControl::OptionsBitmap::kExecuteIfOff);
+    data.optionsOverride.Set(Clusters::LevelControl::OptionsBitmap::kExecuteIfOff);
 
     chip::DeviceLayer::StackLock lock;
     LevelControlServer::MoveToLevel(self->mEndpointId, data);
@@ -206,7 +206,8 @@ void DBusInterface::InitOnOff()
 {
     bool isOn   = false;
     auto status = Clusters::OnOff::Attributes::OnOff::Get(mEndpointId, &isOn);
-    VerifyOrReturn(status == EMBER_ZCL_STATUS_SUCCESS, ChipLogError(NotSpecified, "Error getting OnOff: 0x%x", status));
+    VerifyOrReturn(status == Protocols::InteractionModel::Status::Success,
+                   ChipLogError(NotSpecified, "Error getting OnOff: 0x%x", to_underlying(status)));
     light_app_on_off_set_on_off(mIfaceOnOff, isOn);
 }
 
@@ -215,14 +216,15 @@ void DBusInterface::InitColor()
     {
         uint8_t value = 0;
         auto status   = Clusters::ColorControl::Attributes::ColorMode::Get(mEndpointId, &value);
-        VerifyOrReturn(status == EMBER_ZCL_STATUS_SUCCESS, ChipLogError(NotSpecified, "Error getting ColorMode: 0x%x", status));
+        VerifyOrReturn(status == Protocols::InteractionModel::Status::Success,
+                       ChipLogError(NotSpecified, "Error getting ColorMode: 0x%x", to_underlying(status)));
         light_app_color_control_set_color_mode(mIfaceColorControl, value);
     }
     {
         uint16_t value = 0;
         auto status    = Clusters::ColorControl::Attributes::ColorTemperatureMireds::Get(mEndpointId, &value);
-        VerifyOrReturn(status == EMBER_ZCL_STATUS_SUCCESS,
-                       ChipLogError(NotSpecified, "Error getting ColorTemperatureMireds: 0x%x", status));
+        VerifyOrReturn(status == Protocols::InteractionModel::Status::Success,
+                       ChipLogError(NotSpecified, "Error getting ColorTemperatureMireds: 0x%x", to_underlying(status)));
         light_app_color_control_set_color_temperature_mireds(mIfaceColorControl, value);
     }
 }

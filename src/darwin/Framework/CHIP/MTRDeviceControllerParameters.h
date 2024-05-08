@@ -14,7 +14,6 @@
  *    limitations under the License.
  */
 
-#import <Foundation/Foundation.h>
 #import <Matter/MTRDefines.h>
 
 #if defined(MTR_INTERNAL_INCLUDE) && defined(MTR_INCLUDED_FROM_UMBRELLA_HEADER)
@@ -28,14 +27,27 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-#if !MTR_PER_CONTROLLER_STORAGE_ENABLED
-MTR_HIDDEN
-#endif
+/**
+ * Parameters that can be used to initialize an MTRDeviceController.  Specific
+ * interfaces inheriting from this one should be used to actually do the
+ * initialization.
+ */
+#if MTR_PER_CONTROLLER_STORAGE_ENABLED
 MTR_NEWLY_AVAILABLE
-@interface MTRDeviceControllerParameters : NSObject
-
+#endif
+@interface MTRDeviceControllerAbstractParameters : NSObject
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;
+@end
+
+/**
+ * Parameters that can be used to initialize an MTRDeviceController which
+ * has a node identity.
+ */
+#if MTR_PER_CONTROLLER_STORAGE_ENABLED
+MTR_NEWLY_AVAILABLE
+#endif
+@interface MTRDeviceControllerParameters : MTRDeviceControllerAbstractParameters
 
 /**
  * The Product Attestation Authority certificates that are trusted to sign
@@ -77,10 +89,9 @@ MTR_NEWLY_AVAILABLE
 
 @end
 
-#if !MTR_PER_CONTROLLER_STORAGE_ENABLED
-MTR_HIDDEN
-#endif
+#if MTR_PER_CONTROLLER_STORAGE_ENABLED
 MTR_NEWLY_AVAILABLE
+#endif
 @interface MTRDeviceControllerExternalCertificateParameters : MTRDeviceControllerParameters
 
 - (instancetype)init NS_UNAVAILABLE;

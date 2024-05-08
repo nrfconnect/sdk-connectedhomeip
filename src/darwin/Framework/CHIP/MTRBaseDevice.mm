@@ -29,6 +29,7 @@
 #import "MTREventTLVValueDecoder_Internal.h"
 #import "MTRFramework.h"
 #import "MTRLogging_Internal.h"
+#import "MTRMetricKeys.h"
 #import "MTRSetupPayload_Internal.h"
 #import "NSDataSpanConversion.h"
 #import "NSStringSpanConversion.h"
@@ -46,7 +47,6 @@
 #include <app/ClusterStateCache.h>
 #include <app/InteractionModelEngine.h>
 #include <app/ReadClient.h>
-#include <app/util/error-mapping.h>
 #include <controller/CommissioningWindowOpener.h>
 #include <controller/ReadInteraction.h>
 #include <controller/WriteInteraction.h>
@@ -62,6 +62,7 @@ using namespace chip::Protocols::InteractionModel;
 using chip::Optional;
 using chip::SessionHandle;
 using chip::Messaging::ExchangeManager;
+using namespace chip::Tracing::DarwinFramework;
 
 NSString * const MTRAttributePathKey = @"attributePath";
 NSString * const MTRCommandPathKey = @"commandPath";
@@ -86,10 +87,10 @@ NSString * const MTREventPriorityKey = @"eventPriority";
 NSString * const MTREventTimeTypeKey = @"eventTimeType";
 NSString * const MTREventSystemUpTimeKey = @"eventSystemUpTime";
 NSString * const MTREventTimestampDateKey = @"eventTimestampDate";
+NSString * const MTREventIsHistoricalKey = @"eventIsHistorical";
 
 class MTRDataValueDictionaryCallbackBridge;
 
-MTR_HIDDEN
 @interface MTRReadClientContainer : NSObject
 @property (nonatomic, readwrite) app::ReadClient * readClientPtr;
 @property (nonatomic, readwrite) app::AttributePathParams * pathParams;
@@ -476,8 +477,21 @@ public:
                                   }];
 }
 
+static NSDictionary<NSString *, id> * _MakeDataValueDictionary(NSString * type, id _Nullable value, NSNumber * _Nullable dataVersion)
+{
+    if (value && dataVersion) {
+        return @ { MTRTypeKey : type, MTRValueKey : value, MTRDataVersionKey : dataVersion };
+    } else if (value) {
+        return @ { MTRTypeKey : type, MTRValueKey : value };
+    } else if (dataVersion) {
+        return @ { MTRTypeKey : type, MTRDataVersionKey : dataVersion };
+    } else {
+        return @ { MTRTypeKey : type };
+    }
+}
+
 // Convert TLV data into data-value dictionary as described in MTRDeviceResponseHandler
-NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV(chip::TLV::TLVReader * data)
+NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV(chip::TLV::TLVReader * data, NSNumber * dataVersion)
 {
     chip::TLV::TLVType dataTLVType = data->GetType();
     switch (dataTLVType) {
@@ -488,8 +502,7 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV signed integer decoding failed", chip::ErrorStr(err));
             return nil;
         }
-        return [NSDictionary dictionaryWithObjectsAndKeys:MTRSignedIntegerValueType, MTRTypeKey, [NSNumber numberWithLongLong:val],
-                             MTRValueKey, nil];
+        return _MakeDataValueDictionary(MTRSignedIntegerValueType, @(val), dataVersion);
     }
     case chip::TLV::kTLVType_UnsignedInteger: {
         uint64_t val;
@@ -498,8 +511,7 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV unsigned integer decoding failed", chip::ErrorStr(err));
             return nil;
         }
-        return [NSDictionary dictionaryWithObjectsAndKeys:MTRUnsignedIntegerValueType, MTRTypeKey,
-                             [NSNumber numberWithUnsignedLongLong:val], MTRValueKey, nil];
+        return _MakeDataValueDictionary(MTRUnsignedIntegerValueType, @(val), dataVersion);
     }
     case chip::TLV::kTLVType_Boolean: {
         bool val;
@@ -508,15 +520,14 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV boolean decoding failed", chip::ErrorStr(err));
             return nil;
         }
-        return [NSDictionary
-            dictionaryWithObjectsAndKeys:MTRBooleanValueType, MTRTypeKey, [NSNumber numberWithBool:val], MTRValueKey, nil];
+        return _MakeDataValueDictionary(MTRBooleanValueType, @(val), dataVersion);
     }
     case chip::TLV::kTLVType_FloatingPointNumber: {
         // Try float first
         float floatValue;
         CHIP_ERROR err = data->Get(floatValue);
         if (err == CHIP_NO_ERROR) {
-            return @ { MTRTypeKey : MTRFloatValueType, MTRValueKey : [NSNumber numberWithFloat:floatValue] };
+            return _MakeDataValueDictionary(MTRFloatValueType, @(floatValue), dataVersion);
         }
         double val;
         err = data->Get(val);
@@ -524,8 +535,7 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV floating point decoding failed", chip::ErrorStr(err));
             return nil;
         }
-        return [NSDictionary
-            dictionaryWithObjectsAndKeys:MTRDoubleValueType, MTRTypeKey, [NSNumber numberWithDouble:val], MTRValueKey, nil];
+        return _MakeDataValueDictionary(MTRDoubleValueType, @(val), dataVersion);
     }
     case chip::TLV::kTLVType_UTF8String: {
         CharSpan stringValue;
@@ -539,7 +549,7 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV UTF8String value is not actually UTF-8", err.AsString());
             return nil;
         }
-        return @ { MTRTypeKey : MTRUTF8StringValueType, MTRValueKey : stringObj };
+        return _MakeDataValueDictionary(MTRUTF8StringValueType, stringObj, dataVersion);
     }
     case chip::TLV::kTLVType_ByteString: {
         ByteSpan bytesValue;
@@ -548,10 +558,10 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV ByteString decoding failed", chip::ErrorStr(err));
             return nil;
         }
-        return @ { MTRTypeKey : MTROctetStringValueType, MTRValueKey : AsData(bytesValue) };
+        return _MakeDataValueDictionary(MTROctetStringValueType, AsData(bytesValue), dataVersion);
     }
     case chip::TLV::kTLVType_Null: {
-        return [NSDictionary dictionaryWithObjectsAndKeys:MTRNullValueType, MTRTypeKey, nil];
+        return _MakeDataValueDictionary(MTRNullValueType, nil, dataVersion);
     }
     case chip::TLV::kTLVType_Structure:
     case chip::TLV::kTLVType_Array: {
@@ -607,7 +617,7 @@ NSDictionary<NSString *, id> * _Nullable MTRDecodeDataValueDictionaryFromCHIPTLV
             MTR_LOG_ERROR("Error(%s): TLV container exiting failed", chip::ErrorStr(err));
             return nil;
         }
-        return [NSDictionary dictionaryWithObjectsAndKeys:typeName, MTRTypeKey, array, MTRValueKey, nil];
+        return _MakeDataValueDictionary(typeName, array, dataVersion);
     }
     default:
         MTR_LOG_ERROR("Error: Unsupported TLV type for conversion: %u", (unsigned) data->GetType());
@@ -743,6 +753,27 @@ static CHIP_ERROR MTREncodeTLVFromDataValueDictionary(id object, chip::TLV::TLVW
     return CHIP_ERROR_INVALID_ARGUMENT;
 }
 
+NSData * _Nullable MTREncodeTLVFromDataValueDictionary(NSDictionary<NSString *, id> * value, NSError * __autoreleasing * error)
+{
+    // A single data item cannot be bigger than a packet, so just use 1200 bytes
+    // as the max size of our buffer.  This assumes that lists will not be
+    // passed as-is to this method but will get chunked, with each list item
+    // passed to this method separately.
+    uint8_t buffer[1200];
+    TLV::TLVWriter writer;
+    writer.Init(buffer);
+
+    CHIP_ERROR err = MTREncodeTLVFromDataValueDictionary(value, writer, TLV::AnonymousTag());
+    if (err != CHIP_NO_ERROR) {
+        if (error) {
+            *error = [MTRError errorForCHIPErrorCode:err];
+        }
+        return nil;
+    }
+
+    return AsData(ByteSpan(buffer, writer.GetLengthWritten()));
+}
+
 // Callback type to pass data value as an NSObject
 typedef void (*MTRDataValueDictionaryCallback)(void * context, id value);
 
@@ -795,7 +826,7 @@ template <typename DecodableValueType>
 class BufferedReadClientCallback final : public app::ReadClient::Callback {
 public:
     using OnSuccessAttributeCallbackType
-        = std::function<void(const ConcreteAttributePath & aPath, const DecodableValueType & aData)>;
+        = std::function<void(const ConcreteDataAttributePath & aPath, const DecodableValueType & aData)>;
     using OnSuccessEventCallbackType = std::function<void(const EventHeader & aEventHeader, const DecodableValueType & aData)>;
     using OnErrorCallbackType = std::function<void(
         const app::ConcreteAttributePath * attributePath, const app::ConcreteEventPath * eventPath, CHIP_ERROR aError)>;
@@ -1008,6 +1039,16 @@ private:
                      queue:(dispatch_queue_t)queue
                 completion:(MTRDeviceResponseHandler)completion
 {
+    [self readAttributePaths:attributePaths eventPaths:eventPaths params:params includeDataVersion:NO queue:queue completion:completion];
+}
+
+- (void)readAttributePaths:(NSArray<MTRAttributeRequestPath *> * _Nullable)attributePaths
+                eventPaths:(NSArray<MTREventRequestPath *> * _Nullable)eventPaths
+                    params:(MTRReadParams * _Nullable)params
+        includeDataVersion:(BOOL)includeDataVersion
+                     queue:(dispatch_queue_t)queue
+                completion:(MTRDeviceResponseHandler)completion
+{
     if ((attributePaths == nil || [attributePaths count] == 0) && (eventPaths == nil || [eventPaths count] == 0)) {
         // No paths, just return an empty array.
         dispatch_async(queue, ^{
@@ -1036,11 +1077,20 @@ private:
 
             auto resultArray = [[NSMutableArray alloc] init];
             auto onAttributeSuccessCb
-                = [resultArray](const ConcreteAttributePath & aAttributePath, const MTRDataValueDictionaryDecodableType & aData) {
-                      [resultArray addObject:@ {
-                          MTRAttributePathKey : [[MTRAttributePath alloc] initWithPath:aAttributePath],
-                          MTRDataKey : aData.GetDecodedObject()
-                      }];
+                = [resultArray, includeDataVersion](const ConcreteDataAttributePath & aAttributePath, const MTRDataValueDictionaryDecodableType & aData) {
+                      // TODO: move this logic into MTRDataValueDictionaryDecodableType
+                      if (includeDataVersion && aAttributePath.mDataVersion.HasValue()) {
+                          NSDictionary * dataValue = aData.GetDecodedObject();
+                          [resultArray addObject:@{
+                              MTRAttributePathKey : [[MTRAttributePath alloc] initWithPath:aAttributePath],
+                              MTRDataKey : _MakeDataValueDictionary(dataValue[MTRTypeKey], dataValue[MTRValueKey], @(aAttributePath.mDataVersion.Value()))
+                          }];
+                      } else {
+                          [resultArray addObject:@ {
+                              MTRAttributePathKey : [[MTRAttributePath alloc] initWithPath:aAttributePath],
+                              MTRDataKey : aData.GetDecodedObject()
+                          }];
+                      }
                   };
 
             auto onEventSuccessCb
@@ -1141,8 +1191,8 @@ private:
             //
             callback->AdoptReadClient(std::move(readClient));
             callback.release();
-            attributePathParamsList.Release();
-            eventPathParamsList.Release();
+            IgnoreUnusedVariable(attributePathParamsList.Release());
+            IgnoreUnusedVariable(eventPathParamsList.Release());
             return err;
         });
     std::move(*bridge).DispatchAction(self);
@@ -1813,9 +1863,12 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
                                             queue:(dispatch_queue_t)queue
                                        completion:(MTRDeviceOpenCommissioningWindowHandler)completion
 {
+    MATTER_LOG_METRIC_BEGIN(kMetricOpenPairingWindow);
+
     if (self.isPASEDevice) {
         MTR_LOG_ERROR("Can't open a commissioning window over PASE");
         dispatch_async(queue, ^{
+            MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, CHIP_ERROR_INCORRECT_STATE);
             completion(nil, [MTRError errorForCHIPErrorCode:CHIP_ERROR_INCORRECT_STATE]);
         });
         return;
@@ -1825,6 +1878,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     if (!CanCastTo<uint16_t>(durationVal)) {
         MTR_LOG_ERROR("Error: Duration %llu is too large.", durationVal);
         dispatch_async(queue, ^{
+            MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, CHIP_ERROR_INVALID_INTEGER_VALUE);
             completion(nil, [MTRError errorForCHIPErrorCode:CHIP_ERROR_INVALID_INTEGER_VALUE]);
         });
         return;
@@ -1835,6 +1889,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     if (discriminatorVal > 0xFFF) {
         MTR_LOG_ERROR("Error: Discriminator %llu is too large. Max value %d", discriminatorVal, 0xFFF);
         dispatch_async(queue, ^{
+            MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, CHIP_ERROR_INVALID_INTEGER_VALUE);
             completion(nil, [MTRError errorForCHIPErrorCode:CHIP_ERROR_INVALID_INTEGER_VALUE]);
         });
         return;
@@ -1846,6 +1901,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
         if (!CanCastTo<uint32_t>(passcodeVal) || !SetupPayload::IsValidSetupPIN(static_cast<uint32_t>(passcodeVal))) {
             MTR_LOG_ERROR("Error: Setup passcode %llu is not valid", passcodeVal);
             dispatch_async(queue, ^{
+                MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, CHIP_ERROR_INVALID_INTEGER_VALUE);
                 completion(nil, [MTRError errorForCHIPErrorCode:CHIP_ERROR_INVALID_INTEGER_VALUE]);
             });
             return;
@@ -1858,6 +1914,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
             auto resultCallback = ^(CHIP_ERROR status, const SetupPayload & payload) {
                 if (status != CHIP_NO_ERROR) {
                     dispatch_async(queue, ^{
+                        MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, status);
                         completion(nil, [MTRError errorForCHIPErrorCode:status]);
                     });
                     return;
@@ -1865,12 +1922,14 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
                 auto * payloadObj = [[MTRSetupPayload alloc] initWithSetupPayload:payload];
                 if (payloadObj == nil) {
                     dispatch_async(queue, ^{
+                        MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, CHIP_ERROR_NO_MEMORY);
                         completion(nil, [MTRError errorForCHIPErrorCode:CHIP_ERROR_NO_MEMORY]);
                     });
                     return;
                 }
 
                 dispatch_async(queue, ^{
+                    MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, CHIP_NO_ERROR);
                     completion(payloadObj, nil);
                 });
             };
@@ -1882,6 +1941,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
             if (errorCode != CHIP_NO_ERROR) {
                 dispatch_async(queue, ^{
+                    MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, errorCode);
                     completion(nil, [MTRError errorForCHIPErrorCode:errorCode]);
                 });
                 return;
@@ -1891,6 +1951,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
         }
         errorHandler:^(NSError * error) {
             dispatch_async(queue, ^{
+                MATTER_LOG_METRIC_END(kMetricOpenPairingWindow, [MTRError errorToCHIPErrorCode:error]);
                 completion(nil, error);
             });
         }];
@@ -1928,7 +1989,6 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     MTR_LOG_DEBUG("Causing failure in subscribers on purpose");
     CauseReadClientFailure(self.deviceController, self.nodeID, queue, completion);
 }
-#endif
 
 // The following method is for unit testing purpose only
 + (id)CHIPEncodeAndDecodeNSObject:(id)object
@@ -1970,6 +2030,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     }
     return decodedData.GetDecodedObject();
 }
+#endif
 
 - (void)readEventsWithEndpointID:(NSNumber * _Nullable)endpointID
                        clusterID:(NSNumber * _Nullable)clusterID
@@ -2099,6 +2160,19 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
     return buffer;
 }
+
+- (void)downloadLogOfType:(MTRDiagnosticLogType)type
+                  timeout:(NSTimeInterval)timeout
+                    queue:(dispatch_queue_t)queue
+               completion:(void (^)(NSURL * _Nullable url, NSError * _Nullable error))completion
+{
+    [_deviceController downloadLogFromNodeWithID:@(_nodeID)
+                                            type:type
+                                         timeout:timeout
+                                           queue:queue
+                                      completion:completion];
+}
+
 @end
 
 @implementation MTRBaseDevice (Deprecated)
@@ -2226,7 +2300,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (NSString *)description
 {
-    return [NSString stringWithFormat:@"<MTRAttributeRequestPath> endpoint %u cluster %u attribute %u",
+    return [NSString stringWithFormat:@"<MTRAttributeRequestPath endpoint %u cluster %u attribute %u>",
                      (uint16_t) _endpoint.unsignedShortValue, (uint32_t) _cluster.unsignedLongValue,
                      (uint32_t) _attribute.unsignedLongValue];
 }
@@ -2247,7 +2321,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (BOOL)isEqual:(id)object
 {
-    if (![object isKindOfClass:[self class]]) {
+    if ([object class] != [self class]) {
         return NO;
     }
     return [self isEqualToAttributeRequestPath:object];
@@ -2298,7 +2372,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (NSString *)description
 {
-    return [NSString stringWithFormat:@"<MTREventRequestPath> endpoint %u cluster %u event %u",
+    return [NSString stringWithFormat:@"<MTREventRequestPath endpoint %u cluster %u event %u>",
                      (uint16_t) _endpoint.unsignedShortValue, (uint32_t) _cluster.unsignedLongValue,
                      (uint32_t) _event.unsignedLongValue];
 }
@@ -2319,7 +2393,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (BOOL)isEqual:(id)object
 {
-    if (![object isKindOfClass:[self class]]) {
+    if ([object class] != [self class]) {
         return NO;
     }
     return [self isEqualToEventRequestPath:object];
@@ -2369,7 +2443,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (NSString *)description
 {
-    return [NSString stringWithFormat:@"<MTRClusterPath> endpoint %u cluster %u", (uint16_t) _endpoint.unsignedShortValue,
+    return [NSString stringWithFormat:@"<MTRClusterPath endpoint %u cluster %u>", (uint16_t) _endpoint.unsignedShortValue,
                      (uint32_t) _cluster.unsignedLongValue];
 }
 
@@ -2388,7 +2462,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (BOOL)isEqual:(id)object
 {
-    if (![object isKindOfClass:[self class]]) {
+    if ([object class] != [self class]) {
         return NO;
     }
     return [self isEqualToClusterPath:object];
@@ -2404,6 +2478,42 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     return [MTRClusterPath clusterPathWithEndpointID:_endpoint clusterID:_cluster];
 }
 
+static NSString * const sEndpointKey = @"endpointKey";
+static NSString * const sClusterKey = @"clusterKey";
+
++ (BOOL)supportsSecureCoding
+{
+    return YES;
+}
+
+- (nullable instancetype)initWithCoder:(NSCoder *)decoder
+{
+    self = [super init];
+    if (self == nil) {
+        return nil;
+    }
+
+    _endpoint = [decoder decodeObjectOfClass:[NSNumber class] forKey:sEndpointKey];
+    if (_endpoint && ![_endpoint isKindOfClass:[NSNumber class]]) {
+        MTR_LOG_ERROR("MTRClusterPath decoded %@ for endpoint, not NSNumber.", _endpoint);
+        return nil;
+    }
+
+    _cluster = [decoder decodeObjectOfClass:[NSNumber class] forKey:sClusterKey];
+    if (_cluster && ![_cluster isKindOfClass:[NSNumber class]]) {
+        MTR_LOG_ERROR("MTRClusterPath decoded %@ for cluster, not NSNumber.", _cluster);
+        return nil;
+    }
+
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder
+{
+    [coder encodeObject:_endpoint forKey:sEndpointKey];
+    [coder encodeObject:_cluster forKey:sClusterKey];
+}
+
 @end
 
 @implementation MTRAttributePath
@@ -2417,7 +2527,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (NSString *)description
 {
-    return [NSString stringWithFormat:@"<MTRAttributePath> endpoint %u cluster %u attribute %u",
+    return [NSString stringWithFormat:@"<MTRAttributePath endpoint %u cluster %u attribute %u>",
                      (uint16_t) self.endpoint.unsignedShortValue, (uint32_t) self.cluster.unsignedLongValue,
                      (uint32_t) _attribute.unsignedLongValue];
 }
@@ -2440,7 +2550,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 
 - (BOOL)isEqual:(id)object
 {
-    if (![object isKindOfClass:[self class]]) {
+    if ([object class] != [self class]) {
         return NO;
     }
     return [self isEqualToAttributePath:object];
@@ -2461,6 +2571,35 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     return ConcreteAttributePath([self.endpoint unsignedShortValue], static_cast<ClusterId>([self.cluster unsignedLongValue]),
         static_cast<AttributeId>([self.attribute unsignedLongValue]));
 }
+
+static NSString * const sAttributeKey = @"attributeKey";
+
++ (BOOL)supportsSecureCoding
+{
+    return YES;
+}
+
+- (nullable instancetype)initWithCoder:(NSCoder *)decoder
+{
+    self = [super initWithCoder:decoder];
+    if (self == nil) {
+        return nil;
+    }
+
+    _attribute = [decoder decodeObjectOfClass:[NSNumber class] forKey:sAttributeKey];
+    if (_attribute && ![_attribute isKindOfClass:[NSNumber class]]) {
+        MTR_LOG_ERROR("MTRAttributePath decoded %@ for attribute, not NSNumber.", _attribute);
+        return nil;
+    }
+
+    return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder
+{
+    [coder encodeObject:_attribute forKey:sAttributeKey];
+}
+
 @end
 
 @implementation MTRAttributePath (Deprecated)
@@ -2484,7 +2623,7 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
 - (NSString *)description
 {
     return
-        [NSString stringWithFormat:@"<MTREventPath> endpoint %u cluster %u event %u", (uint16_t) self.endpoint.unsignedShortValue,
+        [NSString stringWithFormat:@"<MTREventPath endpoint %u cluster %u event %u>", (uint16_t) self.endpoint.unsignedShortValue,
                   (uint32_t) self.cluster.unsignedLongValue, (uint32_t) _event.unsignedLongValue];
 }
 
@@ -2494,6 +2633,24 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
         static_cast<chip::ClusterId>([clusterID unsignedLongValue]), static_cast<chip::EventId>([eventID unsignedLongValue]));
 
     return [[MTREventPath alloc] initWithPath:path];
+}
+
+- (BOOL)isEqualToEventPath:(MTREventPath *)eventPath
+{
+    return [self isEqualToClusterPath:eventPath] && [_event isEqualToNumber:eventPath.event];
+}
+
+- (BOOL)isEqual:(id)object
+{
+    if ([object class] != [self class]) {
+        return NO;
+    }
+    return [self isEqualToEventPath:object];
+}
+
+- (NSUInteger)hash
+{
+    return self.endpoint.unsignedShortValue ^ self.cluster.unsignedLongValue ^ _event.unsignedLongValue;
 }
 
 - (id)copyWithZone:(NSZone *)zone
@@ -2524,12 +2681,37 @@ MTREventPriority MTREventPriorityForValidPriorityLevel(chip::app::PriorityLevel 
     return self;
 }
 
+- (NSString *)description
+{
+    return
+        [NSString stringWithFormat:@"<MTRCommandPath endpoint %u cluster %lu command %lu>", self.endpoint.unsignedShortValue,
+                  self.cluster.unsignedLongValue, _command.unsignedLongValue];
+}
+
 + (MTRCommandPath *)commandPathWithEndpointID:(NSNumber *)endpointID clusterID:(NSNumber *)clusterID commandID:(NSNumber *)commandID
 {
     ConcreteCommandPath path(static_cast<chip::EndpointId>([endpointID unsignedShortValue]),
         static_cast<chip::ClusterId>([clusterID unsignedLongValue]), static_cast<chip::CommandId>([commandID unsignedLongValue]));
 
     return [[MTRCommandPath alloc] initWithPath:path];
+}
+
+- (BOOL)isEqualToCommandPath:(MTRCommandPath *)commandPath
+{
+    return [self isEqualToClusterPath:commandPath] && [_command isEqualToNumber:commandPath.command];
+}
+
+- (BOOL)isEqual:(id)object
+{
+    if ([object class] != [self class]) {
+        return NO;
+    }
+    return [self isEqualToCommandPath:object];
+}
+
+- (NSUInteger)hash
+{
+    return self.endpoint.unsignedShortValue ^ self.cluster.unsignedLongValue ^ _command.unsignedLongValue;
 }
 
 - (id)copyWithZone:(NSZone *)zone
@@ -2743,12 +2925,10 @@ static bool EncodeDataValueToTLV(System::PacketBufferHandle & buffer, Platform::
 
 @end
 
-@interface MTREventReport () {
+@implementation MTREventReport {
     NSNumber * _timestampValue;
 }
-@end
 
-@implementation MTREventReport
 + (void)initialize
 {
     // One of our init methods ends up doing Platform::MemoryAlloc.

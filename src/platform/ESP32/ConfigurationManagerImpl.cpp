@@ -44,15 +44,6 @@ namespace DeviceLayer {
 
 using namespace ::chip::DeviceLayer::Internal;
 
-namespace {
-
-enum
-{
-    kChipProduct_Connect = 0x0016
-};
-
-} // unnamed namespace
-
 // TODO: Define a Singleton instance of CHIP Group Key Store here (#1266)
 
 ConfigurationManagerImpl & ConfigurationManagerImpl::GetDefaultInstance()
@@ -311,7 +302,7 @@ CHIP_ERROR ConfigurationManagerImpl::MapConfigError(esp_err_t error)
     case ESP_OK:
         return CHIP_NO_ERROR;
     case ESP_ERR_WIFI_NOT_INIT:
-        return CHIP_ERROR_WELL_UNINITIALIZED;
+        return CHIP_ERROR_UNINITIALIZED;
     case ESP_ERR_INVALID_ARG:
     case ESP_ERR_WIFI_IF:
         return CHIP_ERROR_INVALID_ARGUMENT;

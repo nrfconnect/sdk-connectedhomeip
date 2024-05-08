@@ -29,6 +29,7 @@
 
 #include <app/clusters/window-covering-server/window-covering-server.h>
 #include <app/server/OnboardingCodesUtil.h>
+#include <cmsis_os2.h>
 #include <lib/core/CHIPError.h>
 #include <lib/dnssd/Advertiser.h>
 #include <lib/support/CodeUtils.h>
@@ -42,7 +43,6 @@
 
 #ifdef DISPLAY_ENABLED
 #include <LcdPainter.h>
-SilabsLCD slLCD;
 #endif
 
 #include <platform/silabs/platformAbstraction/SilabsPlatform.h>
@@ -53,7 +53,6 @@ using namespace chip::app::Clusters::WindowCovering;
 using namespace chip;
 using namespace ::chip::DeviceLayer;
 using namespace ::chip::DeviceLayer::Silabs;
-#define APP_STATE_LED 0
 #define APP_ACTION_LED 1
 
 #ifdef DIC_ENABLE
@@ -78,21 +77,10 @@ AppEvent CreateNewEvent(AppEvent::AppEventTypes type)
     return aEvent;
 }
 
-inline void OnTriggerEffectCompleted(chip::System::Layer * systemLayer, void * appState)
-{
-    AppEvent event = CreateNewEvent(AppEvent::kEventType_WinkOff);
-    AppTask::GetAppTask().PostEvent(&event);
-}
-
 void WindowManager::Timer::Start()
 {
-    if (xTimerIsTimerActive(mHandler))
-    {
-        Stop();
-    }
-
-    // Timer is not active
-    if (xTimerStart(mHandler, pdMS_TO_TICKS(100)) != pdPASS)
+    // Starts or restarts the function timer
+    if (osTimerStart(mHandler, pdMS_TO_TICKS(100)) != osOK)
     {
         SILABS_LOG("Timer start() failed");
         appError(CHIP_ERROR_INTERNAL);
@@ -156,7 +144,7 @@ void WindowManager::DispatchEventAttributeChange(chip::EndpointId endpoint, chip
         opStatus = OperationalStatusGet(endpoint);
         OperationalStatusPrint(opStatus);
         chip::DeviceLayer::PlatformMgr().UnlockChipStack();
-        UpdateLEDs();
+        UpdateLED();
         break;
     /* RW Mode */
     case Attributes::Mode::Id:
@@ -183,7 +171,7 @@ void WindowManager::DispatchEventAttributeChange(chip::EndpointId endpoint, chip
     /* ============= Positions for Position Aware ============= */
     case Attributes::CurrentPositionLiftPercent100ths::Id:
     case Attributes::CurrentPositionTiltPercent100ths::Id:
-        UpdateLEDs();
+        UpdateLED();
         UpdateLCD();
         break;
     default:
@@ -206,17 +194,12 @@ void WindowManager::HandleLongPress()
         mCurrentCover                   = mCurrentCover < WINDOW_COVER_COUNT - 1 ? mCurrentCover + 1 : 0;
         event.Type                      = AppEvent::kEventType_CoverChange;
         AppTask::GetAppTask().PostEvent(&event);
+        ChipLogDetail(AppServer, "App controls set to cover %d", mCurrentCover + 1);
     }
     else if (mUpPressed)
     {
         mUpSuppressed = true;
-        if (mResetWarning)
-        {
-            // Double long press button up: Reset now, you were warned!
-            event.Type = AppEvent::kEventType_Reset;
-            AppTask::GetAppTask().PostEvent(&event);
-        }
-        else
+        if (!mResetWarning)
         {
             // Long press button up: Reset warning!
             event.Type = AppEvent::kEventType_ResetWarning;
@@ -229,6 +212,7 @@ void WindowManager::HandleLongPress()
         mDownSuppressed = true;
         Type type       = GetCover().CycleType();
         mTiltMode       = mTiltMode && (Type::kTiltBlindLiftAndTilt == type);
+        ChipLogDetail(AppServer, "Cover type changed to %d", to_underlying(type));
     }
 }
 
@@ -287,7 +271,7 @@ void WindowManager::Cover::Init(chip::EndpointId endpoint)
 
 void WindowManager::Cover::LiftStepToward(OperationalState direction)
 {
-    EmberAfStatus status;
+    Protocols::InteractionModel::Status status;
     chip::Percent100ths percent100ths;
     NPercent100ths current;
 
@@ -295,7 +279,7 @@ void WindowManager::Cover::LiftStepToward(OperationalState direction)
     status = Attributes::CurrentPositionLiftPercent100ths::Get(mEndpoint, current);
     chip::DeviceLayer::PlatformMgr().UnlockChipStack();
 
-    if ((status == EMBER_ZCL_STATUS_SUCCESS) && !current.IsNull())
+    if ((status == Protocols::InteractionModel::Status::Success) && !current.IsNull())
     {
         percent100ths = ComputePercent100thsStep(direction, current.Value(), LIFT_DELTA);
     }
@@ -351,7 +335,7 @@ void WindowManager::Cover::LiftUpdate(bool newTarget)
 
 void WindowManager::Cover::TiltStepToward(OperationalState direction)
 {
-    EmberAfStatus status;
+    Protocols::InteractionModel::Status status;
     chip::Percent100ths percent100ths;
     NPercent100ths current;
 
@@ -359,7 +343,7 @@ void WindowManager::Cover::TiltStepToward(OperationalState direction)
     status = Attributes::CurrentPositionTiltPercent100ths::Get(mEndpoint, current);
     chip::DeviceLayer::PlatformMgr().UnlockChipStack();
 
-    if ((status == EMBER_ZCL_STATUS_SUCCESS) && !current.IsNull())
+    if ((status == Protocols::InteractionModel::Status::Success) && !current.IsNull())
     {
         percent100ths = ComputePercent100thsStep(direction, current.Value(), TILT_DELTA);
     }
@@ -415,7 +399,7 @@ void WindowManager::Cover::TiltUpdate(bool newTarget)
 
 void WindowManager::Cover::UpdateTargetPosition(OperationalState direction, bool isTilt)
 {
-    EmberAfStatus status;
+    Protocols::InteractionModel::Status status;
     NPercent100ths current;
     chip::Percent100ths target;
 
@@ -424,7 +408,7 @@ void WindowManager::Cover::UpdateTargetPosition(OperationalState direction, bool
     if (isTilt)
     {
         status = Attributes::CurrentPositionTiltPercent100ths::Get(mEndpoint, current);
-        if ((status == EMBER_ZCL_STATUS_SUCCESS) && !current.IsNull())
+        if ((status == Protocols::InteractionModel::Status::Success) && !current.IsNull())
         {
             target = ComputePercent100thsStep(direction, current.Value(), TILT_DELTA);
             (void) Attributes::TargetPositionTiltPercent100ths::Set(mEndpoint, target);
@@ -433,7 +417,7 @@ void WindowManager::Cover::UpdateTargetPosition(OperationalState direction, bool
     else
     {
         status = Attributes::CurrentPositionLiftPercent100ths::Get(mEndpoint, current);
-        if ((status == EMBER_ZCL_STATUS_SUCCESS) && !current.IsNull())
+        if ((status == Protocols::InteractionModel::Status::Success) && !current.IsNull())
         {
             target = ComputePercent100thsStep(direction, current.Value(), LIFT_DELTA);
             (void) Attributes::TargetPositionLiftPercent100ths::Set(mEndpoint, target);
@@ -558,12 +542,12 @@ void WindowManager::Cover::CallbackOperationalStateSet(intptr_t arg)
 
 WindowManager::Timer::Timer(uint32_t timeoutInMs, Callback callback, void * context) : mCallback(callback), mContext(context)
 {
-    mHandler = xTimerCreate("",                         // Just a text name, not used by the RTOS kernel
-                            pdMS_TO_TICKS(timeoutInMs), // == default timer period (mS)
-                            false,                      // no timer reload (==one-shot)
-                            (void *) this,              // init timer id = app task obj context
-                            TimerCallback               // timer callback handler
+    mHandler = osTimerNew(TimerCallback, // timer callback handler
+                          osTimerOnce,   // no timer reload (one-shot timer)
+                          this,          // pass the app task obj context
+                          NULL           // No osTimerAttr_t to provide.
     );
+
     if (mHandler == NULL)
     {
         SILABS_LOG("Timer create failed");
@@ -574,16 +558,16 @@ WindowManager::Timer::Timer(uint32_t timeoutInMs, Callback callback, void * cont
 void WindowManager::Timer::Stop()
 {
     mIsActive = false;
-    if (xTimerStop(mHandler, pdMS_TO_TICKS(0)) == pdFAIL)
+    if (osTimerStop(mHandler) == osError)
     {
         SILABS_LOG("Timer stop() failed");
         appError(CHIP_ERROR_INTERNAL);
     }
 }
 
-void WindowManager::Timer::TimerCallback(TimerHandle_t xTimer)
+void WindowManager::Timer::TimerCallback(void * timerCbArg)
 {
-    Timer * timer = (Timer *) pvTimerGetTimerID(xTimer);
+    Timer * timer = static_cast<Timer *>(timerCbArg);
     if (timer)
     {
         timer->Timeout();
@@ -613,8 +597,6 @@ CHIP_ERROR WindowManager::Init()
 {
     chip::DeviceLayer::PlatformMgr().LockChipStack();
 
-    ConfigurationMgr().LogDeviceConfig();
-
     // Timers
     mLongPressTimer = new Timer(LONG_PRESS_TIMEOUT, OnLongPressTimeout, this);
 
@@ -624,12 +606,8 @@ CHIP_ERROR WindowManager::Init()
 
     // Initialize LEDs
     LEDWidget::InitGpio();
-    mStatusLED.Init(APP_STATE_LED);
     mActionLED.Init(APP_ACTION_LED);
-
-#ifdef DISPLAY_ENABLED
-    slLCD.Init();
-#endif
+    AppTask::GetAppTask().LinkAppLed(&mActionLED);
 
     chip::DeviceLayer::PlatformMgr().UnlockChipStack();
 
@@ -644,14 +622,11 @@ void WindowManager::PostAttributeChange(chip::EndpointId endpoint, chip::Attribu
     AppTask::GetAppTask().PostEvent(&event);
 }
 
-void WindowManager::UpdateLEDs()
+void WindowManager::UpdateLED()
 {
     Cover & cover = GetCover();
     if (mResetWarning)
     {
-        mStatusLED.Set(false);
-        mStatusLED.Blink(500);
-
         mActionLED.Set(false);
         mActionLED.Blink(500);
     }
@@ -673,22 +648,18 @@ void WindowManager::UpdateLEDs()
 
         if (OperationalState::Stall != cover.mLiftOpState)
         {
-
             mActionLED.Blink(100);
         }
         else if (LimitStatus::IsUpOrOpen == liftLimit)
         {
-
             mActionLED.Set(true);
         }
         else if (LimitStatus::IsDownOrClose == liftLimit)
         {
-
             mActionLED.Set(false);
         }
         else
         {
-
             mActionLED.Blink(1000);
         }
     }
@@ -698,11 +669,7 @@ void WindowManager::UpdateLCD()
 {
     // Update LCD
 #ifdef DISPLAY_ENABLED
-#if CHIP_ENABLE_OPENTHREAD
-    if (mState.isThreadProvisioned)
-#else
-    if (BaseApplication::getWifiProvisionStatus())
-#endif // CHIP_ENABLE_OPENTHREAD
+    if (BaseApplication::GetProvisionStatus())
     {
         Cover & cover = GetCover();
         chip::app::DataModel::Nullable<uint16_t> lift;
@@ -717,7 +684,7 @@ void WindowManager::UpdateLCD()
 
         if (!tilt.IsNull() && !lift.IsNull())
         {
-            LcdPainter::Paint(slLCD, type, lift.Value(), tilt.Value(), mIcon);
+            LcdPainter::Paint(AppTask::GetAppTask().GetLCD(), type, lift.Value(), tilt.Value(), mIcon);
         }
     }
 #endif // DISPLAY_ENABLED
@@ -748,24 +715,14 @@ void WindowManager::GeneralEventHandler(AppEvent * aEvent)
     {
     case AppEvent::kEventType_ResetWarning:
         window->mResetWarning = true;
-        if (window->mLongPressTimer)
-        {
-            window->mLongPressTimer->Start();
-        }
-        SILABS_LOG("Factory Reset Triggered. Release button within %ums to cancel.", LONG_PRESS_TIMEOUT);
-        // Turn off all LEDs before starting blink to make sure blink is
-        // co-ordinated.
-        window->UpdateLEDs();
+        AppTask::GetAppTask().StartFactoryResetSequence();
+        window->UpdateLED();
         break;
 
     case AppEvent::kEventType_ResetCanceled:
         window->mResetWarning = false;
-        SILABS_LOG("Factory Reset has been Canceled");
-        window->UpdateLEDs();
-        break;
-
-    case AppEvent::kEventType_Reset:
-        chip::Server::GetInstance().ScheduleFactoryReset();
+        AppTask::GetAppTask().CancelFactoryResetSequence();
+        window->UpdateLED();
         break;
 
     case AppEvent::kEventType_UpPressed:
@@ -793,9 +750,9 @@ void WindowManager::GeneralEventHandler(AppEvent * aEvent)
         }
         else if (window->mDownPressed)
         {
-            window->mTiltMode     = !(window->mTiltMode);
-            window->mUpSuppressed = window->mDownSuppressed = true;
-            aEvent->Type                                    = AppEvent::kEventType_TiltModeChange;
+            window->mTiltMode       = !(window->mTiltMode);
+            window->mDownSuppressed = true;
+            aEvent->Type            = AppEvent::kEventType_TiltModeChange;
             AppTask::GetAppTask().PostEvent(aEvent);
         }
         else
@@ -830,32 +787,18 @@ void WindowManager::GeneralEventHandler(AppEvent * aEvent)
         else if (window->mUpPressed)
         {
             window->mTiltMode     = !(window->mTiltMode);
-            window->mUpSuppressed = window->mDownSuppressed = true;
-            aEvent->Type                                    = AppEvent::kEventType_TiltModeChange;
+            window->mUpSuppressed = true;
+            aEvent->Type          = AppEvent::kEventType_TiltModeChange;
+            AppTask::GetAppTask().PostEvent(aEvent);
         }
         else
         {
             window->GetCover().UpdateTargetPosition(OperationalState::MovingDownOrClose, window->mTiltMode);
         }
         break;
+
     case AppEvent::kEventType_AttributeChange:
         window->DispatchEventAttributeChange(aEvent->mEndpoint, aEvent->mAttributeId);
-        break;
-
-    case AppEvent::kEventType_ProvisionedStateChanged:
-        window->UpdateLEDs();
-        window->UpdateLCD();
-        break;
-
-    case AppEvent::kEventType_WinkOn:
-    case AppEvent::kEventType_WinkOff:
-        window->mState.isWinking = (AppEvent::kEventType_WinkOn == aEvent->Type);
-        window->UpdateLEDs();
-        break;
-
-    case AppEvent::kEventType_ConnectivityStateChanged:
-    case AppEvent::kEventType_BLEConnectionsChanged:
-        window->UpdateLEDs();
         break;
 
 #ifdef DISPLAY_ENABLED
@@ -868,6 +811,7 @@ void WindowManager::GeneralEventHandler(AppEvent * aEvent)
         window->UpdateLCD();
         break;
     case AppEvent::kEventType_TiltModeChange:
+        ChipLogDetail(AppServer, "App control mode changed to %s", window->mTiltMode ? "Tilt" : "Lift");
         window->mIconTimer.Start();
         window->mIcon = window->mTiltMode ? LcdIcon::Tilt : LcdIcon::Lift;
         window->UpdateLCD();

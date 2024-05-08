@@ -37,9 +37,10 @@
 #include <openthread/dns_client.h>
 #endif
 
-#include <app/AttributeAccessInterface.h>
+#include <app/icd/server/ICDServerConfig.h>
 #include <lib/dnssd/Advertiser.h>
 #include <lib/dnssd/platform/Dnssd.h>
+#include <platform/GeneralFaults.h>
 #include <platform/NetworkCommissioning.h>
 
 namespace chip {
@@ -111,7 +112,6 @@ protected:
     CHIP_ERROR _GetPrimary802154MACAddress(uint8_t * buf);
     CHIP_ERROR _GetExternalIPv6Address(chip::Inet::IPAddress & addr);
     void _ResetThreadNetworkDiagnosticsCounts(void);
-    CHIP_ERROR _WriteThreadNetworkDiagnosticAttributeToTlv(AttributeId attributeId, app::AttributeValueEncoder & encoder);
     CHIP_ERROR _GetPollPeriod(uint32_t & buf);
     void _OnWoBLEAdvertisingStart(void);
     void _OnWoBLEAdvertisingStop(void);
@@ -123,6 +123,7 @@ protected:
     CHIP_ERROR _RemoveSrpService(const char * aInstanceName, const char * aName);
     CHIP_ERROR _InvalidateAllSrpServices();
     CHIP_ERROR _RemoveInvalidSrpServices();
+    CHIP_ERROR _ClearAllSrpHostAndServices();
 
     CHIP_ERROR _SetupSrpHost(const char * aHostName);
     CHIP_ERROR _ClearSrpHost(const char * aHostName);
@@ -163,10 +164,10 @@ private:
 
     struct SrpClient
     {
-        static constexpr uint8_t kMaxServicesNumber      = CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES;
-        static constexpr const char * kDefaultDomainName = "default.service.arpa";
-        static constexpr uint8_t kDefaultDomainNameSize  = 20;
-        static constexpr uint8_t kMaxDomainNameSize      = 32;
+        static constexpr uint8_t kMaxServicesNumber     = CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES;
+        static constexpr char kDefaultDomainName[]      = "default.service.arpa";
+        static constexpr uint8_t kDefaultDomainNameSize = 20;
+        static constexpr uint8_t kMaxDomainNameSize     = 32;
 
         // SRP is used for both operational and commissionable services, so buffers sizes must be worst case.
         static constexpr size_t kSubTypeMaxNumber   = Dnssd::Common::kSubTypeMaxNumber;
@@ -205,6 +206,8 @@ private:
 
     SrpClient mSrpClient;
 
+    bool mIsSrpClearAllRequested = false;
+
     static void OnSrpClientNotification(otError aError, const otSrpClientHostInfo * aHostInfo, const otSrpClientService * aServices,
                                         const otSrpClientService * aRemovedServices, void * aContext);
     static void OnSrpClientStateChange(const otSockAddr * aServerSockAddr, void * aContext);
@@ -229,6 +232,7 @@ private:
 
     DnsBrowseCallback mDnsBrowseCallback;
     DnsResolveCallback mDnsResolveCallback;
+    GeneralFaults<kMaxNetworkFaults> mNetworkFaults;
 
     struct DnsServiceTxtEntries
     {

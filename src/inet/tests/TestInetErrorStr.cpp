@@ -24,14 +24,6 @@
  *
  */
 
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-
 #include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
@@ -117,7 +109,7 @@ int TestInetErrorStr()
     };
     // clang-format on
 
-    // Run test suit againt one context.
+    // Run test suite against one context.
     nlTestRunner(&theSuite, nullptr);
 
     return (nlTestRunnerStats(&theSuite));

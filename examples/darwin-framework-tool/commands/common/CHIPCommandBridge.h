@@ -28,14 +28,14 @@
 
 #pragma once
 
-inline constexpr const char kIdentityAlpha[] = "alpha";
-inline constexpr const char kIdentityBeta[] = "beta";
-inline constexpr const char kIdentityGamma[] = "gamma";
+inline constexpr char kIdentityAlpha[] = "alpha";
+inline constexpr char kIdentityBeta[] = "beta";
+inline constexpr char kIdentityGamma[] = "gamma";
 
 class CHIPCommandBridge : public Command {
 public:
-    CHIPCommandBridge(const char * commandName)
-        : Command(commandName)
+    CHIPCommandBridge(const char * commandName, const char * helpText = nullptr)
+        : Command(commandName, helpText)
     {
         AddArgument("commissioner-name", &mCommissionerName);
         AddArgument("commissioner-nodeId", 0, UINT64_MAX, &mCommissionerNodeId,

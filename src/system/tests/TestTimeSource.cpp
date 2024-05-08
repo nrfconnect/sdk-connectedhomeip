@@ -21,10 +21,6 @@
  *    the ability to compile and use the test implementation of the time source.
  */
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-
 #include <system/SystemConfig.h>
 
 #include <lib/core/ErrorStr.h>
@@ -84,7 +80,7 @@ int TestTimeSource()
         "chip-timesource", &sTests[0], nullptr /* setup */, nullptr /* teardown */
     };
 
-    // Run test suit againt one context.
+    // Run test suite against one context.
     nlTestRunner(&theSuite, nullptr /* context */);
 
     return (nlTestRunnerStats(&theSuite));

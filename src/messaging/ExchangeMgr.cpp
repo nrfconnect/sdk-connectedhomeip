@@ -21,14 +21,6 @@
  *
  */
 
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-
 #include <cstring>
 #include <inttypes.h>
 #include <stddef.h>
@@ -372,8 +364,10 @@ void ExchangeManager::SendStandaloneAckIfNeeded(const PacketHeader & packetHeade
                                                 const SessionHandle & session, MessageFlags msgFlags,
                                                 System::PacketBufferHandle && msgBuf)
 {
-    // If we need to send a StandaloneAck, create a EphemeralExchange for the purpose to send the StandaloneAck
-    if (!payloadHeader.NeedsAck())
+
+    // If using the MRP protocol and we need to send a StandaloneAck, create an EphemeralExchange to send
+    // the StandaloneAck.
+    if (!session->AllowsMRP() || !payloadHeader.NeedsAck())
         return;
 
     // If rcvd msg is from initiator then this exchange is created as not Initiator.

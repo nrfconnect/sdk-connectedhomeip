@@ -40,9 +40,9 @@
 
 #include <app-common/zap-generated/callback.h>
 #include <app-common/zap-generated/cluster-objects.h>
-#include <app/att-storage.h>
 #include <app/server/Dnssd.h>
 #include <app/util/af.h>
+#include <app/util/att-storage.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #include "Display.h"
@@ -122,7 +122,7 @@ void DeviceEventCallback(const ChipDeviceEvent * event, intptr_t arg)
     ChipLogProgress(Shell, "Current free heap: %u\n", static_cast<unsigned int>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
 }
 
-const char * TAG = "chef-app";
+extern const char TAG[] = "chef-app";
 
 #if CONFIG_HAVE_DISPLAY
 void printQRCode()

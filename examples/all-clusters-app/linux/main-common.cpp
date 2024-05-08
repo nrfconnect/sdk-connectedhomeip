@@ -17,24 +17,39 @@
  */
 
 #include "AllClustersCommandDelegate.h"
+#include "AppOptions.h"
+#include "ValveControlDelegate.h"
 #include "WindowCoveringManager.h"
 #include "air-quality-instance.h"
+#include "device-energy-management-modes.h"
 #include "dishwasher-mode.h"
+#include "energy-evse-modes.h"
+#include "include/diagnostic-logs-provider-delegate-impl.h"
 #include "include/tv-callbacks.h"
+#include "laundry-dryer-controls-delegate-impl.h"
 #include "laundry-washer-controls-delegate-impl.h"
 #include "laundry-washer-mode.h"
+#include "microwave-oven-mode.h"
 #include "operational-state-delegate-impl.h"
+#include "oven-modes.h"
+#include "oven-operational-state-delegate.h"
 #include "resource-monitoring-delegates.h"
 #include "rvc-modes.h"
+#include "rvc-operational-state-delegate-impl.h"
 #include "tcc-mode.h"
+#include <Options.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/CommandHandler.h>
-#include <app/att-storage.h>
+#include <app/clusters/diagnostic-logs-server/diagnostic-logs-server.h>
 #include <app/clusters/identify-server/identify-server.h>
+#include <app/clusters/laundry-dryer-controls-server/laundry-dryer-controls-server.h>
 #include <app/clusters/laundry-washer-controls-server/laundry-washer-controls-server.h>
 #include <app/clusters/mode-base-server/mode-base-server.h>
+#include <app/clusters/time-synchronization-server/time-synchronization-server.h>
+#include <app/clusters/valve-configuration-and-control-server/valve-configuration-and-control-server.h>
 #include <app/server/Server.h>
 #include <app/util/af.h>
+#include <app/util/att-storage.h>
 #include <app/util/attribute-storage.h>
 #include <lib/support/CHIPMem.h>
 #include <new>
@@ -46,23 +61,21 @@
 #include <transport/SessionManager.h>
 #include <transport/raw/PeerAddress.h>
 
-#include <app/icd/ICDManagementServer.h>
-
-#include <Options.h>
-
 using namespace chip;
 using namespace chip::app;
 using namespace chip::DeviceLayer;
 
 namespace {
 
-constexpr const char kChipEventFifoPathPrefix[] = "/tmp/chip_all_clusters_fifo_";
+constexpr char kChipEventFifoPathPrefix[] = "/tmp/chip_all_clusters_fifo_";
 LowPowerManager sLowPowerManager;
 NamedPipeCommands sChipNamedPipeCommands;
 AllClustersCommandDelegate sAllClustersCommandDelegate;
 Clusters::WindowCovering::WindowCoveringManager sWindowCoveringManager;
 
 Clusters::TemperatureControl::AppSupportedTemperatureLevelsDelegate sAppSupportedTemperatureLevelsDelegate;
+Clusters::ValveConfigurationAndControl::ValveControlDelegate sValveDelegate;
+Clusters::TimeSynchronization::ExtendedTimeSyncDelegate sTimeSyncDelegate;
 
 // Please refer to https://github.com/CHIP-Specifications/connectedhomeip-spec/blob/master/src/namespaces
 constexpr const uint8_t kNamespaceCommon = 7;
@@ -91,7 +104,7 @@ const Clusters::Descriptor::Structs::SemanticTagStruct::Type gEp2TagList[] = {
 };
 } // namespace
 
-#ifdef EMBER_AF_PLUGIN_DISHWASHER_ALARM_SERVER
+#ifdef MATTER_DM_PLUGIN_DISHWASHER_ALARM_SERVER
 extern void MatterDishwasherAlarmServerInit();
 #endif
 
@@ -212,15 +225,13 @@ void ApplicationInit()
         SetDeviceInstanceInfoProvider(&gExampleDeviceInstanceInfoProvider);
     }
 
-#ifdef EMBER_AF_PLUGIN_DISHWASHER_ALARM_SERVER
+#ifdef MATTER_DM_PLUGIN_DISHWASHER_ALARM_SERVER
     MatterDishwasherAlarmServerInit();
 #endif
     Clusters::TemperatureControl::SetInstance(&sAppSupportedTemperatureLevelsDelegate);
 
-    // Issue 29397
-    // Somehow All-cluster-app test the ICDManagementServer cluster without having
-    // CHIP_CONFIG_ENABLE_ICD_SERVER set to 1.
-    ICDManagementServer::GetInstance().SetSymmetricKeystore(Server::GetInstance().GetSessionKeystore());
+    Clusters::ValveConfigurationAndControl::SetDefaultDelegate(chip::EndpointId(1), &sValveDelegate);
+    Clusters::TimeSynchronization::SetDefaultDelegate(&sTimeSyncDelegate);
 
     SetTagList(/* endpoint= */ 0, Span<const Clusters::Descriptor::Structs::SemanticTagStruct::Type>(gEp0TagList));
     SetTagList(/* endpoint= */ 1, Span<const Clusters::Descriptor::Structs::SemanticTagStruct::Type>(gEp1TagList));
@@ -234,6 +245,7 @@ void ApplicationShutdown()
     Clusters::LaundryWasherMode::Shutdown();
     Clusters::RvcCleanMode::Shutdown();
     Clusters::RvcRunMode::Shutdown();
+    Clusters::MicrowaveOvenMode::Shutdown();
     Clusters::RefrigeratorAndTemperatureControlledCabinetMode::Shutdown();
     Clusters::HepaFilterMonitoring::Shutdown();
     Clusters::ActivatedCarbonFilterMonitoring::Shutdown();
@@ -241,6 +253,11 @@ void ApplicationShutdown()
     Clusters::AirQuality::Shutdown();
     Clusters::OperationalState::Shutdown();
     Clusters::RvcOperationalState::Shutdown();
+    Clusters::OvenMode::Shutdown();
+    Clusters::OvenCavityOperationalState::Shutdown();
+
+    Clusters::DeviceEnergyManagementMode::Shutdown();
+    Clusters::EnergyEvseMode::Shutdown();
 
     if (sChipNamedPipeCommands.Stop() != CHIP_NO_ERROR)
     {
@@ -254,6 +271,12 @@ void emberAfLaundryWasherControlsClusterInitCallback(EndpointId endpoint)
     LaundryWasherControlsServer::SetDefaultDelegate(endpoint, &LaundryWasherControlDelegate::getLaundryWasherControlDelegate());
 }
 
+using namespace chip::app::Clusters::LaundryDryerControls;
+void emberAfLaundryDryerControlsClusterInitCallback(EndpointId endpoint)
+{
+    LaundryDryerControlsServer::SetDefaultDelegate(endpoint, &LaundryDryerControlDelegate::getLaundryDryerControlDelegate());
+}
+
 void emberAfLowPowerClusterInitCallback(EndpointId endpoint)
 {
     ChipLogProgress(NotSpecified, "Setting LowPower default delegate to global manager");
@@ -265,4 +288,15 @@ void emberAfWindowCoveringClusterInitCallback(chip::EndpointId endpoint)
     sWindowCoveringManager.Init(endpoint);
     Clusters::WindowCovering::SetDefaultDelegate(endpoint, &sWindowCoveringManager);
     Clusters::WindowCovering::ConfigStatusUpdateFeatures(endpoint);
+}
+
+using namespace chip::app::Clusters::DiagnosticLogs;
+void emberAfDiagnosticLogsClusterInitCallback(chip::EndpointId endpoint)
+{
+    auto & logProvider = LogProvider::GetInstance();
+    logProvider.SetEndUserSupportLogFilePath(AppOptions::GetEndUserSupportLogFilePath());
+    logProvider.SetNetworkDiagnosticsLogFilePath(AppOptions::GetNetworkDiagnosticsLogFilePath());
+    logProvider.SetCrashLogFilePath(AppOptions::GetCrashLogFilePath());
+
+    DiagnosticLogsServer::Instance().SetDiagnosticLogsProviderDelegate(endpoint, &logProvider);
 }

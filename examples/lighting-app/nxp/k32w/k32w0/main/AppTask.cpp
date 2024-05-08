@@ -52,6 +52,9 @@
 #include "LEDWidget.h"
 #include "app_config.h"
 
+#if CHIP_CRYPTO_HSM
+#include <crypto/hsm/CHIPCryptoPALHsm.h>
+#endif
 #ifdef ENABLE_HSM_DEVICE_ATTESTATION
 #include "DeviceAttestationSe05xCredsExample.h"
 #endif
@@ -85,7 +88,10 @@ using namespace chip::app;
 
 AppTask AppTask::sAppTask;
 #if CONFIG_CHIP_LOAD_REAL_FACTORY_DATA
-static AppTask::FactoryDataProvider sFactoryDataProvider;
+static chip::DeviceLayer::FactoryDataProviderImpl sFactoryDataProvider;
+#if CHIP_DEVICE_CONFIG_USE_CUSTOM_PROVIDER
+static chip::DeviceLayer::CustomFactoryDataProvider sCustomFactoryDataProvider;
+#endif
 #endif
 
 // This key is for testing/certification only and should not be used in production devices.
@@ -190,6 +196,9 @@ CHIP_ERROR AppTask::Init()
     SetDeviceInstanceInfoProvider(&sFactoryDataProvider);
     SetDeviceAttestationCredentialsProvider(&sFactoryDataProvider);
     SetCommissionableDataProvider(&sFactoryDataProvider);
+#if CHIP_DEVICE_CONFIG_USE_CUSTOM_PROVIDER
+    sCustomFactoryDataProvider.ParseFunctionExample();
+#endif
 #else
 #ifdef ENABLE_HSM_DEVICE_ATTESTATION
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleSe05xDACProvider());
@@ -249,6 +258,14 @@ CHIP_ERROR AppTask::Init()
 
     K32W_LOG("Current Software Version: %s, %" PRIu32, currentSoftwareVer, currentVersion);
 
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
+    /* SSBL will always be seen as booting from address 0, thanks to the remapping mechanism.
+     * This means the SSBL version will always offset from address 0. */
+    extern uint32_t __MATTER_SSBL_VERSION_START[];
+    K32W_LOG("Current SSBL Version: %ld. Found at address 0x%lx", *((uint32_t *) __MATTER_SSBL_VERSION_START),
+             (uint32_t) __MATTER_SSBL_VERSION_START);
+#endif
+
     return err;
 }
 
@@ -272,8 +289,8 @@ void AppTask::InitServer(intptr_t arg)
     chip::DeviceLayer::SetDeviceInfoProvider(&infoProvider);
 
     // Init ZCL Data Model and start server
-    static DefaultTestEventTriggerDelegate testEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
-    initParams.testEventTriggerDelegate = &testEventTriggerDelegate;
+    static DefaultTestEventTriggerDelegate sTestEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
+    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
     chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;
     nativeParams.lockCb                = LockOpenThreadTask;
     nativeParams.unlockCb              = UnlockOpenThreadTask;
@@ -629,7 +646,6 @@ void AppTask::BleStartAdvertising(intptr_t arg)
     else
     {
         ConnectivityMgr().SetBLEAdvertisingEnabled(true);
-
         if (chip::Server::GetInstance().GetCommissioningWindowManager().OpenBasicCommissioningWindow() == CHIP_NO_ERROR)
         {
             K32W_LOG("Started BLE Advertising!");
@@ -897,11 +913,24 @@ void AppTask::PostTurnOnActionRequest(int32_t aActor, LightingManager::Action_t 
 
 void AppTask::PostEvent(const AppEvent * aEvent)
 {
+    portBASE_TYPE taskToWake = pdFALSE;
     if (sAppEventQueue != NULL)
     {
-        if (!xQueueSend(sAppEventQueue, aEvent, 1))
+        if (__get_IPSR())
         {
-            K32W_LOG("Failed to post event to app task event queue");
+            if (!xQueueSendToFrontFromISR(sAppEventQueue, aEvent, &taskToWake))
+            {
+                K32W_LOG("Failed to post event to app task event queue");
+            }
+
+            portYIELD_FROM_ISR(taskToWake);
+        }
+        else
+        {
+            if (!xQueueSend(sAppEventQueue, aEvent, 1))
+            {
+                K32W_LOG("Failed to post event to app task event queue");
+            }
         }
     }
 }
@@ -928,10 +957,10 @@ void AppTask::UpdateClusterStateInternal(intptr_t arg)
     uint8_t newValue = !LightingMgr().IsTurnedOff();
 
     // write the new on/off value
-    EmberAfStatus status = app::Clusters::OnOff::Attributes::OnOff::Set(1, newValue);
-    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    Protocols::InteractionModel::Status status = app::Clusters::OnOff::Attributes::OnOff::Set(1, newValue);
+    if (status != Protocols::InteractionModel::Status::Success)
     {
-        ChipLogError(NotSpecified, "ERR: updating on/off %x", status);
+        ChipLogError(NotSpecified, "ERR: updating on/off %x", to_underlying(status));
     }
 }
 

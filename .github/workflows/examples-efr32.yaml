@@ -38,7 +38,7 @@ jobs:
     if: github.actor != 'restyled-io[bot]'
 
     container:
-      image: ghcr.io/project-chip/chip-build-efr32:22
+      image: ghcr.io/project-chip/chip-build-efr32:41
       volumes:
         - "/tmp/bloat_reports:/tmp/bloat_reports"
     steps:
@@ -59,7 +59,6 @@ jobs:
         timeout-minutes: 30
         run: |
           scripts/examples/gn_silabs_example.sh examples/lighting-app/silabs ./out/light-app BRD4187C --slc_generate --docker
-          scripts/examples/gn_silabs_example.sh examples/lighting-app/silabs ./out/light-app BRD4164A --slc_generate --docker
           rm -rf ./out/
       - name: Build some BRD4187C variants (1)
         run: |
@@ -107,6 +106,18 @@ jobs:
              efr32 BRD4187C window-app \
              out/efr32-brd4187c-window-covering-additional_data_advertising/matter-silabs-window-example.out \
              /tmp/bloat_reports/
+      - name: Clean out build output
+        run: rm -rf ./out
+      - name: Build BRD4338A variants
+        run: |
+          ./scripts/run_in_build_env.sh \
+             "./scripts/build/build_examples.py \
+                --enable-flashbundle \
+                --target efr32-brd4338a-light-wifi-917_soc-skip_rps_generation \
+                --target efr32-brd4338a-lock-wifi-917_soc-skip_rps_generation \
+                build \
+                --copy-artifacts-to out/artifacts \
+             "
       - name: Clean out build output
         run: rm -rf ./out
       - name: Build example EFR32+WF200 WiFi Lock app for BRD4161A

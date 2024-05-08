@@ -19,16 +19,17 @@
 #include "InteractiveCommands.h"
 
 #include <lib/support/Base64.h>
+#include <logging/logging.h>
 #include <platform/logging/LogV.h>
 
 #include <editline.h>
 
-constexpr const char * kInteractiveModePrompt = "Stop and restart stack: [Ctrl+_] & [Ctrl+^] \nQuit Interactive: 'quit()'\n>>> ";
-constexpr const char * kInteractiveModeHistoryFilePath = "/tmp/darwin_framework_tool_history";
-constexpr const char * kInteractiveModeStopCommand = "quit()";
-constexpr const char * kCategoryError = "Error";
-constexpr const char * kCategoryProgress = "Info";
-constexpr const char * kCategoryDetail = "Debug";
+constexpr char kInteractiveModePrompt[] = "Stop and restart stack: [Ctrl+_] & [Ctrl+^] \nQuit Interactive: 'quit()'\n>>> ";
+constexpr char kInteractiveModeHistoryFilePath[] = "/tmp/darwin_framework_tool_history";
+constexpr char kInteractiveModeStopCommand[] = "quit()";
+constexpr char kCategoryError[] = "Error";
+constexpr char kCategoryProgress[] = "Info";
+constexpr char kCategoryDetail[] = "Debug";
 
 namespace {
 
@@ -72,7 +73,7 @@ void ClearLine()
 void ENFORCE_FORMAT(3, 0) LoggingCallback(const char * module, uint8_t category, const char * msg, va_list args)
 {
     ClearLine();
-    chip::Logging::Platform::LogV(module, category, msg, args);
+    dft::logging::LogRedirectCallback(module, category, msg, args);
     ClearLine();
 }
 
@@ -244,7 +245,7 @@ void ENFORCE_FORMAT(3, 0) InteractiveServerLoggingCallback(const char * module, 
     va_list args_copy;
     va_copy(args_copy, args);
 
-    chip::Logging::Platform::LogV(module, category, msg, args);
+    dft::logging::LogRedirectCallback(module, category, msg, args);
 
     char message[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
     vsnprintf(message, sizeof(message), msg, args_copy);
@@ -380,7 +381,7 @@ bool InteractiveCommand::ParseCommand(char * command, int * status)
 
     ClearLine();
 
-    *status = mHandler->RunInteractive(command, GetStorageDirectory());
+    *status = mHandler->RunInteractive(command, GetStorageDirectory(), true);
 
     return YES;
 }

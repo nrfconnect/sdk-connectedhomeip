@@ -25,6 +25,7 @@
 #include <lib/support/IntrusiveList.h>
 #include <lib/support/ReferenceCountedHandle.h>
 #include <messaging/ReliableMessageProtocolConfig.h>
+#include <messaging/SessionParameters.h>
 #include <platform/LockTracker.h>
 #include <transport/SessionDelegate.h>
 
@@ -191,13 +192,16 @@ public:
 
     virtual bool IsActiveSession() const = 0;
 
-    virtual ScopedNodeId GetPeer() const                                     = 0;
-    virtual ScopedNodeId GetLocalScopedNodeId() const                        = 0;
-    virtual Access::SubjectDescriptor GetSubjectDescriptor() const           = 0;
-    virtual bool RequireMRP() const                                          = 0;
-    virtual const ReliableMessageProtocolConfig & GetRemoteMRPConfig() const = 0;
-    virtual System::Clock::Timestamp GetMRPBaseTimeout() const               = 0;
-    virtual System::Clock::Milliseconds32 GetAckTimeout() const              = 0;
+    virtual ScopedNodeId GetPeer() const                                 = 0;
+    virtual ScopedNodeId GetLocalScopedNodeId() const                    = 0;
+    virtual Access::SubjectDescriptor GetSubjectDescriptor() const       = 0;
+    virtual bool AllowsMRP() const                                       = 0;
+    virtual bool AllowsLargePayload() const                              = 0;
+    virtual const SessionParameters & GetRemoteSessionParameters() const = 0;
+    virtual System::Clock::Timestamp GetMRPBaseTimeout() const           = 0;
+    virtual System::Clock::Milliseconds32 GetAckTimeout() const          = 0;
+
+    const ReliableMessageProtocolConfig & GetRemoteMRPConfig() const { return GetRemoteSessionParameters().GetMRPConfig(); }
 
     // Returns a suggested timeout value based on the round-trip time it takes for the peer at the other end of the session to
     // receive a message, process it and send it back. This is computed based on the session type, the type of transport, sleepy

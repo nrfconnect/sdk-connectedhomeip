@@ -192,58 +192,58 @@ effects:
 In order to build the Project CHIP example, we recommend using a Linux
 distribution (the demo-application was compiled on Ubuntu 20.04).
 
--   Start building the application either with Secure Element or without, SDK is
-    downloaded with west tool.
-    -   without Secure Element
-
-```
-user@ubuntu:~/Desktop/git/connectedhomeip$ source ./scripts/activate.sh
-user@ubuntu:~/Desktop/git/connectedhomeip$ cd third_party/nxp/k32w0_sdk/repo
-user@ubuntu:~/Desktop/git/connectedhomeip/third_party/nxp/k32w0_sdk/repo$ west init -l manifest --mf west.yml
-user@ubuntu:~/Desktop/git/connectedhomeip/third_party/nxp/k32w0_sdk/repo$ west update
-```
-
-In case there are local modification to the already installed git NXP SDK: Use
-the below west `forall` command instead of the west init command to reset the
-west workspace. Warning: all local changes will be lost after running this
-command.
+Activate the Matter environment:
 
 ```bash
-user@ubuntu:~/Desktop/git/connectedhomeip$ cd third_party/nxp/k32w0_sdk/repo
-user@ubuntu:~/Desktop/git/connectedhomeip/third_party/nxp/k32w0_sdk/repo$west forall -c "git reset --hard && git clean -xdf" -a
+user@ubuntu:~/Desktop/git/connectedhomeip$ source ./scripts/activate.sh
 ```
 
-Build the application
+To bring the SDK in the environment, the user can:
 
-Prior to building, the user can specify a custom `SDK` path by setting
-`NXP_K32W0_SDK_ROOT`:
+-   download it with west tool, in which case it will be handled automatically
+    by gn:
 
-```
-user@ubuntu:~/Desktop/git/connectedhomeip$ export NXP_K32W0_SDK_ROOT=$(pwd)/third_party/nxp/k32w0_sdk/repo/core
-```
+    ```bash
+    user@ubuntu:~/Desktop/git/connectedhomeip$ cd third_party/nxp/k32w0_sdk/repo
+    user@ubuntu:~/Desktop/git/connectedhomeip/third_party/nxp/k32w0_sdk/repo$ west init -l manifest --mf west.yml
+    user@ubuntu:~/Desktop/git/connectedhomeip/third_party/nxp/k32w0_sdk/repo$ west update
+    ```
 
-If the environment variable `NXP_K32W0_SDK_ROOT` is not set, it will default to
-the `SDK` found in `third_party/nxp/k32w0_sdk/repo/core`.
+    In case there are local modification to the already installed github NXP
+    SDK, use the below `west forall` command instead of the `west init` command
+    to reset the west workspace. Warning: all local changes will be lost after
+    running this command.
 
-```
+    ```bash
+    user@ubuntu:~/Desktop/git/connectedhomeip$ cd third_party/nxp/k32w0_sdk/repo
+    user@ubuntu:~/Desktop/git/connectedhomeip/third_party/nxp/k32w0_sdk/repo$ west forall -c "git reset --hard && git clean -xdf" -a
+    ```
+
+-   set up a custom path to the SDK, in which case
+    `k32w0_sdk_root=\"${NXP_K32W0_SDK_ROOT}\"` must be added to the `gn gen`
+    command:
+
+    ```
+    user@ubuntu:~/Desktop/git/connectedhomeip$ export NXP_K32W0_SDK_ROOT=/custom/path/to/SDK
+    ```
+
+Start building the application:
+
+```bash
 user@ubuntu:~/Desktop/git/connectedhomeip$ cd examples/lighting-app/nxp/k32w/k32w0
-user@ubuntu:~/Desktop/git/connectedhomeip/examples/lighting-app/nxp/k32w/k32w0$ gn gen out/debug --args="chip_with_OM15082=1 chip_with_ot_cli=0 is_debug=false chip_crypto=\"platform\" chip_with_se05x=0 chip_pw_tokenizer_logging=true"
+user@ubuntu:~/Desktop/git/connectedhomeip/examples/lighting-app/nxp/k32w/k32w0$ gn gen out/debug
 user@ubuntu:~/Desktop/git/connectedhomeip/examples/lighting-app/nxp/k32w/k32w0$ ninja -C out/debug
 ```
 
-    -   with Secure element
+To build with Secure Element, follow the same steps as above but set
+`chip_with_se05x=1 chip_enable_ota_requestor=false` in the `gn gen` command.
 
-```
-        Exactly the same steps as above but set chip_with_se05x=1 in the gn command
-        and add argument chip_enable_ota_requestor=false
-```
-
-Note that option chip_enable_ota_requestor=false are required for building with
-Secure Element. These can be changed if building without Secure Element
+Note that option `chip_enable_ota_requestor=false` is required for building with
+Secure Element due to flash constraints.
 
 -   K32W041AM flavor
 
-    Exactly the same steps as above but set argument build_for_k32w041am=1 in
+    Exactly the same steps as above but set argument `build_for_k32w041am=1` in
     the gn command.
 
 Also, in case the OM15082 Expansion Board is not attached to the DK6 board, the
@@ -256,6 +256,16 @@ set to 1.
 In case the board doesn't have 32KHz crystal fitted, one can use the 32KHz free
 running oscillator as a clock source. In this case one must set the use_fro_32k
 argument to 1.
+
+K32W0x1 supports antenna diversity feature, which is a technique that maximizes
+the performance of an antenna system, allowing the radio signal to be switched
+between two antennas that have very low correlation between their received
+signals. Typically, this is achieved by spacing two antennas around 0.25
+wavelengths apart or by using 2 orthogonal types of polarization. This is
+controlled by software. K32W0x1 provides an output (`ADO`) on one of `DIO7`,
+`DIO9` or `DIO19` and optionally its complement (`ADE`) on `DIO6` that can be
+used to control an antenna switch. In order to use this feature, user must set
+`use_antenna_diversity` to 1.
 
 In case signing errors are encountered when running the "sign_images.sh" script
 (run automatically) install the recommanded packages (python version > 3, pip3,
@@ -457,6 +467,10 @@ SSBL demo application can be imported from the `Quickstart panel`:
 
 ![SSBL Application Select](../../../../platform/nxp/k32w/k32w0/doc/images/ssbl_select.JPG)
 
+### Features
+
+#### Multi image
+
 To support multi-image OTA feature, the SSBL project must be compiled using the
 following defines:
 
@@ -473,6 +487,24 @@ Optionally, add the following defines:
 -   `EXTERNAL_FLASH_DATA_OTA=1` - to support external read only data.
 
 ![SSBL_MULTI_IMAGE](../../../../platform/nxp/k32w/k32w0/doc/images/ssbl_multi_image.JPG)
+
+#### Simple hash verification
+
+When secure boot is not used, a simple hash can be appended at the end of the
+image for integrity check. Applications should be built with
+`chip_simple_hash_verification=1`.
+
+To support simple hash verification feature, the SSBL project must be compiled
+with:
+
+-   `gSimpleHashVerification=1`
+
+and update the post-build command to use simple hash verification instead of the
+default options. Go to
+`Project -> Properties -> C/C++ Build -> Settings -> Build steps` and press
+`Edit` under `Post-build steps` subsection. The command should look similar to:
+
+![SSBL_SIMPLE_HASH_VERIFICATION](../../../../platform/nxp/k32w/k32w0/doc/images/ssbl_simple_hash.JPG)
 
 Once compiled, the required SSBL file is called `k32w061dk6_ssbl.bin`.
 
@@ -602,14 +634,14 @@ The concept for OTA is the next one:
     informed of the node id of the OTA Provider Application.
 
 _Computer #1_ can be any system running an Ubuntu distribution. We recommand
-using TE 7.5 instructions from
-[here](https://groups.csa-iot.org/wg/matter-csg/document/24839), where RPi 4 are
-proposed. Also, TE 7.5 instructions document point to the OS/Docker images that
-should be used on the RPis. For compatibility reasons, we recommand compiling
-chip-tool and OTA Provider applications with the same commit id that was used
-for compiling the Lighting Application. Also, please note that there is a single
-controller (chip-tool) running on Computer #1 which is used for commissioning
-both the device and the OTA Provider Application. If needed,
+using CSA official instructions from
+[here](https://groups.csa-iot.org/wg/matter-csg/document/28566), where RPi 4 are
+proposed. Also, CSA official instructions document point to the OS/Docker images
+that should be used on the RPis. For compatibility reasons, we recommand
+compiling chip-tool and OTA Provider applications with the same commit id that
+was used for compiling the Lighting Application. Also, please note that there is
+a single controller (chip-tool) running on Computer #1 which is used for
+commissioning both the device and the OTA Provider Application. If needed,
 [these instructions](https://itsfoss.com/connect-wifi-terminal-ubuntu/) could be
 used for connecting the RPis to WiFi.
 

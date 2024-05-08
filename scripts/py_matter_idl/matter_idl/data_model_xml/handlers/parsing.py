@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional
 from xml.sax.xmlreader import AttributesImpl
 
-from matter_idl.generators.types import GetDataTypeSizeInBits, IsSignedDataType
+from matter_idl.generators.type_definitions import GetDataTypeSizeInBits, IsSignedDataType
 from matter_idl.matter_idl_types import AccessPrivilege, Attribute, Command, ConstantEntry, DataType, Event, EventPriority, Field
 
 LOGGER = logging.getLogger('data-model-xml-data-parsing')
@@ -92,10 +92,20 @@ def NormalizeDataType(t: str) -> str:
 
 # Handle oddities in current data model XML schema for nicer diffs
 _REF_NAME_MAPPING = {
-    "<<ref_DataTypeString>>": "char_string",
-    "<<ref_DataTypeOctstr>>": "octet_string",
-    "<<ref_DataTypeVendorId>>": "vendor_id",
     "<<ref_DataTypeEndpointNumber>>": "endpoint_no",
+    "<<ref_DataTypeEpochUs>>": "epoch_us",
+    "<<ref_DataTypeNodeId>>": "node_id",
+    "<<ref_DataTypeOctstr>>": "octet_string",
+    "<<ref_DataTypeString>>": "char_string",
+    "<<ref_DataTypeVendorId>>": "vendor_id",
+    "<<ref_FabricIdx>>": "fabric_idx",
+}
+
+
+# Handle odd casing and naming
+_CASE_RENAMES_MAPPING = {
+    "power_mW": "power_mw",
+    "energy_mWh": "energy_mwh"
 }
 
 
@@ -119,6 +129,9 @@ def ParseType(t: str) -> ParsedType:
 
     if t in _REF_NAME_MAPPING:
         t = _REF_NAME_MAPPING[t]
+
+    if t in _CASE_RENAMES_MAPPING:
+        t = _CASE_RENAMES_MAPPING[t]
 
     return ParsedType(name=NormalizeDataType(t), is_list=is_list)
 

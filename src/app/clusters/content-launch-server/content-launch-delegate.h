@@ -31,6 +31,7 @@ namespace Clusters {
 namespace ContentLauncher {
 
 using BrandingInformation = chip::app::Clusters::ContentLauncher::Structs::BrandingInformationStruct::Type;
+using PlaybackPreferences = chip::app::Clusters::ContentLauncher::Structs::PlaybackPreferencesStruct::DecodableType;
 using Parameter           = chip::app::Clusters::ContentLauncher::Structs::ParameterStruct::DecodableType;
 
 /** @brief
@@ -41,7 +42,8 @@ class Delegate
 public:
     virtual void HandleLaunchContent(CommandResponseHelper<Commands::LauncherResponse::Type> & helper,
                                      const DataModel::DecodableList<Parameter> & parameterList, bool autoplay,
-                                     const CharSpan & data) = 0;
+                                     const CharSpan & data, const Optional<PlaybackPreferences> playbackPreferences,
+                                     bool useCurrentContext) = 0;
 
     virtual void HandleLaunchUrl(CommandResponseHelper<Commands::LauncherResponse::Type> & helper, const CharSpan & contentUrl,
                                  const CharSpan & displayString, const BrandingInformation & brandingInformation) = 0;
@@ -51,7 +53,8 @@ public:
     virtual uint32_t HandleGetSupportedStreamingProtocols() = 0;
 
     bool HasFeature(chip::EndpointId endpoint, Feature feature);
-    virtual uint32_t GetFeatureMap(chip::EndpointId endpoint) = 0;
+    virtual uint32_t GetFeatureMap(chip::EndpointId endpoint)      = 0;
+    virtual uint16_t GetClusterRevision(chip::EndpointId endpoint) = 0;
 
     virtual ~Delegate() = default;
 };

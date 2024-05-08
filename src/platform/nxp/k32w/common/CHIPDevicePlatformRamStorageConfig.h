@@ -21,6 +21,8 @@
  *          Configuration of RAM storage metadata: key IDs and NVM IDs.
  */
 
+#pragma once
+
 /* Base key IDs used when creating new keys for RAM storage instances. */
 /**
  * @def kKeyId_Factory
@@ -111,9 +113,33 @@
  * KVS buffer can become quite big, so this PDM
  * id is used as base id for subsequent PDM ids
  * used to store data in chunks of PDM page size.
+ * This will use the extended search feature, so
+ * subsequent PDM ids should not be used.
  */
 #ifndef kNvmId_KvsValues
 #define kNvmId_KvsValues (uint16_t) 0x6001
+#endif
+
+/**
+ * @def kNvmId_KvsSubscription
+ *
+ * PDM ID used for KVS subscription RAM storage.
+ * It will store both keys and values for those keys.
+ */
+#ifndef kNvmId_KvsSubscription
+#define kNvmId_KvsSubscription (uint16_t) 0x6100
+#endif
+
+/**
+ * @def kNvmId_KvsGroups
+ *
+ * PDM ID used for KVS groups RAM storage.
+ * It will store both keys and values for those keys.
+ * This will use the extended search feature, so
+ * subsequent PDM ids should not be used.
+ */
+#ifndef kNvmId_KvsGroups
+#define kNvmId_KvsGroups (uint16_t) 0x6200
 #endif
 
 /**

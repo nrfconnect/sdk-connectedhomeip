@@ -352,7 +352,6 @@ void WiFiManager::ScanResultHandler(Platform::UniquePtr<uint8_t> data)
             Instance().mWiFiParams.mParams.timeout = Instance().mHandling.mConnectionTimeout.count();
             Instance().mWiFiParams.mParams.channel = WIFI_CHANNEL_ANY;
             Instance().mWiFiParams.mRssi           = scanResult->rssi;
-            Instance().mWiFiParams.mParams.band    = WIFI_FREQ_BAND_UNKNOWN;
             Instance().mSsidFound                  = true;
         }
     }

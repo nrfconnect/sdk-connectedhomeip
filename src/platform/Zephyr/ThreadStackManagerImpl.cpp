@@ -46,16 +46,24 @@ CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
 
     ReturnErrorOnFailure(GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(instance));
 
-    UDPEndPointImplSockets::SetMulticastGroupHandler([](InterfaceId, const IPAddress & address, bool join) {
+    UDPEndPointImplSockets::SetJoinMulticastGroupHandler([](InterfaceId, const IPAddress & address) {
         const otIp6Address otAddress = ToOpenThreadIP6Address(address);
-        const auto handler           = join ? otIp6SubscribeMulticastAddress : otIp6UnsubscribeMulticastAddress;
-        otError error;
 
         ThreadStackMgr().LockThreadStack();
-        error = handler(openthread_get_default_instance(), &otAddress);
+        const auto otError = otIp6SubscribeMulticastAddress(openthread_get_default_instance(), &otAddress);
         ThreadStackMgr().UnlockThreadStack();
 
-        return MapOpenThreadError(error);
+        return MapOpenThreadError(otError);
+    });
+
+    UDPEndPointImplSockets::SetLeaveMulticastGroupHandler([](InterfaceId, const IPAddress & address) {
+        const otIp6Address otAddress = ToOpenThreadIP6Address(address);
+
+        ThreadStackMgr().LockThreadStack();
+        const auto otError = otIp6UnsubscribeMulticastAddress(openthread_get_default_instance(), &otAddress);
+        ThreadStackMgr().UnlockThreadStack();
+
+        return MapOpenThreadError(otError);
     });
 
     return CHIP_NO_ERROR;

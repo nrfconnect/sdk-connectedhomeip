@@ -170,7 +170,8 @@ CHIP_ERROR IPv4Bind(int socket, const IPAddress & address, uint16_t port)
 } // anonymous namespace
 
 #if CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
-UDPEndPointImplSockets::MulticastGroupHandler UDPEndPointImplSockets::sMulticastGroupHandler;
+UDPEndPointImplSockets::MulticastGroupHandler UDPEndPointImplSockets::sJoinMulticastGroupHandler;
+UDPEndPointImplSockets::MulticastGroupHandler UDPEndPointImplSockets::sLeaveMulticastGroupHandler;
 #endif // CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
 
 CHIP_ERROR UDPEndPointImplSockets::BindImpl(IPAddressType addressType, const IPAddress & addr, uint16_t port, InterfaceId interface)
@@ -800,9 +801,10 @@ CHIP_ERROR UDPEndPointImplSockets::IPv4JoinLeaveMulticastGroupImpl(InterfaceId a
 CHIP_ERROR UDPEndPointImplSockets::IPv6JoinLeaveMulticastGroupImpl(InterfaceId aInterfaceId, const IPAddress & aAddress, bool join)
 {
 #if CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
-    if (sMulticastGroupHandler != nullptr)
+    MulticastGroupHandler handler = join ? sJoinMulticastGroupHandler : sLeaveMulticastGroupHandler;
+    if (handler != nullptr)
     {
-        return sMulticastGroupHandler(aInterfaceId, aAddress, join);
+        return handler(aInterfaceId, aAddress);
     }
 #endif // CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
 

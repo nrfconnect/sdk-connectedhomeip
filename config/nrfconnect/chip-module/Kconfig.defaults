@@ -304,9 +304,6 @@ config MBEDTLS_CTR_DRBG_C
 config MBEDTLS_CIPHER_MODE_CTR
     default y
 
-config MBEDTLS_SHA1_C
-    default y if CHIP_WIFI
-
 config MBEDTLS_SHA256_C
     default y
 

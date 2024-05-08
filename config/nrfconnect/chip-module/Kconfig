@@ -106,6 +106,7 @@ config CHIP_MALLOC_SYS_HEAP
 config CHIP_FACTORY_DATA
 	bool "Factory data provider"
 	select ZCBOR
+	imply FPROTECT
 	help
 	  Enables the default nRF Connect factory data provider implementation that
 	  supports reading the factory data encoded in the CBOR format from the
@@ -146,9 +147,9 @@ config CHIP_FACTORY_DATA_ROTATING_DEVICE_UID_MAX_LEN
 
 config CHIP_FACTORY_DATA_WRITE_PROTECT
 	bool "Enable Factory Data write protection"
-	select FPROTECT
+	imply FPROTECT
 	depends on CHIP_FACTORY_DATA
-	default y
+	default y if SOC_SERIES_NRF53X || SOC_SERIES_NRF52X
 	help
 		Enables the write protection of the Factory Data partition in the flash memory.
 		This is a recommended feature, but it requires the Settings partition size to be

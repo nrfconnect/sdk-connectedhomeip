@@ -406,16 +406,6 @@ private:
         return FinishCommand(/* aEndDataStruct = */ false);
     }
 
-    /**
-     * Check whether the InvokeRequest we are handling is targeted to a group.
-     */
-    bool IsGroupRequest() { return mGroupRequest; }
-
-    /**
-     * Sets the state flag to keep the information that request we are handling is targeted to a group.
-     */
-    void SetGroupRequest(bool isGroupRequest) { mGroupRequest = isGroupRequest; }
-
     Messaging::ExchangeHolder mExchangeCtx;
     Callback * mpCallback = nullptr;
     InvokeResponseMessage::Builder mInvokeResponseBuilder;
@@ -426,8 +416,7 @@ private:
 
     bool mSentStatusResponse = false;
 
-    State mState       = State::Idle;
-    bool mGroupRequest = false;
+    State mState = State::Idle;
     chip::System::PacketBufferTLVWriter mCommandMessageWriter;
     TLV::TLVWriter mBackupWriter;
     bool mBufferAllocated = false;

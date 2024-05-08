@@ -94,29 +94,6 @@ void initNetworkCommissioningThreadDriver(void)
 #endif
 }
 
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_DNS_CLIENT
-CHIP_ERROR ReadDomainNameComponent(const char *& in, char * out, size_t outSize)
-{
-    const char * dotPos = strchr(in, '.');
-    VerifyOrReturnError(dotPos != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-
-    const size_t componentSize = static_cast<size_t>(dotPos - in);
-    VerifyOrReturnError(componentSize < outSize, CHIP_ERROR_INVALID_ARGUMENT);
-
-    memcpy(out, in, componentSize);
-    out[componentSize] = '\0';
-    in += componentSize + 1;
-
-    return CHIP_NO_ERROR;
-}
-
-template <size_t N>
-CHIP_ERROR ReadDomainNameComponent(const char *& in, char (&out)[N])
-{
-    return ReadDomainNameComponent(in, out, N);
-}
-#endif
-
 NetworkCommissioning::otScanResponseIterator<NetworkCommissioning::ThreadScanResponse> mScanResponseIter;
 } // namespace
 
@@ -2363,8 +2340,29 @@ CHIP_ERROR GenericThreadStackManagerImpl_OpenThread<ImplClass>::FromOtDnsRespons
 {
     char protocol[chip::Dnssd::kDnssdProtocolTextMaxSize + 1];
 
-    ReturnErrorOnFailure(ReadDomainNameComponent(serviceType, mdnsService.mType));
-    ReturnErrorOnFailure(ReadDomainNameComponent(serviceType, protocol));
+    if (strchr(serviceType, '.') == nullptr)
+        return CHIP_ERROR_INVALID_ARGUMENT;
+
+    // Extract from the <type>.<protocol>.<domain-name>. the <type> part.
+    size_t substringSize = strchr(serviceType, '.') - serviceType;
+    if (substringSize >= ArraySize(mdnsService.mType))
+    {
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+    Platform::CopyString(mdnsService.mType, substringSize + 1, serviceType);
+
+    // Extract from the <type>.<protocol>.<domain-name>. the <protocol> part.
+    const char * protocolSubstringStart = serviceType + substringSize + 1;
+
+    if (strchr(protocolSubstringStart, '.') == nullptr)
+        return CHIP_ERROR_INVALID_ARGUMENT;
+
+    substringSize = strchr(protocolSubstringStart, '.') - protocolSubstringStart;
+    if (substringSize >= ArraySize(protocol))
+    {
+        return CHIP_ERROR_INVALID_ARGUMENT;
+    }
+    Platform::CopyString(protocol, substringSize + 1, protocolSubstringStart);
 
     if (strncmp(protocol, "_udp", chip::Dnssd::kDnssdProtocolTextMaxSize) == 0)
     {
@@ -2379,20 +2377,24 @@ CHIP_ERROR GenericThreadStackManagerImpl_OpenThread<ImplClass>::FromOtDnsRespons
         mdnsService.mProtocol = chip::Dnssd::DnssdServiceProtocol::kDnssdProtocolUnknown;
     }
 
-    mdnsService.mInterface     = Inet::InterfaceId::Null();
-    mdnsService.mSubTypeSize   = 0;
-    mdnsService.mTextEntrySize = 0;
-
     // Check if SRV record was included in DNS response.
-    // If not, return partial information about the service and exit early.
-    if (error != OT_ERROR_NONE)
+    if (error != OT_ERROR_NOT_FOUND)
     {
-        return CHIP_NO_ERROR;
+        if (strchr(serviceInfo.mHostNameBuffer, '.') == nullptr)
+            return CHIP_ERROR_INVALID_ARGUMENT;
+
+        // Extract from the <hostname>.<domain-name>. the <hostname> part.
+        substringSize = strchr(serviceInfo.mHostNameBuffer, '.') - serviceInfo.mHostNameBuffer;
+        if (substringSize >= ArraySize(mdnsService.mHostName))
+        {
+            return CHIP_ERROR_INVALID_ARGUMENT;
+        }
+        Platform::CopyString(mdnsService.mHostName, substringSize + 1, serviceInfo.mHostNameBuffer);
+
+        mdnsService.mPort = serviceInfo.mPort;
     }
 
-    const char * host = serviceInfo.mHostNameBuffer;
-    ReturnErrorOnFailure(ReadDomainNameComponent(host, mdnsService.mHostName));
-    mdnsService.mPort = serviceInfo.mPort;
+    mdnsService.mInterface = Inet::InterfaceId::Null();
 
     // Check if AAAA record was included in DNS response.
 

@@ -40,7 +40,8 @@
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA
 #define CHIP_CONFIG_SHA256_CONTEXT_SIZE sizeof(psa_hash_operation_t)
-#define CHIP_CONFIG_HKDF_KEY_HANDLE_CONTEXT_SIZE sizeof(psa_key_id_t)
+// Alignment to sizeof(PsaHkdfKeyHandle) from crypto/CHIPCryptoPALPSA.h.
+#define CHIP_CONFIG_HKDF_KEY_HANDLE_CONTEXT_SIZE (sizeof(psa_key_id_t) + sizeof(bool))
 #elif defined(CONFIG_CC3XX_BACKEND)
 // Size of the statically allocated context for SHA256 operations in CryptoPAL
 // determined empirically.

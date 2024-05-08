@@ -186,10 +186,18 @@ void PSASessionKeystore::DestroyKey(Symmetric128BitsKeyHandle & key)
 
 void PSASessionKeystore::DestroyKey(HkdfKeyHandle & key)
 {
-    auto & keyId = key.AsMutable<psa_key_id_t>();
+    auto & keyHandle = key.AsMutable<PsaHkdfKeyHandle>();
 
-    psa_destroy_key(keyId);
-    keyId = PSA_KEY_ID_NULL;
+    if (keyHandle.mIsKeyId)
+    {
+        psa_destroy_key(keyHandle.mKeyId);
+        keyHandle.mKeyId = 0;
+    }
+    else
+    {
+        Platform::Delete(keyHandle.mKeyDerivationOp);
+        keyHandle.mKeyDerivationOp = nullptr;
+    }
 }
 
 } // namespace Crypto

@@ -267,14 +267,15 @@ endif # CHIP_WIFI
 # ==============================================================================
 
 choice OPENTHREAD_SECURITY
-    default OPENTHREAD_NRF_SECURITY_PSA_CHOICE if CHIP_CRYPTO_PSA
-    default OPENTHREAD_NRF_SECURITY_CHOICE
-    
+    default OPENTHREAD_NRF_SECURITY_CHOICE if NET_L2_OPENTHREAD
 endchoice
 
 choice RNG_GENERATOR_CHOICE
     default XOROSHIRO_RANDOM_GENERATOR if SOC_SERIES_NRF53X
 endchoice
+
+config PSA_CRYPTO_DRIVER_CC3XX
+    default n
 
 config OBERON_BACKEND
     default y
@@ -284,38 +285,17 @@ config MBEDTLS_ENABLE_HEAP
 
 config MBEDTLS_HEAP_SIZE
     default 8192
-    
-# Enable PSA Crypto dependencies for Matter
-
-config CHIP_CRYPTO_PSA
-    default y if !CHIP_WIFI
-    imply PSA_WANT_ALG_SPAKE2P
-    # Set SPAKE2P to version 4 to be compatible with Matter specification.
-    imply PSA_CRYPTO_SPAKE2P_USE_VERSION_04
-
-if CHIP_CRYPTO_PSA
-
-config PSA_CRYPTO_DRIVER_CC3XX
-    default n
-
-config PSA_WANT_ALG_SHA_224
-    default n
-
-config PSA_WANT_ALG_SPAKE2P
-    default y
-
-# Extend the maximum number of PSA key slots to fit Matter requirements
-config MBEDTLS_PSA_KEY_SLOT_COUNT
-    default 64
-
-endif
-
-if !CHIP_CRYPTO_PSA
 
 config NRF_SECURITY_ADVANCED
     default y
 
 config MBEDTLS_AES_C
+    default y
+
+config MBEDTLS_ECP_C
+    default y
+
+config MBEDTLS_ECP_DP_SECP256R1_ENABLED
     default y
 
 config MBEDTLS_CTR_DRBG_C
@@ -337,18 +317,10 @@ config MBEDTLS_PK_WRITE_C
     default y
 
 config MBEDTLS_X509_CREATE_C
-    default y
+    default y if !CHIP_CRYPTO_PSA
 
 config MBEDTLS_X509_CSR_WRITE_C
-    default y
-
-config MBEDTLS_ECP_C
-    default y
-
-config MBEDTLS_ECP_DP_SECP256R1_ENABLED
-    default y
-
-endif
+    default y if !CHIP_CRYPTO_PSA
 
 config MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
     default n if CHIP_WIFI

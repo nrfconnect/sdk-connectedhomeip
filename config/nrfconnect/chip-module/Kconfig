@@ -107,10 +107,6 @@ config CHIP_FACTORY_DATA
 	bool "Factory data provider"
 	select ZCBOR
 	imply FPROTECT
-	imply MBEDTLS_X509_LIBRARY if CHIP_CRYPTO_PSA
-	imply MBEDTLS_X509_CRT_PARSE_C if CHIP_CRYPTO_PSA
-	imply MBEDTLS_PK_PARSE_C if CHIP_CRYPTO_PSA
-	imply MBEDTLS_TLS_LIBRARY if CHIP_CRYPTO_PSA
 	help
 	  Enables the default nRF Connect factory data provider implementation that
 	  supports reading the factory data encoded in the CBOR format from the

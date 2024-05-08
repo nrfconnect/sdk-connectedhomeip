@@ -189,7 +189,7 @@ CHIP_ERROR PSASpake2p_P256_SHA256_HKDF_HMAC::GetKeys(uint8_t * out, size_t * out
      * - use psa_pake_shared_secret() proposed in https://github.com/ARM-software/psa-api/issues/86
      * - refactor Matter's GetKeys API to take an abstract shared secret instead of raw secret bytes.
      */
-    oberon_spake2p_operation_t & oberonCtx = mOperation.MBEDTLS_PRIVATE(ctx).oberon_pake_ctx.ctx.oberon_spake2p_ctx;
+    oberon_spake2p_operation_t & oberonCtx = mOperation.MBEDTLS_PRIVATE(ctx).oberon_spake2p_ctx;
 
     VerifyOrReturnError((oberonCtx.hash_len / 2) <= *out_len, CHIP_ERROR_BUFFER_TOO_SMALL);
 

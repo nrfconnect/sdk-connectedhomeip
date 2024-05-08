@@ -152,7 +152,6 @@ private:
         kRestartAdvertising     = 0x0008,
         kEFRBLEStackInitialized = 0x0010,
         kDeviceNameSet          = 0x0020,
-        kExtAdvertisingEnabled  = 0x0040,
     };
 
     enum

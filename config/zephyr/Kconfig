@@ -520,22 +520,4 @@ config CHIP_OTA_IMAGE_EXTRA_ARGS
 
 endif
 
-config CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING
-	bool "BLE extended advertising (over 15 minutes)"
-	help
-	  Enable BLE extended advertising.
-	  If this config is true, 
-	  CHIP_DEVICE_CONFIG_DISCOVERY_TIMEOUT_SECS define can be set up to 172800 seconds (48h).
-
-config CHIP_DEVICE_CONFIG_DISCOVERY_TIMEOUT_MINUTES
-	int "BLE advertising duration"
-	range 15 2880  if CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING
-	range 0 15
-	default 15
-	help
-	  Specify how long the device will be in the commisioning mode in minutes.
-	  If CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING is set to false, the maximum
-	  commisioning time is 15 minutes, else the maximal commisioning time can
-	  be extended to 2880 minutes (48h).
-
 endif

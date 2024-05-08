@@ -107,6 +107,10 @@ config CHIP_FACTORY_DATA
 	bool "Factory data provider"
 	select ZCBOR
 	imply FPROTECT
+	imply MBEDTLS_X509_LIBRARY if CHIP_CRYPTO_PSA
+	imply MBEDTLS_X509_CRT_PARSE_C if CHIP_CRYPTO_PSA
+	imply MBEDTLS_PK_PARSE_C if CHIP_CRYPTO_PSA
+	imply MBEDTLS_TLS_LIBRARY if CHIP_CRYPTO_PSA
 	help
 	  Enables the default nRF Connect factory data provider implementation that
 	  supports reading the factory data encoded in the CBOR format from the
@@ -246,7 +250,6 @@ endif # CHIP_FACTORY_DATA_BUILD
 config CHIP_FACTORY_RESET_ERASE_NVS
 	bool
 	default y
-	depends on !CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
 config CHIP_LOG_SIZE_OPTIMIZATION
 	bool "Disable some detailed logs to decrease flash usage"
@@ -280,17 +283,5 @@ config CHIP_ENABLE_READ_CLIENT
 	  Enable support for Read Client in the Interaction Model.
 	  This config can be disabled for device types that do not require Read Client functionality.
 	  Disabling this config can save flash and RAM space.
-
-config CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
-	bool "Migrate DAC private key from factory data to PSA ITS"
-	depends on CHIP_CRYPTO_PSA
-	depends on CHIP_FACTORY_DATA
-	select EXPERIMENTAL
-	help
-	  Move DAC private key from the factory data set to the PSA ITS secure storage
-	  and remove it. After the first boot of the device the DAC private key will be moved
-	  to the PSA ITS secure storage and will not be available in the factory data anymore.
-	  It will be overwritten in the factory data set by zeros.
-	
 
 endif # CHIP

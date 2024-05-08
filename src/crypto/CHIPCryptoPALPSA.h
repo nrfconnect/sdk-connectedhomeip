@@ -62,8 +62,7 @@ enum class KeyIdBase : psa_key_id_t
 {
     Minimum     = CHIP_CONFIG_CRYPTO_PSA_KEY_ID_BASE,
     Operational = Minimum, ///< Base of the PSA key ID range for Node Operational Certificate private keys
-    DACPrivKey  = Operational + kMaxValidFabricIndex + 1,
-    Maximum     = DACPrivKey,
+    Maximum     = Operational + kMaxValidFabricIndex,
 };
 
 static_assert(to_underlying(KeyIdBase::Minimum) >= PSA_KEY_ID_USER_MIN && to_underlying(KeyIdBase::Maximum) <= PSA_KEY_ID_USER_MAX,

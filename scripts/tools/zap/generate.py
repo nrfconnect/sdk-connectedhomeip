@@ -30,10 +30,8 @@ from typing import Optional
 
 from zap_execution import ZapTool
 
-
 def isWindows():
     return platform.system() == "Windows"
-
 
 # fcntl is not supported on widows platform due to lack of necessity of I/O control on file descriptor
 if not isWindows():
@@ -344,6 +342,7 @@ class LockFileSerializer:
             return
         self.lock_file = open(self.lock_file_path, 'wb')
         fcntl.lockf(self.lock_file, fcntl.LOCK_EX)
+
 
     def __exit__(self, *args):
         # fcntl is not supported on widows platform due to lack of necessity of I/O control on file descriptor

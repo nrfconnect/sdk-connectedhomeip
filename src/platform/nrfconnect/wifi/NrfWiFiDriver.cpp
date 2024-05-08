@@ -122,13 +122,7 @@ void NrfWiFiDriver::OnNetworkStatusChanged(Status status)
 
     if (mpNetworkStatusChangeCallback)
     {
-        WiFiManager::WiFiInfo wifiInfo;
-
-        if (CHIP_NO_ERROR == WiFiManager::Instance().GetWiFiInfo(wifiInfo))
-        {
-            mpNetworkStatusChangeCallback->OnNetworkingStatusChange(status,
-                MakeOptional(ByteSpan(wifiInfo.mSsid, wifiInfo.mSsidLen)), NullOptional);
-        }
+        mpNetworkStatusChangeCallback->OnNetworkingStatusChange(status, NullOptional, NullOptional);
     }
 
     if (mpConnectCallback)

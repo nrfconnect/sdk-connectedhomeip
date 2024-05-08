@@ -565,28 +565,23 @@ protected:
 using Symmetric128BitsKeyByteArray = uint8_t[CHIP_CRYPTO_SYMMETRIC_KEY_LENGTH_BYTES];
 
 /**
- * @brief Platform-specific Symmetric key handle
+ * @brief Platform-specific AES key
  *
- * The class represents a key used by the Matter stack either in the form of raw key material or key
+ * The class represents AES key used by Matter stack either in the form of raw key material or key
  * reference, depending on the platform. To achieve that, it contains an opaque context that can be
  * cast to a concrete representation used by the given platform. Note that currently Matter uses
  * 128-bit symmetric keys only.
- *
- * @note Symmetric128BitsKeyHandle is an abstract class to force child classes for each key handle type.
- *       Symmetric128BitsKeyHandle class implements all the necessary components for handles.
- *       Child classes only need to implement a constructor, implement a destructor and delete all the copy operators.
  */
-class Symmetric128BitsKeyHandle
+class Aes128KeyHandle
 {
 public:
-    Symmetric128BitsKeyHandle() = default;
-    // Destructor is implemented in the .cpp. It is pure virtual only to force the class to be abstract.
-    virtual ~Symmetric128BitsKeyHandle() = 0;
+    Aes128KeyHandle() = default;
+    ~Aes128KeyHandle() { ClearSecretData(mContext.mOpaque); }
 
-    Symmetric128BitsKeyHandle(const Symmetric128BitsKeyHandle &) = delete;
-    Symmetric128BitsKeyHandle(Symmetric128BitsKeyHandle &&)      = delete;
-    void operator=(const Symmetric128BitsKeyHandle &)            = delete;
-    void operator=(Symmetric128BitsKeyHandle &&)                 = delete;
+    Aes128KeyHandle(const Aes128KeyHandle &) = delete;
+    Aes128KeyHandle(Aes128KeyHandle &&)      = delete;
+    void operator=(const Aes128KeyHandle &)  = delete;
+    void operator=(Aes128KeyHandle &&)       = delete;
 
     /**
      * @brief Get internal context cast to the desired key representation
@@ -613,36 +608,6 @@ private:
     {
         uint8_t mOpaque[kContextSize] = {};
     } mContext;
-};
-
-/**
- * @brief Platform-specific AES key handle
- */
-class Aes128BitsKeyHandle : public Symmetric128BitsKeyHandle
-{
-public:
-    Aes128BitsKeyHandle() = default;
-    virtual ~Aes128BitsKeyHandle() {}
-
-    Aes128BitsKeyHandle(const Aes128BitsKeyHandle &) = delete;
-    Aes128BitsKeyHandle(Aes128BitsKeyHandle &&)      = delete;
-    void operator=(const Aes128BitsKeyHandle &)      = delete;
-    void operator=(Aes128BitsKeyHandle &&)           = delete;
-};
-
-/**
- * @brief Platform-specific HMAC key handle
- */
-class Hmac128BitsKeyHandle : public Symmetric128BitsKeyHandle
-{
-public:
-    Hmac128BitsKeyHandle() = default;
-    virtual ~Hmac128BitsKeyHandle() {}
-
-    Hmac128BitsKeyHandle(const Hmac128BitsKeyHandle &) = delete;
-    Hmac128BitsKeyHandle(Hmac128BitsKeyHandle &&)      = delete;
-    void operator=(const Hmac128BitsKeyHandle &)       = delete;
-    void operator=(Hmac128BitsKeyHandle &&)            = delete;
 };
 
 /**
@@ -732,7 +697,7 @@ CHIP_ERROR ConvertIntegerRawToDerWithoutTag(const ByteSpan & raw_integer, Mutabl
  * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
  * */
 CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, const uint8_t * aad, size_t aad_length,
-                           const Aes128BitsKeyHandle & key, const uint8_t * nonce, size_t nonce_length, uint8_t * ciphertext,
+                           const Aes128KeyHandle & key, const uint8_t * nonce, size_t nonce_length, uint8_t * ciphertext,
                            uint8_t * tag, size_t tag_length);
 
 /**
@@ -756,7 +721,7 @@ CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, c
  * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
  **/
 CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length, const uint8_t * aad, size_t aad_length,
-                           const uint8_t * tag, size_t tag_length, const Aes128BitsKeyHandle & key, const uint8_t * nonce,
+                           const uint8_t * tag, size_t tag_length, const Aes128KeyHandle & key, const uint8_t * nonce,
                            size_t nonce_length, uint8_t * plaintext);
 
 /**
@@ -775,7 +740,7 @@ CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length,
  * @param output Buffer to write output into
  * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
  **/
-CHIP_ERROR AES_CTR_crypt(const uint8_t * input, size_t input_length, const Aes128BitsKeyHandle & key, const uint8_t * nonce,
+CHIP_ERROR AES_CTR_crypt(const uint8_t * input, size_t input_length, const Aes128KeyHandle & key, const uint8_t * nonce,
                          size_t nonce_length, uint8_t * output);
 
 /**

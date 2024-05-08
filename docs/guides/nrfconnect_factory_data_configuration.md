@@ -218,19 +218,14 @@ file written in another way. To make sure that the JSON file is correct and the
 device is able to read out parameters,
 [verify the file using the JSON schema tool](#verifying-using-the-json-schema-tool).
 
-You can also use only the first script to generate both JSON and HEX files, by providing
-optional `offset` and `size` arguments, which results in invoking the script internally.
-Such option is the recommended one, but invoking two scripts one by one is also supported
-to provide backward compatibility.
-
-### Creating the factory data JSON and HEX files with the first script
+### Creating the factory data JSON file with the first script
 
 A Matter device needs a proper factory data partition stored in the flash memory
 to read out all required parameters during startup. To simplify the factory data
 generation, you can use the
 [generate_nrfconnect_chip_factory_data.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
 Python script to provide all required parameters and generate a human-readable
-JSON file and save it to a HEX file.
+JSON file.
 
 To use this script, complete the following steps:
 
@@ -250,10 +245,10 @@ To use this script, complete the following steps:
     --sn --vendor_id, --product_id, --vendor_name, --product_name, --date, --hw_ver, --hw_ver_str, --spake2_it, --spake2_salt, --discriminator
     ```
 
-    b. Add output path to store .json file, e.g. my_dir/output:
+    b. Add output file path:
 
     ```
-    -o <path_to_output_file>
+    -o <path_to_output_json_file>
     ```
 
     c. Generate SPAKE2 verifier using one of the following methods:
@@ -346,26 +341,6 @@ To use this script, complete the following steps:
     > executable. See the note at the end of this section to learn how to get
     > it.
 
-    k. (optional) Partition offset that is an address in device's NVM memory, where factory data will be stored.
-
-    ```
-    --offset <offset>
-    ```
-
-    > **Note:** To generate a HEX file with factory data, you need to provide both `offset` and `size` optional arguments.
-    > As a result, `factory_data.hex` and `factory_data.bin` files are created in the `output` directory. The first file contains the required memory offset.
-    > For this reason, it can be programmed directly to the device using a programmer (for example, `nrfjprog`).
-
-    l. (optional) The maximum partition size in device's NVM memory, where factory data will be stored.
-
-    ```
-    --size <size>
-    ```
-
-    > **Note:** To generate a HEX file with factory data, you need to provide both `offset` and `size` optional arguments.
-    > As a result, `factory_data.hex` and `factory_data.bin` files are created in the `output` directory. The first file contains the required memory offset.
-    > For this reason, it can be programmed directly to the device using a programmer (for example, `nrfjprog`).
-
 4. Run the script using the prepared list of arguments:
 
     ```
@@ -395,10 +370,8 @@ $ python scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py \
 --passcode 20202021 \
 --product_finish "matte" \
 --product_color "black" \
---out "build" \
---schema "scripts/tools/nrfconnect/nrfconnect_factory_data.schema" \
---offset 0xf7000 \
---size 0x1000
+--out "build.json" \
+--schema "scripts/tools/nrfconnect/nrfconnect_factory_data.schema"
 ```
 
 As the result of the above example, a unique ID for the rotating device ID is
@@ -713,13 +686,10 @@ The output will look similar to the following one:
 ### Creating a factory data partition with the second script
 
 To store the factory data set in the device's persistent storage, convert the
-data from the JSON file to its binary representation in the CBOR format. This is
-done by the [generate_nrfconnect_chip_factory_data.py](../../scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py),
-if you provide optional `offset` and `size` arguments. If you provided these arguments, skip the following steps of this section.
-
-You can skip these optional arguments and do this, using the
+data from the JSON file to its binary representation in the CBOR format. To do
+this, use the
 [nrfconnect_generate_partition.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/nrfconnect_generate_partition.py)
-script, but this is obsolete solution kept only for backward compatibility:
+to generate the factory data partition:
 
 1. Navigate to the _connectedhomeip_ root directory
 2. Run the following command pattern:

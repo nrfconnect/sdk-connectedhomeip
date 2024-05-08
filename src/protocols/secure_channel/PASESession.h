@@ -27,9 +27,6 @@
 #pragma once
 
 #include <crypto/CHIPCryptoPAL.h>
-#if CHIP_CRYPTO_PSA_SPAKE2P
-#include <crypto/PSASpake2p.h>
-#endif
 #include <lib/support/Base64.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeDelegate.h>
@@ -213,8 +210,6 @@ private:
     // mNextExpectedMsg is set when we are expecting a message.
     Optional<Protocols::SecureChannel::MsgType> mNextExpectedMsg;
 
-#elif CHIP_CRYPTO_PSA_SPAKE2P
-    PSASpake2p_P256_SHA256_HKDF_HMAC mSpake2p;
     Spake2p_P256_SHA256_HKDF_HMAC mSpake2p;
 
     Spake2pVerifier mPASEVerifier;

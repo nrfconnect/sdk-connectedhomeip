@@ -19,7 +19,6 @@
 
 #include <crypto/CHIPCryptoPALPSA.h>
 #include <crypto/OperationalKeystore.h>
-#include <lib/core/CHIPPersistentStorageDelegate.h>
 
 namespace chip {
 namespace Crypto {
@@ -32,9 +31,7 @@ public:
     CHIP_ERROR NewOpKeypairForFabric(FabricIndex fabricIndex, MutableByteSpan & outCertificateSigningRequest) override;
     CHIP_ERROR ActivateOpKeypairForFabric(FabricIndex fabricIndex, const Crypto::P256PublicKey & nocPublicKey) override;
     CHIP_ERROR CommitOpKeypairForFabric(FabricIndex fabricIndex) override;
-    CHIP_ERROR ExportOpKeypairForFabric(FabricIndex fabricIndex, Crypto::P256SerializedKeypair & outKeypair) override;
     CHIP_ERROR RemoveOpKeypairForFabric(FabricIndex fabricIndex) override;
-    CHIP_ERROR MigrateOpKeypairForFabric(FabricIndex fabricIndex, OperationalKeystore & operationalKeystore) const;
     void RevertPendingKeypair() override;
     CHIP_ERROR SignWithOpKeypair(FabricIndex fabricIndex, const ByteSpan & message,
                                  Crypto::P256ECDSASignature & outSignature) const override;
@@ -56,7 +53,6 @@ protected:
         bool Exists() const;
         CHIP_ERROR Generate();
         CHIP_ERROR Destroy();
-        CHIP_ERROR Deserialize(P256SerializedKeypair & input);
     };
 
     void ReleasePendingKeypair();
@@ -64,7 +60,6 @@ protected:
     PersistentP256Keypair * mPendingKeypair = nullptr;
     FabricIndex mPendingFabricIndex         = kUndefinedFabricIndex;
     bool mIsPendingKeypairActive            = false;
-    PersistentStorageDelegate * mStorage    = nullptr;
 };
 
 } // namespace Crypto

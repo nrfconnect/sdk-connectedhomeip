@@ -210,7 +210,8 @@ CHIP_ERROR WiFiManager::Connect(const ByteSpan & ssid, const ByteSpan & credenti
 {
     ChipLogDetail(DeviceLayer, "Connecting to WiFi network: %*s", ssid.size(), ssid.data());
 
-    mHandling = handling;
+    mHandling.mOnConnectionDone  = handling.mOnConnectionDone;
+    mHandling.mConnectionTimeout = handling.mConnectionTimeout;
 
     mWiFiState = WIFI_STATE_ASSOCIATING;
 
@@ -341,22 +342,21 @@ void WiFiManager::ScanDoneHandler(Platform::UniquePtr<uint8_t> data)
 {
     CHIP_ERROR err = SystemLayer().ScheduleLambda([capturedData = data.get()] {
         Platform::UniquePtr<uint8_t> safePtr(capturedData);
-        uint8_t * rawData             = safePtr.get();
-        const wifi_status * status    = reinterpret_cast<const wifi_status *>(rawData);
-        ScanDoneStatus scanDoneStatus = status->status;
+        uint8_t * rawData          = safePtr.get();
+        const wifi_status * status = reinterpret_cast<const wifi_status *>(rawData);
 
-        if (scanDoneStatus)
+        if (status->status)
         {
-            ChipLogError(DeviceLayer, "Wi-Fi scan finalization failure (%d)", scanDoneStatus);
+            ChipLogError(DeviceLayer, "Wi-Fi scan finalization failure (%d)", status->status);
         }
         else
         {
-            ChipLogProgress(DeviceLayer, "Wi-Fi scan done");
+            ChipLogProgress(DeviceLayer, "Wi-Fi scan done (%d)", status->status);
         }
 
         if (Instance().mScanDoneCallback && !Instance().mInternalScan)
         {
-            Instance().mScanDoneCallback(scanDoneStatus);
+            Instance().mScanDoneCallback(*status);
             // restore the connection state from before the scan request was issued
             Instance().mWiFiState = Instance().mCachedWiFiState;
             return;
@@ -377,13 +377,13 @@ void WiFiManager::ScanDoneHandler(Platform::UniquePtr<uint8_t> data)
 
             Instance().mWiFiState = WIFI_STATE_ASSOCIATING;
 
-            if (net_mgmt(NET_REQUEST_WIFI_CONNECT, Instance().mNetIf, &(Instance().mWiFiParams.mParams),
-                         sizeof(wifi_connect_req_params)))
+            if (int connStatus = net_mgmt(NET_REQUEST_WIFI_CONNECT, Instance().mNetIf, &(Instance().mWiFiParams.mParams),
+                                          sizeof(wifi_connect_req_params)))
             {
                 ChipLogError(DeviceLayer, "Connection request failed");
                 if (Instance().mHandling.mOnConnectionDone)
                 {
-                    Instance().mHandling.mOnConnectionDone(WIFI_STATUS_CONN_FAIL);
+                    Instance().mHandling.mOnConnectionDone(connStatus);
                 }
                 Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
                 return;
@@ -420,17 +420,16 @@ void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
 {
     CHIP_ERROR err = SystemLayer().ScheduleLambda([capturedData = data.get()] {
         Platform::UniquePtr<uint8_t> safePtr(capturedData);
-        uint8_t * rawData           = safePtr.get();
-        const wifi_status * status  = reinterpret_cast<const wifi_status *>(rawData);
-        wifi_conn_status connStatus = status->conn_status;
+        uint8_t * rawData               = safePtr.get();
+        const wifi_status * status      = reinterpret_cast<const wifi_status *>(rawData);
 
-        if (connStatus)
+        if (status->status)
         {
             ChipLogProgress(DeviceLayer, "Connection to WiFi network failed or was terminated by another request");
             Instance().mWiFiState = WIFI_STATE_DISCONNECTED;
             if (Instance().mHandling.mOnConnectionDone)
             {
-                Instance().mHandling.mOnConnectionDone(connStatus);
+                Instance().mHandling.mOnConnectionDone(status->status);
             }
         }
         else // The connection has been established successfully.
@@ -444,7 +443,7 @@ void WiFiManager::ConnectHandler(Platform::UniquePtr<uint8_t> data)
             Instance().mWiFiState = WIFI_STATE_COMPLETED;
             if (Instance().mHandling.mOnConnectionDone)
             {
-                Instance().mHandling.mOnConnectionDone(connStatus);
+                Instance().mHandling.mOnConnectionDone(status->status);
             }
             Instance().PostConnectivityStatusChange(kConnectivity_Established);
 

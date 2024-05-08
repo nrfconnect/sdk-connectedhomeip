@@ -88,10 +88,9 @@ private:
 class WiFiManager
 {
 public:
-    using ScanDoneStatus     = decltype(wifi_status::status);
     using ScanResultCallback = void (*)(const NetworkCommissioning::WiFiScanResponse &);
-    using ScanDoneCallback   = void (*)(const ScanDoneStatus &);
-    using ConnectionCallback = void (*)(const wifi_conn_status &);
+    using ScanDoneCallback   = void (*)(const wifi_status &);
+    using ConnectionCallback = void (*)(int);
 
     enum class StationStatus : uint8_t
     {
@@ -175,7 +174,6 @@ public:
     CHIP_ERROR ClearStationProvisioningData();
     CHIP_ERROR Disconnect();
     CHIP_ERROR GetWiFiInfo(WiFiInfo & info) const;
-    const WiFiNetwork & GetWantedNetwork() const { return mWantedNetwork; }
     CHIP_ERROR GetNetworkStatistics(NetworkStatistics & stats) const;
     void AbortConnectionRecovery();
     CHIP_ERROR SetLowPowerMode(bool onoff);

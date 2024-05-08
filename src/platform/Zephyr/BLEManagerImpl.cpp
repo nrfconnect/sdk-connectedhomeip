@@ -43,8 +43,6 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/util.h>
 
-#include <zephyr/settings/settings.h>
-
 #include <array>
 
 using namespace ::chip;
@@ -108,13 +106,7 @@ bt_gatt_service sChipoBleService = BT_GATT_SERVICE(sChipoBleAttributes);
 // This value should be adjusted accordingly if the service declaration changes.
 constexpr int kCHIPoBLE_CCC_AttributeIndex = 3;
 
-#ifdef CONFIG_BT_BONDABLE
-constexpr uint8_t kMatterBleIdentity = 1;
-#else
-constexpr uint8_t kMatterBleIdentity = 0;
-#endif // CONFIG_BT_BONDABLE
-
-int InitRandomStaticAddress(bool idPresent, int & id)
+CHIP_ERROR InitRandomStaticAddress()
 {
     // Generate a random static address for the default identity.
     // This must be done before bt_enable() as after that updating the default identity is not possible.
@@ -129,29 +121,20 @@ int InitRandomStaticAddress(bool idPresent, int & id)
     if (error)
     {
         ChipLogError(DeviceLayer, "Failed to create BLE address: %d", error);
-        return error;
+        return System::MapErrorZephyr(error);
     }
 
-    if (!idPresent)
-    {
-        id = bt_id_create(&addr, nullptr);
-    }
-#if CONFIG_BT_ID_MAX == 2
-    else
-    {
-        id = bt_id_reset(1, &addr, nullptr);
-    }
-#endif // CONFIG_BT_BONDABLE
+    error = bt_id_create(&addr, nullptr);
 
-    if (id < 0)
+    if (error < 0)
     {
         ChipLogError(DeviceLayer, "Failed to create BLE identity: %d", error);
-        return id;
+        return System::MapErrorZephyr(error);
     }
 
     ChipLogProgress(DeviceLayer, "BLE address: %02X:%02X:%02X:%02X:%02X:%02X", addr.a.val[5], addr.a.val[4], addr.a.val[3],
                     addr.a.val[2], addr.a.val[1], addr.a.val[0]);
-    return 0;
+    return CHIP_NO_ERROR;
 }
 
 } // unnamed namespace
@@ -160,9 +143,6 @@ BLEManagerImpl BLEManagerImpl::sInstance;
 
 CHIP_ERROR BLEManagerImpl::_Init()
 {
-    int err = 0;
-    int id = 0;
-
     mServiceMode = ConnectivityManager::kCHIPoBLEServiceMode_Enabled;
     mFlags.ClearAll().Set(Flags::kAdvertisingEnabled, CHIP_DEVICE_CONFIG_CHIPOBLE_ENABLE_ADVERTISING_AUTOSTART);
     mFlags.Set(Flags::kFastAdvertisingEnabled, true);
@@ -171,30 +151,9 @@ CHIP_ERROR BLEManagerImpl::_Init()
 
     memset(mSubscribedConns, 0, sizeof(mSubscribedConns));
 
-#ifdef CONFIG_BT_BONDABLE
-    bt_addr_le_t idsAddr[CONFIG_BT_ID_MAX];
-    size_t idsCount = CONFIG_BT_ID_MAX;
-
-    err = bt_enable(nullptr);
-
+    ReturnErrorOnFailure(InitRandomStaticAddress());
+    int err = bt_enable(NULL);
     VerifyOrReturnError(err == 0, MapErrorZephyr(err));
-
-    settings_load();
-
-    bt_id_get(idsAddr, &idsCount);
-
-    err = InitRandomStaticAddress(idsCount > 1, id);
-
-    VerifyOrReturnError(err == 0 && id == kMatterBleIdentity, MapErrorZephyr(err));
-
-#else
-    err = InitRandomStaticAddress(false, id);
-    VerifyOrReturnError(err == 0 && id == kMatterBleIdentity, MapErrorZephyr(err));
-    err = bt_enable(nullptr);
-    VerifyOrReturnError(err == 0, MapErrorZephyr(err));
-#endif // CONFIG_BT_BONDABLE
-
-    BLEAdvertisingArbiter::Init(static_cast<uint8_t>(id));
 
     memset(&mConnCallbacks, 0, sizeof(mConnCallbacks));
     mConnCallbacks.connected    = HandleConnect;

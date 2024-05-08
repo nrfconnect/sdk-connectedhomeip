@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <system/SystemPacketBuffer.h>
+#include <platform/CHIPDeviceEvent.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 

@@ -84,13 +84,7 @@ void * Malloc(size_t size)
 {
     LockGuard lockGuard;
 
-    void * const mem = lockGuard.Locked() ? sys_heap_aligned_alloc(&sHeap, kMallocAlignment, size) : nullptr;
-
-#ifdef CONFIG_CHIP_MALLOC_SYS_HEAP_DEBUG
-    ChipLogProgress(DeviceLayer, "Malloc(%u) = %p, caller: %p", size, mem, __builtin_return_address(0));
-#endif
-
-    return mem;
+    return lockGuard.Locked() ? sys_heap_aligned_alloc(&sHeap, kMallocAlignment, size) : nullptr;
 }
 
 void * Calloc(size_t num, size_t size)
@@ -116,13 +110,7 @@ void * Realloc(void * mem, size_t size)
 {
     LockGuard lockGuard;
 
-    void * const new_mem = lockGuard.Locked() ? sys_heap_aligned_realloc(&sHeap, mem, kMallocAlignment, size) : nullptr;
-
-#ifdef CONFIG_CHIP_MALLOC_SYS_HEAP_DEBUG
-    ChipLogProgress(DeviceLayer, "Realloc(%p, %u) = %p, caller: %p", mem, size, new_mem, __builtin_return_address(0));
-#endif
-
-    return new_mem;
+    return lockGuard.Locked() ? sys_heap_aligned_realloc(&sHeap, mem, kMallocAlignment, size) : nullptr;
 }
 
 void Free(void * mem)
@@ -131,10 +119,6 @@ void Free(void * mem)
 
     VerifyOrReturn(lockGuard.Locked());
     sys_heap_free(&sHeap, mem);
-
-#ifdef CONFIG_CHIP_MALLOC_SYS_HEAP_DEBUG
-    ChipLogProgress(DeviceLayer, "Free(%p), caller: %p", mem, __builtin_return_address(0));
-#endif
 }
 
 #ifdef CONFIG_SYS_HEAP_RUNTIME_STATS

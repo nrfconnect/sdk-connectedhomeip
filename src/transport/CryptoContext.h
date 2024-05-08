@@ -84,7 +84,9 @@ public:
                                SessionRole role);
 
     /**
-     * @brief Derive session keys and the attestation challenge from the shared secret.
+     * @brief
+     *   Derive a shared key. The derived key will be used for encrypting/decrypting
+     *   data exchanged on the secure channel.
      *
      * @param keystore           Session keystore for management of symmetric encryption keys
      * @param secret             A reference to the shared secret
@@ -94,19 +96,6 @@ public:
      * @return CHIP_ERROR        The result of key derivation
      */
     CHIP_ERROR InitFromSecret(Crypto::SessionKeystore & keystore, const ByteSpan & secret, const ByteSpan & salt,
-                              SessionInfoType infoType, SessionRole role);
-
-    /**
-     * @brief Derive session keys and the attestation challenge from the HKDF key.
-     *
-     * @param keystore           Session keystore for management of symmetric encryption keys
-     * @param hkdfKey            HKDF key handle
-     * @param salt               A reference to the initial salt used for deriving the keys
-     * @param infoType           The info buffer to use for deriving session keys
-     * @param role               Role of the new session (initiator or responder)
-     * @return CHIP_ERROR        The result of key derivation
-     */
-    CHIP_ERROR InitFromSecret(Crypto::SessionKeystore & keystore, const Crypto::HkdfKeyHandle & hkdfKey, const ByteSpan & salt,
                               SessionInfoType infoType, SessionRole role);
 
     /** @brief Build a Nonce buffer using given parameters for encrypt or decrypt. */
@@ -168,8 +157,6 @@ public:
     bool IsResponder() const { return mKeyAvailable && mSessionRole == SessionRole::kResponder; }
 
 private:
-    CHIP_ERROR InitTestMode(Crypto::SessionKeystore & keystore, Crypto::Aes128KeyHandle & i2rKey, Crypto::Aes128KeyHandle & r2iKey);
-
     SessionRole mSessionRole;
 
     bool mKeyAvailable;

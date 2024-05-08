@@ -25,7 +25,6 @@
 #pragma once
 
 #include <lib/support/CHIPMem.h>
-#include <lib/support/CodeUtils.h>
 
 #include <type_traits>
 #include <utility>
@@ -85,11 +84,10 @@ protected:
     const void * Ptr() const { return mBuffer; }
 
     /**
-     * Releases the underlying buffer.
-     *
-     * The buffer stops being managed and will not be auto-freed.
+     * Releases the undelying buffer. Buffer stops being managed and will not be
+     * auto-freed.
      */
-    CHECK_RETURN_VALUE void * Release()
+    void * Release()
     {
         void * buffer = mBuffer;
         mBuffer       = nullptr;
@@ -141,18 +139,13 @@ public:
 
     static_assert(std::is_trivially_destructible<T>::value, "Destructors won't get run");
 
-    T * Get() { return static_cast<T *>(Base::Ptr()); }
-    T & operator[](size_t index) { return Get()[index]; }
+    inline T * Get() { return static_cast<T *>(Base::Ptr()); }
+    inline T & operator[](size_t index) { return Get()[index]; }
 
-    const T * Get() const { return static_cast<const T *>(Base::Ptr()); }
-    const T & operator[](size_t index) const { return Get()[index]; }
+    inline const T * Get() const { return static_cast<const T *>(Base::Ptr()); }
+    inline const T & operator[](size_t index) const { return Get()[index]; }
 
-    /**
-     * Releases the underlying buffer.
-     *
-     * The buffer stops being managed and will not be auto-freed.
-     */
-    CHECK_RETURN_VALUE T * Release() { return static_cast<T *>(Base::Release()); }
+    inline T * Release() { return static_cast<T *>(Base::Release()); }
 
     ScopedMemoryBuffer & Calloc(size_t elementCount)
     {
@@ -229,12 +222,7 @@ public:
         ScopedMemoryBuffer<T>::Free();
     }
 
-    /**
-     * Releases the underlying buffer.
-     *
-     * The buffer stops being managed and will not be auto-freed.
-     */
-    CHECK_RETURN_VALUE T * Release()
+    T * Release()
     {
         T * buffer = ScopedMemoryBuffer<T>::Release();
         mCount     = 0;

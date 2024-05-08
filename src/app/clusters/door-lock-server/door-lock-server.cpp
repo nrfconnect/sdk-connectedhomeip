@@ -211,7 +211,7 @@ void DoorLockServer::HandleLocalLockOperationError(chip::EndpointId endpointId, 
 
     HandleWrongCodeEntry(endpointId);
 
-    ChipLogProgress(Zcl, "Handling a local Lock Operation Error: [endpoint=%d]", endpointId);
+    ChipLogProgress(Zcl, "Handling a local Lock Operation Error: [endpoint=%d, user=%d]", endpointId, userId.Value());
 }
 
 bool DoorLockServer::HandleWrongCodeEntry(chip::EndpointId endpointId)

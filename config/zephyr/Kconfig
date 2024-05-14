@@ -16,8 +16,16 @@
 
 rsource "../common/cmake/Kconfig"
 
-# See config/common/cmake/Kconfig for full definition
-config CHIP
+# Workaround to pass the nRF compliance check
+config CHIP_NXP_PLATFORM
+	bool
+	help
+	  States that the configuration uses Matter NXP platform,
+	  what can be used to conditionally deviate from Zephyr generic configuration
+	  for NXP platform related purposes.
+
+menuconfig CHIP
+	bool "Matter protocol stack"
 	select CPP
 	imply REQUIRES_FULL_LIBCPP
 	imply REQUIRES_FULL_LIBC

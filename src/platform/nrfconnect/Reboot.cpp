@@ -21,14 +21,14 @@
 
 #include <zephyr/sys/reboot.h>
 
-#ifndef CONFIG_ARCH_POSIX
+#if !(defined(CONFIG_ARCH_POSIX) || defined(CONFIG_SOC_SERIES_NRF54HX))
 #include <hal/nrf_power.h>
 #endif
 
 namespace chip {
 namespace DeviceLayer {
 
-#ifdef CONFIG_ARCH_POSIX
+#if defined(CONFIG_ARCH_POSIX) || defined(CONFIG_SOC_SERIES_NRF54HX)
 
 void Reboot(SoftwareRebootReason reason)
 {

@@ -60,6 +60,7 @@ config CHIP_SPI_NOR
 	imply SPI_NOR
 	imply MULTITHREADING
 	imply PM_OVERRIDE_EXTERNAL_DRIVER_CHECK
+	imply MCUMGR_GRP_IMG_ALLOW_ERASE_PENDING
 	help
 	  Enables SPI NOR flash with a set of options for configuring pages and
 	  buffer sizes.

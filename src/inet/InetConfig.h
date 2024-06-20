@@ -273,6 +273,20 @@
 #endif // INET_CONFIG_UDP_SOCKET_PKTINFO
 
 /**
+ *  @def INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+ *
+ *  @brief
+ *    Defines whether (1) or not (0) to enable the ability to hint IPv6 Neighbor
+ *    Discovery module about a recent "forward progress" event, such as the reception
+ *    of an MRP ACK. This configuration may help reduce unnecessary ND traffic as per the
+ *    guidelines in RFC 4861 (section 7.3).
+ *
+ */
+#ifndef INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+#define INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION 0
+#endif // INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+
+/**
  *  @def HAVE_SO_BINDTODEVICE
  *
  *  @brief

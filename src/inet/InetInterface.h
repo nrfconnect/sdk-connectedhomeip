@@ -176,6 +176,25 @@ public:
      */
     static bool MatchLocalIPv6Subnet(const IPAddress & addr);
 
+#if INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+    /**
+     *  Provide a reachability hint for IPv6 Neighbor Discovery.
+     *
+     *  This function is intended for upper-layer protocols to inform the IPv6
+     *  Neighbor Discovery process about an active link to a specific neighbor.
+     *  By signaling a recent "forward progress" event, such as the reception of
+     *  an ACK, this function can help reduce unnecessary ND traffic as per the
+     *  guidelines in RFC 4861 (section 7.3).
+     *
+     *  @note
+     *    This function might be used by MRP to notify reachability of the neighbor.
+     *
+     *  @param[in]  addr  The IPv6 address of the peer.
+     *
+     */
+    void ConfirmPeerReachability(const IPAddress & addr) const;
+#endif // INET_CONFIG_ENABLE_IP_NEIGH_REACHABILITY_CONFIRMATION
+
     /**
      *  Get the link local IPv6 address.
      *

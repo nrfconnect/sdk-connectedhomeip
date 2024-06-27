@@ -146,19 +146,13 @@ config CHIP_NUS_MAX_COMMANDS
 
 endif
 
-
 config CHIP_DFU_OVER_BT_SMP
 	bool "Enable DFU over Bluetooth LE SMP feature set"
+	depends on !CHIP_BOOTLOADER_NONE
 	imply CHIP_QSPI_NOR if BOARD_NRF5340DK_NRF5340_CPUAPP || BOARD_NRF52840DK_NRF52840
 	imply CHIP_SPI_NOR if BOARD_NRF7002DK_NRF5340_CPUAPP || BOARD_NRF7002DK_NRF7001_NRF5340_CPUAPP || BOARD_NRF54L15PDK_NRF54L15_CPUAPP
-	imply BOOTLOADER_MCUBOOT
-	select MCUMGR
+	select CHIP_DFU_LIBRARY_MCUMGR
 	select MCUMGR_TRANSPORT_BT
-	select IMG_MANAGER
-	select STREAM_FLASH
-	select ZCBOR
-	select MCUMGR_GRP_IMG
-	select MCUMGR_GRP_OS
 	# Enable custom SMP request to erase settings partition.
 	select MCUMGR_GRP_ZBASIC
 	select MCUMGR_GRP_ZBASIC_STORAGE_ERASE
@@ -176,15 +170,12 @@ config MCUMGR_TRANSPORT_NETBUF_COUNT
 	default 6
 
 config MCUMGR_MGMT_NOTIFICATION_HOOKS
-	bool
 	default y
 
 config MCUMGR_GRP_IMG_UPLOAD_CHECK_HOOK
-	bool
 	default y
 
 config MCUMGR_SMP_COMMAND_STATUS_HOOKS
-	bool
 	default y
 
 # Increase BT MTU and RX buffer for big size DFU messages

@@ -46,15 +46,58 @@ config CHIP_NFC_COMMISSIONING
 	help
 	  Enables sharing the onboarding payload in the NFC tag.
 
+choice CHIP_BOOTLOADER
+	prompt "Bootloader implementation for Matter purposes"
+	default CHIP_BOOTLOADER_SUIT if SOC_SERIES_NRF54HX
+	default CHIP_BOOTLOADER_MCUBOOT if !BOARD_NRF21540DK
+	default CHIP_BOOTLOADER_NONE
+
+config CHIP_BOOTLOADER_SUIT
+	bool "SUIT for Matter purposes"
+	imply SUIT
+	imply SSF_SUIT_SERVICE_ENABLED
+	
+config CHIP_BOOTLOADER_MCUBOOT
+	bool "MCUBOOT for Matter Bootloader purpose"
+	imply BOOTLOADER_MCUBOOT
+	select IMG_MANAGER
+
+config CHIP_BOOTLOADER_NONE
+	bool "No bootloader selected for Matter purposes"
+
+endchoice
+
+config CHIP_DFU_LIBRARY_MCUMGR
+	bool "Use mcumgr library for Matter DFU purposes"
+	# MCUBOOT
+	select MCUMGR_GRP_IMG if CHIP_BOOTLOADER_MCUBOOT
+	select MCUMGR_GRP_OS if CHIP_BOOTLOADER_MCUBOOT
+	# SUIT
+	select MGMT_SUITFU if CHIP_BOOTLOADER_SUIT
+	select MGMT_SUITFU_GRP_SUIT if CHIP_BOOTLOADER_SUIT
+	select MCUMGR_SMP_LEGACY_RC_BEHAVIOUR if CHIP_BOOTLOADER_SUIT
+	# COMMON
+	select MCUMGR
+	imply STREAM_FLASH
+	imply STREAM_FLASH_ERASE
+
+config CHIP_DFU_LIBRARY_DFU_TARGET
+	bool "Use dfu target library for Matter DFU purposes"
+	# MCUBOOT
+	imply DFU_MULTI_IMAGE if CHIP_BOOTLOADER_MCUBOOT
+	# SUIT
+	imply DFU_TARGET_SUIT if CHIP_BOOTLOADER_SUIT
+	# COMMON
+	imply DFU_TARGET
+	imply STREAM_FLASH
+	imply STREAM_FLASH_ERASE
+	select ZCBOR
+	select ZCBOR_CANONICAL
+
 # See config/zephyr/Kconfig for full definition
 config CHIP_OTA_REQUESTOR
 	bool
-	imply DFU_MULTI_IMAGE
-	imply DFU_TARGET
-	imply BOOTLOADER_MCUBOOT
-	imply IMG_MANAGER
-	imply STREAM_FLASH
-	imply STREAM_FLASH_ERASE
+	select CHIP_DFU_LIBRARY_DFU_TARGET
 
 config CHIP_OTA_REQUESTOR_BUFFER_SIZE
 	int "OTA Requestor image buffer size"

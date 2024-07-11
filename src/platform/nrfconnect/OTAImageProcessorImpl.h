@@ -58,6 +58,10 @@ protected:
 private:
     bool mImageConfirmed = false;
     uint32_t mDfuSyncMutexId;
+
+#ifdef CONFIG_SUIT
+    bool mDfuTargetSuitInitialized = false;
+#endif
 };
 
 } // namespace DeviceLayer

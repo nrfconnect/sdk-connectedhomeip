@@ -6,7 +6,6 @@ import argparse
 import os
 import sys
 
-from pathlib import Path
 from textwrap import dedent
 
 from west import log
@@ -33,7 +32,7 @@ class ZapGenerate(WestCommand):
                                          description=self.description)
         parser.add_argument('-z', '--zap-file', type=existing_file_path,
                             help='Path to data model configuration file (*.zap)')
-        parser.add_argument('-o', '--output', type=Path,
+        parser.add_argument('-o', '--output', type=existing_dir_path,
                             help='Path where to store the generated files')
         parser.add_argument('-m', '--matter-path', type=existing_dir_path,
                             default=DEFAULT_MATTER_PATH, help='Path to Matter SDK')
@@ -49,7 +48,7 @@ class ZapGenerate(WestCommand):
             raise CommandError("No valid .zap file provided")
 
         if args.output:
-            output_path = args.output
+            output_path = args.output.absolute()
         else:
             output_path = zap_file_path.parent / "zap-generated"
 

@@ -225,25 +225,7 @@ function(nrfconnect_generate_factory_data)
       set_property(GLOBAL PROPERTY factory_data_PM_HEX_FILE ${OUTPUT_FILE_PATH}/factory_data.hex)
       set_property(GLOBAL PROPERTY factory_data_PM_TARGET factory_data)
     else()
-      add_custom_command(OUTPUT ${OUTPUT_FILE_PATH}/merged.hex
-                         COMMAND
-                         ${PYTHON_EXECUTABLE}
-                         ${ZEPHYR_BASE}/scripts/build/mergehex.py
-                         -o ${OUTPUT_FILE_PATH}/merged.hex
-                         ${OUTPUT_FILE_PATH}/factory_data.hex
-                         ${OUTPUT_FILE_PATH}/zephyr.hex
-                         DEPENDS
-                         ${DEFAULT_IMAGE}_extra_byproducts
-                         factory_data
-                         ${OUTPUT_FILE_PATH}/factory_data.hex
-                         ${OUTPUT_FILE_PATH}/zephyr.hex
-      )
-
-      # Wrapper target for the merge command.
-      add_custom_target(merged_hex
-                        ALL DEPENDS
-                        ${OUTPUT_FILE_PATH}/merged.hex
-      )
+      ncs_merge_file(FILES ${OUTPUT_FILE_PATH}/factory_data.hex DOMAIN cpuapp DEPENDENCIES factory_data)
     endif()
   endif()
 endfunction()

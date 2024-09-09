@@ -348,7 +348,6 @@ config CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 	bool "Migrate DAC private key from factory data to PSA ITS"
 	depends on CHIP_CRYPTO_PSA
 	depends on CHIP_FACTORY_DATA
-	select EXPERIMENTAL
 	help
 	  Move DAC private key from the factory data set to the PSA ITS secure storage
 	  and remove it. After the first boot of the device the DAC private key will be moved

@@ -1059,4 +1059,8 @@ void Server::ResumeSubscriptions()
 
 Credentials::IgnoreCertificateValidityPeriodPolicy Server::sDefaultCertValidityPolicy;
 
+void ServerScheduleFactoryReset()
+{
+    chip::Server::GetInstance().ScheduleFactoryReset();
+}
 } // namespace chip

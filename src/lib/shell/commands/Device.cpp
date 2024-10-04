@@ -22,12 +22,19 @@
 #include <platform/CHIPDeviceLayer.h>
 
 namespace chip {
+
+void ServerScheduleFactoryReset();
+
 namespace Shell {
 
 static CHIP_ERROR FactoryResetHandler(int argc, char ** argv)
 {
     streamer_printf(streamer_get(), "Performing factory reset ... \r\n");
+#if CHIP_CONFIG_TEST
     DeviceLayer::ConfigurationMgr().InitiateFactoryReset();
+#else
+    ServerScheduleFactoryReset();
+#endif // CHIP_TEST
     return CHIP_NO_ERROR;
 }
 

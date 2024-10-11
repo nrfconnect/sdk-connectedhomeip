@@ -37,10 +37,14 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 
-#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_NVS
-#include <zephyr/fs/nvs.h>
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 #include <zephyr/settings/settings.h>
-#endif
+#ifdef CONFIG_SETTINGS_NVS
+#include <zephyr/fs/nvs.h>
+#elif CONFIG_SETTINGS_ZMS
+#include <zephyr/fs/zms.h>
+#endif // CONFIG_SETTINGS_NVS || CONFIG_SETTINGS_ZMS
+#endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 
 #ifdef CONFIG_NET_L2_OPENTHREAD
 #include <platform/ThreadStackManager.h>
@@ -194,20 +198,24 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     ThreadStackMgr().LockThreadStack();
 #endif
 
-#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_NVS
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
     void * storage = nullptr;
     int status     = settings_storage_get(&storage);
 
     if (status == 0)
     {
+#ifdef CONFIG_SETTINGS_NVS
         status = nvs_clear(static_cast<nvs_fs *>(storage));
+#elif CONFIG_SETTINGS_ZMS
+        status = zms_clear(static_cast<zms_fs *>(storage));
+#endif // CONFIG_SETTINGS_NVS || CONFIG_SETTINGS_ZMS
     }
-
     if (status)
     {
         ChipLogError(DeviceLayer, "Factory reset failed: %d", status);
     }
 #else
+
     const CHIP_ERROR err = PersistedStorage::KeyValueStoreMgrImpl().DoFactoryReset();
 
     if (err != CHIP_NO_ERROR)
@@ -216,7 +224,7 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     }
 
     ConnectivityMgr().ErasePersistentInfo();
-#endif
+#endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 
     PlatformMgr().Shutdown();
 }

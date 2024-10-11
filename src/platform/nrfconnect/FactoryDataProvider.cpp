@@ -160,6 +160,10 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
         }
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
+#error "Do not use both CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS and CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY kconfig options " \
+       "because you will permanently lose the DAC private key from the device."
+#endif
         // Check once again if the saved key has attributes set before removing it from the factory data set.
         VerifyOrReturnError(psa_get_key_attributes(mDACPrivKeyId, &attributes) == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
 

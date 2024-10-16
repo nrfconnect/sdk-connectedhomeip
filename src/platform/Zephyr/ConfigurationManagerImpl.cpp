@@ -39,9 +39,9 @@
 
 #ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 #include <zephyr/settings/settings.h>
-#ifdef CONFIG_SETTINGS_NVS
+#if defined(CONFIG_SETTINGS_NVS)
 #include <zephyr/fs/nvs.h>
-#elif CONFIG_SETTINGS_ZMS
+#elif defined(CONFIG_SETTINGS_ZMS)
 #include <zephyr/fs/zms.h>
 #endif // CONFIG_SETTINGS_NVS || CONFIG_SETTINGS_ZMS
 #endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
@@ -204,9 +204,9 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 
     if (status == 0)
     {
-#ifdef CONFIG_SETTINGS_NVS
+#if defined(CONFIG_SETTINGS_NVS)
         status = nvs_clear(static_cast<nvs_fs *>(storage));
-#elif CONFIG_SETTINGS_ZMS
+#elif defined(CONFIG_SETTINGS_ZMS)
         status = zms_clear(static_cast<zms_fs *>(storage));
 #endif // CONFIG_SETTINGS_NVS || CONFIG_SETTINGS_ZMS
     }

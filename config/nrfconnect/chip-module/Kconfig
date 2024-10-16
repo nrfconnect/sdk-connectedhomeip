@@ -95,10 +95,12 @@ config CHIP_DFU_LIBRARY_MCUMGR
 
 config CHIP_DFU_LIBRARY_DFU_TARGET
 	bool "Use dfu target library for Matter DFU purposes"
-	# MCUBOOT
-	imply DFU_MULTI_IMAGE if CHIP_BOOTLOADER_MCUBOOT
+	imply DFU_MULTI_IMAGE
 	# SUIT
 	imply DFU_TARGET_SUIT if CHIP_BOOTLOADER_SUIT
+	# Initialize SUIT dfu by dfu target if not using mcumgr.
+	# If using mcumgr, SUIT dfu is initialized by mcumgr.
+	imply DFU_TARGET_SUIT_INITIALIZE_SUIT if (!CHIP_DFU_LIBRARY_MCUMGR && CHIP_BOOTLOADER_SUIT)
 	# COMMON
 	imply DFU_TARGET
 	imply STREAM_FLASH

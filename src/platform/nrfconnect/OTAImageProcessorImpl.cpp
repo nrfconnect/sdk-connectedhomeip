@@ -35,13 +35,13 @@
 
 #include <dfu/dfu_target.h>
 
-#ifdef CONFIG_SUIT
+#ifdef CONFIG_DFU_TARGET_SUIT
 #include <dfu/dfu_target_suit.h>
 #else
-#include <dfu/dfu_multi_image.h>
 #include <dfu/dfu_target_mcuboot.h>
 #include <zephyr/dfu/mcuboot.h>
 #endif
+#include <dfu/dfu_multi_image.h>
 
 #include <zephyr/logging/log.h>
 #include <zephyr/pm/device.h>
@@ -96,21 +96,28 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
 {
     mHeaderParser.Init();
     mParams = {};
-#ifndef CONFIG_SUIT
+#ifdef CONFIG_DFU_TARGET_SUIT
+    ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_suit_set_buf(mBuffer, sizeof(mBuffer))));
+#else
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_mcuboot_set_buf(mBuffer, sizeof(mBuffer))));
+#endif // CONFIG_DFU_TARGET_SUIT
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_multi_image_init(mBuffer, sizeof(mBuffer))));
 
     for (int image_id = 0; image_id < CONFIG_UPDATEABLE_IMAGE_NUMBER; ++image_id)
     {
         dfu_image_writer writer;
         writer.image_id = image_id;
-        writer.open     = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, id, size, nullptr); };
-        writer.write    = [](const uint8_t * chunk, size_t chunk_size) { return dfu_target_write(chunk, chunk_size); };
-        writer.close    = [](bool success) { return success ? dfu_target_done(success) : dfu_target_reset(); };
+
+#ifdef CONFIG_DFU_TARGET_SUIT
+        writer.open = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_SUIT, id, size, nullptr); };
+#else
+        writer.open = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, id, size, nullptr); };
+#endif
+        writer.write = [](const uint8_t * chunk, size_t chunk_size) { return dfu_target_write(chunk, chunk_size); };
+        writer.close = [](bool success) { return success ? dfu_target_done(success) : dfu_target_reset(); };
 
         ReturnErrorOnFailure(System::MapErrorZephyr(dfu_multi_image_register_writer(&writer)));
     };
-#endif
 
 #ifdef CONFIG_CHIP_CERTIFICATION_DECLARATION_STORAGE
     dfu_image_writer cdWriter;
@@ -137,24 +144,14 @@ CHIP_ERROR OTAImageProcessorImpl::Finalize()
     PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadComplete);
     DFUSync::GetInstance().Free(mDfuSyncMutexId);
 
-#ifdef CONFIG_SUIT
-    mDfuTargetSuitInitialized = false;
-    return System::MapErrorZephyr(dfu_target_done(true));
-#else
     return System::MapErrorZephyr(dfu_multi_image_done(true));
-#endif
 }
 
 CHIP_ERROR OTAImageProcessorImpl::Abort()
 {
     CHIP_ERROR error;
 
-#ifdef CONFIG_SUIT
-    error                     = System::MapErrorZephyr(dfu_target_reset());
-    mDfuTargetSuitInitialized = false;
-#else
     error = System::MapErrorZephyr(dfu_multi_image_done(false));
-#endif
 
     DFUSync::GetInstance().Free(mDfuSyncMutexId);
     TriggerFlashAction(ExternalFlashManager::Action::SLEEP);
@@ -166,10 +163,6 @@ CHIP_ERROR OTAImageProcessorImpl::Abort()
 CHIP_ERROR OTAImageProcessorImpl::Apply()
 {
     PostOTAStateChangeEvent(DeviceLayer::kOtaApplyInProgress);
-
-#ifdef CONFIG_SUIT
-    mDfuTargetSuitInitialized = false;
-#endif
 
     // Schedule update of all images
     int err = dfu_target_schedule_update(-1);
@@ -204,16 +197,6 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
 
     CHIP_ERROR error = ProcessHeader(aBlock);
 
-#ifdef CONFIG_SUIT
-    if (!mDfuTargetSuitInitialized && error == CHIP_NO_ERROR)
-    {
-        ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_suit_set_buf(mBuffer, sizeof(mBuffer))));
-        ReturnErrorOnFailure(System::MapErrorZephyr(
-            dfu_target_init(DFU_TARGET_IMAGE_TYPE_SUIT, 0, static_cast<size_t>(mParams.totalFileBytes), nullptr)));
-        mDfuTargetSuitInitialized = true;
-    }
-#endif
-
     if (error == CHIP_NO_ERROR)
     {
         // DFU target library buffers data internally, so do not clone the block data.
@@ -223,12 +206,8 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
         }
         else
         {
-#ifdef CONFIG_SUIT
-            int err = dfu_target_write(aBlock.data(), aBlock.size());
-#else
             int err = dfu_multi_image_write(static_cast<size_t>(mParams.downloadedBytes), aBlock.data(), aBlock.size());
             mParams.downloadedBytes += aBlock.size();
-#endif
             error = System::MapErrorZephyr(err);
         }
     }

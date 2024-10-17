@@ -42,6 +42,10 @@
 #include <psa/crypto.h>
 #endif
 
+#if CONFIG_SOC_NRF5340_CPUAPP
+    #include <hal/nrf_reset.h>
+#endif
+
 #define DEFAULT_MIN_SLEEP_PERIOD (60 * 60 * 24 * 30) // Month [sec]
 
 namespace chip {
@@ -124,6 +128,10 @@ template <class ImplClass>
 void GenericPlatformManagerImpl_Zephyr<ImplClass>::_Shutdown(void)
 {
 #ifdef CONFIG_REBOOT
+    // Reset the network core first to avoid a hard fault because of the communication broken between cores.
+    #if CONFIG_SOC_NRF5340_CPUAPP
+    nrf_reset_network_force_off(NRF_RESET, false);
+    #endif
     sys_reboot(SYS_REBOOT_WARM);
 #else
     // NB: When this is implemented, |mInitialized| can be removed.

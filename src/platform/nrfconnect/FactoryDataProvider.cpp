@@ -174,15 +174,16 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
 #else
             psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_VOLATILE);
 #endif // CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+            VerifyOrReturnError(psa_import_key(&attributes, reinterpret_cast<uint8_t *>(mFactoryData.dac_priv_key.data),
+                                               mFactoryData.dac_priv_key.len, &mDACPrivKeyId) == PSA_SUCCESS,
+                                CHIP_ERROR_INTERNAL);
         }
-        VerifyOrReturnError(psa_import_key(&attributes, reinterpret_cast<uint8_t *>(mFactoryData.dac_priv_key.data),
-                                           mFactoryData.dac_priv_key.len, &mDACPrivKeyId) == PSA_SUCCESS,
-                            CHIP_ERROR_INTERNAL);
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
-#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
+#if defined(CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_ITS) &&                       \
+    !defined(CONFIG_BUILD_WITH_TFM)
 #error "Do not use both CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS and CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY kconfig options " \
-       "because you will permanently lose the DAC private key from the device."
+       "while saving the DAC private key to ITS because you will permanently lose the DAC private key from the device."
 #endif
         // Check once again if the saved key has attributes set before removing it from the factory data set.
         VerifyOrReturnError(psa_get_key_attributes(mDACPrivKeyId, &attributes) == PSA_SUCCESS, CHIP_ERROR_INTERNAL);

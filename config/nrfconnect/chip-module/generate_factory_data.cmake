@@ -141,6 +141,17 @@ else()
     endif()
     dt_reg_addr(factory_data_addr PATH ${factory_data_alias})
     dt_reg_size(factory_data_size PATH ${factory_data_alias})
+
+    # If the location of the factory data is defined as an alias,
+    # add the base address to the factory data offset
+    # to get the proper offset calculated from the base memory location.
+    dt_alias(factory_data_location PROPERTY "factory-data-location")
+    if(factory_data_location)
+        dt_node_exists(factory_data_location_exists PATH "${factory_data_location}")
+        dt_reg_addr(flash_base_addr PATH ${factory_data_location})
+        math(EXPR factory_data_addr "${flash_base_addr} + ${factory_data_addr}" OUTPUT_FORMAT HEXADECIMAL)
+    endif()
+            
     string(APPEND script_args "--offset ${factory_data_addr}\n")
     string(APPEND script_args "--size ${factory_data_size}\n")     
 endif()
@@ -194,7 +205,11 @@ if(CONFIG_CHIP_FACTORY_DATA_MERGE_WITH_FIRMWARE)
         set_property(GLOBAL PROPERTY factory_data_PM_TARGET factory_data)
     else()
         set_property(GLOBAL APPEND PROPERTY HEX_FILES_TO_MERGE ${OUTPUT_FILE_PATH}/factory_data.hex ${OUTPUT_FILE_PATH}/zephyr.hex)
-        set_property(TARGET runners_yaml_props_target PROPERTY hex_file ${OUTPUT_FILE_PATH}/merged.hex)
+        if(NOT CONFIG_SOC_SERIES_NRF54HX)
+            # Do not overwrite runners while using nRF54H series.
+            # In this case we need to rely on SUIT mechanisms.
+            set_property(TARGET runners_yaml_props_target PROPERTY hex_file ${OUTPUT_FILE_PATH}/merged.hex)
+        endif()
     endif()
 endif()
 

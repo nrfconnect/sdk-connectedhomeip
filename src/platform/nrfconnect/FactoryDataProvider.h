@@ -36,7 +36,12 @@
 #else
 #include <zephyr/storage/flash_map.h>
 #define FACTORY_DATA_SIZE DT_REG_SIZE(DT_ALIAS(factory_data))
+#define FACTORY_DATA_LOCATION_ADDRESS DT_REG_ADDR(DT_ALIAS(factory_data_location))
+#if FACTORY_DATA_LOCATION_ADDRESS
+#define FACTORY_DATA_ADDRESS (DT_REG_ADDR(DT_ALIAS(factory_data)) + FACTORY_DATA_LOCATION_ADDRESS)
+#else
 #define FACTORY_DATA_ADDRESS DT_REG_ADDR(DT_ALIAS(factory_data))
+#endif // if FACTORY_DATA_LOCATION_ADDRESS
 #endif // if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1
 
 #include <system/SystemError.h>

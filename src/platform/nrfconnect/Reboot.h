@@ -30,6 +30,7 @@ enum class SoftwareRebootReason : uint8_t
 
 [[noreturn]] void Reboot(SoftwareRebootReason reason);
 SoftwareRebootReason GetSoftwareRebootReason();
+void SetSoftwareRebootReason(SoftwareRebootReason reason);
 
 } // namespace DeviceLayer
 } // namespace chip

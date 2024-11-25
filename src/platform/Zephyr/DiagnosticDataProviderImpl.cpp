@@ -52,6 +52,11 @@ const size_t kMaxHeapSize = CONFIG_SRAM_BASE_ADDRESS + KB(CONFIG_SRAM_SIZE) - PO
 
 #endif
 
+#ifdef CONFIG_SOC_SERIES_NRF54HX
+#include <hal/nrf_resetinfo.h>
+#include <platform/SaveBootReasonDFUSuit.h>
+#endif
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -59,9 +64,54 @@ namespace {
 
 BootReasonType DetermineBootReason()
 {
-#ifdef CONFIG_HWINFO
-    uint32_t reason;
 
+#if defined(CONFIG_SOC_SERIES_NRF54HX) || defined(CONFIG_HWINFO)
+    uint32_t reason;
+#endif
+
+#ifdef CONFIG_SOC_SERIES_NRF54HX
+
+    bool isSoftwareBootReasonSUITInitialized = false;
+    if (!isSoftwareBootReasonSUITInitialized)
+    {
+        setSoftwareRebootReasonSUIT(0);
+        isSoftwareBootReasonSUITInitialized = true;
+    }
+
+    reason = nrf_resetinfo_resetreas_global_get(NRF_RESETINFO);
+
+    if (reason == RESETINFO_RESETREAS_GLOBAL_ResetValue)
+    {
+        return BootReasonType::kSoftwareReset;
+    }
+
+    if (reason & RESETINFO_RESETREAS_GLOBAL_RESETPORONLY_Msk)
+    {
+        return BootReasonType::kBrownOutReset;
+    }
+
+    if (reason & RESETINFO_RESETREAS_GLOBAL_DOG_Msk)
+    {
+        return BootReasonType::kHardwareWatchdogReset;
+    }
+
+    if ((reason & (RESETINFO_RESETREAS_GLOBAL_RESETPIN_Msk | RESETINFO_RESETREAS_GLOBAL_RESETPOR_Msk)) ==
+        (RESETINFO_RESETREAS_GLOBAL_RESETPIN_Msk | RESETINFO_RESETREAS_GLOBAL_RESETPOR_Msk))
+    {
+        return BootReasonType::kPowerOnReboot;
+    }
+
+    if ((reason & (RESETINFO_RESETREAS_GLOBAL_RESETPOR_Msk | RESETINFO_RESETREAS_GLOBAL_SECSREQ_Msk)) ==
+        (RESETINFO_RESETREAS_GLOBAL_RESETPOR_Msk | RESETINFO_RESETREAS_GLOBAL_SECSREQ_Msk))
+    {
+        if (GetSoftwareRebootReason() == SoftwareRebootReason::kSoftwareUpdate)
+        {
+            return BootReasonType::kSoftwareUpdateCompleted;
+        }
+    }
+#endif
+
+#ifdef CONFIG_HWINFO
     if (hwinfo_get_reset_cause(&reason) != 0)
     {
         return BootReasonType::kUnspecified;

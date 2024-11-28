@@ -166,9 +166,8 @@ config CHIP_DFU_OVER_BT_SMP
 if CHIP_DFU_OVER_BT_SMP
 
 # MCU Manager and SMP configuration
-choice MCUMGR_TRANSPORT_BT_PERM
-	default MCUMGR_TRANSPORT_BT_PERM_RW
-endchoice
+config MCUMGR_TRANSPORT_BT_AUTHEN
+	default n
 
 config MCUMGR_TRANSPORT_NETBUF_COUNT
 	default 6

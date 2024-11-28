@@ -375,28 +375,9 @@ public:
      */
     virtual CHIP_ERROR UpdateCommissionableInstanceName() = 0;
 
-    /**
-     * Returns the system-wide implementation of the service advertiser.
-     *
-     * The method returns a reference to the advertiser object configured by
-     * a user using the \c ServiceAdvertiser::SetInstance() method, or the
-     * default advertiser returned by the \c GetDefaultAdvertiser() function.
-     */
+    /// Provides the system-wide implementation of the service advertiser
     static ServiceAdvertiser & Instance();
-
-    /**
-     * Sets the system-wide implementation of the service advertiser.
-     */
-    static void SetInstance(ServiceAdvertiser & advertiser);
-
-private:
-    static ServiceAdvertiser * sInstance;
 };
-
-/**
- * Returns the default implementation of the service advertiser.
- */
-extern ServiceAdvertiser & GetDefaultAdvertiser();
 
 } // namespace Dnssd
 } // namespace chip

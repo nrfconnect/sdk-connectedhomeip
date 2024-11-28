@@ -24,9 +24,8 @@ namespace chip {
 namespace DeviceLayer {
 namespace InetUtils {
 
-in6_addr ToZephyrAddr(const Inet::IPAddress & address);
-net_if * GetInterface(Inet::InterfaceId ifaceId = Inet::InterfaceId::Null());
-net_if * GetWiFiInterface();
+in6_addr ToZephyrAddr(const chip::Inet::IPAddress & address);
+net_if * GetInterface(chip::Inet::InterfaceId ifaceId = chip::Inet::InterfaceId::Null());
 
 } // namespace InetUtils
 } // namespace DeviceLayer

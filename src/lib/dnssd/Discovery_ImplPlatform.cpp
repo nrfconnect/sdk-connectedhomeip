@@ -769,19 +769,15 @@ DiscoveryImplPlatform & DiscoveryImplPlatform::GetInstance()
     return sManager.get();
 }
 
-#if CHIP_DNSSD_DEFAULT_PLATFORM
-
-ServiceAdvertiser & GetDefaultAdvertiser()
+ServiceAdvertiser & chip::Dnssd::ServiceAdvertiser::Instance()
 {
     return DiscoveryImplPlatform::GetInstance();
 }
 
-Resolver & GetDefaultResolver()
+Resolver & chip::Dnssd::Resolver::Instance()
 {
     return DiscoveryImplPlatform::GetInstance();
 }
-
-#endif // CHIP_DNSSD_DEFAULT_PLATFORM
 
 } // namespace Dnssd
 } // namespace chip

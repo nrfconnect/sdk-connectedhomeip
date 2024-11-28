@@ -59,14 +59,10 @@ NoneResolver gResolver;
 
 } // namespace
 
-#if CHIP_DNSSD_DEFAULT_NONE
-
-Resolver & GetDefaultResolver()
+Resolver & chip::Dnssd::Resolver::Instance()
 {
     return gResolver;
 }
-
-#endif // CHIP_DNSSD_DEFAULT_NONE
 
 } // namespace Dnssd
 } // namespace chip

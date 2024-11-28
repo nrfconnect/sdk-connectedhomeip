@@ -77,14 +77,10 @@ NoneAdvertiser gAdvertiser;
 
 } // namespace
 
-#if CHIP_DNSSD_DEFAULT_NONE
-
-ServiceAdvertiser & GetDefaultAdvertiser()
+ServiceAdvertiser & ServiceAdvertiser::Instance()
 {
     return gAdvertiser;
 }
-
-#endif // CHIP_DNSSD_DEFAULT_NONE
 
 } // namespace Dnssd
 } // namespace chip

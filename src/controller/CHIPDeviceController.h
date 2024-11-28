@@ -46,6 +46,7 @@
 #include <credentials/FabricTable.h>
 #include <credentials/attestation_verifier/DeviceAttestationDelegate.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
+#include <crypto/CHIPCryptoPAL.h>
 #include <inet/InetInterface.h>
 #include <lib/core/CHIPConfig.h>
 #include <lib/core/CHIPCore.h>
@@ -71,15 +72,13 @@
 #endif
 
 #if CONFIG_NETWORK_LAYER_BLE
-#include <ble/BleLayer.h>
+#include <ble/Ble.h>
 #endif
 #include <controller/DeviceDiscoveryDelegate.h>
 
 namespace chip {
 
 namespace Controller {
-
-using namespace chip::Protocols::UserDirectedCommissioning;
 
 inline constexpr uint16_t kNumMaxActiveDevices = CHIP_CONFIG_CONTROLLER_MAX_ACTIVE_DEVICES;
 
@@ -127,14 +126,33 @@ struct ControllerInitParams
 
     /**
      * Controls whether shutdown of the controller removes the corresponding
-     * entry from the fabric table.  For now the removal is just from the
-     * in-memory table, not from storage, which means that after controller
-     * shutdown the storage and the in-memory fabric table will be out of sync.
-     * This is acceptable for implementations that don't actually store any of
-     * the fabric table information, but if someone wants a true removal at some
-     * point another option will need to be added here.
+     * entry from the in-memory fabric table, but NOT from storage.
+     *
+     * Note that this means that after controller shutdown the storage and
+     * in-memory versions of the fabric table will be out of sync.
+     * For compatibility reasons this is the default behavior.
+     *
+     * @see deleteFromFabricTableOnShutdown
      */
     bool removeFromFabricTableOnShutdown = true;
+
+    /**
+     * Controls whether shutdown of the controller deletes the corresponding
+     * entry from the fabric table (both in-memory and storage).
+     *
+     * If both `removeFromFabricTableOnShutdown` and this setting are true,
+     * this setting will take precedence.
+     *
+     * @see removeFromFabricTableOnShutdown
+     */
+    bool deleteFromFabricTableOnShutdown = false;
+
+    /**
+     * Specifies whether to utilize the fabric table entry for the given FabricIndex
+     * for initialization. If provided and neither the operational key pair nor the NOC
+     * chain are provided, then attempt to locate a fabric corresponding to the given FabricIndex.
+     */
+    chip::Optional<FabricIndex> fabricIndex;
 
     chip::VendorId controllerVendorId;
 };
@@ -225,11 +243,17 @@ public:
      * An error return from this function means that neither callback has been
      * called yet, and neither callback will be called in the future.
      */
-    CHIP_ERROR GetConnectedDevice(NodeId peerNodeId, Callback::Callback<OnDeviceConnected> * onConnection,
-                                  chip::Callback::Callback<OnDeviceConnectionFailure> * onFailure)
+    virtual CHIP_ERROR
+    GetConnectedDevice(NodeId peerNodeId, Callback::Callback<OnDeviceConnected> * onConnection,
+                       Callback::Callback<OnDeviceConnectionFailure> * onFailure,
+                       TransportPayloadCapability transportPayloadCapability = TransportPayloadCapability::kMRPPayload)
     {
         VerifyOrReturnError(mState == State::Initialized, CHIP_ERROR_INCORRECT_STATE);
-        mSystemState->CASESessionMgr()->FindOrEstablishSession(ScopedNodeId(peerNodeId, GetFabricIndex()), onConnection, onFailure);
+        mSystemState->CASESessionMgr()->FindOrEstablishSession(ScopedNodeId(peerNodeId, GetFabricIndex()), onConnection, onFailure,
+#if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
+                                                               1, nullptr,
+#endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
+                                                               transportPayloadCapability);
         return CHIP_NO_ERROR;
     }
 
@@ -249,11 +273,16 @@ public:
      */
     CHIP_ERROR
     GetConnectedDevice(NodeId peerNodeId, Callback::Callback<OnDeviceConnected> * onConnection,
-                       chip::Callback::Callback<OperationalSessionSetup::OnSetupFailure> * onSetupFailure)
+                       chip::Callback::Callback<OperationalSessionSetup::OnSetupFailure> * onSetupFailure,
+                       TransportPayloadCapability transportPayloadCapability = TransportPayloadCapability::kMRPPayload)
     {
         VerifyOrReturnError(mState == State::Initialized, CHIP_ERROR_INCORRECT_STATE);
         mSystemState->CASESessionMgr()->FindOrEstablishSession(ScopedNodeId(peerNodeId, GetFabricIndex()), onConnection,
-                                                               onSetupFailure);
+                                                               onSetupFailure,
+#if CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
+                                                               1, nullptr,
+#endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
+                                                               transportPayloadCapability);
         return CHIP_NO_ERROR;
     }
 
@@ -272,7 +301,7 @@ public:
      * @return CHIP_ERROR         CHIP_NO_ERROR on success, or corresponding error
      */
     CHIP_ERROR ComputePASEVerifier(uint32_t iterations, uint32_t setupPincode, const ByteSpan & salt,
-                                   Spake2pVerifier & outVerifier);
+                                   Crypto::Spake2pVerifier & outVerifier);
 
     void RegisterDeviceDiscoveryDelegate(DeviceDiscoveryDelegate * delegate) { mDeviceDiscoveryDelegate = delegate; }
 
@@ -351,6 +380,21 @@ public:
      */
     CHIP_ERROR InitControllerNOCChain(const ControllerInitParams & params);
 
+    /**
+     * @brief Update the NOC chain of controller.
+     *
+     * @param[in] noc                                NOC in CHIP certificate format.
+     * @param[in] icac                               ICAC in CHIP certificate format. If no icac is present, an empty
+     *                                               ByteSpan should be passed.
+     * @param[in] operationalKeypair                 External operational keypair. If null, use keypair in OperationalKeystore.
+     * @param[in] operationalKeypairExternalOwned    If true, external operational keypair must outlive the fabric.
+     *                                               If false, the keypair is copied and owned in heap of a FabricInfo.
+     *
+     * @return CHIP_ERROR                            CHIP_NO_ERROR on success.
+     */
+    CHIP_ERROR UpdateControllerNOCChain(const ByteSpan & noc, const ByteSpan & icac, Crypto::P256Keypair * operationalKeypair,
+                                        bool operationalKeypairExternalOwned);
+
 protected:
     enum class State
     {
@@ -373,10 +417,13 @@ protected:
     FabricIndex mFabricIndex = kUndefinedFabricIndex;
 
     bool mRemoveFromFabricTableOnShutdown = true;
+    bool mDeleteFromFabricTableOnShutdown = false;
+
+    FabricTable::AdvertiseIdentity mAdvertiseIdentity = FabricTable::AdvertiseIdentity::Yes;
 
     // TODO(cecille): Make this configuarable.
     static constexpr int kMaxCommissionableNodes = 10;
-    Dnssd::DiscoveredNodeData mCommissionableNodes[kMaxCommissionableNodes];
+    Dnssd::CommissionNodeData mCommissionableNodes[kMaxCommissionableNodes];
     DeviceControllerSystemState * mSystemState = nullptr;
 
     ControllerDeviceInitParams GetControllerDeviceInitParams();
@@ -421,7 +468,7 @@ class DLL_EXPORT DeviceCommissioner : public DeviceController,
 {
 public:
     DeviceCommissioner();
-    ~DeviceCommissioner() override {}
+    ~DeviceCommissioner() override;
 
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY // make this commissioner discoverable
     /**
@@ -600,7 +647,7 @@ public:
      * @brief
      *   This function validates the Attestation Information sent by the device.
      *
-     * @param[in] info Structure contatining all the required information for validating the device attestation.
+     * @param[in] info Structure containing all the required information for validating the device attestation.
      */
     CHIP_ERROR ValidateAttestationInfo(const Credentials::DeviceAttestationVerifier::AttestationInfo & info);
 
@@ -621,7 +668,7 @@ public:
      * As a result, commissioning can advance to the next stage.
      *
      * The DevicePairingDelegate may call this method from the OnScanNetworksSuccess and OnScanNetworksFailure callbacks,
-     * or it may call this method after obtaining network credentials using asyncronous methods (prompting user, cloud API call,
+     * or it may call this method after obtaining network credentials using asynchronous methods (prompting user, cloud API call,
      * etc).
      *
      * If an error happens in the subsequent network commissioning step (either NetworkConfig or ConnectNetwork commands)
@@ -640,7 +687,7 @@ public:
      * using CommissioningDelegate.SetCommissioningParameters(). As a result, commissioning can advance to the next stage.
      *
      * The DevicePairingDelegate may call this method from the OnICDRegistrationInfoRequired callback, or it may call this
-     * method after obtaining required parameters for ICD registration using asyncronous methods (like RPC call etc).
+     * method after obtaining required parameters for ICD registration using asynchronous methods (like RPC call etc).
      *
      * When the ICD Registration completes, OnICDRegistrationComplete will be called.
      *
@@ -694,7 +741,7 @@ public:
      *   Should be called on main loop thread.
      * @return const DiscoveredNodeData* info about the selected device. May be nullptr if no information has been returned yet.
      */
-    const Dnssd::DiscoveredNodeData * GetDiscoveredDevice(int idx);
+    const Dnssd::CommissionNodeData * GetDiscoveredDevice(int idx);
 
     /**
      * @brief
@@ -720,7 +767,10 @@ public:
      *   Return the UDC Server instance
      *
      */
-    UserDirectedCommissioningServer * GetUserDirectedCommissioningServer() { return mUdcServer; }
+    Protocols::UserDirectedCommissioning::UserDirectedCommissioningServer * GetUserDirectedCommissioningServer()
+    {
+        return mUdcServer;
+    }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
 
     /**
@@ -781,11 +831,12 @@ private:
     CommissioningStage mCommissioningStage = CommissioningStage::kSecurePairing;
     bool mRunCommissioningAfterConnection  = false;
     Internal::InvokeCancelFn mInvokeCancelFn;
+    Internal::WriteCancelFn mWriteCancelFn;
 
     ObjectPool<CommissioneeDeviceProxy, kNumMaxActiveDevices> mCommissioneeDevicePool;
 
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY // make this commissioner discoverable
-    UserDirectedCommissioningServer * mUdcServer = nullptr;
+    Protocols::UserDirectedCommissioning::UserDirectedCommissioningServer * mUdcServer = nullptr;
     // mUdcTransportMgr is for insecure communication (ex. user directed commissioning)
     UdcTransportMgr * mUdcTransportMgr = nullptr;
     uint16_t mUdcListenPort            = CHIP_UDC_PORT;
@@ -796,8 +847,11 @@ private:
     static void OnDiscoveredDeviceOverBleError(void * appState, CHIP_ERROR err);
     RendezvousParameters mRendezvousParametersForDeviceDiscoveredOverBle;
 #endif
-
-    CHIP_ERROR LoadKeyId(PersistentStorageDelegate * delegate, uint16_t & out);
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+    static void OnWiFiPAFSubscribeComplete(void * appState);
+    static void OnWiFiPAFSubscribeError(void * appState, CHIP_ERROR err);
+    RendezvousParameters mRendezvousParametersForDeviceDiscoveredOverWiFiPAF;
+#endif
 
     static void OnBasicFailure(void * context, CHIP_ERROR err);
     static void OnBasicSuccess(void * context, const chip::app::DataModel::NullObjectType &);
@@ -821,7 +875,7 @@ private:
        The function does not hold a reference to the device object.
      */
     CHIP_ERROR SendOperationalCertificate(DeviceProxy * device, const ByteSpan & nocCertBuf, const Optional<ByteSpan> & icaCertBuf,
-                                          IdentityProtectionKeySpan ipk, NodeId adminSubject,
+                                          Crypto::IdentityProtectionKeySpan ipk, NodeId adminSubject,
                                           Optional<System::Clock::Timeout> timeout);
     /* This function sends the trusted root certificate to the device.
        The function does not hold a reference to the device object.
@@ -886,7 +940,7 @@ private:
                                                            Credentials::AttestationVerificationResult result);
 
     static void OnDeviceNOCChainGeneration(void * context, CHIP_ERROR status, const ByteSpan & noc, const ByteSpan & icac,
-                                           const ByteSpan & rcac, Optional<IdentityProtectionKeySpan> ipk,
+                                           const ByteSpan & rcac, Optional<Crypto::IdentityProtectionKeySpan> ipk,
                                            Optional<NodeId> adminSubject);
     static void OnArmFailSafe(void * context,
                               const chip::app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
@@ -917,6 +971,7 @@ private:
     static void OnArmFailSafeExtendedForDeviceAttestation(
         void * context, const chip::app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
     static void OnFailedToExtendedArmFailSafeDeviceAttestation(void * context, CHIP_ERROR error);
+    void HandleDeviceAttestationCompleted();
 
     static void OnICDManagementRegisterClientResponse(
         void * context, const app::Clusters::IcdManagement::Commands::RegisterClientResponse::DecodableType & data);
@@ -956,11 +1011,11 @@ private:
 
     /**
      * @brief
-     *   This function processes the DAC or PAI certificate sent by the device.
+     *   This function validates the revocation status of the DAC Chain sent by the device.
+     *
+     * @param[in] info Structure containing all the required information for validating the device attestation.
      */
-    CHIP_ERROR ProcessCertificateChain(const ByteSpan & certificate);
-
-    void HandleAttestationResult(CHIP_ERROR err);
+    CHIP_ERROR CheckForRevokedDACChain(const Credentials::DeviceAttestationVerifier::AttestationInfo & info);
 
     CommissioneeDeviceProxy * FindCommissioneeDevice(NodeId id);
     CommissioneeDeviceProxy * FindCommissioneeDevice(const Transport::PeerAddress & peerAddress);
@@ -977,6 +1032,10 @@ private:
                                         Optional<System::Clock::Timeout> timeout = NullOptional, bool fireAndForget = false);
     void SendCommissioningReadRequest(DeviceProxy * proxy, Optional<System::Clock::Timeout> timeout,
                                       app::AttributePathParams * readPaths, size_t readPathsSize);
+    template <typename AttrType>
+    CHIP_ERROR SendCommissioningWriteRequest(DeviceProxy * device, EndpointId endpoint, ClusterId cluster, AttributeId attribute,
+                                             const AttrType & requestData, WriteResponseSuccessCallback successCb,
+                                             WriteResponseFailureCallback failureCb);
     void CancelCommissioningInteractions();
     void CancelCASECallbacks();
 
@@ -1012,6 +1071,8 @@ private:
     // point, for non-concurrent-commissioning devices, we may not have a way to
     // extend it).
     void ExtendFailsafeBeforeNetworkEnable(DeviceProxy * device, CommissioningParameters & params, CommissioningStage step);
+
+    bool IsAttestationInformationMissing(const CommissioningParameters & params);
 
     chip::Callback::Callback<OnDeviceConnected> mOnDeviceConnectedCallback;
     chip::Callback::Callback<OnDeviceConnectionFailure> mOnDeviceConnectionFailureCallback;

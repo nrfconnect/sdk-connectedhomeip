@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceEvent.h>
 #include <system/SystemPacketBuffer.h>
 
@@ -45,6 +46,8 @@ enum PublicPlatformSpecificEventTypes
 enum InternalPlatformSpecificEventTypes
 {
     kPlatformLinuxEvent = kRange_InternalPlatformSpecific,
+    kPlatformLinuxBLEAdapterAdded,
+    kPlatformLinuxBLEAdapterRemoved,
     kPlatformLinuxBLECentralConnected,
     kPlatformLinuxBLECentralConnectFailed,
     kPlatformLinuxBLEWriteComplete,
@@ -67,6 +70,11 @@ struct ChipDevicePlatformEvent
 {
     union
     {
+        struct
+        {
+            unsigned int mAdapterId;
+            char mAdapterAddress[18];
+        } BLEAdapter;
         struct
         {
             BLE_CONNECTION_OBJECT mConnection;

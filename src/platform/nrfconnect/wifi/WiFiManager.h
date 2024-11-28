@@ -222,9 +222,7 @@ private:
 
     net_if * mNetIf{ nullptr };
     ConnectionParams mWiFiParams{};
-    ConnectionHandling mHandling{};
-    wifi_scan_params mScanParams{};
-    char mScanSsidBuffer[DeviceLayer::Internal::kMaxWiFiSSIDLength + 1] = { 0 };
+    ConnectionHandling mHandling;
     wifi_iface_state mWiFiState;
     wifi_iface_state mCachedWiFiState;
     net_mgmt_event_callback mWiFiMgmtClbk{};

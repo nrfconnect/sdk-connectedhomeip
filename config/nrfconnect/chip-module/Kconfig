@@ -251,7 +251,6 @@ endif # CHIP_FACTORY_DATA_BUILD
 config CHIP_FACTORY_RESET_ERASE_NVS
 	bool
 	default y
-	depends on !CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
 config CHIP_LOG_SIZE_OPTIMIZATION
 	bool "Disable some detailed logs to decrease flash usage"
@@ -286,16 +285,21 @@ config CHIP_ENABLE_READ_CLIENT
 	  This config can be disabled for device types that do not require Read Client functionality.
 	  Disabling this config can save flash and RAM space.
 
-config CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
-	bool "Migrate DAC private key from factory data to PSA ITS"
+config CHIP_MIGRATE_OPERATIONAL_KEYS_TO_ITS
+	bool "Operational keys migration feature"
 	depends on CHIP_CRYPTO_PSA
-	depends on CHIP_FACTORY_DATA
-	select EXPERIMENTAL
 	help
-	  Move DAC private key from the factory data set to the PSA ITS secure storage
-	  and remove it. After the first boot of the device the DAC private key will be moved
-	  to the PSA ITS secure storage and will not be available in the factory data anymore.
-	  It will be overwritten in the factory data set by zeros.
+	  Enables migration of the operational keys stored in the persistent storage to the PSA ITS secure storage.
+	  Enable this feature while updating the firmware of in-field devices that run Mbed TLS cryptography backend
+	  to the firmware based on PSA Crypto API.
+
+config CHIP_FACTORY_RESET_ON_KEY_MIGRATION_FAILURE
+	bool "Perform factory reset if the operational key migration failed"
+	default y
+	depends on CHIP_MIGRATE_OPERATIONAL_KEYS_TO_ITS
+	help
+	  Perform factory reset of the device if the operational key for Fabric has not been migrated
+	  properly to PSA ITS storage.
 
 config CHIP_PERSISTENT_SUBSCRIPTIONS
 	default n

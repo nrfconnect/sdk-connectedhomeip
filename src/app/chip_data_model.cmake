@@ -16,10 +16,6 @@
 
 set(CHIP_APP_BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
-if (NOT CHIP_ROOT)
-    get_filename_component(CHIP_ROOT ${CHIP_APP_BASE_DIR}/../.. REALPATH)
-endif()
-
 include("${CHIP_ROOT}/build/chip/chip_codegen.cmake")
 
 # Configure ${APP_TARGET} with source files associated with ${CLUSTER} cluster
@@ -61,22 +57,20 @@ endfunction()
 #
 # Configure ${APP_TARGET} based on the selected data model configuration.
 # Available options are:
-#   SCOPE           Cmake scope keyword that defines the scope of included sources
-#                   The default is PRIVATE scope.
-#   INCLUDE_SERVER  Include source files from src/app/server directory
-#   BYPASS_IDL      Bypass code generation from .matter IDL file.
-#   ZAP_FILE        Path to the ZAP file, used to determine the list of clusters
-#                   supported by the application.
-#   IDL             .matter IDL file to use for codegen. Inferred from ZAP_FILE
-#                   if not provided
-#   EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
-#                   will not be used nor required for these clusters.
-#                   Format: MY_CUSTOM_CLUSTER'.
+# SCOPE             CMake scope keyword that defines the scope of included sources.
+# The default is PRIVATE scope.
+# INCLUDE_SERVER    Include source files from src/app/server directory.
+# ZAP_FILE          Path to the ZAP file, used to determine the list of clusters
+# supported by the application.
+# IDL               .matter IDL file to use for codegen. Inferred from ZAP_FILE
+# if not provided
+# EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
+# will not be used nor required for these clusters.
+# Format: MY_CUSTOM_CLUSTER'.
 #
-
 function(chip_configure_data_model APP_TARGET)
     set(SCOPE PRIVATE)
-    cmake_parse_arguments(ARG "INCLUDE_SERVER;BYPASS_IDL" "SCOPE;ZAP_FILE;GEN_DIR;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
+    cmake_parse_arguments(ARG "INCLUDE_SERVER" "SCOPE;ZAP_FILE;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
 
     if(ARG_SCOPE)
         set(SCOPE ${ARG_SCOPE})
@@ -106,7 +100,7 @@ function(chip_configure_data_model APP_TARGET)
         endif()
     endif()
 
-    if (ARG_IDL AND NOT ARG_BYPASS_IDL)
+    if(ARG_IDL)
         chip_codegen(${APP_TARGET}-codegen
             INPUT "${ARG_IDL}"
             GENERATOR "cpp-app"
@@ -120,29 +114,23 @@ function(chip_configure_data_model APP_TARGET)
 
         target_include_directories(${APP_TARGET} ${SCOPE} "${APP_GEN_DIR}")
         add_dependencies(${APP_TARGET} ${APP_TARGET}-codegen)
-
-        chip_zapgen(${APP_TARGET}-zapgen
-            INPUT "${ARG_ZAP_FILE}"
-            GENERATOR "app-templates"
-            OUTPUTS
-            "zap-generated/access.h"
-            "zap-generated/CHIPClientCallbacks.h"
-            "zap-generated/endpoint_config.h"
-            "zap-generated/gen_config.h"
-            "zap-generated/IMClusterCommandHandler.cpp"
-            OUTPUT_PATH APP_TEMPLATES_GEN_DIR
-            OUTPUT_FILES APP_TEMPLATES_GEN_FILES
-        )
-        target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
-        add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
     else()
-        target_compile_definitions(${APP_TARGET} PRIVATE CHIP_BYPASS_IDL)
-        target_include_directories(${APP_TARGET} ${SCOPE} ${ARG_GEN_DIR})
-        set(APP_GEN_FILES
-            ${ARG_GEN_DIR}/callback-stub.cpp
-            ${ARG_GEN_DIR}/IMClusterCommandHandler.cpp
-        )
+        set(APP_GEN_FILES)
     endif()
+
+    chip_zapgen(${APP_TARGET}-zapgen
+        INPUT "${ARG_ZAP_FILE}"
+        GENERATOR "app-templates"
+        OUTPUTS
+        "zap-generated/access.h"
+        "zap-generated/endpoint_config.h"
+        "zap-generated/gen_config.h"
+        "zap-generated/IMClusterCommandHandler.cpp"
+        OUTPUT_PATH APP_TEMPLATES_GEN_DIR
+        OUTPUT_FILES APP_TEMPLATES_GEN_FILES
+    )
+    target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
+    add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
 
     target_sources(${APP_TARGET} ${SCOPE}
         ${CHIP_APP_BASE_DIR}/../../zzz_generated/app-common/app-common/zap-generated/attributes/Accessors.cpp

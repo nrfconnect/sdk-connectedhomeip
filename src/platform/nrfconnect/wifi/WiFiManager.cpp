@@ -300,8 +300,8 @@ CHIP_ERROR WiFiManager::GetNetworkStatistics(NetworkStatistics & stats) const
 
     stats.mPacketMulticastRxCount = data.multicast.rx;
     stats.mPacketMulticastTxCount = data.multicast.tx;
-    stats.mPacketUnicastRxCount   = data.unicast.rx;
-    stats.mPacketUnicastTxCount   = data.unicast.tx;
+    stats.mPacketUnicastRxCount   = data.pkts.rx - data.multicast.rx - data.broadcast.rx;
+    stats.mPacketUnicastTxCount   = data.pkts.tx - data.multicast.tx - data.broadcast.tx;
     stats.mBeaconsSuccessCount    = data.sta_mgmt.beacons_rx;
     stats.mBeaconsLostCount       = data.sta_mgmt.beacons_miss;
 

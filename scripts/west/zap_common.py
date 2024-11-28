@@ -12,49 +12,29 @@ import subprocess
 import tempfile
 import wget
 
-from collections import deque
 from pathlib import Path
 from typing import Tuple
 from zipfile import ZipFile
 
 from west import log
 
-DEFAULT_MATTER_PATH = Path(__file__).parents[2]
+MATTER_PATH = Path(__file__).parents[2]
 
 
-def find_zap(root: Path = Path.cwd(), max_depth: int = 2):
+def find_zap(root: Path = Path.cwd(), max_depth: int = 1):
     """
     Find *.zap file in the given directory or its subdirectories.
     """
-    zap_files = []
-    search_dirs = deque()
-    search_dirs.append((root, max_depth))
-
-    while search_dirs:
-        search_dir, max_depth = search_dirs.popleft()
-
-        for name in search_dir.iterdir():
-            if name.is_file() and (name.suffix.lower() == '.zap'):
-                zap_files.append(search_dir / name)
-                continue
-            if name.is_dir() and (max_depth > 0):
-                search_dirs.append((search_dir / name, max_depth - 1))
-
-    # At most one ZAP file found in the selected location, return immediately.
-    if len(zap_files) <= 1:
-        return zap_files[0] if zap_files else None
-
-    # Otherwise, ask a user to choose the ZAP file to edit.
-    for i, zap_file in enumerate(zap_files):
-        print(f'{i}. {zap_file.relative_to(root)}')
-
-    while True:
-        try:
-            maxind = len(zap_files) - 1
-            prompt = f'Select file to edit (0-{maxind}): '
-            return zap_files[int(input(prompt))]
-        except Exception:
-            pass
+    subdirs = []
+    for name in root.iterdir():
+        if name.is_file() and (name.suffix.lower() == '.zap'):
+            return root / name
+        if name.is_dir() and (max_depth > 0):
+            subdirs.append(name)
+    for subdir in subdirs:
+        if zap := find_zap(root / subdir, max_depth - 1):
+            return zap
+    return None
 
 
 def existing_file_path(arg: str) -> Path:
@@ -65,16 +45,6 @@ def existing_file_path(arg: str) -> Path:
     if p.is_file():
         return p
     raise argparse.ArgumentTypeError(f'invalid file path: \'{arg}\'')
-
-
-def existing_dir_path(arg: str) -> Path:
-    """
-    Helper function to validate directory path argument.
-    """
-    p = Path(arg)
-    if p.is_dir():
-        return p
-    raise argparse.ArgumentTypeError(f'invalid directory path: \'{arg}\'')
 
 
 class ZapInstaller:
@@ -201,15 +171,15 @@ class ZapInstaller:
         recommended_version = self.get_recommended_version()
         current_version = self.get_current_version()
 
-        log.inf(f'ZAP installation directory: {self.install_path}')
+        if current_version == recommended_version:
+            log.inf('ZAP is up to date: {0}.{1}.{2}'.format(*recommended_version))
+            return
 
         if current_version:
-            verdict = 'up to date' if current_version == recommended_version else 'outdated'
-            log.inf('Found ZAP {}.{}.{} ({})'.format(*current_version, verdict))
+            log.inf('Found ZAP version: {0}.{1}.{2}'.format(*current_version))
 
-        if current_version != recommended_version:
-            log.inf('Installing ZAP {}.{}.{}'.format(*recommended_version))
-            self.install_zap(recommended_version)
+        log.inf('Installing ZAP version: {0}.{1}.{2}'.format(*recommended_version))
+        self.install_zap(recommended_version)
 
     @staticmethod
     def set_exec_permission(path: Path) -> None:

@@ -12,7 +12,7 @@ from textwrap import dedent
 from west import log
 from west.commands import CommandError, WestCommand
 
-from zap_common import existing_file_path, existing_dir_path, find_zap, ZapInstaller, DEFAULT_MATTER_PATH
+from zap_common import existing_file_path, find_zap, ZapInstaller, MATTER_PATH
 
 
 class ZapGenerate(WestCommand):
@@ -35,8 +35,6 @@ class ZapGenerate(WestCommand):
                             help='Path to data model configuration file (*.zap)')
         parser.add_argument('-o', '--output', type=Path,
                             help='Path where to store the generated files')
-        parser.add_argument('-m', '--matter-path', type=existing_dir_path,
-                            default=DEFAULT_MATTER_PATH, help='Path to Matter SDK')
         return parser
 
     def do_run(self, args, unknown_args):
@@ -53,10 +51,10 @@ class ZapGenerate(WestCommand):
         else:
             output_path = zap_file_path.parent / "zap-generated"
 
-        app_templates_path = args.matter_path / "src/app/zap-templates/app-templates.json"
-        zap_generate_path = args.matter_path / "scripts/tools/zap/generate.py"
+        app_templates_path = MATTER_PATH / "src/app/zap-templates/app-templates.json"
+        zap_generate_path = MATTER_PATH / "scripts/tools/zap/generate.py"
 
-        zap_installer = ZapInstaller(args.matter_path)
+        zap_installer = ZapInstaller(MATTER_PATH)
         zap_installer.update_zap_if_needed()
 
         # make sure that the generate.py script uses the proper zap_cli binary (handled by west)

@@ -166,12 +166,9 @@ function(nrfconnect_create_factory_data factory_data_target script_path schema_p
     include(${CMAKE_BINARY_DIR}/${DEFAULT_IMAGE}/zephyr/dts.cmake)
 
     get_target_property(factory_data_alias devicetree_target "DT_ALIAS|factory-data")
-    get_target_property(factory_data_address devicetree_target "DT_REG|${factory_data_alias}|ADDR")
-    get_target_property(factory_data_size devicetree_target "DT_REG|${factory_data_alias}|SIZE")
+    get_target_property(factory_data_address devicetree_target "DT_REG|${qspi_nodelabel}|ADDR")
+    get_target_property(factory_data_size devicetree_target "DT_REG|${qspi_nodelabel}|SIZE")
 
-    # remove ; from address and size properties
-    string(SUBSTRING ${factory_data_address} 0 -1 factory_data_address)
-    string(SUBSTRING ${factory_data_size} 0 -1 factory_data_size)
     if(NOT (DEFINED factory_data_alias AND DEFINED factory_data_address AND DEFINED factory_data_size))
       message(FATAL_ERROR "factory-data alias does not exist in DTS")
     endif()

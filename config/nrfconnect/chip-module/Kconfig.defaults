@@ -219,11 +219,11 @@ config BOOT_IMAGE_ACCESS_HOOKS
 
 config UPDATEABLE_IMAGE_NUMBER
     default 3 if NRF_WIFI_PATCHES_EXT_FLASH_STORE
-    default 2 if SOC_SERIES_NRF53X || CHIP_BOOTLOADER_SUIT
+    default 2 if SOC_SERIES_NRF53X
+    default 1 if SUIT # SUIT does not support the multi-image dfu
 
 config DFU_MULTI_IMAGE_MAX_IMAGE_COUNT
     default 3 if NRF_WIFI_PATCHES_EXT_FLASH_STORE
-    default 2 if CHIP_BOOTLOADER_SUIT
 
 config NRF_WIFI_FW_PATCH_DFU
     default y if NRF_WIFI_PATCHES_EXT_FLASH_STORE

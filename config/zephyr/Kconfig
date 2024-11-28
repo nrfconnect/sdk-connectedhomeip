@@ -401,21 +401,18 @@ config CHIP_ICD_LIT_SUPPORT
 	bool "Intermittenly Connected Device Long Idle Time support"
 	select CHIP_ICD_CHECK_IN_SUPPORT
 	select CHIP_ICD_UAT_SUPPORT
-	select EXPERIMENTAL
 	help
 	  Enables the Intermittently Connected Device Long Idle Time support in Matter.
 	  It also selects the ICD Check-In and UAT features support that are mandatory for LIT device.
 
 config CHIP_ICD_CHECK_IN_SUPPORT
 	bool "Intermittenly Connected Device Check-In protocol support"
-	select EXPERIMENTAL
 	help
 	  Enables the Check-In protocol support in Matter. It allows an ICD device to notify the registered
 	  ICD clients that it is available for communication.
 
 config CHIP_ICD_UAT_SUPPORT
 	bool "Intermittenly Connected Device User Active Mode Trigger support"
-	select EXPERIMENTAL
 	help
 	  Enables the User Active Mode Trigger (UAT) support in Matter. It allows the User to use application specific
 	  means (e.g. button press) to trigger an ICD device to enter the active mode and become responsive.

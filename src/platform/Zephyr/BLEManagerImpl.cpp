@@ -300,7 +300,7 @@ inline CHIP_ERROR BLEManagerImpl::PrepareAdvertisingRequest()
     Encoding::LittleEndian::Put16(serviceData.uuid, UUID16_CHIPoBLEService.val);
     ReturnErrorOnFailure(ConfigurationMgr().GetBLEDeviceIdentificationInfo(serviceData.deviceIdInfo));
 
-#if CHIP_DEVICE_CONFIG_EXT_ADVERTISING
+#if CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING
     if (mFlags.Has(Flags::kExtendedAdvertisingEnabled))
     {
         serviceData.deviceIdInfo.SetVendorId(DEVICE_HANDLE_NULL);
@@ -321,7 +321,7 @@ inline CHIP_ERROR BLEManagerImpl::PrepareAdvertisingRequest()
         mAdvertisingRequest.minInterval = CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_INTERVAL_MIN;
         mAdvertisingRequest.maxInterval = CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_INTERVAL_MAX;
     }
-#if CHIP_DEVICE_CONFIG_EXT_ADVERTISING
+#if CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING
     else if (mFlags.Has(Flags::kExtendedAdvertisingEnabled))
     {
         mAdvertisingRequest.minInterval = CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING_INTERVAL_MIN;
@@ -426,7 +426,7 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising()
                 System::Clock::Milliseconds32(CHIP_DEVICE_CONFIG_BLE_ADVERTISING_INTERVAL_CHANGE_TIME),
                 HandleSlowBLEAdvertisementInterval, this);
 
-#if CHIP_DEVICE_CONFIG_EXT_ADVERTISING
+#if CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING
             // Start timer to schedule start of the extended advertising
             DeviceLayer::SystemLayer().StartTimer(
                 System::Clock::Milliseconds32(CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING_INTERVAL_CHANGE_TIME_MS),
@@ -448,7 +448,7 @@ CHIP_ERROR BLEManagerImpl::StopAdvertising()
         mFlags.Clear(Flags::kAdvertising);
         mFlags.Set(Flags::kFastAdvertisingEnabled, true);
 
-#if CHIP_DEVICE_CONFIG_EXT_ADVERTISING
+#if CHIP_DEVICE_CONFIG_BLE_EXT_ADVERTISING
         mFlags.Clear(Flags::kExtendedAdvertisingEnabled);
 #endif
 

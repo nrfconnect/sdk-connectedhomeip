@@ -40,6 +40,9 @@ config ASSERT_NO_MSG_INFO
 config HW_STACK_PROTECTION
     default y
 
+config FPU
+    default y
+
 config POSIX_MAX_FDS
     default 16
 

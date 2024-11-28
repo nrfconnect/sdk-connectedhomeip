@@ -86,8 +86,6 @@ config CHIP_MEMORY_PROFILING
 	select NET_SHELL
 	select NET_BUF_POOL_USAGE
 	select OPENTHREAD_SHELL if !CHIP_WIFI
-	# Settings
-	select SETTINGS_SHELL
 	# Zephyr
 	select KERNEL_SHELL
 	help

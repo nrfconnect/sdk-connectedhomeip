@@ -27,9 +27,6 @@ declare_args() {
   # Enable -Werror. This can be disabled if using a different compiler
   # with unfixed or unsupported wanings.
   treat_warnings_as_errors = true
-
-  # Disable this to allow for overriding built-in defines, such as __FILE__.
-  warn_builtin_macro_redefined = true
 }
 
 if (current_cpu == "arm" || current_cpu == "arm64") {
@@ -211,9 +208,6 @@ config("disabled_warnings") {
       "-Wno-psabi",
       "-Wno-maybe-uninitialized",
     ]
-  }
-  if (!warn_builtin_macro_redefined) {
-    cflags += [ "-Wno-builtin-macro-redefined" ]
   }
 }
 

@@ -420,9 +420,6 @@ config MBEDTLS_SSL_SRV_C
 config MBEDTLS_SSL_COOKIE_C
     default n
 
-config MBEDTLS_AES_ONLY_128_BIT_KEY_LENGTH
-    default y
-
 # ==============================================================================
 # Logging configuration
 # ==============================================================================

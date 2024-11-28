@@ -78,7 +78,7 @@ data stored in the device's flash memory is provided in the CBOR format.
 However, it is possible to generate the factory data set without using the nRF
 Connect scripts and implement another parser and a factory data accessor. This
 is possible if the newly provided implementation is consistent with the
-[Factory Data Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h).
+[Factory Data Provider](../../src/platform/nrfconnect/FactoryDataProvider.h).
 For more information about preparing a factory data accessor, see the section
 about
 [using own factory data implementation](#using-own-factory-data-implementation).
@@ -228,7 +228,7 @@ one by one is also supported to provide backward compatibility.
 A Matter device needs a proper factory data partition stored in the flash memory
 to read out all required parameters during startup. To simplify the factory data
 generation, you can use the
-[generate_nrfconnect_chip_factory_data.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
+[generate_nrfconnect_chip_factory_data.py](../../scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
 Python script to provide all required parameters and generate a human-readable
 JSON file and save it to a HEX file.
 
@@ -442,7 +442,7 @@ data types only. On the device side, the `user` data will be available as a CBOR
 map containing all defined `string` and `int32` fields.
 
 To add user data as an argument to the
-[generate_nrfconnect_chip_factory_data.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
+[generate_nrfconnect_chip_factory_data.py](../../scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
 script, add the following line to the argument list:
 
 ```
@@ -471,7 +471,7 @@ When added to the argument line, the final result would look like follows:
 
 The user data is not handled anywhere in the Matter stack, so you must handle it
 in your application. To do this, you can use the
-[Factory Data Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h) and
+[Factory Data Provider](../../src/platform/nrfconnect/FactoryDataProvider.h) and
 apply one of the following methods:
 
 -   `GetUserData` method to obtain raw data in the CBOR format as a
@@ -589,7 +589,7 @@ as an additional argument. To do this, complete the following steps:
 ### Generating onboarding codes
 
 The
-[generate_nrfconnect_chip_factory_data.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
+[generate_nrfconnect_chip_factory_data.py](../../scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
 script lets you generating a manual code and a QR code from the given factory
 data parameters. You can use these codes to perform commissioning to the Matter
 network over Bluetooth LE since they include all the pairing data required by
@@ -653,7 +653,7 @@ multiple of one flash page (for nRF52 and nRF53 SoCs, a single page size equals
 
 See the following code snippet for an example of a factory data partition in the
 `pm_static.yml` file. The snippet is based on the `pm_static.yml` file from the
-[Lock application example](https://github.com/project-chip/connectedhomeip/blob/master/examples/lock-app/nrfconnect/configuration/nrf52840dk_nrf52840/pm_static_dfu.yml)
+[Lock application example](../../examples/lock-app/nrfconnect/configuration/nrf52840dk_nrf52840/pm_static_dfu.yml)
 and uses the nRF52840 DK:
 
 ```
@@ -723,12 +723,12 @@ The output will look similar to the following one:
 To store the factory data set in the device's persistent storage, convert the
 data from the JSON file to its binary representation in the CBOR format. This is
 done by the
-[generate_nrfconnect_chip_factory_data.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py),
+[generate_nrfconnect_chip_factory_data.py](../../scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py),
 if you provide optional `offset` and `size` arguments. If you provided these
 arguments, skip the following steps of this section.
 
 You can skip these optional arguments and do this, using the
-[nrfconnect_generate_partition.py](https://github.com/project-chip/connectedhomeip/blob/master/scripts/tools/nrfconnect/nrfconnect_generate_partition.py)
+[nrfconnect_generate_partition.py](../../scripts/tools/nrfconnect/nrfconnect_generate_partition.py)
 script, but this is obsolete solution kept only for backward compatibility:
 
 1. Navigate to the _connectedhomeip_ root directory
@@ -790,7 +790,7 @@ Alternatively, you can also add `CONFIG_CHIP_FACTORY_DATA_BUILD=y` Kconfig
 setting to the example's `prj.conf` file.
 
 Each factory data parameter has a default value. These are described in the
-[Kconfig file](https://github.com/project-chip/connectedhomeip/blob/master/config/nrfconnect/chip-module/Kconfig). Setting a new value
+[Kconfig file](../../config/nrfconnect/chip-module/Kconfig). Setting a new value
 for the factory data parameter can be done either by providing it as a build
 argument list or by using interactive Kconfig interfaces.
 
@@ -813,7 +813,7 @@ Alternatively, you can add the relevant Kconfig option lines to the example's
 You can edit all configuration options using the interactive Kconfig interface.
 
 See the
-[Configuring nRF Connect examples](./nrfconnect_examples_configuration.md)
+[Configuring nRF Connect examples](../guides/nrfconnect_examples_configuration.md)
 page for information about how to configure Kconfig options.
 
 In the configuration window, expand the items
@@ -969,16 +969,16 @@ file containing all [factory data components](#factory-data-component-table) in
 any format and then implement a parser to read out all parameters and pass them
 to a provider. Each manufacturer can implement a factory data set on its own by
 implementing a parser and a factory data accessor inside the Matter stack. Use
-the [nRF Connect Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h)
-and [FactoryDataParser](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataParser.h) as
+the [nRF Connect Provider](../../src/platform/nrfconnect/FactoryDataProvider.h)
+and [FactoryDataParser](../../src/platform/nrfconnect/FactoryDataParser.h) as
 examples.
 
 You can read the factory data set from the device's flash memory in different
 ways, depending on the purpose and the format. In the nRF Connect example, the
 factory data is stored in the CBOR format. The device uses the
-[Factory Data Parser](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataParser.h) to read
+[Factory Data Parser](../../src/platform/nrfconnect/FactoryDataParser.h) to read
 out raw data, decode it, and store it in the `FactoryData` structure. The
-[Factor Data Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.c)
+[Factor Data Provider](../../src/platform/nrfconnect/FactoryDataProvider.cpp)
 implementation uses this parser to get all needed factory data parameters and
 provide them to the Matter core.
 

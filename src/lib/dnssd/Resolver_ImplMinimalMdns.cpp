@@ -17,6 +17,8 @@
 
 #include "Resolver.h"
 
+#include <limits>
+
 #include <lib/core/CHIPConfig.h>
 #include <lib/dnssd/ActiveResolveAttempts.h>
 #include <lib/dnssd/IncrementalResolve.h>
@@ -371,23 +373,7 @@ void MinMdnsResolver::AdvancePendingResolverStates()
 
         if (missing.Has(IncrementalResolver::RequiredInformationBitFlags::kIpAddress))
         {
-            if (resolver->IsActiveCommissionParse())
-            {
-                // Browse wants IP addresses
-                ScheduleIpAddressResolve(resolver->GetTargetHostName());
-            }
-            else if (mActiveResolves.ShouldResolveIpAddress(resolver->OperationalParsePeerId()))
-            {
-                // Keep searching for IP addresses if an active resolve needs these IP addresses
-                // otherwise ignore the data (received a SRV record without IP address, however we do not
-                // seem interested in it. Probably just a device that came online).
-                ScheduleIpAddressResolve(resolver->GetTargetHostName());
-            }
-            else
-            {
-                // This IP address is not interesting enough to run another discovery
-                resolver->ResetToInactive();
-            }
+            ScheduleIpAddressResolve(resolver->GetTargetHostName());
             continue;
         }
 

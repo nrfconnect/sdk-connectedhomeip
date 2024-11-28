@@ -31,7 +31,7 @@ namespace DeviceLayer {
 class DiagnosticDataProviderImplNrf : public DiagnosticDataProviderImpl
 {
 public:
-#ifdef CONFIG_WIFI_NRF70
+#ifdef CONFIG_WIFI_NRF700X
     CHIP_ERROR GetWiFiBssId(MutableByteSpan & value) override;
     CHIP_ERROR GetWiFiSecurityType(app::Clusters::WiFiNetworkDiagnostics::SecurityTypeEnum & securityType) override;
     CHIP_ERROR GetWiFiVersion(app::Clusters::WiFiNetworkDiagnostics::WiFiVersionEnum & wiFiVersion) override;

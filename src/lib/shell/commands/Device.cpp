@@ -15,7 +15,6 @@
  *    limitations under the License.
  */
 
-#include <app/server/Server.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/shell/Commands.h>
 #if CONFIG_DEVICE_LAYER
@@ -43,11 +42,7 @@ int DeviceHelpHandler(int argc, char ** argv)
 static CHIP_ERROR FactoryResetHandler(int argc, char ** argv)
 {
     streamer_printf(streamer_get(), "Performing factory reset ... \r\n");
-#if CHIP_CONFIG_TEST
     DeviceLayer::ConfigurationMgr().InitiateFactoryReset();
-#else
-    chip::Server::GetInstance().ScheduleFactoryReset();
-#endif // CHIP_TEST
     return CHIP_NO_ERROR;
 }
 

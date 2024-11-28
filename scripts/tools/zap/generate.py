@@ -16,7 +16,7 @@
 #
 
 import argparse
-import platform
+import fcntl
 import json
 import os
 import shutil
@@ -29,13 +29,6 @@ from pathlib import Path
 from typing import Optional
 
 from zap_execution import ZapTool
-
-def isWindows():
-    return platform.system() == "Windows"
-
-# fcntl is not supported on widows platform due to lack of necessity of I/O control on file descriptor
-if not isWindows():
-    import fcntl
 
 
 @dataclass
@@ -337,17 +330,16 @@ class LockFileSerializer:
         self.lock_file = None
 
     def __enter__(self):
-        # fcntl is not supported on widows platform due to lack of necessity of I/O control on file descriptor
-        if not self.lock_file_path or isWindows():
+        if not self.lock_file_path:
             return
+
         self.lock_file = open(self.lock_file_path, 'wb')
         fcntl.lockf(self.lock_file, fcntl.LOCK_EX)
 
-
     def __exit__(self, *args):
-        # fcntl is not supported on widows platform due to lack of necessity of I/O control on file descriptor
-        if not self.lock_file or isWindows():
+        if not self.lock_file:
             return
+
         fcntl.lockf(self.lock_file, fcntl.LOCK_UN)
         self.lock_file.close()
         self.lock_file = None

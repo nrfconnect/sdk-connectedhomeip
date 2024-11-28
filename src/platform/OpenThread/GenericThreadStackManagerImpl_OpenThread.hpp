@@ -1224,7 +1224,6 @@ void GenericThreadStackManagerImpl_OpenThread<ImplClass>::_ErasePersistentInfo(v
     ChipLogProgress(DeviceLayer, "Erasing Thread persistent info...");
     Impl()->LockThreadStack();
     otThreadSetEnabled(mOTInst, false);
-    otIp6SetEnabled(mOTInst, false);
     otInstanceErasePersistentInfo(mOTInst);
     Impl()->UnlockThreadStack();
 }

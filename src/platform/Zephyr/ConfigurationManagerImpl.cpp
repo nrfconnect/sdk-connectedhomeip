@@ -32,8 +32,6 @@
 
 #include "InetUtils.h"
 
-#include <zephyr/net/net_if.h>
-
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 

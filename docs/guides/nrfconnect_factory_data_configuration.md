@@ -760,11 +760,11 @@ $ python scripts/tools/nrfconnect/nrfconnect_generate_partition.py -h
 **Example of the command for the nRF52840 DK:**
 
 ```
-$ python scripts/tools/nrfconnect/nrfconnect_generate_partition.py -i build/light_bulb/zephyr/factory_data.json -o build/light_bulb/zephyr/factory_data --offset 0xfb000 --size 0x1000
+$ python scripts/tools/nrfconnect/nrfconnect_generate_partition.py -i build/zephyr/factory_data.json -o build/zephyr/factory_data --offset 0xfb000 --size 0x1000
 ```
 
 As a result, `factory_data.hex` and `factory_data.bin` files are created in the
-`/build/light_bulb/zephyr/` directory. The first file contains the memory offset. For this
+`/build/zephyr/` directory. The first file contains the memory offset. For this
 reason, it can be programmed directly to the device using a programmer (for
 example, `nrfjprog`).
 

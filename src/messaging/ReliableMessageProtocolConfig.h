@@ -130,10 +130,7 @@ namespace chip {
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if !LWIP_PBUF_FROM_CUSTOM_POOLS && PBUF_POOL_SIZE != 0
-// Configure the table size to be less than the number of packet buffers to make sure
-// that not all buffers are held by the retransmission entries, in which case the device
-// is unable to receive an ACK and hence becomes unavailable until a message times out.
-#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(PBUF_POOL_SIZE - 1, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
+#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(PBUF_POOL_SIZE, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
 #else
 #define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
 #endif // !LWIP_PBUF_FROM_CUSTOM_POOLS && PBUF_POOL_SIZE != 0
@@ -141,11 +138,7 @@ namespace chip {
 #else // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE != 0
-// Configure the table size to be less than the number of packet buffers to make sure
-// that not all buffers are held by the retransmission entries, in which case the device
-// is unable to receive an ACK and hence becomes unavailable until a message times out.
-#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE                                                                                         \
-    std::min(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE - 1, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
+#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
 #else
 #define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
 #endif // CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE != 0

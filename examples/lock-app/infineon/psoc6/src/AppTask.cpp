@@ -45,10 +45,6 @@
 #include <app/clusters/door-lock-server/door-lock-server.h>
 #include <app/clusters/identify-server/identify-server.h>
 
-#if ENABLE_DEVICE_ATTESTATION
-#include <DeviceAttestationCredsExampleTrustM.h>
-#endif
-
 /* OTA related includes */
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
@@ -161,12 +157,7 @@ static void InitServer(intptr_t context)
     chip::DeviceLayer::SetDeviceInfoProvider(&gExampleDeviceInfoProvider);
 
     // Initialize device attestation config
-#if ENABLE_DEVICE_ATTESTATION
-    SetDeviceAttestationCredentialsProvider(Examples::GetExampleTrustMDACProvider());
-#else
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
-#endif
-
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
     GetAppTask().InitOTARequestor();
 #endif

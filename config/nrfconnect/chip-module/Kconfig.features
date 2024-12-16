@@ -289,4 +289,13 @@ config CHIP_LAST_FABRIC_REMOVED_ACTION_DELAY
 	  an action chosen by the CHIP_LAST_FABRIC_REMOVED_ACTION option. This schedule will allow for
 	  avoiding race conditions before the device removes non-volatile data.
 
+config CHIP_CRYPTO_USE_KMU
+	bool "Use CRACEN KMU driver for storing security materials"
+	depends on PSA_NEED_CRACEN_KMU_DRIVER
+	depends on CHIP_CRYPTO_PSA
+	help
+	  Store security materials in the CRACEN KMU space instead of PSA ITS.
+	  KMU slots 100-180 are dedicated for Matter purposes.
+	  The solution is currently limited to maximum 5 Matter fabrics.
+
 endif # CHIP

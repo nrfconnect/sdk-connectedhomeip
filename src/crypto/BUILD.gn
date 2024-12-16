@@ -55,6 +55,7 @@ buildconfig_header("crypto_buildconfig") {
     "CHIP_CRYPTO_OPENSSL=${chip_crypto_openssl}",
     "CHIP_CRYPTO_BORINGSSL=${chip_crypto_boringssl}",
     "CHIP_CRYPTO_PLATFORM=${chip_crypto_platform}",
+    "CHIP_CRYPTO_KMU=${chip_crypto_kmu}",
   ]
 }
 
@@ -124,6 +125,13 @@ if (chip_crypto == "openssl") {
       "CHIPCryptoPALmbedTLS.h",
       "CHIPCryptoPALmbedTLSCert.cpp",
     ]
+
+    if (chip_crypto_kmu) {
+      sources += [
+        "KMUKeystoreAdaptation.h"
+      ]
+    }
+
     public_deps = [ ":public_headers" ]
 
     if (!chip_external_mbedtls) {

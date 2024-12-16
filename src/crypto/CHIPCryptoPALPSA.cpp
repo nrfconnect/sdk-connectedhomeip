@@ -22,6 +22,9 @@
 
 #include "CHIPCryptoPALPSA.h"
 #include "CHIPCryptoPALmbedTLS.h"
+#if CHIP_CRYPTO_KMU
+#include "KMUKeystoreAdaptation.h"
+#endif
 
 #include <lib/core/CHIPEncoding.h>
 #include <lib/core/CHIPSafeCasts.h>
@@ -272,6 +275,10 @@ CHIP_ERROR FindFreeKeySlotInRange(psa_key_id_t & keyId, psa_key_id_t start, uint
 
     for (keyId = start; keyId < end; keyId++)
     {
+#if CHIP_CRYPTO_KMU
+        CHIP_ERROR error = KMU::GetSlot(&keyId, &attributes);
+        VerifyOrReturnError(error == CHIP_NO_ERROR, error);
+#endif
         psa_status_t status = psa_get_key_attributes(keyId, &attributes);
         if (status == PSA_ERROR_INVALID_HANDLE)
         {

@@ -192,6 +192,7 @@ endif()
 if (CONFIG_CHIP_CRYPTO_PSA)
     matter_add_gn_arg_string("chip_crypto"             "psa")
     matter_add_gn_arg_bool  ("chip_crypto_psa_spake2p" CONFIG_PSA_WANT_ALG_SPAKE2P_MATTER)
+    matter_add_gn_arg_bool  ("chip_crypto_kmu"         CONFIG_CHIP_CRYPTO_USE_KMU)
 endif()
 
 if (BOARD STREQUAL "native_posix")

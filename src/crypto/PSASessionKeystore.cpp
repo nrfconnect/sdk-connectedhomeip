@@ -202,8 +202,10 @@ CHIP_ERROR PSASessionKeystore::PersistICDKey(Symmetric128BitsKeyHandle & key)
         return CHIP_NO_ERROR;
     }
 
-    SuccessOrExit(err = Crypto::FindFreeKeySlotInRange(newKeyId, to_underlying(KeyIdBase::ICDKeyRangeStart), kMaxICDClientKeys));
-    psa_set_key_lifetime(&attrs, PSA_KEY_LIFETIME_PERSISTENT);
+SuccessOrExit(err = Crypto::FindFreeKeySlotInRange(newKeyId, to_underlying(KeyIdBase::ICDKeyRangeStart), kMaxICDClientKeys));
+#if !CHIP_CRYPTO_KMU 
+    psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_PERSISTENT);
+#endif
     psa_set_key_id(&attrs, newKeyId);
     VerifyOrExit(psa_copy_key(key.As<psa_key_id_t>(), &attrs, &newKeyId) == PSA_SUCCESS, err = CHIP_ERROR_INTERNAL);
 

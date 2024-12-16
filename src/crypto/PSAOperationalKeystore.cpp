@@ -22,13 +22,27 @@
 
 #include <psa/crypto.h>
 
+#if CHIP_CRYPTO_KMU
+#include "KMUKeystoreAdaptation.h"
+#endif
+
 namespace chip {
 namespace Crypto {
 
 PSAOperationalKeystore::PersistentP256Keypair::PersistentP256Keypair(FabricIndex fabricIndex)
 {
     ToPsaContext(mKeypair).key_id = MakeOperationalKeyId(fabricIndex);
-    mInitialized                  = true;
+
+#if CHIP_CRYPTO_KMU
+    if (CHIP_NO_ERROR != KMU::GetSlot(&ToPsaContext(mKeypair).key_id, nullptr))
+    {
+        ToPsaContext(mKeypair).key_id = 0;
+        mInitialized                  = false;
+        return;
+    }
+#endif
+
+    mInitialized = true;
 }
 
 PSAOperationalKeystore::PersistentP256Keypair::~PersistentP256Keypair()
@@ -66,9 +80,15 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
     // Type based on ECC with the elliptic curve SECP256r1 -> PSA_ECC_FAMILY_SECP_R1
     psa_set_key_type(&attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&attributes, kP256_PrivateKey_Length * 8);
-    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+#if CHIP_CRYPTO_KMU
+    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH));
+    psa_set_key_lifetime(&attributes,
+                         PSA_KEY_LIFETIME_FROM_PERSISTENCE_AND_LOCATION(PSA_KEY_PERSISTENCE_DEFAULT, PSA_KEY_LOCATION_CRACEN_KMU));
+#else
+    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_PERSISTENT);
+#endif
     psa_set_key_id(&attributes, GetKeyId());
 
     status = psa_generate_key(&attributes, &keyId);
@@ -149,9 +169,15 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Deserialize(P256Serial
     // Type based on ECC with the elliptic curve SECP256r1 -> PSA_ECC_FAMILY_SECP_R1
     psa_set_key_type(&attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&attributes, kP256_PrivateKey_Length * 8);
-    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+#if CHIP_CRYPTO_KMU
+    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH));
+    psa_set_key_lifetime(&attributes,
+                         PSA_KEY_LIFETIME_FROM_PERSISTENCE_AND_LOCATION(PSA_KEY_PERSISTENCE_DEFAULT, PSA_KEY_LOCATION_CRACEN_KMU));
+#else
+    psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_PERSISTENT);
+#endif
     psa_set_key_id(&attributes, GetKeyId());
 
     status = psa_import_key(&attributes, input.ConstBytes() + mPublicKey.Length(), kP256_PrivateKey_Length, &keyId);

@@ -22,6 +22,9 @@ declare_args() {
 
   # Use PSA Spake2+ implementation. Only used if chip_crypto == "psa"
   chip_crypto_psa_spake2p = false
+
+  # Provide KMU support for nRF54L15 devices. Only used if chip_crypto == "psa"
+  chip_crypto_kmu = false
 }
 
 assert(

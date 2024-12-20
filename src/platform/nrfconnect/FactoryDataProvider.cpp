@@ -35,7 +35,11 @@
 #include <psa/crypto.h>
 #include <zephyr/drivers/flash.h>
 
+#ifdef CONFIG_SOC_FLASH_NRF_MRAM
+static const struct device * const kFlashDev = DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_flash));
+#else
 static const struct device * const kFlashDev = DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_flash_controller));
+#endif // CONFIG_SOC_FLASH_NRF_MRAM
 #endif
 
 namespace chip {
@@ -188,7 +192,12 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
         // Check once again if the saved key has attributes set before removing it from the factory data set.
         VerifyOrReturnError(psa_get_key_attributes(mDACPrivKeyId, &attributes) == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
 
-        // Get the actual block size.
+        // Try to get the actual block size.
+        if (!device_is_ready(kFlashDev))
+        {
+            ChipLogError(DeviceLayer, "Flash device is not ready.");
+            return CHIP_ERROR_INTERNAL;
+        }
         const flash_parameters * flashParameters = flash_get_parameters(kFlashDev);
         VerifyOrReturnError(flashParameters, CHIP_ERROR_INTERNAL);
 

@@ -54,6 +54,10 @@
 #include <platform/ThreadStackManager.h>
 #endif
 
+#ifdef CONFIG_SOC_FLASH_NRF_RADIO_SYNC_MPSL
+#include <mpsl/mpsl_lib.h>
+#endif // CONFIG_SOC_FLASH_NRF_RADIO_SYNC_MPSL
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -220,14 +224,20 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     }
 #else
 
+    ConnectivityMgr().ErasePersistentInfo();
+
+    // We should disable MPSL before performing multiple operations on flash to speed up this process.
+    // It is required only  when synchronization between flash and MPSL is enabled.
+#ifdef CONFIG_SOC_FLASH_NRF_RADIO_SYNC_MPSL
+    mpsl_lib_uninit();
+#endif // CONFIG_SOC_FLASH_NRF_RADIO_SYNC_MPSL
+
     const CHIP_ERROR err = PersistedStorage::KeyValueStoreMgrImpl().DoFactoryReset();
 
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(DeviceLayer, "Factory reset failed: %" CHIP_ERROR_FORMAT, err.Format());
     }
-
-    ConnectivityMgr().ErasePersistentInfo();
 #endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 
     PlatformMgr().Shutdown();

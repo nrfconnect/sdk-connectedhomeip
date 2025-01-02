@@ -72,6 +72,21 @@ config NVS_LOOKUP_CACHE_SIZE
 config ZMS_LOOKUP_CACHE_SIZE
     default 512 if ZMS
 
+# Enable Dynamic interrupts to have a possibility to reconfigure it for devices that use MPSL
+# on the application core and needs synchronization between MPSL and FLASH driver.
+if MPSL
+
+config DYNAMIC_INTERRUPTS
+    default y
+
+config DYNAMIC_DIRECT_INTERRUPTS
+    default y
+
+config MPSL_DYNAMIC_INTERRUPTS
+    default y
+
+endif # MPSL
+
 # ==============================================================================
 # Zephyr networking configuration
 # ==============================================================================

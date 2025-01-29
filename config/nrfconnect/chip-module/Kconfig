@@ -397,6 +397,37 @@ config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
 
 endif # CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
+config CHIP_STORE_KEYS_IN_KMU
+	bool "Use KMU to store crypto keys"
+	depends on CRACEN_LIB_KMU
+	select EXPERIMENTAL
+	help
+	  Stores cryptographic materials like keys in the KMU if available on the device.
+	  This option utilizes a custom nRF Connect implementation of PSAKeyAllocator for key
+	  storage. All non-volatile cryptographic materials used by the Matter stack will be
+	  stored in KMU slots.
+
+if CHIP_STORE_KEYS_IN_KMU
+
+config CHIP_KMU_SLOT_RANGE_START
+	int "Starting KMU slot number for Matter crypto materials"
+	default 100
+	help
+	  Defines the starting KMU slot number reserved for storing Matter-related keys.
+	  This configuration does not include the DAC private key. To change DAC private key
+	  location see the CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID Kconfig.
+
+config CHIP_KMU_SLOT_RANGE_END
+	int "Last available KMU slot for Matter crypto materials"
+	default 175 if CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+	default 180
+	help
+	  Defines the last available KMU slot for storing Matter-related keys.
+	  This configuration does not include the DAC private key. To change DAC private key
+	  location see the CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID Kconfig.
+
+endif # CHIP_STORE_KEYS_IN_KMU
+
 config CHIP_PERSISTENT_SUBSCRIPTIONS
 	default n
 	# selecting experimental for this feature since there is an issue with multiple controllers.

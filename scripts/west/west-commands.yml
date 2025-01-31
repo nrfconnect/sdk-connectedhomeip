@@ -10,3 +10,8 @@ west-commands:
       - name: zap-gui
         class: ZapGui
         help: Run Matter ZCL Advanced Platform (ZAP) GUI
+  - file: scripts/west/zap_append.py
+    commands:
+      - name: zap-append
+        class: ZapAppend
+        help: Append a new custom cluster to the ZCL database

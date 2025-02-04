@@ -704,4 +704,6 @@ private:
 #endif // CHIP_CONFIG_ENABLE_ICD_SERVER
 };
 
+void ServerScheduleFactoryReset();
+
 } // namespace chip

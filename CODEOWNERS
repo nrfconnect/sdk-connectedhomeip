@@ -69,3 +69,6 @@ telink/                          @s07641069
 chip-build-telink/               @s07641069
 
 webos/                           @joonhaengHeo
+
+# Global override for sdk-connectedhomeip
+*                                @nrfconnect/ncs-matter

@@ -15,7 +15,7 @@
  *    limitations under the License.
  */
 
-#include <app/server/OnboardingCodesUtil.h>
+#include <app/onboarding-codes-utils/OnboardingCodesUtil.h>
 #include <inttypes.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/shell/Commands.h>

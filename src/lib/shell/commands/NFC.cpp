@@ -20,7 +20,7 @@
 #if CONFIG_DEVICE_LAYER
 #include <platform/CHIPDeviceLayer.h>
 #endif
-#include <app/server/OnboardingCodesUtil.h>
+#include <app/onboarding-codes-utils/OnboardingCodesUtil.h>
 #include <lib/shell/Engine.h>
 #include <lib/support/CodeUtils.h>
 

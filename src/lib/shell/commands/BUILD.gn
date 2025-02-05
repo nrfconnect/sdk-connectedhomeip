@@ -65,7 +65,7 @@ source_set("commands") {
   }
 
   if (chip_device_platform != "none") {
-    public_deps += [ "${chip_root}/src/app/server" ]
+    public_deps += [ "${chip_root}/src/app/onboarding-codes-utils" ]
   }
 
   cflags = [ "-Wconversion" ]

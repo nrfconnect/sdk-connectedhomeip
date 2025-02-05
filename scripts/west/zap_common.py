@@ -11,6 +11,7 @@ import stat
 import subprocess
 import tempfile
 import wget
+import json
 
 from collections import deque
 from pathlib import Path
@@ -20,6 +21,8 @@ from zipfile import ZipFile
 from west import log
 
 DEFAULT_MATTER_PATH = Path(__file__).parents[2]
+DEFAULT_ZCL_JSON_RELATIVE_PATH = Path('src/app/zap-templates/zcl/zcl.json')
+DEFAULT_APP_TEMPLATES_RELATIVE_PATH = Path('src/app/zap-templates/app-templates.json')
 
 
 def find_zap(root: Path = Path.cwd(), max_depth: int = 2):
@@ -76,6 +79,34 @@ def existing_dir_path(arg: str) -> Path:
         return p
     raise argparse.ArgumentTypeError(f'invalid directory path: \'{arg}\'')
 
+
+def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bool:
+    """
+    In the .zap file, there is a relative path to the zcl.json file.
+    Use this function to update zcl.json path if needed.
+    Functions returns True if the path was updated, False otherwise.
+    """
+    updated = False
+
+    with open(zap_file, 'r+') as file:
+        data = json.load(file)
+        packages = data.get("package")
+
+        for package in packages:
+            if package.get("type") == "zcl-properties":
+                if not zcl_json.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+                    package.update({"path": str(zcl_json.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
+                    updated = True
+            if package.get("type") == "gen-templates-json":
+                if not app_templates.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+                    package.update({"path": str(app_templates.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
+                    updated = True
+
+        file.seek(0)
+        json.dump(data, file, indent=2)
+        file.truncate()
+
+    return updated
 
 class ZapInstaller:
     INSTALL_DIR = Path('.zap-install')

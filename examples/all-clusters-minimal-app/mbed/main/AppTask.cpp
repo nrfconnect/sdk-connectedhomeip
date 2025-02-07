@@ -19,12 +19,12 @@
 #include "AppTask.h"
 #include "LEDWidget.h"
 #include <DFUManager.h>
-#include <app/server/OnboardingCodesUtil.h>
 
 #include <app/server/Dnssd.h>
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <lib/support/logging/CHIPLogging.h>
 #include <static-supported-modes-manager.h>

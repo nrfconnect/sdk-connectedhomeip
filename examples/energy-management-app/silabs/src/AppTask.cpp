@@ -33,11 +33,11 @@
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/ConcreteAttributePath.h>
 #include <app/clusters/network-commissioning/network-commissioning.h>
-#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
 #include <assert.h>
 #include <lib/support/BitMask.h>
+#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <platform/silabs/platformAbstraction/SilabsPlatform.h>
 

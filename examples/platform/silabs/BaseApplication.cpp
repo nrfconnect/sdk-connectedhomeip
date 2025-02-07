@@ -39,13 +39,16 @@
 
 #if CHIP_CONFIG_ENABLE_ICD_SERVER == 1
 #include <app/icd/server/ICDNotifier.h> // nogncheck
-#endif
-#include <ProvisionManager.h>
-#include <app/server/OnboardingCodesUtil.h>
+#ifdef ENABLE_CHIP_SHELL
+#include <ICDShellCommands.h>
+#endif // ENABLE_CHIP_SHELL
+#endif // CHIP_CONFIG_ENABLE_ICD_SERVER
+
 #include <app/util/attribute-storage.h>
 #include <assert.h>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
 #include <sl_cmsis_os2_common.h>

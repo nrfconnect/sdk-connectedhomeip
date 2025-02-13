@@ -184,6 +184,7 @@ EXTERNALLY_VISIBLE void * WRAP(calloc)(size_t num, size_t size) ALIAS("_ZN4chip1
 EXTERNALLY_VISIBLE void * WRAP(realloc)(void * mem, size_t size) ALIAS("_ZN4chip11DeviceLayer6Malloc7ReallocEPvj");
 EXTERNALLY_VISIBLE void WRAP(free)(void * mem) ALIAS("_ZN4chip11DeviceLayer6Malloc4FreeEPv");
 
+#ifdef CONFIG_NEWLIB_LIBC
 EXTERNALLY_VISIBLE void * WRAP(_malloc_r)(_reent *, size_t size)
 {
     return WRAP(malloc)(size);
@@ -203,6 +204,7 @@ EXTERNALLY_VISIBLE void WRAP(_free_r)(_reent *, void * mem)
 {
     WRAP(free)(mem);
 }
+#endif // CONFIG_NEWLIB_LIBC
 
 } // extern "C"
 

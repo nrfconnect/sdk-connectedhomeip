@@ -21,6 +21,12 @@ on:
             - 'v*-branch'
     pull_request:
     merge_group:
+    workflow_dispatch:
+        inputs:
+            ncs_revision:
+                description: "NCS branch or commit SHA"
+                required: true
+                default: "origin/master"
 
 concurrency:
     group: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
@@ -64,7 +70,12 @@ jobs:
                         - '**/tests/**'
                       shell:
                         - 'examples/shell/nrfconnect/**'
-            - name: Update NCS recommended version
+            - name: Update NCS recommended version (workflow_dispatch)
+              if: github.event_name == 'workflow_dispatch'
+              run: |
+                  echo "Using NCS from ${{ github.event.inputs.ncs_revision }}"
+                  echo "${{ github.event.inputs.ncs_revision }}" > config/nrfconnect/.nrfconnect-recommended-revision
+            - name: Update NCS recommended version (pull_request)
               if: github.event_name == 'pull_request'
               run: |
                   PR_DESCRIPTION="${{ github.event.pull_request.body }}"

@@ -125,6 +125,10 @@ else()
     set(DATA_MODEL_INTERFACE "disabled")
 endif()
 
+# Force libstdc++_nano
+
+set_linker_property(PROPERTY c++_library "-lstdc++_nano")
+
 # ==============================================================================
 # Generate configuration for CHIP GN build system
 # ==============================================================================

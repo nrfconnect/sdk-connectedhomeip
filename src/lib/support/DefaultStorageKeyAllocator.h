@@ -101,9 +101,9 @@ public:
     static StorageKeyName FabricRCAC(FabricIndex fabric) { return StorageKeyName::Formatted("f/%x/r", fabric); }
     static StorageKeyName FabricMetadata(FabricIndex fabric) { return StorageKeyName::Formatted("f/%x/m", fabric); }
     static StorageKeyName FabricOpKey(FabricIndex fabric) { return StorageKeyName::Formatted("f/%x/o", fabric); }
+    static StorageKeyName FabricTableCommitMarkerKey() { return StorageKeyName::FromConst("g/fs/c"); }
 
     // Fail-safe handling
-    static StorageKeyName FailSafeCommitMarkerKey() { return StorageKeyName::FromConst("g/fs/c"); }
     static StorageKeyName FailSafeNetworkConfig() { return StorageKeyName::FromConst("g/fs/n"); }
 
     // LastKnownGoodTime

@@ -27,7 +27,6 @@
 #include <lib/core/CHIPError.h>
 #include <lib/core/DataModelTypes.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
-#include <system/SystemClock.h>
 
 namespace chip {
 namespace app {

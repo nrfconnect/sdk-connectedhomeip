@@ -385,14 +385,14 @@ public:
         /**
          * Gets called when a fabric in Fabric Table is persisted to storage, by CommitPendingFabricData.
          **/
-        virtual void OnFabricCommitted(const FabricTable & fabricTable, FabricIndex fabricIndex){};
+        virtual void OnFabricCommitted(const FabricTable & fabricTable, FabricIndex fabricIndex) {};
 
         /**
          * Gets called when operational credentials are changed, which may not be persistent.
          *
          * Can be used to affect what is needed for UpdateNOC prior to commit.
          **/
-        virtual void OnFabricUpdated(const FabricTable & fabricTable, FabricIndex fabricIndex){};
+        virtual void OnFabricUpdated(const FabricTable & fabricTable, FabricIndex fabricIndex) {};
 
         // Intrusive list pointer for FabricTable to manage the entries.
         Delegate * next = nullptr;
@@ -413,7 +413,7 @@ public:
     };
 
     // Returns CHIP_ERROR_NOT_FOUND if there is no fabric for that index.
-    CHIP_ERROR Delete(FabricIndex fabricIndex);
+    CHIP_ERROR Delete(FabricIndex fabricIndex, bool cleanup = false);
     void DeleteAllFabrics();
 
     // TODO this #if CONFIG_BUILD_FOR_HOST_UNIT_TEST is temporary. There is a change incoming soon

@@ -268,9 +268,9 @@ const FabricInfo * RetrieveCurrentFabric(CommandHandler * aCommandHandler)
     return Server::GetInstance().GetFabricTable().FindFabricWithIndex(index);
 }
 
-CHIP_ERROR DeleteFabricFromTable(FabricIndex fabricIndex)
+CHIP_ERROR DeleteFabricFromTable(FabricIndex fabricIndex, bool cleanup = false)
 {
-    ReturnErrorOnFailure(Server::GetInstance().GetFabricTable().Delete(fabricIndex));
+    ReturnErrorOnFailure(Server::GetInstance().GetFabricTable().Delete(fabricIndex, cleanup));
     return CHIP_NO_ERROR;
 }
 
@@ -303,7 +303,7 @@ void FailSafeCleanup(const chip::DeviceLayer::ChipDeviceEvent * event)
     if (event->FailSafeTimerExpired.addNocCommandHasBeenInvoked)
     {
         CHIP_ERROR err;
-        err = DeleteFabricFromTable(fabricIndex);
+        err = DeleteFabricFromTable(fabricIndex, true);
         if (err != CHIP_NO_ERROR)
         {
             ChipLogError(Zcl, "OpCreds: failed to delete fabric at index %u: %" CHIP_ERROR_FORMAT, fabricIndex, err.Format());
@@ -650,6 +650,9 @@ bool emberAfOperationalCredentialsClusterAddNOCCallback(app::CommandHandler * co
                                                                  &newFabricIndex);
     VerifyOrExit(err == CHIP_NO_ERROR, nocResponse = ConvertToNOCResponseStatus(err));
 
+    // Inform FailSafeContext about starting adding NOC for specified fabric
+    VerifyOrExit(failSafeContext.SetAddNocCommandStarted(newFabricIndex), nonDefaultStatus = Status::Failure);
+
     // From here if we error-out, we should revert the fabric table pending updates
     needRevert = true;
 
@@ -808,6 +811,9 @@ bool emberAfOperationalCredentialsClusterUpdateNOCCallback(app::CommandHandler *
 
     // Flush acks before really slow work
     commandObj->FlushAcksRightAwayOnSlowCommand();
+
+    // Inform FailSafeContext about starting updating NOC for specified fabric
+    VerifyOrExit(failSafeContext.SetUpdateNocCommandStarted(fabricIndex), nonDefaultStatus = Status::Failure);
 
     err = fabricTable.UpdatePendingFabricWithOperationalKeystore(fabricIndex, NOCValue, ICACValue.ValueOr(ByteSpan{}));
     VerifyOrExit(err == CHIP_NO_ERROR, nocResponse = ConvertToNOCResponseStatus(err));

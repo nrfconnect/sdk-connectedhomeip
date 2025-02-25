@@ -23,10 +23,10 @@
 
 #pragma once
 
+#include "lib/core/CHIPPersistentStorageDelegate.h"
 #include <lib/core/CHIPError.h>
 #include <lib/core/DataModelTypes.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
-#include <system/SystemClock.h>
 
 namespace chip {
 namespace app {
@@ -34,6 +34,16 @@ namespace app {
 class FailSafeContext
 {
 public:
+    struct InitParams
+    {
+        // PersistentStorageDelegate for marker storage (MANDATORY).
+        PersistentStorageDelegate * storage = nullptr;
+    };
+
+    CHIP_ERROR Init(const InitParams & initParams);
+
+    void CheckMarker();
+
     // ===== Members for internal use by other Device Layer components.
 
     /**
@@ -48,11 +58,29 @@ public:
      * @brief Cleanly disarm failsafe timer, such as on CommissioningComplete
      */
     void DisarmFailSafe();
+
+    bool SetAddNocCommandStarted(FabricIndex nocFabricIndex)
+    {
+        mFabricIndex = nocFabricIndex;
+
+        Marker marker{ mFabricIndex, true };
+        return StoreMarker(marker) == CHIP_NO_ERROR;
+    }
+
     void SetAddNocCommandInvoked(FabricIndex nocFabricIndex)
     {
         mAddNocCommandHasBeenInvoked = true;
         mFabricIndex                 = nocFabricIndex;
     }
+
+    bool SetUpdateNocCommandStarted(FabricIndex nocFabricIndex)
+    {
+        mFabricIndex = nocFabricIndex;
+
+        Marker marker{ mFabricIndex, false };
+        return StoreMarker(marker) == CHIP_NO_ERROR;
+    }
+
     void SetUpdateNocCommandInvoked() { mUpdateNocCommandHasBeenInvoked = true; }
     void SetAddTrustedRootCertInvoked() { mAddTrustedRootCertHasBeenInvoked = true; }
     void SetCsrRequestForUpdateNoc(bool isForUpdateNoc) { mIsCsrRequestForUpdateNoc = isForUpdateNoc; }
@@ -103,6 +131,17 @@ public:
     void ForceFailSafeTimerExpiry();
 
 private:
+    // Stored to indicate a Fail-Safe is in armed, so that clean-up cana run on next boot
+    // if device is reset e.g. during commissioning.
+    struct Marker
+    {
+        Marker() = default;
+        Marker(FabricIndex fabricIndex_, bool isAddition_) : fabricIndex{ fabricIndex_ }, isAddition{ isAddition_ } {}
+        FabricIndex fabricIndex = kUndefinedFabricIndex;
+        bool isAddition         = false;
+    };
+
+    PersistentStorageDelegate * mStorage   = nullptr;
     bool mFailSafeArmed                    = false;
     bool mFailSafeBusy                     = false;
     bool mAddNocCommandHasBeenInvoked      = false;
@@ -145,10 +184,14 @@ private:
         mAddTrustedRootCertHasBeenInvoked = false;
         mFailSafeBusy                     = false;
         mIsCsrRequestForUpdateNoc         = false;
+
+        ClearMarker();
     }
 
     void FailSafeTimerExpired();
-    CHIP_ERROR CommitToStorage();
+    CHIP_ERROR GetMarker(Marker & outMarker);
+    CHIP_ERROR StoreMarker(const Marker & marker);
+    void ClearMarker();
 };
 
 } // namespace app

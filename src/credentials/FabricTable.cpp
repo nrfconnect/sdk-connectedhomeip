@@ -948,7 +948,7 @@ FabricTable::AddOrUpdateInner(FabricIndex fabricIndex, bool isAddition, Crypto::
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR FabricTable::Delete(FabricIndex fabricIndex)
+CHIP_ERROR FabricTable::Delete(FabricIndex fabricIndex, bool cleanup)
 {
     MATTER_TRACE_SCOPE("Delete", "Fabric");
     VerifyOrReturnError(mStorage != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
@@ -1002,39 +1002,46 @@ CHIP_ERROR FabricTable::Delete(FabricIndex fabricIndex)
         }
     }
 
-    if (!fabricIsInitialized)
+    if (fabricIsInitialized)
     {
-        // Make sure to return the error our API promises, not whatever storage
-        // chose to return.
-        return CHIP_ERROR_NOT_FOUND;
-    }
+        // Since fabricIsInitialized was true, fabric is not null.
+        fabricInfo->Reset();
 
-    // Since fabricIsInitialized was true, fabric is not null.
-    fabricInfo->Reset();
+        if (!mNextAvailableFabricIndex.HasValue())
+        {
+            // We must have been in a situation where CHIP_CONFIG_MAX_FABRICS is 254
+            // and our fabric table was full, so there was no valid next index.  We
+            // have a single available index now, though; use it as
+            // mNextAvailableFabricIndex.
+            mNextAvailableFabricIndex.SetValue(fabricIndex);
+        }
+        // If StoreFabricIndexInfo fails here, that's probably OK.  When we try to
+        // read things from storage later we will realize there is nothing for this
+        // index.
+        StoreFabricIndexInfo();
 
-    if (!mNextAvailableFabricIndex.HasValue())
-    {
-        // We must have been in a situation where CHIP_CONFIG_MAX_FABRICS is 254
-        // and our fabric table was full, so there was no valid next index.  We
-        // have a single available index now, though; use it as
-        // mNextAvailableFabricIndex.
-        mNextAvailableFabricIndex.SetValue(fabricIndex);
-    }
-    // If StoreFabricIndexInfo fails here, that's probably OK.  When we try to
-    // read things from storage later we will realize there is nothing for this
-    // index.
-    StoreFabricIndexInfo();
-
-    // If we ever start moving the FabricInfo entries around in the array on
-    // delete, we should update DeleteAllFabrics to handle that.
-    if (mFabricCount == 0)
-    {
-        ChipLogError(FabricProvisioning, "Trying to delete a fabric, but the current fabric count is already 0");
+        // If we ever start moving the FabricInfo entries around in the array on
+        // delete, we should update DeleteAllFabrics to handle that.
+        if (mFabricCount == 0)
+        {
+            ChipLogError(FabricProvisioning, "Trying to delete a fabric, but the current fabric count is already 0");
+        }
+        else
+        {
+            mFabricCount--;
+            ChipLogProgress(FabricProvisioning, "Fabric (0x%x) deleted.", static_cast<unsigned>(fabricIndex));
+        }
     }
     else
     {
-        mFabricCount--;
-        ChipLogProgress(FabricProvisioning, "Fabric (0x%x) deleted.", static_cast<unsigned>(fabricIndex));
+        // Don't return here if we're doing a cleanup, as we want to remove all data,
+        // even if incomplete.
+        if (!cleanup)
+        {
+            // Make sure to return the error our API promises, not whatever storage
+            // chose to return.
+            return CHIP_ERROR_NOT_FOUND;
+        }
     }
 
     if (mDelegateListRoot != nullptr)
@@ -1050,10 +1057,14 @@ CHIP_ERROR FabricTable::Delete(FabricIndex fabricIndex)
         }
     }
 
-    // Only return error after trying really hard to remove everything we could
-    ReturnErrorOnFailure(metadataErr);
-    ReturnErrorOnFailure(opKeyErr);
-    ReturnErrorOnFailure(opCertsErr);
+    // Don't return error if we're doing a cleanup, some data may be missing.
+    if (!cleanup)
+    {
+        // Only return error after trying really hard to remove everything we could
+        ReturnErrorOnFailure(metadataErr);
+        ReturnErrorOnFailure(opKeyErr);
+        ReturnErrorOnFailure(opCertsErr);
+    }
 
     return CHIP_NO_ERROR;
 }
@@ -1466,7 +1477,7 @@ CHIP_ERROR FabricTable::StoreCommitMarker(const CommitMarker & commitMarker)
     const auto markerContextTLVLength = writer.GetLengthWritten();
     VerifyOrReturnError(CanCastTo<uint16_t>(markerContextTLVLength), CHIP_ERROR_BUFFER_TOO_SMALL);
 
-    return mStorage->SyncSetKeyValue(DefaultStorageKeyAllocator::FailSafeCommitMarkerKey().KeyName(), tlvBuf,
+    return mStorage->SyncSetKeyValue(DefaultStorageKeyAllocator::FabricTableCommitMarkerKey().KeyName(), tlvBuf,
                                      static_cast<uint16_t>(markerContextTLVLength));
 }
 
@@ -1475,7 +1486,7 @@ CHIP_ERROR FabricTable::GetCommitMarker(CommitMarker & outCommitMarker)
     uint8_t tlvBuf[CommitMarkerContextTLVMaxSize()];
     uint16_t tlvSize = sizeof(tlvBuf);
     ReturnErrorOnFailure(
-        mStorage->SyncGetKeyValue(DefaultStorageKeyAllocator::FailSafeCommitMarkerKey().KeyName(), tlvBuf, tlvSize));
+        mStorage->SyncGetKeyValue(DefaultStorageKeyAllocator::FabricTableCommitMarkerKey().KeyName(), tlvBuf, tlvSize));
 
     // If buffer was too small, we won't reach here.
     TLV::ContiguousBufferTLVReader reader;
@@ -1499,7 +1510,7 @@ CHIP_ERROR FabricTable::GetCommitMarker(CommitMarker & outCommitMarker)
 
 void FabricTable::ClearCommitMarker()
 {
-    mStorage->SyncDeleteKeyValue(DefaultStorageKeyAllocator::FailSafeCommitMarkerKey().KeyName());
+    mStorage->SyncDeleteKeyValue(DefaultStorageKeyAllocator::FabricTableCommitMarkerKey().KeyName());
 }
 
 bool FabricTable::HasOperationalKeyForFabric(FabricIndex fabricIndex) const

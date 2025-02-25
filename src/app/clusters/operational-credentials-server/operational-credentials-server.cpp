@@ -268,9 +268,9 @@ const FabricInfo * RetrieveCurrentFabric(CommandHandler * aCommandHandler)
     return Server::GetInstance().GetFabricTable().FindFabricWithIndex(index);
 }
 
-CHIP_ERROR DeleteFabricFromTable(FabricIndex fabricIndex)
+CHIP_ERROR DeleteFabricFromTable(FabricIndex fabricIndex, bool cleanup = false)
 {
-    ReturnErrorOnFailure(Server::GetInstance().GetFabricTable().Delete(fabricIndex));
+    ReturnErrorOnFailure(Server::GetInstance().GetFabricTable().Delete(fabricIndex, cleanup));
     return CHIP_NO_ERROR;
 }
 
@@ -303,7 +303,7 @@ void FailSafeCleanup(const chip::DeviceLayer::ChipDeviceEvent * event)
     if (event->FailSafeTimerExpired.addNocCommandHasBeenInvoked)
     {
         CHIP_ERROR err;
-        err = DeleteFabricFromTable(fabricIndex);
+        err = DeleteFabricFromTable(fabricIndex, true);
         if (err != CHIP_NO_ERROR)
         {
             ChipLogError(Zcl, "OpCreds: failed to delete fabric at index %u: %" CHIP_ERROR_FORMAT, fabricIndex, err.Format());

@@ -31,6 +31,7 @@
 
 #include <credentials/FabricTable.h>
 
+#include <credentials/GroupDataProviderImpl.h>
 #include <credentials/PersistentStorageOpCertStore.h>
 #include <credentials/TestOnlyLocalCertificateAuthority.h>
 #include <credentials/tests/CHIPCert_test_vectors.h>
@@ -38,6 +39,7 @@
 #include <crypto/PersistentStorageOperationalKeystore.h>
 #include <lib/asn1/ASN1.h>
 #include <lib/support/CodeUtils.h>
+#include <lib/support/DefaultStorageKeyAllocator.h>
 #include <lib/support/TestPersistentStorageDelegate.h>
 
 #include <platform/ConfigurationManager.h>
@@ -69,6 +71,16 @@ public:
 
         ReturnErrorOnFailure(mOpKeyStore.Init(storage));
         ReturnErrorOnFailure(mOpCertStore.Init(storage));
+        return mFabricTable.Init(initParams);
+    }
+
+    CHIP_ERROR ReinitFabricTable(chip::TestPersistentStorageDelegate * storage)
+    {
+        chip::FabricTable::InitParams initParams;
+        initParams.storage             = storage;
+        initParams.operationalKeystore = &mOpKeyStore;
+        initParams.opCertStore         = &mOpCertStore;
+
         return mFabricTable.Init(initParams);
     }
 
@@ -2996,6 +3008,70 @@ TEST_F(TestFabricTable, TestCommitMarker)
         }
     }
 #endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
+}
+
+class TestFabricTableDelegate : public FabricTable::Delegate
+{
+public:
+    void FabricWillBeRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex) override { willBeRemovedCalled = true; }
+
+    void OnFabricRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex) override { onRemovedCalled = true; }
+
+    bool willBeRemovedCalled = false;
+    bool onRemovedCalled     = false;
+};
+
+TEST_F(TestFabricTable, Delete)
+{
+    Credentials::TestOnlyLocalCertificateAuthority fabricCertAuthority;
+    EXPECT_TRUE(fabricCertAuthority.Init().IsSuccess());
+
+    chip::TestPersistentStorageDelegate storage;
+    ScopedFabricTable fabricTableHolder;
+    EXPECT_EQ(fabricTableHolder.Init(&storage), CHIP_NO_ERROR);
+
+    FabricTable & fabricTable = fabricTableHolder.GetFabricTable();
+    FabricId fabricId         = 1;
+    NodeId nodeId             = 10;
+
+    // Simulate AddNOC
+    uint8_t csrBuf[chip::Crypto::kMIN_CSR_Buffer_Size];
+    MutableByteSpan csrSpan{ csrBuf };
+    EXPECT_EQ(fabricTable.AllocatePendingOperationalKey(chip::NullOptional, csrSpan), CHIP_NO_ERROR);
+
+    EXPECT_EQ(fabricCertAuthority.SetIncludeIcac(true).GenerateNocChain(fabricId, nodeId, csrSpan).GetStatus(), CHIP_NO_ERROR);
+    ByteSpan rcac = fabricCertAuthority.GetRcac();
+    ByteSpan icac = fabricCertAuthority.GetIcac();
+    ByteSpan noc  = fabricCertAuthority.GetNoc();
+
+    fabricTable.AddNewPendingTrustedRootCert(rcac);
+
+    constexpr uint16_t kVendorId = 0xFFF1u;
+    FabricIndex newFabricIndex   = kUndefinedFabricIndex;
+    EXPECT_EQ(fabricTable.AddNewPendingFabricWithOperationalKeystore(noc, icac, kVendorId, &newFabricIndex), CHIP_NO_ERROR);
+
+    TestFabricTableDelegate fabricDelegate;
+
+    // Reinitialize FabricTable to simulate device reboot
+    EXPECT_EQ(fabricTableHolder.ReinitFabricTable(&storage), CHIP_NO_ERROR);
+    fabricTable.AddFabricDelegate(&fabricDelegate);
+
+    // Calling normal Delete doesn't invoke OnFabricRemoved on delegates
+    fabricTable.Delete(newFabricIndex);
+    EXPECT_TRUE(fabricDelegate.willBeRemovedCalled);
+    EXPECT_FALSE(fabricDelegate.onRemovedCalled);
+
+    // Reset delegate
+    fabricDelegate = TestFabricTableDelegate{};
+
+    // Reinitialize FabricTable to simulate device reboot
+    EXPECT_EQ(fabricTableHolder.ReinitFabricTable(&storage), CHIP_NO_ERROR);
+    fabricTable.AddFabricDelegate(&fabricDelegate);
+
+    // Calling Delete with cleanup flag innvokes OnFabricRemoved on delegates
+    fabricTable.Delete(newFabricIndex, true);
+    EXPECT_TRUE(fabricDelegate.willBeRemovedCalled);
+    EXPECT_TRUE(fabricDelegate.onRemovedCalled);
 }
 
 } // namespace

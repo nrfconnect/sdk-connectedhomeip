@@ -24,6 +24,8 @@
 #if CHIP_CONFIG_ENABLE_ICD_SERVER
 #include <app/icd/server/ICDNotifier.h> // nogncheck
 #endif
+#include <lib/core/TLV.h>
+#include <lib/support/DefaultStorageKeyAllocator.h>
 #include <lib/support/SafeInt.h>
 #include <platform/CHIPDeviceConfig.h>
 #include <platform/ConnectivityManager.h>
@@ -33,6 +35,57 @@ using namespace chip::DeviceLayer;
 
 namespace chip {
 namespace app {
+
+namespace {
+
+// Tags for marker storage
+constexpr TLV::Tag kMarkerFabricIndexTag = TLV::ContextTag(0);
+
+constexpr size_t MarkerContextTLVMaxSize()
+{
+    // Add 2x uncommitted uint64_t to leave space for backwards/forwards
+    // versioning for this critical feature that runs at boot.
+    return TLV::EstimateStructOverhead(sizeof(FabricIndex), sizeof(uint64_t), sizeof(uint64_t));
+}
+
+} // namespace
+
+CHIP_ERROR FailSafeContext::Init(const InitParams & initParams)
+{
+    VerifyOrReturnError(initParams.storage != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
+    mStorage = initParams.storage;
+
+    return CHIP_NO_ERROR;
+}
+
+void FailSafeContext::CheckMarker()
+{
+    Marker marker;
+
+    CHIP_ERROR err = GetMarker(marker);
+
+    if (err == CHIP_NO_ERROR)
+    {
+        // Found a marker! We need to trigger a cleanup.
+        ChipLogError(FabricProvisioning, "Found a Fail-Safe marker for index 0x%x, preparing cleanup!",
+                     static_cast<unsigned>(marker.fabricIndex));
+
+        // Fake arm Fail-Safe and trigger timer expiry.
+        // We handle only the case when new fabric is added. FabricTable CommitMarker
+        // is responsible for guarding the case of updating the existing fabric.
+        SetFailSafeArmed(true);
+        mFabricIndex                 = marker.fabricIndex;
+        mAddNocCommandHasBeenInvoked = true;
+        ForceFailSafeTimerExpiry();
+    }
+    else if (err != CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND)
+    {
+        // Got an error, but somehow value is not missing altogether: inconsistent state but touch nothing.
+        ChipLogError(FabricProvisioning, "Error loading Fail-Safe marker: %" CHIP_ERROR_FORMAT ", hope for the best!",
+                     err.Format());
+    }
+}
 
 void FailSafeContext::HandleArmFailSafeTimer(System::Layer * layer, void * aAppState)
 {
@@ -150,6 +203,59 @@ void FailSafeContext::ForceFailSafeTimerExpiry()
     DeviceLayer::SystemLayer().CancelTimer(HandleMaxCumulativeFailSafeTimer, this);
 
     FailSafeTimerExpired();
+}
+
+CHIP_ERROR FailSafeContext::GetMarker(Marker & outMarker)
+{
+    VerifyOrReturnError(mStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
+    uint8_t tlvBuf[MarkerContextTLVMaxSize()];
+    uint16_t tlvSize = sizeof(tlvBuf);
+
+    ReturnErrorOnFailure(mStorage->SyncGetKeyValue(DefaultStorageKeyAllocator::FailSafeMarkerKey().KeyName(), tlvBuf, tlvSize));
+
+    // If buffer was too small, we won't reach here.
+    TLV::ContiguousBufferTLVReader reader;
+    reader.Init(tlvBuf, tlvSize);
+    ReturnErrorOnFailure(reader.Next(TLV::kTLVType_Structure, TLV::AnonymousTag()));
+
+    TLV::TLVType containerType;
+    ReturnErrorOnFailure(reader.EnterContainer(containerType));
+
+    ReturnErrorOnFailure(reader.Next(kMarkerFabricIndexTag));
+    ReturnErrorOnFailure(reader.Get(outMarker.fabricIndex));
+
+    // Don't try to exit container: we got all we needed. This allows us to
+    // avoid erroring-out on newer versions.
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR FailSafeContext::StoreMarker(const Marker & marker)
+{
+    VerifyOrReturnError(mStorage != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
+    uint8_t tlvBuf[MarkerContextTLVMaxSize()];
+    TLV::TLVWriter writer;
+    writer.Init(tlvBuf);
+
+    TLV::TLVType outerType;
+    ReturnErrorOnFailure(writer.StartContainer(TLV::AnonymousTag(), TLV::kTLVType_Structure, outerType));
+    ReturnErrorOnFailure(writer.Put(kMarkerFabricIndexTag, marker.fabricIndex));
+    ReturnErrorOnFailure(writer.EndContainer(outerType));
+
+    const auto markerContextTLVLength = writer.GetLengthWritten();
+    VerifyOrReturnError(CanCastTo<uint16_t>(markerContextTLVLength), CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    return mStorage->SyncSetKeyValue(DefaultStorageKeyAllocator::FailSafeMarkerKey().KeyName(), tlvBuf,
+                                     static_cast<uint16_t>(markerContextTLVLength));
+}
+
+void FailSafeContext::ClearMarker()
+{
+    VerifyOrDie(mStorage != nullptr);
+
+    mStorage->SyncDeleteKeyValue(DefaultStorageKeyAllocator::FailSafeMarkerKey().KeyName());
 }
 
 } // namespace app

@@ -205,11 +205,7 @@ if(CONFIG_CHIP_FACTORY_DATA_MERGE_WITH_FIRMWARE)
         set_property(GLOBAL PROPERTY factory_data_PM_TARGET factory_data)
     else()
         set_property(GLOBAL APPEND PROPERTY HEX_FILES_TO_MERGE ${OUTPUT_FILE_PATH}/factory_data.hex ${OUTPUT_FILE_PATH}/zephyr.hex)
-        if(NOT CONFIG_SOC_SERIES_NRF54HX)
-            # Do not overwrite runners while using nRF54H series.
-            # In this case we need to rely on SUIT mechanisms.
-            set_property(TARGET runners_yaml_props_target PROPERTY hex_file ${OUTPUT_FILE_PATH}/merged.hex)
-        endif()
+        set_property(TARGET runners_yaml_props_target PROPERTY hex_file ${OUTPUT_FILE_PATH}/merged.hex)
     endif()
 endif()
 

@@ -35,12 +35,9 @@
 
 #include <dfu/dfu_target.h>
 
-#ifdef CONFIG_DFU_TARGET_SUIT
-#include <dfu/dfu_target_suit.h>
-#else
 #include <dfu/dfu_target_mcuboot.h>
 #include <zephyr/dfu/mcuboot.h>
-#endif
+
 #include <dfu/dfu_multi_image.h>
 
 #include <zephyr/logging/log.h>
@@ -96,27 +93,15 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
 {
     mHeaderParser.Init();
     mParams = {};
-#ifdef CONFIG_DFU_TARGET_SUIT
-    ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_suit_set_buf(mBuffer, sizeof(mBuffer))));
-#else
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_target_mcuboot_set_buf(mBuffer, sizeof(mBuffer))));
-#endif // CONFIG_DFU_TARGET_SUIT
     ReturnErrorOnFailure(System::MapErrorZephyr(dfu_multi_image_init(mBuffer, sizeof(mBuffer))));
 
     for (int image_id = 0; image_id < CONFIG_UPDATEABLE_IMAGE_NUMBER; ++image_id)
     {
         dfu_image_writer writer;
 
-#ifdef CONFIG_DFU_TARGET_SUIT
-        // The first image is the SUIT manifest and must be placed in id=0, while all other images must be placed in id + 1,
-        // because id=1 is dedicated for internal DFU purposes when the SUIT manifest contains the firmware.
-        // In our case, we use cache processing, so we need to put firmware images starting from id=2.
-        writer.image_id = image_id == 0 ? image_id : image_id + 1;
-        writer.open     = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_SUIT, id, size, nullptr); };
-#else
         writer.image_id = image_id;
         writer.open     = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, id, size, nullptr); };
-#endif
         writer.write = [](const uint8_t * chunk, size_t chunk_size) { return dfu_target_write(chunk, chunk_size); };
         writer.close = [](bool success) { return success ? dfu_target_done(success) : dfu_target_reset(); };
 
@@ -181,11 +166,7 @@ CHIP_ERROR OTAImageProcessorImpl::Apply()
             [](System::Layer *, void * /* context */) {
                 PlatformMgr().HandleServerShuttingDown();
                 k_msleep(CHIP_DEVICE_CONFIG_SERVER_SHUTDOWN_ACTIONS_SLEEP_MS);
-#ifdef CONFIG_DFU_TARGET_SUIT
-                dfu_target_suit_reboot();
-#else
                 Reboot(SoftwareRebootReason::kSoftwareUpdate);
-#endif
             },
             nullptr /* context */);
     }

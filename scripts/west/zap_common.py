@@ -95,11 +95,15 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
 
         for package in packages:
             if package.get("type") == "zcl-properties":
-                if not zcl_json.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+                if zcl_json.parent.absolute() == zap_file.parent.absolute() or \
+                    not zcl_json.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+
                     package.update({"path": str(zcl_json.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
                     updated = True
             if package.get("type") == "gen-templates-json":
-                if not app_templates.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+                if app_templates.parent.absolute() == zap_file.parent.absolute() or \
+                    not app_templates.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+
                     package.update({"path": str(app_templates.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
                     updated = True
 

@@ -103,7 +103,8 @@ public:
     static StorageKeyName FabricOpKey(FabricIndex fabric) { return StorageKeyName::Formatted("f/%x/o", fabric); }
 
     // Fail-safe handling
-    static StorageKeyName FailSafeCommitMarkerKey() { return StorageKeyName::FromConst("g/fs/c"); }
+    static StorageKeyName FabricTableCommitMarkerKey() { return StorageKeyName::FromConst("g/fs/c"); }
+    static StorageKeyName FailSafeAddNOCStartedMarkerKey() { return StorageKeyName::FromConst("g/fs/m"); }
     static StorageKeyName FailSafeNetworkConfig() { return StorageKeyName::FromConst("g/fs/n"); }
 
     // LastKnownGoodTime

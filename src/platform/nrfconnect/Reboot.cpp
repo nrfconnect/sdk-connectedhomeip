@@ -25,10 +25,12 @@
 #include <hal/nrf_power.h>
 #endif
 
+#include <platform/SaveBootReasonDFUSuit.h>
+
 namespace chip {
 namespace DeviceLayer {
 
-#if defined(CONFIG_ARCH_POSIX) || defined(CONFIG_SOC_SERIES_NRF54HX)
+#if defined(CONFIG_ARCH_POSIX)
 
 void Reboot(SoftwareRebootReason reason)
 {
@@ -40,7 +42,7 @@ SoftwareRebootReason GetSoftwareRebootReason()
     return SoftwareRebootReason::kOther;
 }
 
-#else
+#elif !(defined(CONFIG_SOC_SERIES_NRF54HX))
 
 using RetainedReason = decltype(nrf_power_gpregret_get(NRF_POWER, 0));
 
@@ -73,6 +75,35 @@ SoftwareRebootReason GetSoftwareRebootReason()
     }
 }
 
+#else
+
+using RetainedReason = decltype(getSoftwareRebootReasonSUIT());
+
+constexpr RetainedReason EncodeReason(SoftwareRebootReason reason)
+{
+    // Set MSB to avoid collission with Zephyr's pre-defined reboot reasons.
+    constexpr RetainedReason kCustomReasonFlag = 0x80;
+
+    return static_cast<RetainedReason>(reason) | kCustomReasonFlag;
+}
+
+void SetSoftwareRebootReason(SoftwareRebootReason reason)
+{
+    const RetainedReason retainedReason = EncodeReason(reason);
+    setSoftwareRebootReasonSUIT(retainedReason);
+}
+
+SoftwareRebootReason GetSoftwareRebootReason()
+{
+    switch (getSoftwareRebootReasonSUIT())
+    {
+    case EncodeReason(SoftwareRebootReason::kSoftwareUpdate):
+        setSoftwareRebootReasonSUIT(0);
+        return SoftwareRebootReason::kSoftwareUpdate;
+    default:
+        return SoftwareRebootReason::kOther;
+    }
+}
 #endif
 
 } // namespace DeviceLayer

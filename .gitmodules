@@ -14,10 +14,6 @@
 	path = third_party/pigweed/repo
 	url = https://github.com/google/pigweed.git
 	branch  = main
-[submodule "openthread"]
-	path = third_party/openthread/repo
-	url = https://github.com/openthread/openthread.git
-	branch  = main
 [submodule "third_party/jsoncpp/repo"]
 	path = third_party/jsoncpp/repo
 	url = https://github.com/open-source-parsers/jsoncpp.git

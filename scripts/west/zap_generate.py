@@ -36,9 +36,16 @@ class ZapGenerate(WestCommand):
                             help='Path where to store the generated files')
         parser.add_argument('-m', '--matter-path', type=existing_dir_path,
                             default=DEFAULT_MATTER_PATH, help='Path to Matter SDK')
+        parser.add_argument('-f', '--full', action='store_true', help='Generate full data model files')
         return parser
 
+    def build_command(self, zap_file_path, output_path, templates_path):
+        cmd = [sys.executable, self.zap_generate_path, zap_file_path, "-o", output_path, "-t", templates_path]
+        return [str(x) for x in cmd]
+
     def do_run(self, args, unknown_args):
+        self.zap_generate_path = args.matter_path / "scripts/tools/zap/generate.py"
+
         if args.zap_file:
             zap_file_path = args.zap_file.absolute()
         else:
@@ -52,8 +59,8 @@ class ZapGenerate(WestCommand):
         else:
             output_path = zap_file_path.parent / "zap-generated"
 
+        templates_path = args.matter_path / "src/app/common/templates/templates.json"
         app_templates_path = args.matter_path / "src/app/zap-templates/app-templates.json"
-        zap_generate_path = args.matter_path / "scripts/tools/zap/generate.py"
 
         zap_installer = ZapInstaller(args.matter_path)
         zap_installer.update_zap_if_needed()
@@ -61,11 +68,16 @@ class ZapGenerate(WestCommand):
         # make sure that the generate.py script uses the proper zap_cli binary (handled by west)
         os.environ["ZAP_INSTALL_PATH"] = str(zap_installer.get_zap_cli_path().parent.absolute())
 
-        cmd = [sys.executable, zap_generate_path]
-        cmd += [zap_file_path]
-        cmd += ["-t", app_templates_path]
-        cmd += ["-o", output_path]
 
-        self.check_call([str(x) for x in cmd])
+        # Make sure that output directory exists
+        output_path.mkdir(exist_ok=True)
+
+        self.check_call(self.build_command(zap_file_path, output_path, app_templates_path))
+
+        if args.full:
+            output_path = output_path / "app-common/zap-generated"
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            self.check_call(self.build_command(zap_file_path, output_path, templates_path))
 
         log.inf(f"Done. Files generated in {output_path}")

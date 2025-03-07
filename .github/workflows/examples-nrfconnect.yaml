@@ -57,19 +57,6 @@ jobs:
               uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
                 platform: nrfconnect
-            - name: Detect changed paths
-              uses: dorny/paths-filter@v3
-              id: changed_paths
-              with:
-                  filters: |
-                      nrfconnect:
-                        - '**/nrfconnect/**'
-                        - '**/Zephyr/**'
-                        - '**/zephyr/**'
-                      tests:
-                        - '**/tests/**'
-                      shell:
-                        - 'examples/shell/nrfconnect/**'
             - name: Update NCS recommended version (workflow_dispatch)
               if: github.event_name == 'workflow_dispatch'
               run: |
@@ -98,7 +85,6 @@ jobs:
                   scripts/run_in_build_env.sh 'pip3 install -r scripts/setup/requirements.nrfconnect.txt'
                   scripts/run_in_build_env.sh "./scripts/tools/nrfconnect/tests/test_generate_factory_data.py"
             - name: Run unit tests for Zephyr native_posix_64 platform
-              if: github.event_name == 'push' || steps.changed_paths.outputs.tests == 'true' || steps.changed_paths.outputs.nrfconnect == 'true'
               run: |
                   scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target nrf-native-sim-tests build"
             - name: Uploading Failed Test Logs

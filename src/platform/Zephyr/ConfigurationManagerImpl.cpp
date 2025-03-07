@@ -58,6 +58,11 @@
 #include <mpsl/mpsl_lib.h>
 #endif // CONFIG_SOC_FLASH_NRF_RADIO_SYNC_MPSL
 
+__weak bool AppFactoryResetHandler()
+{
+    return true;
+}
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -238,6 +243,12 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     {
         ChipLogError(DeviceLayer, "Factory reset failed: %" CHIP_ERROR_FORMAT, err.Format());
     }
+
+    if (!AppFactoryResetHandler())
+    {
+        ChipLogError(DeviceLayer, "Factory reset failed, AppFactoryReset failed");
+    }
+
 #endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 
     PlatformMgr().Shutdown();

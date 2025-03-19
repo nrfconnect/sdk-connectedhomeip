@@ -98,7 +98,8 @@ jobs:
                   python3 -m zipfile -c /tmp/output_binaries/python_matter_controller.zip \
                       out/python_lib/controller/python/chip_clusters-0.0-py3-none-any.whl \
                       out/python_lib/controller/python/chip_core-0.0-cp37-abi3-linux_x86_64.whl \
-                      out/python_lib/obj/scripts/matter_yamltests_distribution._build_wheel/*.whl
+                      out/python_lib/obj/scripts/matter_yamltests_distribution._build_wheel/*.whl \
+                      out/python_lib/python/obj/src/python_testing/matter_testing_infrastructure/chip-testing._build_wheel/*.whl
             - name: Build arm64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |

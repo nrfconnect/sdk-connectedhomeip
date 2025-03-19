@@ -34,14 +34,6 @@ namespace DeviceLayer {
 namespace PersistedStorage {
 namespace {
 
-struct ReadEntry
-{
-    void * destination;           // destination address
-    size_t destinationBufferSize; // size of destination buffer
-    size_t readSize;              // [out] size of read entry value
-    CHIP_ERROR result;            // [out] read result
-};
-
 struct DeleteSubtreeEntry
 {
     int result;
@@ -87,43 +79,6 @@ CHIP_ERROR MakeFullKey(char (&fullKey)[SETTINGS_MAX_NAME_LEN + 1], const char * 
     return CHIP_NO_ERROR;
 }
 
-int LoadEntryCallback(const char * name, size_t entrySize, settings_read_cb readCb, void * cbArg, void * param)
-{
-    ReadEntry & entry = *static_cast<ReadEntry *>(param);
-
-    // If requested key X, process just node X and ignore all its descendants: X/*
-    if (name != nullptr && *name != '\0')
-        return 0;
-
-    // Found requested key.
-    uint8_t emptyValue[kEmptyValueSize];
-
-    if (entrySize == kEmptyValueSize && readCb(cbArg, emptyValue, kEmptyValueSize) == kEmptyValueSize &&
-        memcmp(emptyValue, kEmptyValue, kEmptyValueSize) == 0)
-    {
-        // Special case - an empty value represented by known magic bytes.
-        entry.result = CHIP_NO_ERROR;
-
-        // Return 1 to stop processing further keys
-        return 1;
-    }
-
-    const ssize_t bytesRead = readCb(cbArg, entry.destination, entry.destinationBufferSize);
-    entry.readSize          = bytesRead > 0 ? bytesRead : 0;
-
-    if (entrySize > entry.destinationBufferSize)
-    {
-        entry.result = CHIP_ERROR_BUFFER_TOO_SMALL;
-    }
-    else
-    {
-        entry.result = bytesRead > 0 ? CHIP_NO_ERROR : CHIP_ERROR_PERSISTED_STORAGE_FAILED;
-    }
-
-    // Return 1 to stop processing further keys
-    return 1;
-}
-
 int DeleteSubtreeCallback(const char * name, size_t /* entrySize */, settings_read_cb /* readCb */, void * /* cbArg */,
                           void * param)
 {
@@ -155,6 +110,8 @@ void KeyValueStoreManagerImpl::Init()
 CHIP_ERROR KeyValueStoreManagerImpl::_Get(const char * key, void * value, size_t value_size, size_t * read_bytes_size,
                                           size_t offset_bytes) const
 {
+    CHIP_ERROR result;
+    size_t readSize;
     // Offset and partial reads are not supported, for now just return NOT_IMPLEMENTED.
     // Support can be added in the future if this is needed.
     VerifyOrReturnError(offset_bytes == 0, CHIP_ERROR_NOT_IMPLEMENTED);
@@ -162,16 +119,39 @@ CHIP_ERROR KeyValueStoreManagerImpl::_Get(const char * key, void * value, size_t
     char fullKey[SETTINGS_MAX_NAME_LEN + 1];
     ReturnErrorOnFailure(MakeFullKey(fullKey, key));
 
-    ReadEntry entry{ value, value_size, 0, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND };
-    settings_load_subtree_direct(fullKey, LoadEntryCallback, &entry);
+    // Found requested key.
+    const ssize_t bytesRead = settings_load_one(fullKey, value, value_size);
+    // If the return code is -ENOENT the key is not found
+    VerifyOrReturnError(bytesRead != -ENOENT, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+
+    if (bytesRead == kEmptyValueSize &&
+        memcmp(value, kEmptyValue, kEmptyValueSize) == 0)
+    {
+        // Special case - an empty value represented by known magic bytes.
+        result = CHIP_NO_ERROR;
+	readSize = 0;
+    }
+    else
+    {
+        readSize = bytesRead > 0 ? bytesRead : 0;
+
+        if ((size_t)bytesRead > value_size)
+        {
+            result = CHIP_ERROR_BUFFER_TOO_SMALL;
+        }
+        else
+        {
+            result = bytesRead > 0 ? CHIP_NO_ERROR : CHIP_ERROR_PERSISTED_STORAGE_FAILED;
+	}
+    }
 
     // Assign readSize only in case read_bytes_size is not nullptr, as it is optional argument
     if (read_bytes_size)
     {
-        *read_bytes_size = entry.readSize;
+        *read_bytes_size = readSize;
     }
 
-    return entry.result;
+    return result;
 }
 
 CHIP_ERROR KeyValueStoreManagerImpl::_Put(const char * key, const void * value, size_t value_size)
@@ -195,8 +175,6 @@ CHIP_ERROR KeyValueStoreManagerImpl::_Delete(const char * key)
     char fullKey[SETTINGS_MAX_NAME_LEN + 1];
     ReturnErrorOnFailure(MakeFullKey(fullKey, key));
 
-    ReturnErrorCodeIf(Get(key, nullptr, 0) == CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND,
-                      CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
     ReturnErrorCodeIf(settings_delete(fullKey) != 0, CHIP_ERROR_PERSISTED_STORAGE_FAILED);
 
     return CHIP_NO_ERROR;

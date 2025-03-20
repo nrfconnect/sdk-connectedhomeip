@@ -50,6 +50,10 @@ class ZapGui(WestCommand):
         zap_file_path = args.zap_file or find_zap()
         zcl_json_path = Path(args.zcl_json).absolute() if args.zcl_json else default_zcl_path
 
+        if zap_file_path is None:
+            log.err("ZAP file not found!")
+            return
+
         if args.clusters:
             # If the user provided the clusters and the zcl.json file provided by -j argument does not exist
             # we will create a new zcl.json file according to the base zcl.json file in default_zcl_path.

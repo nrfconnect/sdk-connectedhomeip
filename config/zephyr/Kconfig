@@ -355,7 +355,7 @@ if CHIP_ENABLE_ICD_SUPPORT
 
 config CHIP_ICD_SLOW_POLL_INTERVAL
 	int "Intermittently Connected Device slow polling interval (ms)"
-	default 30000 if CHIP_ICD_LIT_SUPPORT
+	default 300000 if CHIP_ICD_LIT_SUPPORT # Use the same value as CONFIG_CHIP_ICD_IDLE_MODE_DURATION
 	default 1000
 	help
 	  Provides the Intermittently Connected Device slow polling interval in milliseconds while the
@@ -373,6 +373,7 @@ config CHIP_ICD_SIT_SLOW_POLL_LIMIT
 
 config CHIP_ICD_FAST_POLLING_INTERVAL
 	int "Intermittently Connected Device fast polling interval (ms)"
+	default 500 if CHIP_ICD_LIT_SUPPORT # Use greater than default (200 ms) value to limit the impact of Active Threshold Duration on power consumption
 	default 200
 	help
 	  Provides the Intermittently Connected Device fast polling interval in milliseconds while the

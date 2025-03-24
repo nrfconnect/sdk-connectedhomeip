@@ -94,6 +94,43 @@ config CHIP_CRYPTO_PSA
 	imply PSA_WANT_ALG_HMAC
 	imply PSA_WANT_ALG_ECDSA
 
+config CHIP_THREAD_SSED
+	bool "Enable Thread Synchronized Sleepy End Device support"
+	depends on OPENTHREAD_CSL_RECEIVER && CHIP_ENABLE_ICD_SUPPORT
+	help
+	  Enables the Thread Synchronized Sleepy End Device support in Matter.
+
+config CHIP_OPENTHREAD_CONFIG
+	string "Custom OpenThread configuration file"
+	depends on NET_L2_OPENTHREAD
+	help
+	  Provides a path to an OpenThread configuration file. The path can be
+	  either absolute or relative to the application directory. When this option
+	  is specified, it replaces the OpenThread configuration file supplied by
+	  Zephyr.
+
+# Platform additions and configuration
+
+config CHIP_CERTIFICATION_DECLARATION_STORAGE
+	bool "Certification Declaration settings storage"
+	depends on CHIP_FACTORY_DATA
+	help
+	  Enables storing of the Certification Declaration in Zephyr settings
+	  instead of using the hardcoded value from firmware. This option also adds
+	  support for including new Certification Declaration into a firmware
+	  update image package that is sent as part of the OTA software update.
+
+if CHIP_CERTIFICATION_DECLARATION_STORAGE
+
+config CHIP_CERTIFiCATION_DECLARATION_OTA_IMAGE_ID
+	int "Certification declaration OTA image ID"
+	default 205 #0xcd
+	help
+	  Provides the image ID of the Certification Declaration image for sending
+	  it as part of the OTA software update.
+
+endif
+
 config CHIP_FACTORY_RESET_ERASE_SETTINGS
 	bool "Erase NVS flash pages on factory reset"
 	depends on SETTINGS_NVS || SETTINGS_ZMS

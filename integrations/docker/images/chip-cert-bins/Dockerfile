@@ -197,6 +197,7 @@ RUN case ${TARGETPLATFORM} in \
     --target linux-x64-fabric-admin-rpc-ipv6only \
     --target linux-x64-light-data-model-no-unique-id-ipv6only \
     --target linux-x64-network-manager-ipv6only \
+    --target linux-x64-terms-and-conditions \
     build \
     && mv out/linux-x64-chip-tool-ipv6only-platform-mdns/chip-tool out/chip-tool \
     && mv out/linux-x64-shell-ipv6only-platform-mdns/chip-shell out/chip-shell \
@@ -221,6 +222,7 @@ RUN case ${TARGETPLATFORM} in \
     && mv out/linux-x64-fabric-admin-rpc-ipv6only/fabric-admin out/fabric-admin \
     && mv out/linux-x64-light-data-model-no-unique-id-ipv6only/chip-lighting-app out/chip-lighting-data-model-no-unique-id-app \
     && mv out/linux-x64-network-manager-ipv6only/matter-network-manager-app out/matter-network-manager-app \
+    && mv out/linux-x64-terms-and-conditions/chip-terms-and-conditions-app out/chip-terms-and-conditions-app \
     ;; \
     "linux/arm64")\
     set -x \
@@ -249,6 +251,7 @@ RUN case ${TARGETPLATFORM} in \
     --target linux-arm64-fabric-admin-rpc-ipv6only \
     --target linux-arm64-light-data-model-no-unique-id-ipv6only \
     --target linux-arm64-network-manager-ipv6only \
+    --target linux-arm64-terms-and-conditions \
     build \
     && mv out/linux-arm64-chip-tool-ipv6only-platform-mdns/chip-tool out/chip-tool \
     && mv out/linux-arm64-shell-ipv6only-platform-mdns/chip-shell out/chip-shell \
@@ -273,6 +276,7 @@ RUN case ${TARGETPLATFORM} in \
     && mv out/linux-arm64-fabric-admin-rpc-ipv6only/fabric-admin out/fabric-admin \
     && mv out/linux-arm64-light-data-model-no-unique-id-ipv6only/chip-lighting-app out/chip-lighting-data-model-no-unique-id-app \
     && mv out/linux-arm64-network-manager-ipv6only/matter-network-manager-app out/matter-network-manager-app \
+    && mv out/linux-arm64-terms-and-conditions/chip-terms-and-conditions-app out/chip-terms-and-conditions-app \
     ;; \
     *) ;; \
     esac
@@ -311,6 +315,7 @@ COPY --from=chip-build-cert-bins /root/connectedhomeip/out/fabric-bridge-app fab
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/fabric-admin fabric-admin
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-lighting-data-model-no-unique-id-app chip-lighting-data-model-no-unique-id-app
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/matter-network-manager-app matter-network-manager-app
+COPY --from=chip-build-cert-bins /root/connectedhomeip/out/chip-terms-and-conditions-app chip-terms-and-conditions-app
 
 # Stage 3.1: Setup the Matter Python environment
 COPY --from=chip-build-cert-bins /root/connectedhomeip/out/python_lib python_lib
@@ -327,4 +332,14 @@ RUN pip install --break-system-packages -r /tmp/requirements.txt && rm /tmp/requ
 # PIP requires MASON package compilation, which seems to require a JDK
 RUN set -x && DEBIAN_FRONTEND=noninteractive apt-get update; apt-get install -fy openjdk-8-jdk
 
-RUN pip install --break-system-packages --no-cache-dir python_lib/controller/python/chip*.whl
+# TODO: remove this dependency conflict workaround --> issue: #37975
+# python3-gi is being installed as a dependency by 'openjdk-8-jdk'. python3-gi is not wanted since it installs PyGObject 3.48.2 (which we are not using),
+# This issue showed up when we pinned pygobject==3.50.0 in the chip-repl in https://github.com/project-chip/connectedhomeip/pull/37948
+# having pygobject ==3.50.0 being installed through pip creates a conflict, and pip can not unintstall the PyGObject (python3-gi's version) because the system APT installed it
+# Error log:
+#   ERROR: Cannot uninstall 'PyGObject'. It is a distutils installed project and thus we cannot accurately determine which files belong to it which would lead to only a partial uninstall.
+RUN apt-get remove -y python3-gi
+
+RUN pip install --break-system-packages --no-cache-dir \
+    python_lib/python/obj/src/python_testing/matter_testing_infrastructure/chip-testing._build_wheel/chip_testing-*.whl \
+    python_lib/controller/python/chip*.whl

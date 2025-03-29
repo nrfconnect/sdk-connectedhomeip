@@ -53,8 +53,17 @@ config SYSTEM_WORKQUEUE_STACK_SIZE
     default 2560 if CHIP_WIFI
     default 2048 if CHIP_ICD_LIT_SUPPORT
 
+if CHIP_WIFI
+
 config HEAP_MEM_POOL_SIZE
-    default 110720 if CHIP_WIFI
+    default 48336 if BUILD_WITH_TFM
+    default 40144
+
+config NRF_WIFI_DATA_HEAP_SIZE
+    default 42384 if BUILD_WITH_TFM
+    default 50576
+
+endif # CHIP_WIFI
 
 config HEAP_MEM_POOL_IGNORE_MIN
     default y if CHIP_WIFI

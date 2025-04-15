@@ -186,6 +186,8 @@ void WiFiManager::SuppEventHandler(net_mgmt_event_callback * cb, uint32_t mgmtEv
         SystemLayer().ScheduleLambda([] {
             if (Instance().mWiFiState == WIFI_STATE_COMPLETED)
             {
+                ChipLogProgress(DeviceLayer, "WiFi station disconnected, reason: %d", WLAN_REASON_UNSPECIFIED);
+
                 Instance().mReconnect = true;
                 Instance().NotifyDisconnected(WLAN_REASON_UNSPECIFIED);
             }

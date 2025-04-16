@@ -82,6 +82,7 @@ macro(matter_build target)
         LIB_MBEDTLS
         DEVICE_INFO_EXAMPLE_PROVIDER
         FORCE_LOGGING_STDIO
+        DATA_MODEL_TARGET
     )
     set(multiValueArgs GN_DEPENDENCIES)
 
@@ -172,6 +173,12 @@ macro(matter_build target)
         ${CHIP_APP_ZAP_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}/gen/include
     )
+
+    if(ARG_DATA_MODEL_TARGET)
+        add_library(${ARG_DATA_MODEL_TARGET} STATIC)
+        target_link_libraries(${ARG_DATA_MODEL_TARGET} PUBLIC ${target})
+        list(APPEND MATTER_LIBRARIES $<TARGET_FILE:${ARG_DATA_MODEL_TARGET}>)
+    endif()
 
     if (ARG_LIB_MBEDTLS)
         target_include_directories(${target} INTERFACE

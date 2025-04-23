@@ -196,13 +196,13 @@ class ZapInstaller:
         """
         Returns ZAP package current version as a tuple of integers.
 
-        Parses the output of `zap --version` to determine the current ZAP
+        Parses the output of `zap-cli --version` to determine the current ZAP
         package version. If the ZAP package has not been installed yet,
         the method returns None.
         """
         try:
             output = subprocess.check_output(
-                [self.get_zap_path(), '--version']).decode('ascii').strip()
+                [self.get_zap_cli_path(), '--version']).decode('ascii').strip()
         except Exception:
             return None
 

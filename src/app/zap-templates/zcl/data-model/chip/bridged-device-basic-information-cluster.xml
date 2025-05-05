@@ -93,6 +93,7 @@ Git: 0.7-summer-2025-ncr-23-g816a9defd
       <describedConform/>
     </attribute>
     <attribute side="server" code="5" name="NodeLabel" define="NODE_LABEL" type="char_string" length="32" writable="true" optional="true">
+      <access op="read" privilege="view"/>
       <access op="write" privilege="manage"/>
       <optionalConform/>
     </attribute>

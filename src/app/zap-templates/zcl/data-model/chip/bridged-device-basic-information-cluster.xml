@@ -99,6 +99,7 @@ Alchemy: v1.6.10-0.20260226224858-faf2e4896a53
       <describedConform/>
     </attribute>
     <attribute side="server" code="5" name="NodeLabel" define="NODE_LABEL" type="char_string" length="32" writable="true" optional="true">
+      <access op="read" privilege="view"/>
       <access op="write" privilege="manage"/>
       <optionalConform/>
     </attribute>

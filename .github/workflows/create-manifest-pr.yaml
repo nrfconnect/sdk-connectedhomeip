@@ -14,3 +14,4 @@ jobs:
         uses: nrfconnect/action-manifest-pr@main
         with:
           token: ${{ secrets.NCS_GITHUB_TOKEN }}
+          forked-repo: NordicBuilder/sdk-nrf

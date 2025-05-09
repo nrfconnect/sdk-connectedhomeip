@@ -147,11 +147,12 @@ public:
         removed_count = 0;
     }
 
-    void OnGroupAdded(chip::FabricIndex fabric, const GroupInfo & new_group) override
+    CHIP_ERROR OnGroupAdded(chip::FabricIndex fabric, const GroupInfo & new_group) override
     {
         fabric_index = fabric;
         latest       = new_group;
         added_count++;
+        return CHIP_NO_ERROR;
     }
     void OnGroupRemoved(chip::FabricIndex fabric, const GroupInfo & old_group) override
     {

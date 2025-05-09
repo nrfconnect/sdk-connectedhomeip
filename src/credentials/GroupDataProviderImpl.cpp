@@ -954,7 +954,14 @@ CHIP_ERROR GroupDataProviderImpl::SetGroupInfoAt(chip::FabricIndex fabric_index,
     }
     // Update fabric
     ReturnErrorOnFailure(fabric.Save(mStorage));
-    GroupAdded(fabric_index, group);
+
+    err = GroupAdded(fabric_index, group);
+    if (err != CHIP_NO_ERROR)
+    {
+        // We failed to add listener to the group,
+        RemoveGroupInfoAt(fabric_index, index);
+        return err;
+    }
     return CHIP_NO_ERROR;
 }
 
@@ -1062,7 +1069,13 @@ CHIP_ERROR GroupDataProviderImpl::AddEndpoint(chip::FabricIndex fabric_index, ch
         fabric.first_group = group.group_id;
         fabric.group_count++;
         ReturnErrorOnFailure(fabric.Save(mStorage));
-        GroupAdded(fabric_index, group);
+        err = GroupAdded(fabric_index, group);
+        if (err != CHIP_NO_ERROR)
+        {
+            // We failed to add listener to the group, remove the endpoint and return error
+            RemoveEndpoint(fabric_index, group_id, endpoint_id);
+            return err;
+        }
         return CHIP_NO_ERROR;
     }
 

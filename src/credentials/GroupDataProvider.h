@@ -177,8 +177,11 @@ public:
          *  Callback invoked when a new group is added.
          *
          *  @param[in] new_group  GroupInfo structure of the new group.
+         *  @retval #CHIP_NO_ERROR on success
+         *  @retval #CHIP_ERROR_INVALID_FABRIC_INDEX if the fabric index is invalid
+         *  @retval #CHIP_ERROR_NO_MEMORY if there is no group listener available
          */
-        virtual void OnGroupAdded(FabricIndex fabric_index, const GroupInfo & new_group) = 0;
+        virtual CHIP_ERROR OnGroupAdded(FabricIndex fabric_index, const GroupInfo & new_group) = 0;
         /**
          *  Callback invoked when an existing group is removed.
          *
@@ -317,12 +320,13 @@ public:
     void RemoveListener() { mListener = nullptr; };
 
 protected:
-    void GroupAdded(FabricIndex fabric_index, const GroupInfo & new_group)
+    CHIP_ERROR GroupAdded(FabricIndex fabric_index, const GroupInfo & new_group)
     {
         if (mListener)
         {
-            mListener->OnGroupAdded(fabric_index, new_group);
+            return mListener->OnGroupAdded(fabric_index, new_group);
         }
+        return CHIP_NO_ERROR;
     }
     void GroupRemoved(FabricIndex fabric_index, const GroupInfo & old_group)
     {

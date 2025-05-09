@@ -480,20 +480,24 @@ private:
             return CHIP_NO_ERROR;
         };
 
-        void OnGroupAdded(chip::FabricIndex fabric_index, const Credentials::GroupDataProvider::GroupInfo & new_group) override
+        CHIP_ERROR OnGroupAdded(chip::FabricIndex fabric_index,
+                                const Credentials::GroupDataProvider::GroupInfo & new_group) override
         {
             const FabricInfo * fabric = mServer->GetFabricTable().FindFabricWithIndex(fabric_index);
             if (fabric == nullptr)
             {
                 ChipLogError(AppServer, "Group added to nonexistent fabric?");
-                return;
+                return CHIP_ERROR_INVALID_FABRIC_INDEX;
             }
 
             if (mServer->GetTransportManager().MulticastGroupJoinLeave(
                     Transport::PeerAddress::Multicast(fabric->GetFabricId(), new_group.group_id), true) != CHIP_NO_ERROR)
             {
                 ChipLogError(AppServer, "Unable to listen to group");
+                return CHIP_ERROR_NO_MEMORY;
             }
+
+            return CHIP_NO_ERROR;
         };
 
         void OnGroupRemoved(chip::FabricIndex fabric_index, const Credentials::GroupDataProvider::GroupInfo & old_group) override

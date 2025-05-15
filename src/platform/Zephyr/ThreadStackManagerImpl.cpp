@@ -30,6 +30,12 @@
 #include <lib/support/CodeUtils.h>
 #include <platform/ThreadStackManager.h>
 
+#ifdef CONFIG_NETWORKING
+#include <zephyr/net/openthread.h>
+#else
+#include <openthread.h>
+#endif
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -52,18 +58,29 @@ CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
 
 void ThreadStackManagerImpl::_LockThreadStack()
 {
+#ifdef CONFIG_NETWORKING
     openthread_api_mutex_lock(openthread_get_default_context());
+#else
+    openthread_mutex_lock();
+#endif
 }
 
 bool ThreadStackManagerImpl::_TryLockThreadStack()
 {
-    // There's no openthread_api_mutex_try_lock() in Zephyr, so until it's contributed we must use the low-level API
-    return k_mutex_lock(&openthread_get_default_context()->api_lock, K_NO_WAIT) == 0;
+#ifdef CONFIG_NETWORKING
+    return openthread_api_mutex_try_lock(openthread_get_default_context()) == 0;
+#else
+    return openthread_mutex_try_lock() == 0;
+#endif
 }
 
 void ThreadStackManagerImpl::_UnlockThreadStack()
 {
+#ifdef CONFIG_NETWORKING
     openthread_api_mutex_unlock(openthread_get_default_context());
+#else
+    openthread_mutex_unlock();
+#endif
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT

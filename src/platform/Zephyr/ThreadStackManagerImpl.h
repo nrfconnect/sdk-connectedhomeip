@@ -26,7 +26,6 @@
 #include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread.h>
 
 #include <zephyr/kernel.h>
-#include <zephyr/net/openthread.h>
 
 #include <openthread/thread.h>
 #include <platform/Zephyr/BLEManagerImpl.h>

@@ -59,24 +59,31 @@ config CHIP_OTA_REQUESTOR_REBOOT_ON_APPLY
 # See config/common/cmake/Kconfig for full definition
 config CHIP_LIB_SHELL
 	imply SHELL
-	imply OPENTHREAD_SHELL if NET_L2_OPENTHREAD
+	imply OPENTHREAD_SHELL if OPENTHREAD
 
-if NET_L2_OPENTHREAD
+if OPENTHREAD
 
 # See config/common/cmake/Kconfig for full definition
 config CHIP_ENABLE_DNSSD_SRP
+	bool "OpenThread Service Registration Protocol"
+	default y
 	imply OPENTHREAD_ECDSA
 	imply OPENTHREAD_SRP_CLIENT
 
 # See config/common/cmake/Kconfig for full definition
 config CHIP_ENABLE_DNS_CLIENT
+	bool "OpenThread DNS client"
+	default y
 	imply OPENTHREAD_DNS_CLIENT
 
 # See config/common/cmake/Kconfig for full definition
 config CHIP_ENABLE_ICD_SUPPORT
+	bool "Matter Intermittently Connected Devices support"
 	imply OPENTHREAD_MTD_SED
+	help
+	  Enables the Intermittently Connected Device (ICD) support in Matter.
 
-endif # NET_L2_OPENTHREAD
+endif # OPENTHREAD
 
 config CHIP_CRYPTO_PSA
 	imply MBEDTLS_PSA_CRYPTO_C
@@ -102,7 +109,7 @@ config CHIP_THREAD_SSED
 
 config CHIP_OPENTHREAD_CONFIG
 	string "Custom OpenThread configuration file"
-	depends on NET_L2_OPENTHREAD
+	depends on OPENTHREAD
 	help
 	  Provides a path to an OpenThread configuration file. The path can be
 	  either absolute or relative to the application directory. When this option

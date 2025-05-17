@@ -182,12 +182,12 @@ config MCUMGR_GRP_IMG_UPLOAD_CHECK_HOOK
 config MCUMGR_SMP_COMMAND_STATUS_HOOKS
 	default y
 
-# Increase BT MTU and RX buffer for big size DFU messages
+# Increase BT MTU and RX buffer sizes to improve DFU throughput on non-RAM-constrained devices
 config BT_L2CAP_TX_MTU
-	default 498
+	default 498 if !SOC_NRF54L10
 
 config BT_BUF_ACL_RX_SIZE
-	default 502
+	default 502 if !SOC_NRF54L10
 
 # Increase MCUMGR_TRANSPORT_NETBUF_SIZE, as it must be big enough to fit MAX MTU + overhead and for single-image DFU default is 384 B
 config MCUMGR_TRANSPORT_NETBUF_SIZE

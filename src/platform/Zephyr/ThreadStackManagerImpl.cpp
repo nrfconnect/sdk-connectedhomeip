@@ -30,6 +30,7 @@
 #include <lib/support/CodeUtils.h>
 #include <platform/ThreadStackManager.h>
 
+//TODO: AG: add openthread header
 #include <zephyr/net/openthread.h>
 
 namespace chip {

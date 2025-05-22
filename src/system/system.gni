@@ -47,9 +47,11 @@ declare_args() {
 
 declare_args() {
   # Event loop type.
-  if (chip_system_config_use_lwip ||
-      chip_system_config_use_open_thread_inet_endpoints) {
+  if (current_os == "freertos" && (chip_system_config_use_lwip ||
+      chip_system_config_use_open_thread_inet_endpoints)) {
     chip_system_config_event_loop = "FreeRTOS"
+  } else if (current_os == "zephyr" && !chip_system_config_use_sockets) {
+    chip_system_config_event_loop = "ZephyrNoSelect"
   } else {
     chip_system_config_event_loop = "Select"
   }

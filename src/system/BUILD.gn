@@ -244,6 +244,9 @@ static_library("system") {
     # or
     #    - SystemLayerImplSelect.h
     #    - SystemLayerImplSelect.cpp
+    # or
+    #    - SystemLayerImplZephyrNoSelect.h
+    #    - SystemLayerImplZephyrNoSelect.cpp
     sources += [
       "SystemLayerImpl${chip_system_config_event_loop}.cpp",
       "SystemLayerImpl${chip_system_config_event_loop}.h",

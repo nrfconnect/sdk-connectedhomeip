@@ -23,7 +23,11 @@
 #pragma once
 
 #include <platform/PlatformManager.h>
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
 #include <platform/internal/GenericPlatformManagerImpl_Zephyr.h>
+#else
+#include <platform/internal/GenericPlatformManagerImpl_ZephyrNoSelect.h>
+#endif
 
 namespace chip {
 namespace DeviceLayer {

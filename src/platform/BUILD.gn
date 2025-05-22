@@ -503,6 +503,8 @@ if (chip_device_platform != "none") {
       "../include/platform/internal/GenericPlatformManagerImpl_POSIX.ipp",
       "../include/platform/internal/GenericPlatformManagerImpl_Zephyr.h",
       "../include/platform/internal/GenericPlatformManagerImpl_Zephyr.ipp",
+      "../include/platform/internal/GenericPlatformManagerImpl_ZephyrNoSelect.h",
+      "../include/platform/internal/GenericPlatformManagerImpl_ZephyrNoSelect.ipp",
       "../include/platform/internal/testing/ConfigUnitTest.h",
       "CommissionableDataProvider.cpp",
       "DeviceControlServer.cpp",

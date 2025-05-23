@@ -30,6 +30,9 @@
 #include <lib/support/CodeUtils.h>
 #include <platform/ThreadStackManager.h>
 
+//TODO: AG: add openthread header
+#include <zephyr/net/openthread.h>
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -52,18 +55,17 @@ CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
 
 void ThreadStackManagerImpl::_LockThreadStack()
 {
-    openthread_api_mutex_lock(openthread_get_default_context());
+    openthread_mutex_lock();
 }
 
 bool ThreadStackManagerImpl::_TryLockThreadStack()
 {
-    // There's no openthread_api_mutex_try_lock() in Zephyr, so until it's contributed we must use the low-level API
-    return k_mutex_lock(&openthread_get_default_context()->api_lock, K_NO_WAIT) == 0;
+    return openthread_mutex_try_lock();
 }
 
 void ThreadStackManagerImpl::_UnlockThreadStack()
 {
-    openthread_api_mutex_unlock(openthread_get_default_context());
+    openthread_mutex_unlock();
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT

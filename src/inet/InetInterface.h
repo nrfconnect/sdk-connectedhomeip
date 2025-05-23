@@ -49,10 +49,6 @@ struct net_if_ipv4;
 struct net_if_ipv6;
 #endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
 
-#if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
-struct otIp6AddressInfo;
-#endif
-
 #include <stddef.h>
 #include <stdint.h>
 
@@ -369,7 +365,7 @@ protected:
     net_if * mCurrentInterface           = nullptr;
 #endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
 #if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
-    struct otIp6AddressInfo * mCurNetif;
+    bool mHasCurrent = true;
 #endif
 };
 
@@ -569,7 +565,7 @@ inline InterfaceIterator::~InterfaceIterator()               = default;
 inline InterfaceAddressIterator::~InterfaceAddressIterator() = default;
 inline bool InterfaceIterator::HasCurrent(void)
 {
-    return mCurNetif != NULL;
+    return mHasCurrent;
 }
 #endif
 

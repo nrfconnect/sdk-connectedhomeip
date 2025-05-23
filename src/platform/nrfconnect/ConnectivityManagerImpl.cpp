@@ -17,15 +17,27 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
+#include <inet/UDPEndPointImplOpenThread.h>
+using UDPEndPointImpl = chip::Inet::UDPEndPointImplOT;
+#elif CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS || CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
 #include <inet/UDPEndPointImplSockets.h>
+using UDPEndPointImpl = chip::Inet::UDPEndPointImplSockets;
+#endif
+
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/ConnectivityManager.h>
 #include <platform/Zephyr/InetUtils.h>
 #include <platform/internal/BLEManager.h>
 
+#if CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
 #ifndef CONFIG_ARCH_POSIX
 #include <zephyr/net/net_if.h>
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+#include <zephyr/net/openthread.h>
+#endif
 #endif
 
 #include <platform/internal/GenericConnectivityManagerImpl_UDP.ipp>
@@ -44,10 +56,7 @@
 #endif
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
-// Temporary workaround for lack of the public Zephyr's API for MLDv2.
-// Should be removed after https://github.com/zephyrproject-rtos/zephyr/pull/79274 is merged.
-extern "C" int net_ipv6_mld_join(struct net_if *iface, const struct in6_addr *addr);
-extern "C" int net_ipv6_mld_leave(struct net_if *iface, const struct in6_addr *addr);
+#include <zephyr/net/mld.h>
 #endif
 
 using namespace ::chip::Inet;
@@ -57,6 +66,7 @@ namespace chip {
 namespace DeviceLayer {
 
 namespace {
+#if CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
 CHIP_ERROR JoinLeaveMulticastGroup(net_if * iface, const Inet::IPAddress & address,
                                    UDPEndPointImplSockets::MulticastOperation operation)
 {
@@ -100,6 +110,7 @@ CHIP_ERROR JoinLeaveMulticastGroup(net_if * iface, const Inet::IPAddress & addre
 
     return CHIP_NO_ERROR;
 }
+#endif // CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
 } // namespace
 
 ConnectivityManagerImpl ConnectivityManagerImpl::sInstance;
@@ -114,6 +125,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
 #endif
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD || CHIP_DEVICE_CONFIG_ENABLE_WIFI
+#if CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
     UDPEndPointImplSockets::SetMulticastGroupHandler(
         [](InterfaceId interfaceId, const IPAddress & address, UDPEndPointImplSockets::MulticastOperation operation) {
             if (interfaceId.IsPresent())
@@ -132,6 +144,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
 
             return CHIP_NO_ERROR;
         });
+#endif // CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD || CHIP_DEVICE_CONFIG_ENABLE_WIFI
 
     return CHIP_NO_ERROR;

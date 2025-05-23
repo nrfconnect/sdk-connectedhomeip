@@ -165,9 +165,9 @@ function(nrfconnect_create_factory_data factory_data_target script_path schema_p
   else()
     include(${ZEPHYR_NRF_MODULE_DIR}/cmake/sysbuild/suit_utilities.cmake)
 
-    sysbuild_dt_alias(factory_data_alias IMAGE ${DEFAULT_IMAGE} PROPERTY "factory-data")
-    sysbuild_dt_reg_addr(factory_data_address IMAGE ${DEFAULT_IMAGE} PATH "${factory_data_alias}")
-    sysbuild_dt_reg_size(factory_data_size IMAGE ${DEFAULT_IMAGE} PATH "${factory_data_alias}")
+    dt_alias(factory_data_alias TARGET ${DEFAULT_IMAGE} PROPERTY "factory-data")
+    dt_reg_addr(factory_data_address TARGET ${DEFAULT_IMAGE} PATH "${factory_data_alias}")
+    dt_reg_size(factory_data_size TARGET ${DEFAULT_IMAGE} PATH "${factory_data_alias}")
     string(APPEND script_args "--offset ${factory_data_address}\n")
     string(APPEND script_args "--size ${factory_data_size}\n")
     suit_add_merge_hex_file(FILES ${factory_data_output_path}.hex

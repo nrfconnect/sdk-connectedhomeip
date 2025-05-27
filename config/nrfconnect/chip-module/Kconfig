@@ -451,6 +451,7 @@ config CHIP_SYSTEM_PACKETBUFFER_POOL_SIZE
 
 config CHIP_USE_OPEN_THREAD_ENDPOINT
   bool "Use OpenThread TCP/UDP stack directly"
+  default y
   depends on OPENTHREAD && !WIFI_NRF70
   help
     Use OpenThread TCP/UDP stack directly instead of using Zephyr's networking layer.

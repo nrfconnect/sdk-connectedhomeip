@@ -1467,6 +1467,24 @@ extern const char CHIP_NON_PRODUCTION_MARKER[];
 #define CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE 64
 #endif // CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE
 
+/*
+ * @def CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+ *
+ * @brief If enabled, networking status and connection error values (LastNetworkingStatus / LastConnectErrorValue)
+ * are updated immediately upon receiving the result from the driver.
+ *
+ * If disabled, errors will be reported only after the driver-defined connect timeout (e.g. 30s),
+ * to avoid reflecting transient failures too early.
+ *
+ * This allows delaying status reporting to reduce the impact of temporary network instabilities.
+ *
+ * Default: 1 (enabled)
+ */
+#ifndef CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+#define CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING 0
+#endif // CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+
+
 /**
  *  @def CHIP_CONFIG_IM_STATUS_CODE_VERBOSE_FORMAT
  *

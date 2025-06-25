@@ -170,7 +170,7 @@ matter_add_gn_arg_bool  ("chip_mdns_minimal"                      CONFIG_WIFI_NR
 matter_add_gn_arg_bool  ("chip_mdns_platform"                     CONFIG_OPENTHREAD)
 
 matter_add_gn_arg_bool  ("chip_system_config_use_sockets"                   NOT CONFIG_CHIP_USE_OPENTHREAD_ENDPOINT)
-matter_add_gn_arg_bool  ("chip_system_config_use_openthread_inet_endpoints" CONFIG_CHIP_USE_OPENTHREAD_ENDPOINT)
+matter_add_gn_arg_bool  ("chip_system_config_use_open_thread_inet_endpoints" CONFIG_CHIP_USE_OPENTHREAD_ENDPOINT)
 
 if (CONFIG_CHIP_ENABLE_ICD_SUPPORT)
     matter_add_gn_arg_bool  ("chip_enable_icd_lit"                       CONFIG_CHIP_ICD_LIT_SUPPORT)

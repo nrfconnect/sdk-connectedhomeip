@@ -102,7 +102,7 @@ app::Clusters::ModeSelect::StaticSupportedModesManager sStaticSupportedModesMana
 chip::Crypto::PSAOperationalKeystore sPSAOperationalKeystore{};
 #endif
 
-#if CHIP_SYSTEM_CONFIG_USE_OPENTHREAD_ENDPOINT
+#if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
 void LockOpenThreadTask(void)
 {
     chip::DeviceLayer::ThreadStackMgr().LockThreadStack();
@@ -112,7 +112,7 @@ void UnlockOpenThreadTask(void)
 {
     chip::DeviceLayer::ThreadStackMgr().UnlockThreadStack();
 }
-#endif // CHIP_SYSTEM_CONFIG_USE_OPENTHREAD_ENDPOINT
+#endif // CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
 } // namespace
 
 namespace LedConsts {
@@ -240,7 +240,7 @@ CHIP_ERROR AppTask::Init()
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
     initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
 
-#if CHIP_SYSTEM_CONFIG_USE_OPENTHREAD_ENDPOINT
+#if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
     // Set up OpenThread configuration when OpenThread is included
     chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;
     nativeParams.lockCb                = LockOpenThreadTask;

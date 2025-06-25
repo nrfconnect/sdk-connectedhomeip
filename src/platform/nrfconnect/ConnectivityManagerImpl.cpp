@@ -17,7 +17,7 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
-#if CHIP_SYSTEM_CONFIG_USE_OPENTHREAD_ENDPOINT
+#if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
 #include <inet/UDPEndPointImplOpenThread.h>
 #endif
 

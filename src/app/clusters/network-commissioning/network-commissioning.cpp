@@ -680,16 +680,69 @@ void Instance::OnNetworkingStatusChange(Status aCommissioningError, Optional<Byt
         }
     }
 
-    SetLastNetworkingStatusValue(MakeNullable(aCommissioningError));
-    if (aConnectStatus.HasValue())
+#if CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+    SetLastNetworkingStatusValue(aCommissioningError);
+    SetLastConnectErrorValue(aConnectStatus.HasValue() ? MakeNullable(aConnectStatus.Value()) : NullNullable);
+#else
+    if (aCommissioningError == Status::kSuccess)
     {
-        SetLastConnectErrorValue(MakeNullable(aConnectStatus.Value()));
+        CancelPendingError();
+        mLastSuccessTimestamp = System::SystemClock().GetMonotonicTimestamp();
+        SetLastNetworkingStatusValue(aCommissioningError);
+        SetLastConnectErrorValue(NullNullable);
+    }
+    else if (mLastSuccessTimestamp == System::Clock::kZero)
+    {
+        SetLastNetworkingStatusValue(aCommissioningError);
+        SetLastConnectErrorValue(aConnectStatus.HasValue() ? MakeNullable(aConnectStatus.Value()) : NullNullable);
     }
     else
     {
-        SetLastConnectErrorValue(NullNullable);
+        mDeferredLastStatus   = aCommissioningError;
+        mDeferredConnectError = aConnectStatus;
+
+        if (!mDeferredErrorPending)
+        {
+            mDeferredErrorPending = true;
+
+            uint32_t timeoutSec = mpWirelessDriver ? mpWirelessDriver->GetConnectNetworkTimeoutSeconds() : 20;
+            DeviceLayer::SystemLayer().StartTimer(System::Clock::Seconds32(timeoutSec), DeferredErrorTimerFiredStatic, this);
+        }
+    }
+#endif
+}
+
+#if !CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+
+void Instance::ResetSuccessTimestamp()
+{
+    mLastSuccessTimestamp = System::Clock::kZero;
+}
+
+void Instance::DeferredErrorTimerFiredStatic(System::Layer *, void * context)
+{
+    static_cast<Instance *>(context)->DeferredErrorTimerFired();
+}
+
+void Instance::DeferredErrorTimerFired()
+{
+    if (mDeferredErrorPending)
+    {
+        mDeferredErrorPending = false;
+        SetLastNetworkingStatusValue(mDeferredLastStatus);
+        SetLastConnectErrorValue(mDeferredConnectError.HasValue() ? MakeNullable(mDeferredConnectError.Value()) : NullNullable);
     }
 }
+
+void Instance::CancelPendingError()
+{
+    if (mDeferredErrorPending)
+    {
+        DeviceLayer::SystemLayer().CancelTimer(DeferredErrorTimerFiredStatic, this);
+        mDeferredErrorPending = false;
+    }
+}
+#endif
 
 void Instance::HandleScanNetworks(HandlerContext & ctx, const Commands::ScanNetworks::DecodableType & req)
 {
@@ -1045,6 +1098,10 @@ void Instance::HandleConnectNetwork(HandlerContext & ctx, const Commands::Connec
     memcpy(mConnectingNetworkID, req.networkID.data(), mConnectingNetworkIDLen);
     mAsyncCommandHandle         = CommandHandler::Handle(&ctx.mCommandHandler);
     mCurrentOperationBreadcrumb = req.breadcrumb;
+
+#if !CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+    ResetSuccessTimestamp();
+#endif
 
 #if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
     // Per spec, lingering connections on any other interfaces need to be disconnected at this point.

@@ -126,10 +126,24 @@ private:
     Optional<uint64_t> mCurrentOperationBreadcrumb;
     bool mScanningWasDirected = false;
 
+#if !CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+    System::Clock::Timestamp mLastSuccessTimestamp{};
+    bool mDeferredErrorPending = false;
+    DeviceLayer::NetworkCommissioning::Status mDeferredLastStatus;
+    Optional<int32_t> mDeferredConnectError;
+#endif
+
     void SetLastNetworkingStatusValue(Attributes::LastNetworkingStatus::TypeInfo::Type networkingStatusValue);
     void SetLastConnectErrorValue(Attributes::LastConnectErrorValue::TypeInfo::Type connectErrorValue);
     void SetLastNetworkId(ByteSpan lastNetworkId);
     void ReportNetworksListChanged() const;
+
+#if !CHIP_CONFIG_NETWORK_COMMISSIONING_IMMEDIATE_STATUS_REPORTING
+    void ResetSuccessTimestamp();
+    static void DeferredErrorTimerFiredStatic(System::Layer *, void * context);
+    void DeferredErrorTimerFired();
+    void CancelPendingError();
+#endif
 
 #if CHIP_DEVICE_CONFIG_SUPPORTS_CONCURRENT_CONNECTION
     // Disconnect if the current connection is not in the Networks list

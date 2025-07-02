@@ -132,12 +132,6 @@ static_library("nrfconnect") {
     sources += [ "../Zephyr/SysHeapMalloc.cpp" ]
   }
 
-  if (chip_use_cracen_kmu) {
-    sources += [
-      "KMUKeyAllocator.h",
-    ]
-  }
-
   cflags = [ "-Wconversion" ]
 }
 

@@ -15,6 +15,7 @@
  *    limitations under the License.
  */
 
+#include <app/server/Server.h>
 #include <lib/shell/Commands.h>
 #include <lib/shell/Engine.h>
 #include <lib/shell/SubShellCommand.h>
@@ -22,9 +23,6 @@
 #include <platform/CHIPDeviceLayer.h>
 
 namespace chip {
-
-void ServerScheduleFactoryReset();
-
 namespace Shell {
 
 static CHIP_ERROR FactoryResetHandler(int argc, char ** argv)
@@ -33,7 +31,7 @@ static CHIP_ERROR FactoryResetHandler(int argc, char ** argv)
 #if CHIP_CONFIG_TEST
     DeviceLayer::ConfigurationMgr().InitiateFactoryReset();
 #else
-    ServerScheduleFactoryReset();
+    chip::Server::GetInstance().ScheduleFactoryReset();
 #endif // CHIP_TEST
     return CHIP_NO_ERROR;
 }

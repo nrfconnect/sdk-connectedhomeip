@@ -1002,35 +1002,39 @@ CHIP_ERROR FabricTable::Delete(FabricIndex fabricIndex)
         }
     }
 
-    if (fabricIsInitialized)
+    if (!fabricIsInitialized)
     {
-        // Since fabricIsInitialized was true, fabric is not null.
-        fabricInfo->Reset();
+        // Make sure to return the error our API promises, not whatever storage
+        // chose to return.
+        return CHIP_ERROR_NOT_FOUND;
+    }
 
-        if (!mNextAvailableFabricIndex.HasValue())
-        {
-            // We must have been in a situation where CHIP_CONFIG_MAX_FABRICS is 254
-            // and our fabric table was full, so there was no valid next index.  We
-            // have a single available index now, though; use it as
-            // mNextAvailableFabricIndex.
-            mNextAvailableFabricIndex.SetValue(fabricIndex);
-        }
-        // If StoreFabricIndexInfo fails here, that's probably OK.  When we try to
-        // read things from storage later we will realize there is nothing for this
-        // index.
-        StoreFabricIndexInfo();
+    // Since fabricIsInitialized was true, fabric is not null.
+    fabricInfo->Reset();
 
-        // If we ever start moving the FabricInfo entries around in the array on
-        // delete, we should update DeleteAllFabrics to handle that.
-        if (mFabricCount == 0)
-        {
-            ChipLogError(FabricProvisioning, "Trying to delete a fabric, but the current fabric count is already 0");
-        }
-        else
-        {
-            mFabricCount--;
-            ChipLogProgress(FabricProvisioning, "Fabric (0x%x) deleted.", static_cast<unsigned>(fabricIndex));
-        }
+    if (!mNextAvailableFabricIndex.HasValue())
+    {
+        // We must have been in a situation where CHIP_CONFIG_MAX_FABRICS is 254
+        // and our fabric table was full, so there was no valid next index.  We
+        // have a single available index now, though; use it as
+        // mNextAvailableFabricIndex.
+        mNextAvailableFabricIndex.SetValue(fabricIndex);
+    }
+    // If StoreFabricIndexInfo fails here, that's probably OK.  When we try to
+    // read things from storage later we will realize there is nothing for this
+    // index.
+    StoreFabricIndexInfo();
+
+    // If we ever start moving the FabricInfo entries around in the array on
+    // delete, we should update DeleteAllFabrics to handle that.
+    if (mFabricCount == 0)
+    {
+        ChipLogError(FabricProvisioning, "Trying to delete a fabric, but the current fabric count is already 0");
+    }
+    else
+    {
+        mFabricCount--;
+        ChipLogProgress(FabricProvisioning, "Fabric (0x%x) deleted.", static_cast<unsigned>(fabricIndex));
     }
 
     if (mDelegateListRoot != nullptr)
@@ -1046,17 +1050,12 @@ CHIP_ERROR FabricTable::Delete(FabricIndex fabricIndex)
         }
     }
 
-    if (fabricIsInitialized)
-    {
-        // Only return error after trying really hard to remove everything we could
-        ReturnErrorOnFailure(metadataErr);
-        ReturnErrorOnFailure(opKeyErr);
-        ReturnErrorOnFailure(opCertsErr);
+    // Only return error after trying really hard to remove everything we could
+    ReturnErrorOnFailure(metadataErr);
+    ReturnErrorOnFailure(opKeyErr);
+    ReturnErrorOnFailure(opCertsErr);
 
-        return CHIP_NO_ERROR;
-    }
-
-    return CHIP_ERROR_NOT_FOUND;
+    return CHIP_NO_ERROR;
 }
 
 void FabricTable::DeleteAllFabrics()

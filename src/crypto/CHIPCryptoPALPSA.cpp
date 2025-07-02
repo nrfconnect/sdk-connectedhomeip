@@ -788,9 +788,6 @@ CHIP_ERROR P256Keypair::NewCertificateSigningRequest(uint8_t * out_csr, size_t &
     return CHIP_NO_ERROR;
 }
 
-// We should compile this SPAKE2P implementation only if the PSA implementation is not in use.
-#if !CHIP_CRYPTO_PSA_SPAKE2P
-
 typedef struct Spake2p_Context
 {
     mbedtls_ecp_group curve;
@@ -1095,8 +1092,6 @@ CHIP_ERROR Spake2p_P256_SHA256_HKDF_HMAC::PointIsValid(void * R)
 
     return CHIP_NO_ERROR;
 }
-
-#endif // !CHIP_CRYPTO_PSA_SPAKE2P
 
 } // namespace Crypto
 } // namespace chip

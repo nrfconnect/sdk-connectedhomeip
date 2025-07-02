@@ -65,7 +65,6 @@ public:
     int DrawPixel(void * pContext, int32_t x, int32_t y);
     int Update(void);
     void WriteDemoUI(bool state);
-    void WriteDemoUI();
     void SetCustomUI(customUICB cb);
 
     void GetScreen(Screen_e & screen);
@@ -85,6 +84,8 @@ private:
         bool mainState = false;
         bool protocol1 = false; /* data */
     } DemoState_t;
+
+    void WriteDemoUI();
 
 #ifdef QR_CODE_ENABLED
     void WriteQRCode();

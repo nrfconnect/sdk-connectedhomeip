@@ -142,7 +142,7 @@ CHIP_ERROR AppTask::Init()
         LOG_ERR("ConnectivityMgr().SetThreadDeviceType() failed");
         return err;
     }
-#elif !defined(CONFIG_WIFI_NRF70)
+#elif !defined(CONFIG_WIFI_NRF700X)
     return CHIP_ERROR_INTERNAL;
 #endif
 

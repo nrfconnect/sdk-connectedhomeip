@@ -36,7 +36,7 @@ jobs:
             DEBIAN_FRONTEND: noninteractive
 
         container:
-            image: ghcr.io/project-chip/chip-build:81
+            image: ghcr.io/project-chip/chip-build:41
             volumes:
                 - "/tmp/log_output:/tmp/test_logs"
                 - "/tmp/output_binaries:/tmp/output_binaries"
@@ -54,9 +54,8 @@ jobs:
             - name: Install CHIP Tool dependencies
               timeout-minutes: 10
               run: |
-                  export CODENAME=$(cat /etc/os-release | grep UBUNTU_CODENAME | cut -d= -f2)
-                  echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main restricted" > /etc/apt/sources.list.d/arm64.list
-                  echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main restricted" >> /etc/apt/sources.list.d/arm64.list
+                  echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main restricted" > /etc/apt/sources.list.d/arm64.list
+                  echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main restricted" >> /etc/apt/sources.list.d/arm64.list
                   apt update
                   apt install -y --no-install-recommends -o APT::Immediate-Configure=false g++-aarch64-linux-gnu libgirepository1.0-dev
                   dpkg --add-architecture arm64

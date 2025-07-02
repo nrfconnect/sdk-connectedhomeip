@@ -139,18 +139,12 @@ class ZapInstaller:
             f.close()
 
         if self.current_os == 'Linux':
-            if platform.machine() == 'aarch64':
-                self.package = 'zap-linux-arm64'
-            else:
-                self.package = 'zap-linux-x64'
+            self.package = 'zap-linux-x64'
             self.zap_exe = 'zap'
             self.zap_cli_exe = 'zap-cli'
             self.unzip = unzip
         elif self.current_os == 'Windows':
-            if platform.machine() == 'ARM64':
-                self.package = 'zap-win-arm64'
-            else:
-                self.package = 'zap-win-x64'
+            self.package = 'zap-win-x64'
             self.zap_exe = 'zap.exe'
             self.zap_cli_exe = 'zap-cli.exe'
             self.unzip = unzip

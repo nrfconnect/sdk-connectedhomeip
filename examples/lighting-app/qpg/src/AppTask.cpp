@@ -29,17 +29,14 @@
 #include "AppTask.h"
 #include "ota.h"
 
+#include <app/server/OnboardingCodesUtil.h>
+
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/TestEventTriggerDelegate.h>
 #include <app/clusters/general-diagnostics-server/GenericFaultTestEventTriggerHandler.h>
 #include <app/clusters/general-diagnostics-server/general-diagnostics-server.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/clusters/on-off-server/on-off-server.h>
-#include <app/util/persistence/DefaultAttributePersistenceProvider.h>
-#include <data-model-providers/codegen/Instance.h>
-#include <lib/core/CHIPError.h>
-#include <lib/core/CHIPPersistentStorageDelegate.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <app/server/Dnssd.h>
 #include <app/server/Server.h>

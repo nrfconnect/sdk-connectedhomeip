@@ -22,12 +22,12 @@
 
 #include "FreeRTOS.h"
 
+#include <app/server/OnboardingCodesUtil.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <examples/platform/cc13x4_26x4/CC13X4_26X4DeviceAttestationCreds.h>
 #include <lib/support/ThreadOperationalDataset.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/internal/DeviceNetworkInfo.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 #include <app/clusters/ota-requestor/BDXDownloader.h>
@@ -40,6 +40,7 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPPlatformMemory.h>
 
+#include <app/server/OnboardingCodesUtil.h>
 #include <static-supported-modes-manager.h>
 
 /* syscfg */

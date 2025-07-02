@@ -27,6 +27,7 @@
 #include <app/clusters/door-lock-server/door-lock-server.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/server/Dnssd.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
 #include <assert.h>
@@ -34,7 +35,6 @@
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <cy_wcm.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
 

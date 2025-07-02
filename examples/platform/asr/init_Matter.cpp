@@ -19,12 +19,12 @@
 #include "AppConfig.h"
 #include <DeviceInfoProviderImpl.h>
 #include <app/server/Dnssd.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <init_Matter.h>
 #include <mbedtls/platform.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 #ifdef CONFIG_ENABLE_CHIP_SHELL
 #include <shell/launch_shell.h>
 #endif

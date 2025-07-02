@@ -16,7 +16,7 @@
  *    limitations under the License.
  */
 
-#include <setup_payload/OnboardingCodesUtil.h>
+#include <app/server/OnboardingCodesUtil.h>
 
 #include <algorithm>
 #include <inttypes.h>

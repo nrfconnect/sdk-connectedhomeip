@@ -23,6 +23,7 @@
 
 #include "app/clusters/ota-requestor/OTARequestorInterface.h"
 #include "app/server/CommissioningWindowManager.h"
+#include "app/server/OnboardingCodesUtil.h"
 #include "app/server/Server.h"
 #include "credentials/FabricTable.h"
 #include "device_service/device_service.rpc.pb.h"
@@ -30,7 +31,6 @@
 #include "platform/ConfigurationManager.h"
 #include "platform/DiagnosticDataProvider.h"
 #include "platform/PlatformManager.h"
-#include "setup_payload/OnboardingCodesUtil.h"
 #include <crypto/CHIPCryptoPAL.h>
 #include <platform/DeviceInstanceInfoProvider.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>

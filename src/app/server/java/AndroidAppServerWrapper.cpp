@@ -17,6 +17,7 @@
  */
 
 #include "AndroidAppServerWrapper.h"
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
@@ -27,7 +28,6 @@
 #include <lib/support/ScopedBuffer.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/PlatformManager.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
 #include <thread>

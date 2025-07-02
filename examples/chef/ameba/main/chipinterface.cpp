@@ -27,6 +27,7 @@
 
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/clusters/network-commissioning/network-commissioning.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/endpoint-config-api.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -37,7 +38,6 @@
 #include <platform/Ameba/NetworkCommissioningDriver.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <support/CHIPMem.h>
 

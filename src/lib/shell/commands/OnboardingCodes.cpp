@@ -15,6 +15,7 @@
  *    limitations under the License.
  */
 
+#include <app/server/OnboardingCodesUtil.h>
 #include <inttypes.h>
 #include <lib/core/CHIPCore.h>
 #include <lib/shell/Commands.h>
@@ -23,7 +24,6 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #define CHIP_SHELL_MAX_BUFFER_SIZE 128

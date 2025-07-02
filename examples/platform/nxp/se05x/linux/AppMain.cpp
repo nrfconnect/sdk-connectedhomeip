@@ -20,13 +20,13 @@
 #include <platform/PlatformManager.h>
 
 #include <app/clusters/network-commissioning/network-commissioning.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <crypto/CHIPCryptoPAL.h>
 #include <crypto/DefaultSessionKeystore.h>
 #include <lib/core/CHIPError.h>
 #include <lib/core/NodeId.h>
 #include <lib/support/logging/CHIPLogging.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/GroupDataProviderImpl.h>

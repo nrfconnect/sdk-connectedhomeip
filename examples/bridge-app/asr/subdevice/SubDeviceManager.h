@@ -25,6 +25,7 @@
 #include <app/InteractionModelEngine.h>
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/reporting/reporting.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/util/attribute-storage.h>
 #include <assert.h>
 #include <lib/core/CHIPError.h>
@@ -33,7 +34,6 @@
 #include <lib/support/CHIPMemString.h>
 #include <lib/support/ZclString.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 
 using namespace ::chip;
 using namespace ::chip::Credentials;

@@ -20,6 +20,7 @@
 #include "esp_spi_flash.h"
 #include "esp_spiffs.h"
 #include "nvs_flash.h"
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <common/CHIPDeviceManager.h>
 #include <common/Esp32AppServer.h>
@@ -27,7 +28,6 @@
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/ESP32/ESP32Utils.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <OTAProviderCommands.h>
 #include <app/clusters/ota-provider/ota-provider.h>

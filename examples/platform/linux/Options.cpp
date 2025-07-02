@@ -23,7 +23,7 @@
 
 #include "Options.h"
 
-#include <setup_payload/OnboardingCodesUtil.h>
+#include <app/server/OnboardingCodesUtil.h>
 
 #include <crypto/CHIPCryptoPAL.h>
 #include <json/json.h>

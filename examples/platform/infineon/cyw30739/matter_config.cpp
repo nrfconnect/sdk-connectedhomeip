@@ -37,6 +37,7 @@
 #include "wiced_hal_i2c.h"
 #endif
 #include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <inet/EndPointStateOpenThread.h>
@@ -46,7 +47,6 @@
 #include <platform/DeviceInstanceInfoProvider.h>
 #include <platform/KeyValueStoreManager.h>
 #include <protocols/secure_channel/PASESession.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 #include <wiced_rtos.h>
 
 #ifdef BOARD_USE_OPTIGA

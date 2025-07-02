@@ -18,8 +18,8 @@
 #include <platform/PlatformManager.h>
 #include <platform/TestOnlyCommissionableDataProvider.h>
 
+#include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
-#include <setup_payload/OnboardingCodesUtil.h>
 
 #include <lib/core/CHIPError.h>
 #include <lib/support/logging/CHIPLogging.h>

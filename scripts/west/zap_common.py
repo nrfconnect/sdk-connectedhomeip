@@ -11,8 +11,6 @@ import stat
 import subprocess
 import tempfile
 import wget
-import json
-import signal
 
 from collections import deque
 from pathlib import Path
@@ -22,8 +20,6 @@ from zipfile import ZipFile
 from west import log
 
 DEFAULT_MATTER_PATH = Path(__file__).parents[2]
-DEFAULT_ZCL_JSON_RELATIVE_PATH = Path('src/app/zap-templates/zcl/zcl.json')
-DEFAULT_APP_TEMPLATES_RELATIVE_PATH = Path('src/app/zap-templates/app-templates.json')
 
 
 def find_zap(root: Path = Path.cwd(), max_depth: int = 2):
@@ -81,35 +77,6 @@ def existing_dir_path(arg: str) -> Path:
     raise argparse.ArgumentTypeError(f'invalid directory path: \'{arg}\'')
 
 
-def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bool:
-    """
-    In the .zap file, there is a relative path to the zcl.json file.
-    Use this function to update zcl.json path if needed.
-    Functions returns True if the path was updated, False otherwise.
-    """
-    updated = False
-
-    with open(zap_file, 'r+') as file:
-        data = json.load(file)
-        packages = data.get("package")
-
-        for package in packages:
-            if package.get("type") == "zcl-properties":
-                if not zcl_json.parent.absolute().is_relative_to(zap_file.parent.absolute()):
-                    package.update({"path": str(zcl_json.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
-                    updated = True
-            if package.get("type") == "gen-templates-json":
-                if not app_templates.parent.absolute().is_relative_to(zap_file.parent.absolute()):
-                    package.update({"path": str(app_templates.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
-                    updated = True
-
-        file.seek(0)
-        json.dump(data, file, indent=2)
-        file.truncate()
-
-    return updated
-
-
 class ZapInstaller:
     INSTALL_DIR = Path('.zap-install')
     ZAP_URL_PATTERN = 'https://github.com/project-chip/zap/releases/download/v%04d.%02d.%02d-nightly/%s.zip'
@@ -117,7 +84,6 @@ class ZapInstaller:
     def __init__(self, matter_path: Path):
         self.matter_path = matter_path
         self.install_path = matter_path / ZapInstaller.INSTALL_DIR
-        self.current_os = platform.system()
 
         def unzip_darwin(zip: Path, out: Path):
             subprocess.check_call(['unzip', zip, '-d', out])
@@ -127,23 +93,24 @@ class ZapInstaller:
             f.extractall(out)
             f.close()
 
-        if self.current_os == 'Linux':
+        current_os = platform.system()
+        if current_os == 'Linux':
             self.package = 'zap-linux-x64'
             self.zap_exe = 'zap'
             self.zap_cli_exe = 'zap-cli'
             self.unzip = unzip
-        elif self.current_os == 'Windows':
+        elif current_os == 'Windows':
             self.package = 'zap-win-x64'
             self.zap_exe = 'zap.exe'
             self.zap_cli_exe = 'zap-cli.exe'
             self.unzip = unzip
-        elif self.current_os == 'Darwin':
+        elif current_os == 'Darwin':
             self.package = 'zap-mac-x64'
             self.zap_exe = 'zap.app/Contents/MacOS/zap'
             self.zap_cli_exe = 'zap-cli'
             self.unzip = unzip_darwin
         else:
-            raise RuntimeError(f"Unsupported platform: {self.current_os}")
+            raise RuntimeError(f"Unsupported platform: {current_os}")
 
     def get_install_path(self) -> Path:
         """
@@ -205,20 +172,9 @@ class ZapInstaller:
         with tempfile.TemporaryDirectory() as temp_dir:
             url = ZapInstaller.ZAP_URL_PATTERN % (*version, self.package)
             log.inf(f'Downloading {url}...')
-            zip_file_path = str(Path(temp_dir).joinpath(f'{self.package}.zip'))
-
-            # Handle SIGINT and SIGTERM to clean up broken files if the user cancels
-            # the installation
-            def handle_signal(signum, frame):
-                log.inf(f'\nCancelled by user, cleaning up...')
-                shutil.rmtree(self.install_path, ignore_errors=True)
-                exit()
-
-            signal.signal(signal.SIGINT, handle_signal)
-            signal.signal(signal.SIGTERM, handle_signal)
 
             try:
-                wget.download(url, out=zip_file_path)
+                wget.download(url, out=temp_dir)
             except Exception as e:
                 raise RuntimeError(f'Failed to download ZAP package from {url}: {e}')
 
@@ -228,7 +184,7 @@ class ZapInstaller:
             log.inf(f'Unzipping ZAP package to {self.install_path}...')
 
             try:
-                self.unzip(zip_file_path, self.install_path)
+                self.unzip(Path(temp_dir) / f'{self.package}.zip', self.install_path)
             except Exception as e:
                 raise RuntimeError(f'Failed to unzip ZAP package: {e}')
 

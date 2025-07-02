@@ -235,6 +235,7 @@ static_library("interaction-model") {
     "${chip_root}/src/app/codegen-data-model-provider:instance-header",
     "${chip_root}/src/app/data-model-provider",
     "${chip_root}/src/app/icd/server:icd-server-config",
+    "${chip_root}/src/app/icd/server:manager",
     "${chip_root}/src/app/icd/server:observer",
     "${chip_root}/src/app/util:af-types",
     "${chip_root}/src/app/util:callbacks",
@@ -245,10 +246,6 @@ static_library("interaction-model") {
     "${chip_root}/src/protocols/secure_channel",
     "${chip_root}/src/system",
   ]
-
-  if (chip_enable_icd_server) {
-    public_deps += [ "${chip_root}/src/app/icd/server:manager" ]
-  }
 
   public_configs = [ "${chip_root}/src:includes" ]
 
@@ -470,7 +467,6 @@ static_library("app") {
     ":constants",
     ":global-attributes",
     ":interaction-model",
-    ":test-event-trigger",
     "${chip_root}/src/app/data-model",
     "${chip_root}/src/app/icd/server:icd-server-config",
     "${chip_root}/src/app/util:callbacks",

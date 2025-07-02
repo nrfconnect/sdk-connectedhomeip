@@ -1475,7 +1475,7 @@ exit:
                 // Clamp to a number of seconds that will not overflow 32-bit
                 // int when converted to ms.
                 auto serverTimeoutInSeconds = System::Clock::Seconds16(serverSideProcessingTimeout.unsignedShortValue);
-                invokeTimeout.SetValue(session->ComputeRoundTripTimeout(serverTimeoutInSeconds, true /*isFirstMessageOnExchange*/));
+                invokeTimeout.SetValue(session->ComputeRoundTripTimeout(serverTimeoutInSeconds));
             }
             ReturnErrorOnFailure(commandSender->SendCommandRequest(session, invokeTimeout));
 

@@ -64,18 +64,16 @@ const OutgoingGroupSession * Session::AsConstOutgoingGroupSession() const
     return static_cast<const OutgoingGroupSession *>(this);
 }
 
-System::Clock::Timeout Session::ComputeRoundTripTimeout(System::Clock::Timeout upperlayerProcessingTimeout,
-                                                        bool isFirstMessageOnExchange)
+System::Clock::Timeout Session::ComputeRoundTripTimeout(System::Clock::Timeout upperlayerProcessingTimeout)
 {
     if (IsGroupSession())
     {
         return System::Clock::kZero;
     }
 
-    // Treat us as active for purposes of GetMessageReceiptTimeout(), pass false into GetMessageReceiptTimeout to
-    // indicate we are processing non-initial message since the other side would be responding to our message.
-    return GetAckTimeout(isFirstMessageOnExchange) + upperlayerProcessingTimeout +
-        GetMessageReceiptTimeout(System::SystemClock().GetMonotonicTimestamp(), false /*isFirstMessageOnExchange*/);
+    // Treat us as active for purposes of GetMessageReceiptTimeout(), since the
+    // other side would be responding to our message.
+    return GetAckTimeout() + upperlayerProcessingTimeout + GetMessageReceiptTimeout(System::SystemClock().GetMonotonicTimestamp());
 }
 
 uint16_t Session::SessionIdForLogging() const

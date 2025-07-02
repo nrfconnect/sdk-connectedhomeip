@@ -1,10 +1,5 @@
 # Keep the help strings in sync with the values in the .py files!
 west-commands:
-  - file: scripts/west/zap_install.py
-    commands:
-      - name: zap-install
-        class: ZapInstall
-        help: Install Matter ZCL Advanced Platform (ZAP) GUI
   - file: scripts/west/zap_generate.py
     commands:
       - name: zap-generate

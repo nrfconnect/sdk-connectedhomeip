@@ -29,7 +29,6 @@
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/util/attribute-storage-null-handling.h>
 #include <app/util/attribute-table.h>
-#include <app/util/ember-strings.h>
 #include <app/util/odd-sized-integers.h>
 #include <lib/core/CHIPEncoding.h>
 #include <lib/support/logging/CHIPLogging.h>

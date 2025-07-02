@@ -17,7 +17,6 @@
  */
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app/util/config.h>
-#include <chef-dishwasher-mode-delegate-impl.h>
 
 using namespace chip;
 using namespace chip::app;

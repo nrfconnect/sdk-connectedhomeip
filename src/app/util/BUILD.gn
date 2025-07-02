@@ -54,11 +54,7 @@ source_set("types") {
 
 # This source set also depends on data-model
 source_set("af-types") {
-  sources = [
-    "AttributesChangedListener.h",
-    "MarkAttributeDirty.h",
-    "af-types.h",
-  ]
+  sources = [ "af-types.h" ]
   deps = [
     ":types",
     "${chip_root}/src/app:paths",

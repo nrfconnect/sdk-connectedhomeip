@@ -151,6 +151,14 @@ function(chip_configure_data_model APP_TARGET)
         )
     endif()
 
+    # This is:
+    #    //src/app/common:cluster-objects
+    #
+    # TODO: ideally we would avoid duplication and would link gn-built items
+    target_sources(${APP_TARGET} ${SCOPE}
+        ${CHIP_APP_BASE_DIR}/../../zzz_generated/app-common/app-common/zap-generated/cluster-objects.cpp
+    )
+
     target_sources(${APP_TARGET} ${SCOPE}
         ${CHIP_APP_BASE_DIR}/../../zzz_generated/app-common/app-common/zap-generated/attributes/Accessors.cpp
         ${CHIP_APP_BASE_DIR}/reporting/reporting.cpp

@@ -25,7 +25,6 @@
 #include "AppConfig.h"
 #include "AppEvent.h"
 #include "AppTask.h"
-#include <app-common/zap-generated/cluster-objects.h>
 
 /**********************************************************
  * Defines and Constants

@@ -37,7 +37,7 @@
 #endif // CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS || CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
 
 #if CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
-#include <inet/ZephyrSocket.h> // nogncheck
+#include <zephyr/net/socket.h>
 #endif
 
 #include <chrono>

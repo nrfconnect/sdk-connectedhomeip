@@ -31,7 +31,7 @@
 #endif
 
 #if CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
-#include <inet/ZephyrSocket.h> // nogncheck
+#include <zephyr/net/socket.h>
 #endif
 
 #include <zephyr/kernel.h>

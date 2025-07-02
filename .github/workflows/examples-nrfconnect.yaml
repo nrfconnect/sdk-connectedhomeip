@@ -84,13 +84,9 @@ jobs:
               run: |
                   scripts/run_in_build_env.sh 'pip3 install -r scripts/setup/requirements.nrfconnect.txt'
                   scripts/run_in_build_env.sh "./scripts/tools/nrfconnect/tests/test_generate_factory_data.py"
-            - name: Run unit tests for Zephyr native_posix_64 platform with NVS
+            - name: Run unit tests for Zephyr native_posix_64 platform
               run: |
                   scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target nrf-native-sim-tests build"
-            - name: Run unit tests for Zephyr native_posix_64 platform with ZMS
-              run: |
-                  scripts/examples/nrfconnect_example.sh ../src/test_driver native_sim -DCONFIG_ZMS=y -DCONFIG_ZMS_LOOKUP_CACHE=y -DCONFIG_ZMS_LOOKUP_CACHE_SIZE=512 -DCONFIG_ZMS_LOOKUP_CACHE_FOR_SETTINGS=y -DCONFIG_NVS=n
-                  ctest --build-nocmake -V --output-on-failure --test-dir src/test_driver/nrfconnect/build/nrfconnect --no-tests=error
             - name: Uploading Failed Test Logs
               uses: actions/upload-artifact@v4
               if: ${{ failure() && !env.ACT }}

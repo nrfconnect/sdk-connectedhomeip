@@ -321,7 +321,9 @@ endif # CHIP_FACTORY_DATA_BUILD
 
 # See config/zephyr/Kconfig for full definition
 config CHIP_FACTORY_RESET_ERASE_SETTINGS
-	default y if !CHIP_CRYPTO_PSA_DAC_PRIV_KEY_ITS || BUILD_WITH_TFM
+	default y
+	depends on NVS || ZMS
+	depends on !CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
 config CHIP_LOG_SIZE_OPTIMIZATION
 	bool "Disable some detailed logs to decrease flash usage"
@@ -358,11 +360,8 @@ config CHIP_ENABLE_READ_CLIENT
 
 config CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 	bool "Migrate DAC private key from factory data to a secure storage"
-	default y
 	depends on CHIP_CRYPTO_PSA
 	depends on CHIP_FACTORY_DATA
-
-if CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
 choice CHIP_CRYPTO_PSA_DAC_PRIV_KEY_MIGRATION_DEST
 	prompt "Destination for DAC private key migration"
@@ -400,8 +399,6 @@ config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
 	depends on CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
 	help
 	  Encrypt the DAC private key in the CRACEN KMU secure storage.
-
-endif # CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
 config CHIP_PERSISTENT_SUBSCRIPTIONS
 	default n

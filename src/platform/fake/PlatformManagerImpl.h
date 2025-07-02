@@ -22,10 +22,8 @@
 
 #pragma once
 
-#include <platform/CHIPDeviceLayer.h>
+#include <platform/PlatformManager.h>
 
-#include <algorithm>
-#include <list>
 #include <queue>
 
 namespace chip {
@@ -46,34 +44,11 @@ public:
 private:
     // ===== Methods that implement the PlatformManager abstract interface.
 
-    struct EventHandler
-    {
-        PlatformManager::EventHandlerFunct Handler;
-        intptr_t Arg;
-
-        bool operator==(const EventHandler & other) const { return Handler == other.Handler && Arg == other.Arg; }
-    };
-
     CHIP_ERROR _InitChipStack() { return CHIP_NO_ERROR; }
     void _Shutdown() {}
 
-    CHIP_ERROR _AddEventHandler(EventHandlerFunct handler, intptr_t arg = 0)
-    {
-        EventHandler eventHandler = { .Handler = handler, .Arg = arg };
-        if (std::find(mEventHandlers.begin(), mEventHandlers.end(), eventHandler) == mEventHandlers.end())
-        {
-            mEventHandlers.push_back(eventHandler);
-        }
-
-        return CHIP_NO_ERROR;
-    }
-
-    void _RemoveEventHandler(EventHandlerFunct handler, intptr_t arg = 0)
-    {
-        EventHandler eventHandler = { .Handler = handler, .Arg = arg };
-        mEventHandlers.remove(eventHandler);
-    }
-
+    CHIP_ERROR _AddEventHandler(EventHandlerFunct handler, intptr_t arg = 0) { return CHIP_ERROR_NOT_IMPLEMENTED; }
+    void _RemoveEventHandler(EventHandlerFunct handler, intptr_t arg = 0) {}
     void _HandleServerStarted() {}
     void _HandleServerShuttingDown() {}
 
@@ -133,26 +108,8 @@ private:
             event->CallWorkFunct.WorkFunct(event->CallWorkFunct.Arg);
             break;
 
-        default: {
-#if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
-            BLEMgr().OnPlatformEvent(event);
-#endif
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-            ThreadStackMgr().OnPlatformEvent(event);
-#endif
-            ConnectivityMgr().OnPlatformEvent(event);
-
-            if (!event->IsInternal())
-            {
-                // iterate over local copy in case handler unregisters itself
-                auto handlers = mEventHandlers;
-                for (auto & handler : handlers)
-                {
-                    handler.Handler(event, handler.Arg);
-                }
-            }
-        }
-        break;
+        default:
+            break;
         }
     }
 
@@ -178,7 +135,6 @@ private:
 
     bool mShouldRunEventLoop = true;
     std::queue<ChipDeviceEvent> mQueue;
-    std::list<EventHandler> mEventHandlers;
 };
 
 /**

@@ -37,10 +37,11 @@
 #include <zephyr/storage/flash_map.h>
 #define FACTORY_DATA_SIZE DT_REG_SIZE(DT_ALIAS(factory_data))
 #define FACTORY_DATA_LOCATION_ADDRESS DT_REG_ADDR(DT_ALIAS(factory_data_location))
-#if defined(CONFIG_SOC_FLASH_NRF_MRAM) && !FACTORY_DATA_LOCATION_ADDRESS
-#error factory_data_location alias must be defined while using device with MRAM memory.
-#endif
+#if FACTORY_DATA_LOCATION_ADDRESS
+#define FACTORY_DATA_ADDRESS (DT_REG_ADDR(DT_ALIAS(factory_data)) + FACTORY_DATA_LOCATION_ADDRESS)
+#else
 #define FACTORY_DATA_ADDRESS DT_REG_ADDR(DT_ALIAS(factory_data))
+#endif // if FACTORY_DATA_LOCATION_ADDRESS
 #endif // if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1
 
 #include <system/SystemError.h>
@@ -55,13 +56,7 @@ struct InternalFlashFactoryData
 {
     CHIP_ERROR GetFactoryDataPartition(uint8_t *& data, size_t & dataSize)
     {
-        data = reinterpret_cast<uint8_t *>(FACTORY_DATA_ADDRESS
-#ifdef CONFIG_SOC_FLASH_NRF_MRAM
-                                           // For devices that use MRAM we need to point to the factory data partition as absolute
-                                           // address to get the proper value.
-                                           + FACTORY_DATA_LOCATION_ADDRESS
-#endif
-        );
+        data     = reinterpret_cast<uint8_t *>(FACTORY_DATA_ADDRESS);
         dataSize = FACTORY_DATA_SIZE;
         return CHIP_NO_ERROR;
     }

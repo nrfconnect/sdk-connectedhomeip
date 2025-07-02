@@ -4,11 +4,11 @@
 
 import argparse
 
+from pathlib import Path
 from textwrap import dedent
 
+from zap_common import existing_file_path, find_zap, ZapInstaller, MATTER_PATH
 from west.commands import WestCommand
-
-from zap_common import existing_file_path, existing_dir_path, find_zap, ZapInstaller, DEFAULT_MATTER_PATH
 
 
 class ZapGui(WestCommand):
@@ -33,8 +33,6 @@ class ZapGui(WestCommand):
                             help='Path to data model configuration file (*.zap)')
         parser.add_argument('-j', '--zcl-json', type=existing_file_path,
                             help='Path to data model definition file (zcl.json)')
-        parser.add_argument('-m', '--matter-path', type=existing_dir_path,
-                            default=DEFAULT_MATTER_PATH, help='Path to Matter SDK')
         return parser
 
     def do_run(self, args, unknown_args):
@@ -46,11 +44,11 @@ class ZapGui(WestCommand):
         if args.zcl_json:
             zcl_json_path = args.zcl_json.absolute()
         else:
-            zcl_json_path = args.matter_path / 'src/app/zap-templates/zcl/zcl.json'
+            zcl_json_path = MATTER_PATH / 'src/app/zap-templates/zcl/zcl.json'
 
-        app_templates_path = args.matter_path / 'src/app/zap-templates/app-templates.json'
+        app_templates_path = MATTER_PATH / 'src/app/zap-templates/app-templates.json'
 
-        zap_installer = ZapInstaller(args.matter_path)
+        zap_installer = ZapInstaller(Path(MATTER_PATH))
         zap_installer.update_zap_if_needed()
         zap_cache_path = zap_installer.get_install_path() / ".zap"
 

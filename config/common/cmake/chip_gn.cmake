@@ -134,7 +134,6 @@ macro(matter_build target)
                                     --dotfile=${GN_ROOT_TARGET}/.gn
                                     --script-executable=${Python3_EXECUTABLE}
                                     gen --check --fail-on-unused-args ${CMAKE_CURRENT_BINARY_DIR}
-                                    --export-compile-commands
         COMMAND                 ninja
         COMMAND                 ${CMAKE_COMMAND} -E echo "Matter library build complete"
         INSTALL_COMMAND         ""

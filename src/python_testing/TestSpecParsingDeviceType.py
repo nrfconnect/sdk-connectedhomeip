@@ -34,9 +34,8 @@ class TestSpecParsingDeviceType(MatterBaseTest):
             print(str(d))
 
     def setup_class(self):
-        # Latest fully qualified release
-        self.xml_clusters, self.xml_cluster_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_4)
-        self.xml_device_types, self.xml_device_types_problems = build_xml_device_types(PrebuiltDataModelDirectory.k1_4)
+        self.xml_clusters, self.xml_cluster_problems = build_xml_clusters()
+        self.xml_device_types, self.xml_device_types_problems = build_xml_device_types()
 
         self.device_type_id = 0xBBEF
         self.revision = 2

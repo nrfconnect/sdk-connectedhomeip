@@ -252,8 +252,7 @@ PROVISIONAL_CLUSTER_TEMPLATE = """
 class TestSpecParsingSupport(MatterBaseTest):
     def setup_class(self):
         super().setup_class()
-        # Latest fully certified build
-        self.spec_xml_clusters, self.spec_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_4)
+        self.spec_xml_clusters, self.spec_problems = build_xml_clusters()
         self.all_spec_clusters = set([(id, c.name, c.pics) for id, c in self.spec_xml_clusters.items()])
 
     def test_build_xml_override(self):

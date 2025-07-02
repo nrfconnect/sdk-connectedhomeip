@@ -45,10 +45,9 @@ jobs:
             - name: Install dependencies
               timeout-minutes: 10
               run: |
-                  export CODENAME=$(cat /etc/os-release | grep UBUNTU_CODENAME | cut -d= -f2)
                   apt update
                   apt install -y --no-install-recommends gnupg ca-certificates
-                  echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${CODENAME} main" > /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-${CODENAME}.list
+                  echo 'deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main' > /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-focal.list
                   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BA6932366A755776
                   apt update
                   apt install -y --no-install-recommends python3.11 python3.11-dev python3.11-venv g++ git libffi-dev libglib2.0-dev-bin libghc-gio-dev zlib1g-dev libavahi-client-dev libavahi-common-dev libgirepository-1.0-1 libssl-dev binutils-aarch64-linux-gnu

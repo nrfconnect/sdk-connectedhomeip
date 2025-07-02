@@ -22,9 +22,6 @@ declare_args() {
 
   # Use PSA Spake2+ implementation. Only used if chip_crypto == "psa"
   chip_crypto_psa_spake2p = false
-
-  # Use PSA AEAD single-part implementation.
-  chip_crypto_psa_aead_single_part = false
 }
 
 assert(

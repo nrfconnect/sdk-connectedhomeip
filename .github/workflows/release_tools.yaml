@@ -36,23 +36,12 @@ jobs:
             DEBIAN_FRONTEND: noninteractive
 
         container:
-            image: ubuntu:20.04
+            image: ghcr.io/project-chip/chip-build:81
             volumes:
                 - "/tmp/log_output:/tmp/test_logs"
                 - "/tmp/output_binaries:/tmp/output_binaries"
 
         steps:
-            - name: Install dependencies
-              timeout-minutes: 10
-              run: |
-                  apt update
-                  apt install -y --no-install-recommends gnupg ca-certificates
-                  echo 'deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main' > /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-focal.list
-                  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BA6932366A755776
-                  apt update
-                  apt install -y --no-install-recommends python3.11 python3.11-dev python3.11-venv g++ git libffi-dev libglib2.0-dev-bin libghc-gio-dev zlib1g-dev libavahi-client-dev libavahi-common-dev libgirepository-1.0-1
-                  ln -snf /usr/bin/python3.11 /usr/bin/python
-                  ln -snf /usr/bin/python3.11 /usr/bin/python3
             - name: Checkout
               uses: actions/checkout@v4
               with:

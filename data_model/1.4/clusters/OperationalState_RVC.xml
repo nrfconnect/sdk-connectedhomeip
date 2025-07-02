@@ -117,7 +117,10 @@ Davis, CA 95616, USA
     <command id="0x04" name="OperationalCommandResponse"/>
     <command id="0x80" name="GoHome" direction="commandToServer" response="OperationalCommandResponse">
       <access invokePrivilege="operate"/>
-      <optionalConform/>
+      <otherwiseConform>
+        <provisionalConform/>
+        <optionalConform/>
+      </otherwiseConform>
     </command>
   </commands>
 </cluster>

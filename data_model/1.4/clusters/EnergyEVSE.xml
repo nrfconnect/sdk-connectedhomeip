@@ -69,7 +69,10 @@ Davis, CA 95616, USA
   <classification hierarchy="base" role="application" picsCode="EEVSE" scope="Endpoint"/>
   <features>
     <feature bit="0" code="PREF" name="ChargingPreferences" summary="EVSE supports storing user charging preferences">
-      <mandatoryConform/>
+      <otherwiseConform>
+        <provisionalConform/>
+        <mandatoryConform/>
+      </otherwiseConform>
     </feature>
     <feature bit="1" code="SOC" name="SoCReporting" summary="EVSE supports reporting of vehicle State of Charge (SoC)">
       <otherwiseConform>
@@ -237,6 +240,7 @@ Davis, CA 95616, USA
     <struct name="ChargingTargetScheduleStruct">
       <field id="0" name="DayOfWeekForSequence" type="TargetDayOfWeekBitmap">
         <mandatoryConform/>
+        <constraint type="desc"/>
       </field>
       <field id="1" name="ChargingTargets" type="list">
         <entry type="ChargingTargetStruct"/>

@@ -63,7 +63,10 @@ Davis, CA 95616, USA
   <classification class="utility" scope="endpoint"/>
   <clusters>
     <cluster id="0x0098" name="Device Energy Management" side="server">
-      <mandatoryConform/>
+      <otherwiseConform>
+        <provisionalConform/>
+        <mandatoryConform/>
+      </otherwiseConform>
       <features>
         <feature code="" name="PowerAdjustment"/>
         <feature code="" name="StartTimeAdjustment"/>
@@ -74,6 +77,7 @@ Davis, CA 95616, USA
     </cluster>
     <cluster id="0x009F" name="Device Energy Management Mode" side="server">
       <otherwiseConform>
+        <provisionalConform/>
         <mandatoryConform>
           <attribute name="ControllableESA"/>
         </mandatoryConform>

@@ -142,10 +142,7 @@ class ZapInstaller:
             self.zap_cli_exe = 'zap-cli.exe'
             self.unzip = unzip
         elif self.current_os == 'Darwin':
-            if platform.machine() == 'arm64':
-                self.package = 'zap-mac-arm64'
-            else:
-                self.package = 'zap-mac-x64'
+            self.package = 'zap-mac-x64'
             self.zap_exe = 'zap.app/Contents/MacOS/zap'
             self.zap_cli_exe = 'zap-cli'
             self.unzip = unzip_darwin

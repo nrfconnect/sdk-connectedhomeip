@@ -6551,22 +6551,21 @@ class GeneralCommissioning(Cluster):
                 ClusterObjectFieldDescriptor(Label="clusterRevision", Tag=0x0000FFFD, Type=uint),
             ])
 
-    breadcrumb: 'uint' = None
-    basicCommissioningInfo: 'GeneralCommissioning.Structs.BasicCommissioningInfo' = None
-    regulatoryConfig: 'GeneralCommissioning.Enums.RegulatoryLocationTypeEnum' = None
-    locationCapability: 'GeneralCommissioning.Enums.RegulatoryLocationTypeEnum' = None
-    supportsConcurrentConnection: 'bool' = None
-    TCAcceptedVersion: 'typing.Optional[uint]' = None
-    TCMinRequiredVersion: 'typing.Optional[uint]' = None
-    TCAcknowledgements: 'typing.Optional[uint]' = None
-    TCAcknowledgementsRequired: 'typing.Optional[bool]' = None
-    TCUpdateDeadline: 'typing.Union[None, Nullable, uint]' = None
-    generatedCommandList: 'typing.List[uint]' = None
-    acceptedCommandList: 'typing.List[uint]' = None
-    eventList: 'typing.List[uint]' = None
-    attributeList: 'typing.List[uint]' = None
-    featureMap: 'uint' = None
-    clusterRevision: 'uint' = None
+    breadcrumb: uint = 0
+    basicCommissioningInfo: GeneralCommissioning.Structs.BasicCommissioningInfo = None
+    regulatoryConfig: GeneralCommissioning.Enums.RegulatoryLocationTypeEnum = 0
+    locationCapability: GeneralCommissioning.Enums.RegulatoryLocationTypeEnum = 0
+    supportsConcurrentConnection: bool = False
+    TCAcceptedVersion: typing.Optional[uint] = None
+    TCMinRequiredVersion: typing.Optional[uint] = None
+    TCAcknowledgements: typing.Optional[uint] = None
+    TCAcknowledgementsRequired: typing.Optional[bool] = None
+    TCUpdateDeadline: typing.Union[None, Nullable, uint] = None
+    generatedCommandList: typing.List[uint] = field(default_factory=lambda: [])
+    acceptedCommandList: typing.List[uint] = field(default_factory=lambda: [])
+    attributeList: typing.List[uint] = field(default_factory=lambda: [])
+    featureMap: uint = 0
+    clusterRevision: uint = 0
 
     class Enums:
         class CommissioningErrorEnum(MatterIntEnum):
@@ -6911,7 +6910,11 @@ class GeneralCommissioning(Cluster):
             def attribute_type(cls) -> ClusterObjectFieldDescriptor:
                 return ClusterObjectFieldDescriptor(Type=typing.Union[None, Nullable, uint])
 
-            value: 'typing.Union[None, Nullable, uint]' = None
+<<<<<<< HEAD
+            value: 'typing.Optional[uint]' = None
+=======
+            value: typing.Union[None, Nullable, uint] = None
+>>>>>>> eea382e1b4 (Update TCUpdateDeadline to be nullable to match spec (#37438))
 
         @dataclass
         class GeneratedCommandList(ClusterAttributeDescriptor):
@@ -50731,4 +50734,3 @@ class SampleMei(Cluster):
 
             count: 'uint' = 0
             fabricIndex: 'uint' = 0
-

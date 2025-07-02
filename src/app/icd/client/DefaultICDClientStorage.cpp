@@ -542,14 +542,5 @@ CHIP_ERROR DefaultICDClientStorage::ProcessCheckInPayload(const ByteSpan & paylo
     iterator->Release();
     return CHIP_ERROR_NOT_FOUND;
 }
-
-void DefaultICDClientStorage::Shutdown()
-{
-    mICDClientInfoIterators.ReleaseAll();
-    mpClientInfoStore = nullptr;
-    mpKeyStore        = nullptr;
-    mFabricList.clear();
-}
-
 } // namespace app
 } // namespace chip

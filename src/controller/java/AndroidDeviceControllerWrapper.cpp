@@ -52,7 +52,6 @@ using namespace TLV;
 
 AndroidDeviceControllerWrapper::~AndroidDeviceControllerWrapper()
 {
-    getICDClientStorage()->Shutdown();
     mController->Shutdown();
 
 #ifndef JAVA_MATTER_CONTROLLER_TEST

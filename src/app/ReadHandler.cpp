@@ -741,9 +741,7 @@ CHIP_ERROR ReadHandler::ProcessSubscribeRequest(System::PacketBufferHandle && aP
     ReturnErrorOnFailure(err);
 
     ReturnErrorOnFailure(subscribeRequestParser.GetMinIntervalFloorSeconds(&mMinIntervalFloorSeconds));
-    ReturnErrorOnFailure(subscribeRequestParser.GetMaxIntervalCeilingSeconds(&mSubscriberRequestedMaxInterval));
-    mMaxInterval = mSubscriberRequestedMaxInterval;
-
+    ReturnErrorOnFailure(subscribeRequestParser.GetMaxIntervalCeilingSeconds(&mMaxInterval));
     VerifyOrReturnError(mMinIntervalFloorSeconds <= mMaxInterval, CHIP_ERROR_INVALID_ARGUMENT);
 
 #if CHIP_CONFIG_ENABLE_ICD_SERVER

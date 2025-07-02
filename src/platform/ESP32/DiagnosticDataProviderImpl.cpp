@@ -217,37 +217,32 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
         {
             NetworkInterface * ifp = new NetworkInterface();
             esp_netif_ip_info_t ipv4_info;
-            uint8_t addressSize = 0;
             Platform::CopyString(ifp->Name, esp_netif_get_ifkey(ifa));
             ifp->name          = CharSpan::fromCharString(ifp->Name);
             ifp->isOperational = true;
             ifp->type          = GetInterfaceType(esp_netif_get_desc(ifa));
             ifp->offPremiseServicesReachableIPv4.SetNull();
             ifp->offPremiseServicesReachableIPv6.SetNull();
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-            if (ifp->type == InterfaceTypeEnum::kThread)
-            {
-                static_assert(OT_EXT_ADDRESS_SIZE <= sizeof(ifp->MacAddress), "Unexpected extended address size");
-                if (ThreadStackMgr().GetPrimary802154MACAddress(ifp->MacAddress) == CHIP_NO_ERROR)
-                {
-                    addressSize = OT_EXT_ADDRESS_SIZE;
-                }
-            }
-            else
-#endif
-                if (esp_netif_get_mac(ifa, ifp->MacAddress) == ESP_OK)
-            {
-                // For Wi-Fi or Ethernet interface, the MAC address size should be 6
-                addressSize = 6;
-            }
-            if (addressSize != 0)
-            {
-                ifp->hardwareAddress = ByteSpan(ifp->MacAddress, addressSize);
-            }
-            else
+#if !CHIP_DEVICE_CONFIG_ENABLE_THREAD
+            if (esp_netif_get_mac(ifa, ifp->MacAddress) != ESP_OK)
             {
                 ChipLogError(DeviceLayer, "Failed to get network hardware address");
             }
+            else
+            {
+                ifp->hardwareAddress = ByteSpan(ifp->MacAddress, 6);
+            }
+#else
+            if (esp_read_mac(ifp->MacAddress, ESP_MAC_IEEE802154) != ESP_OK)
+            {
+                ChipLogError(DeviceLayer, "Failed to get network hardware address");
+            }
+            else
+            {
+                ifp->hardwareAddress = ByteSpan(ifp->MacAddress, 8);
+            }
+#endif
+
 #ifndef CONFIG_DISABLE_IPV4
             if (esp_netif_get_ip_info(ifa, &ipv4_info) == ESP_OK)
             {

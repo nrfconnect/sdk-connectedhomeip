@@ -36,10 +36,6 @@ if (NOT CHIP_ROOT)
     get_filename_component(CHIP_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../.. REALPATH)
 endif()
 
-if (NOT CHIP_APP_ZAP_DIR)
-    get_filename_component(CHIP_APP_ZAP_DIR ${CHIP_ROOT}/zzz_generated/app-common REALPATH)
-endif()
-
 # ==============================================================================
 # Find required programs
 # ==============================================================================
@@ -169,7 +165,7 @@ macro(matter_build target)
         ${CHIP_ROOT}/third_party/nlassert/repo/include
         ${CHIP_ROOT}/third_party/nlio/repo/include
         ${CHIP_ROOT}/third_party/nlfaultinjection/include
-        ${CHIP_APP_ZAP_DIR}
+        ${CHIP_ROOT}/zzz_generated/app-common
         ${CMAKE_CURRENT_BINARY_DIR}/gen/include
     )
 

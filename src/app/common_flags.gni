@@ -35,9 +35,6 @@ declare_args() {
     chip_use_data_model_interface = "disabled"
   }
 
-  # Flag that sets path to zap-generated app-common directory
-  chip_app_zap_dir = chip_root + "/zzz_generated/app-common"
-
   # Whether we call `chipDie` on DM `check` errors
   #
   # If/once the chip_use_data_model_interface flag is removed or does not support

@@ -13,24 +13,23 @@
 # limitations under the License.
 
 import("//build_overrides/chip.gni")
-import("${chip_root}/src/app/common_flags.gni")
 
 config("includes") {
-  include_dirs = [ "${chip_app_zap_dir}" ]
+  include_dirs = [ "${chip_root}/zzz_generated/app-common" ]
 }
 
 source_set("attribute-type") {
-  sources = [ "${chip_app_zap_dir}/app-common/zap-generated/attribute-type.h" ]
+  sources = [ "${chip_root}/zzz_generated/app-common/app-common/zap-generated/attribute-type.h" ]
 
   public_configs = [ ":includes" ]
 }
 
 source_set("ids") {
   sources = [
-    "${chip_app_zap_dir}/app-common/zap-generated/ids/Attributes.h",
-    "${chip_app_zap_dir}/app-common/zap-generated/ids/Clusters.h",
-    "${chip_app_zap_dir}/app-common/zap-generated/ids/Commands.h",
-    "${chip_app_zap_dir}/app-common/zap-generated/ids/Events.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/ids/Attributes.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/ids/Clusters.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/ids/Commands.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/ids/Events.h",
   ]
 
   public_deps = [ "${chip_root}/src/app/util:types" ]
@@ -42,8 +41,8 @@ static_library("cluster-objects") {
   output_name = "libClusterObjects"
 
   sources = [
-    "${chip_app_zap_dir}/app-common/zap-generated/cluster-objects.cpp",
-    "${chip_app_zap_dir}/app-common/zap-generated/cluster-objects.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/cluster-objects.cpp",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/cluster-objects.h",
   ]
 
   public_deps = [
@@ -62,8 +61,8 @@ static_library("cluster-objects") {
 
 source_set("enums") {
   sources = [
-    "${chip_app_zap_dir}/app-common/zap-generated/cluster-enums-check.h",
-    "${chip_app_zap_dir}/app-common/zap-generated/cluster-enums.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/cluster-enums-check.h",
+    "${chip_root}/zzz_generated/app-common/app-common/zap-generated/cluster-enums.h",
     "CompatEnumNames.h",
   ]
 

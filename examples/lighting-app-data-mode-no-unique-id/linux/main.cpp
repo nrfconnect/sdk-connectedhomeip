@@ -42,7 +42,6 @@ using namespace chip::app::Clusters;
 
 namespace {
 
-constexpr char kChipEventFifoPathPrefix[] = "/tmp/chip_lighting_fifo_";
 NamedPipeCommands sChipNamedPipeCommands;
 LightingAppCommandDelegate sLightingAppCommandDelegate;
 } // namespace
@@ -78,9 +77,9 @@ void emberAfOnOffClusterInitCallback(EndpointId endpoint)
 
 void ApplicationInit()
 {
-    std::string path = kChipEventFifoPathPrefix + std::to_string(getpid());
+    std::string path = std::string(LinuxDeviceOptions::GetInstance().app_pipe);
 
-    if (sChipNamedPipeCommands.Start(path, &sLightingAppCommandDelegate) != CHIP_NO_ERROR)
+    if ((!path.empty()) and (sChipNamedPipeCommands.Start(path, &sLightingAppCommandDelegate) != CHIP_NO_ERROR))
     {
         ChipLogError(NotSpecified, "Failed to start CHIP NamedPipeCommands");
         sChipNamedPipeCommands.Stop();
@@ -95,7 +94,7 @@ void ApplicationShutdown()
     }
 }
 
-extern "C" int main(int argc, char * argv[])
+int main(int argc, char * argv[])
 {
     if (ChipLinuxAppInit(argc, argv) != 0)
     {

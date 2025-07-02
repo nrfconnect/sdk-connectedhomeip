@@ -30,13 +30,13 @@ jobs:
         name: Build CHIP Tools
         timeout-minutes: 60
 
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-20.04
 
         env:
             DEBIAN_FRONTEND: noninteractive
 
         container:
-            image: ubuntu:22.04
+            image: ubuntu:20.04
             volumes:
                 - "/tmp/log_output:/tmp/test_logs"
                 - "/tmp/output_binaries:/tmp/output_binaries"

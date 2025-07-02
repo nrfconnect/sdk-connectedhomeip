@@ -273,10 +273,7 @@ struct CommonCaseDeviceServerInitParams : public ServerInitParams
         }
 
         // Session Keystore injection
-        if (this->sessionKeystore == nullptr)
-        {
-            this->sessionKeystore = &sDefaultSessionKeystore;
-        }
+        this->sessionKeystore = &sSessionKeystore;
 
         // Group Data provider injection
         sGroupDataProvider.SetStorageDelegate(this->persistentStorageDelegate);
@@ -330,7 +327,7 @@ private:
     static app::SimpleSubscriptionResumptionStorage sSubscriptionResumptionStorage;
 #endif
     static app::DefaultAclStorage sAclStorage;
-    static Crypto::DefaultSessionKeystore sDefaultSessionKeystore;
+    static Crypto::DefaultSessionKeystore sSessionKeystore;
 #if CHIP_CONFIG_ENABLE_ICD_CIP
     static app::DefaultICDCheckInBackOffStrategy sDefaultICDCheckInBackOffStrategy;
 #endif

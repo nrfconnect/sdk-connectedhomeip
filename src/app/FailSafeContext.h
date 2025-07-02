@@ -148,6 +148,7 @@ private:
     }
 
     void FailSafeTimerExpired();
+    CHIP_ERROR CommitToStorage();
 };
 
 } // namespace app

@@ -29,10 +29,7 @@ static_library("platform") {
 
   public_configs = [ ":${target_name}-config" ]
 
-  deps = [
-    "${chip_root}/src/app:generic-test-event-trigger-handler",
-    app_data_model,
-  ]
+  deps = [ app_data_model ]
 }
 
 config("platform-config") {

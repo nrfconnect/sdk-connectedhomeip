@@ -65,18 +65,15 @@ jobs:
                       shell:
                         - 'examples/shell/nrfconnect/**'
             - name: Update NCS recommended version
-              if: github.event_name == 'pull_request'
               run: |
-                  PR_DESCRIPTION="${{ github.event.pull_request.body }}"
-                  if [ -n "$PR_DESCRIPTION" ]; then
-                      NCS_PR_ID=$(echo $PR_DESCRIPTION | { grep 'NCS PR' || true; } | sed 's/.*nrfconnect\/sdk-nrf//' | { grep -oE '[0-9]+' || true; })
-                      if [ -n "$NCS_PR_ID" ]; then
-                          echo "Using NCS from pull/$NCS_PR_ID/head"
-                          git -C $ZEPHYR_BASE/../nrf fetch origin pull/$NCS_PR_ID/head:NCS_PR
-                          echo NCS_PR > config/nrfconnect/.nrfconnect-recommended-revision
-                      else
-                          echo "Using NCS from $(cat config/nrfconnect/.nrfconnect-recommended-revision)"
-                      fi
+                  PR_DESCRIPTION=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
+                  NCS_PR_ID=$(echo $PR_DESCRIPTION | grep '^[^>]' | grep 'NCS PR' | sed 's/.*nrfconnect\/sdk-nrf//' | grep -oE '[0-9]+')
+                  if [ -n "$NCS_PR_ID" ]; then
+                    echo "Using NCS from pull/$NCS_PR_ID/head"
+                    git -C $ZEPHYR_BASE/../nrf fetch origin pull/$NCS_PR_ID/head:NCS_PR
+                    echo NCS_PR > config/nrfconnect/.nrfconnect-recommended-revision
+                  else
+                    echo "Using NCS from $(cat config/nrfconnect/.nrfconnect-recommended-revision)"
                   fi
             - name: Check nRF Connect SDK revision.
               run: scripts/run_in_build_env.sh "python3 scripts/setup/nrfconnect/update_ncs.py --update"

@@ -77,9 +77,8 @@ jobs:
                   echo "${{ github.event.inputs.ncs_revision }}" > config/nrfconnect/.nrfconnect-recommended-revision
             - name: Update NCS recommended version (pull_request)
               if: github.event_name == 'pull_request'
-              env:
-                  PR_DESCRIPTION: "${{ github.event.pull_request.body }}"
               run: |
+                  PR_DESCRIPTION="${{ github.event.pull_request.body }}"
                   if [ -n "$PR_DESCRIPTION" ]; then
                       NCS_PR_ID=$(echo $PR_DESCRIPTION | { grep 'NCS PR' || true; } | sed 's/.*nrfconnect\/sdk-nrf//' | { grep -oE '[0-9]+' || true; })
                       if [ -n "$NCS_PR_ID" ]; then

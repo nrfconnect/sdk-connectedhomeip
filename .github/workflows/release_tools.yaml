@@ -85,12 +85,6 @@ jobs:
                   scripts/run_in_build_env.sh "gn gen out/chipotaprovider_x64 --args='symbol_level=0 chip_crypto=\"mbedtls\"' --root=examples/ota-provider-app/linux"
                   scripts/run_in_build_env.sh "ninja -C out/chipotaprovider_x64 chip-ota-provider-app"
                   strip out/chipotaprovider_x64/chip-ota-provider-app -o /tmp/output_binaries/chip-ota-provider-app_x64
-            - name: Build x64 Chip Cert
-              timeout-minutes: 10
-              run: |
-                  scripts/run_in_build_env.sh "gn gen out/chipcert_x64 --args='symbol_level=0 chip_crypto=\"boringssl\"'"
-                  scripts/run_in_build_env.sh "ninja -C out/chipcert_x64 chip-cert"
-                  strip out/chipcert_x64/chip-cert -o /tmp/output_binaries/chip-cert_x64
             - name: Build x64 Python Wheels
               timeout-minutes: 10
               run: |

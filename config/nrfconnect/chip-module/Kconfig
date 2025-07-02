@@ -311,6 +311,15 @@ config CHIP_IPV4
 	  with IPv4 support independently of the Matter stack still
 	  running over IPv6.
 
+config CHIP_OPENTHREAD_JOINER_ENABLED
+	bool "Specify whether the Thread Joiner functionality is used when it is enabled"
+	default n
+	depends on OPENTHREAD
+	depends on OPENTHREAD_JOINER
+	help
+	  If disabled, it allows to optimize memory usage even if Thread Joiner
+	  support is enabled.
+
 config CHIP_ENABLE_READ_CLIENT
 	bool "Enable Read Client in the Interaction Model"
 	help

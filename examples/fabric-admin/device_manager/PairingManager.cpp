@@ -23,17 +23,16 @@
 #include <sys/types.h>
 
 #include <commands/common/CHIPCommand.h>
+#include <device_manager/DeviceManager.h>
 #include <device_manager/DeviceSynchronization.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <setup_payload/ManualSetupPayloadParser.h>
 #include <setup_payload/QRCodeSetupPayloadParser.h>
 
-#if defined(PW_RPC_ENABLED)
-#include <rpc/RpcClient.h>
-#endif
-
 using namespace ::chip;
 using namespace ::chip::Controller;
+
+namespace admin {
 
 namespace {
 
@@ -131,98 +130,97 @@ CHIP_ERROR PairingManager::OpenCommissioningWindow(NodeId nodeId, EndpointId end
         return CHIP_ERROR_INCORRECT_STATE;
     }
 
-    auto params                        = Platform::MakeUnique<CommissioningWindowParams>();
-    params->nodeId                     = nodeId;
-    params->endpointId                 = endpointId;
-    params->commissioningWindowTimeout = commissioningTimeoutSec;
-    params->iteration                  = iterations;
-    params->discriminator              = discriminator;
+    // Ensure salt and verifier sizes are valid
+    if (!salt.empty() && salt.size() > chip::Crypto::kSpake2p_Max_PBKDF_Salt_Length)
+    {
+        ChipLogError(NotSpecified, "Salt size exceeds buffer capacity");
+        return CHIP_ERROR_BUFFER_TOO_SMALL;
+    }
+
+    if (!verifier.empty() && verifier.size() > chip::Crypto::kSpake2p_VerifierSerialized_Length)
+    {
+        ChipLogError(NotSpecified, "Verifier size exceeds buffer capacity");
+        return CHIP_ERROR_BUFFER_TOO_SMALL;
+    }
 
     if (!salt.empty())
     {
-        if (salt.size() > sizeof(params->saltBuffer))
-        {
-            ChipLogError(NotSpecified, "Salt size exceeds buffer capacity");
-            return CHIP_ERROR_BUFFER_TOO_SMALL;
-        }
-
-        memcpy(params->saltBuffer, salt.data(), salt.size());
-        params->salt = ByteSpan(params->saltBuffer, salt.size());
+        memcpy(mSaltBuffer, salt.data(), salt.size());
+        mSalt = ByteSpan(mSaltBuffer, salt.size());
+    }
+    else
+    {
+        mSalt = ByteSpan();
     }
 
     if (!verifier.empty())
     {
-        if (verifier.size() > sizeof(params->verifierBuffer))
-        {
-            ChipLogError(NotSpecified, "Verifier size exceeds buffer capacity");
-            return CHIP_ERROR_BUFFER_TOO_SMALL;
-        }
-
-        memcpy(params->verifierBuffer, verifier.data(), verifier.size());
-        params->verifier = ByteSpan(params->verifierBuffer, verifier.size());
-    }
-
-    // Schedule work on the Matter thread
-    return DeviceLayer::PlatformMgr().ScheduleWork(OnOpenCommissioningWindow, reinterpret_cast<intptr_t>(params.release()));
-}
-
-void PairingManager::OnOpenCommissioningWindow(intptr_t context)
-{
-    Platform::UniquePtr<CommissioningWindowParams> params(reinterpret_cast<CommissioningWindowParams *>(context));
-    PairingManager & self = PairingManager::Instance();
-
-    if (self.mCommissioner == nullptr)
-    {
-        ChipLogError(NotSpecified, "Commissioner is null, cannot open commissioning window");
-        return;
-    }
-
-    self.mWindowOpener = Platform::MakeUnique<Controller::CommissioningWindowOpener>(self.mCommissioner);
-
-    if (!params->verifier.empty())
-    {
-        if (params->salt.empty())
-        {
-            ChipLogError(NotSpecified, "Salt is required when verifier is set");
-            self.mWindowOpener.reset();
-            return;
-        }
-
-        CHIP_ERROR err =
-            self.mWindowOpener->OpenCommissioningWindow(Controller::CommissioningWindowVerifierParams()
-                                                            .SetNodeId(params->nodeId)
-                                                            .SetEndpointId(params->endpointId)
-                                                            .SetTimeout(params->commissioningWindowTimeout)
-                                                            .SetIteration(params->iteration)
-                                                            .SetDiscriminator(params->discriminator)
-                                                            .SetVerifier(params->verifier)
-                                                            .SetSalt(params->salt)
-                                                            .SetCallback(&self.mOnOpenCommissioningWindowVerifierCallback));
-        if (err != CHIP_NO_ERROR)
-        {
-            ChipLogError(NotSpecified, "Failed to open commissioning window with verifier: %s", ErrorStr(err));
-            self.mWindowOpener.reset();
-        }
+        memcpy(mVerifierBuffer, verifier.data(), verifier.size());
+        mVerifier = ByteSpan(mVerifierBuffer, verifier.size());
     }
     else
     {
-        SetupPayload ignored;
-        CHIP_ERROR err = self.mWindowOpener->OpenCommissioningWindow(Controller::CommissioningWindowPasscodeParams()
-                                                                         .SetNodeId(params->nodeId)
-                                                                         .SetEndpointId(params->endpointId)
-                                                                         .SetTimeout(params->commissioningWindowTimeout)
-                                                                         .SetIteration(params->iteration)
-                                                                         .SetDiscriminator(params->discriminator)
-                                                                         .SetSetupPIN(NullOptional)
-                                                                         .SetSalt(NullOptional)
-                                                                         .SetCallback(&self.mOnOpenCommissioningWindowCallback),
-                                                                     ignored);
-        if (err != CHIP_NO_ERROR)
-        {
-            ChipLogError(NotSpecified, "Failed to open commissioning window with passcode: %s", ErrorStr(err));
-            self.mWindowOpener.reset();
-        }
+        mVerifier = ByteSpan();
     }
+
+    return DeviceLayer::SystemLayer().ScheduleLambda([nodeId, endpointId, commissioningTimeoutSec, iterations, discriminator]() {
+        PairingManager & self = PairingManager::Instance();
+
+        if (self.mCommissioner == nullptr)
+        {
+            ChipLogError(NotSpecified, "Commissioner is null, cannot open commissioning window");
+            return;
+        }
+
+        self.mWindowOpener = Platform::MakeUnique<Controller::CommissioningWindowOpener>(self.mCommissioner);
+
+        if (!self.mVerifier.empty())
+        {
+            if (self.mSalt.empty())
+            {
+                ChipLogError(NotSpecified, "Salt is required when verifier is set");
+                self.mWindowOpener.reset();
+                return;
+            }
+
+            // Open the commissioning window with verifier parameters
+            CHIP_ERROR err =
+                self.mWindowOpener->OpenCommissioningWindow(Controller::CommissioningWindowVerifierParams()
+                                                                .SetNodeId(nodeId)
+                                                                .SetEndpointId(endpointId)
+                                                                .SetTimeout(commissioningTimeoutSec)
+                                                                .SetIteration(iterations)
+                                                                .SetDiscriminator(discriminator)
+                                                                .SetVerifier(self.mVerifier)
+                                                                .SetSalt(self.mSalt)
+                                                                .SetCallback(&self.mOnOpenCommissioningWindowVerifierCallback));
+            if (err != CHIP_NO_ERROR)
+            {
+                ChipLogError(NotSpecified, "Failed to open commissioning window with verifier: %s", ErrorStr(err));
+                self.mWindowOpener.reset();
+            }
+        }
+        else
+        {
+            SetupPayload ignored;
+            // Open the commissioning window with passcode parameters
+            CHIP_ERROR err = self.mWindowOpener->OpenCommissioningWindow(Controller::CommissioningWindowPasscodeParams()
+                                                                             .SetNodeId(nodeId)
+                                                                             .SetEndpointId(endpointId)
+                                                                             .SetTimeout(commissioningTimeoutSec)
+                                                                             .SetIteration(iterations)
+                                                                             .SetDiscriminator(discriminator)
+                                                                             .SetSetupPIN(NullOptional)
+                                                                             .SetSalt(NullOptional)
+                                                                             .SetCallback(&self.mOnOpenCommissioningWindowCallback),
+                                                                         ignored);
+            if (err != CHIP_NO_ERROR)
+            {
+                ChipLogError(NotSpecified, "Failed to open commissioning window with passcode: %s", ErrorStr(err));
+                self.mWindowOpener.reset();
+            }
+        }
+    });
 }
 
 void PairingManager::OnOpenCommissioningWindowResponse(void * context, NodeId remoteId, CHIP_ERROR err, SetupPayload payload)
@@ -287,10 +285,16 @@ void PairingManager::OnPairingDeleted(CHIP_ERROR err)
 
 void PairingManager::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
 {
+    if (mPairingDelegate)
+    {
+        mPairingDelegate->OnCommissioningComplete(nodeId, err);
+        SetPairingDelegate(nullptr);
+    }
+
     if (err == CHIP_NO_ERROR)
     {
         // print to console
-        fprintf(stderr, "New device with Node ID: " ChipLogFormatX64 "has been successfully added.\n", ChipLogValueX64(nodeId));
+        fprintf(stderr, "New device with Node ID: " ChipLogFormatX64 " has been successfully added.\n", ChipLogValueX64(nodeId));
 
         // mCommissioner has a lifetime that is the entire life of the application itself
         // so it is safe to provide to StartDeviceSynchronization.
@@ -309,12 +313,6 @@ void PairingManager::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
             }
         }
         ChipLogProgress(NotSpecified, "Device commissioning Failure: %s", ErrorStr(err));
-    }
-
-    if (mCommissioningDelegate)
-    {
-        mCommissioningDelegate->OnCommissioningComplete(nodeId, err);
-        SetCommissioningDelegate(nullptr);
     }
 }
 
@@ -546,17 +544,23 @@ void PairingManager::OnCurrentFabricRemove(void * context, NodeId nodeId, CHIP_E
     PairingManager * self = reinterpret_cast<PairingManager *>(context);
     VerifyOrReturn(self != nullptr, ChipLogError(NotSpecified, "OnCurrentFabricRemove: context is null"));
 
+    ChipLogProgress(NotSpecified, "PairingManager::OnCurrentFabricRemove");
+
     if (err == CHIP_NO_ERROR)
     {
         // print to console
-        fprintf(stderr, "Device with Node ID: " ChipLogFormatX64 "has been successfully removed.\n", ChipLogValueX64(nodeId));
+        fprintf(stderr, "Device with Node ID: " ChipLogFormatX64 " has been successfully removed.\n", ChipLogValueX64(nodeId));
 
-#if defined(PW_RPC_ENABLED)
+        if (self->mPairingDelegate)
+        {
+            self->mPairingDelegate->OnDeviceRemoved(nodeId, err);
+            self->SetPairingDelegate(nullptr);
+        }
+
         FabricIndex fabricIndex = self->CurrentCommissioner().GetFabricIndex();
         app::InteractionModelEngine::GetInstance()->ShutdownSubscriptions(fabricIndex, nodeId);
         ScopedNodeId scopedNodeId(nodeId, fabricIndex);
-        RemoveSynchronizedDevice(scopedNodeId);
-#endif
+        DeviceManager::Instance().RemoveSyncedDevice(scopedNodeId);
     }
     else
     {
@@ -580,34 +584,24 @@ CHIP_ERROR PairingManager::PairDeviceWithCode(NodeId nodeId, const char * payloa
         return CHIP_ERROR_INVALID_STRING_LENGTH;
     }
 
-    auto params = Platform::MakeUnique<PairDeviceWithCodeParams>();
-    VerifyOrReturnError(params != nullptr, CHIP_ERROR_NO_MEMORY);
+    Platform::CopyString(mOnboardingPayload, sizeof(mOnboardingPayload), payload);
 
-    params->nodeId = nodeId;
-    Platform::CopyString(params->payloadBuffer, sizeof(params->payloadBuffer), payload);
+    return DeviceLayer::SystemLayer().ScheduleLambda([nodeId]() {
+        PairingManager & self = PairingManager::Instance();
 
-    // Schedule work on the Matter thread
-    return DeviceLayer::PlatformMgr().ScheduleWork(OnPairDeviceWithCode, reinterpret_cast<intptr_t>(params.release()));
-}
+        self.InitPairingCommand();
 
-void PairingManager::OnPairDeviceWithCode(intptr_t context)
-{
-    Platform::UniquePtr<PairDeviceWithCodeParams> params(reinterpret_cast<PairDeviceWithCodeParams *>(context));
-    PairingManager & self = PairingManager::Instance();
+        CommissioningParameters commissioningParams = self.GetCommissioningParameters();
+        auto discoveryType                          = DiscoveryType::kDiscoveryNetworkOnly;
 
-    self.InitPairingCommand();
+        self.mNodeId = nodeId;
 
-    CommissioningParameters commissioningParams = self.GetCommissioningParameters();
-    auto discoveryType                          = DiscoveryType::kDiscoveryNetworkOnly;
-
-    self.mNodeId            = params->nodeId;
-    self.mOnboardingPayload = params->payloadBuffer;
-
-    CHIP_ERROR err = self.mCommissioner->PairDevice(params->nodeId, params->payloadBuffer, commissioningParams, discoveryType);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(NotSpecified, "Failed to pair device with code, error: %s", ErrorStr(err));
-    }
+        CHIP_ERROR err = self.mCommissioner->PairDevice(nodeId, self.mOnboardingPayload, commissioningParams, discoveryType);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(NotSpecified, "Failed to pair device with code, error: %s", ErrorStr(err));
+        }
+    });
 }
 
 CHIP_ERROR PairingManager::PairDevice(chip::NodeId nodeId, uint32_t setupPINCode, const char * deviceRemoteIp,
@@ -619,72 +613,83 @@ CHIP_ERROR PairingManager::PairDevice(chip::NodeId nodeId, uint32_t setupPINCode
         return CHIP_ERROR_INVALID_STRING_LENGTH;
     }
 
-    auto params = Platform::MakeUnique<PairDeviceParams>();
-    VerifyOrReturnError(params != nullptr, CHIP_ERROR_NO_MEMORY);
+    Platform::CopyString(mRemoteIpAddr, sizeof(mRemoteIpAddr), deviceRemoteIp);
 
-    params->nodeId           = nodeId;
-    params->setupPINCode     = setupPINCode;
-    params->deviceRemotePort = deviceRemotePort;
+    return DeviceLayer::SystemLayer().ScheduleLambda([nodeId, setupPINCode, deviceRemotePort]() {
+        PairingManager & self = PairingManager::Instance();
 
-    Platform::CopyString(params->ipAddrBuffer, sizeof(params->ipAddrBuffer), deviceRemoteIp);
+        self.InitPairingCommand();
+        self.mSetupPINCode = setupPINCode;
 
-    // Schedule work on the Matter thread
-    return DeviceLayer::PlatformMgr().ScheduleWork(OnPairDevice, reinterpret_cast<intptr_t>(params.release()));
-}
+        Inet::IPAddress address;
+        Inet::InterfaceId interfaceId;
 
-void PairingManager::OnPairDevice(intptr_t context)
-{
-    Platform::UniquePtr<PairDeviceParams> params(reinterpret_cast<PairDeviceParams *>(context));
-    PairingManager & self = PairingManager::Instance();
+        if (!ParseAddressWithInterface(self.mRemoteIpAddr, address, interfaceId))
+        {
+            ChipLogError(NotSpecified, "Invalid IP address: %s", self.mRemoteIpAddr);
+            return;
+        }
 
-    self.InitPairingCommand();
-    self.mSetupPINCode = params->setupPINCode;
-
-    Inet::IPAddress address;
-    Inet::InterfaceId interfaceId;
-
-    if (!ParseAddressWithInterface(params->ipAddrBuffer, address, interfaceId))
-    {
-        ChipLogError(NotSpecified, "Invalid IP address: %s", params->ipAddrBuffer);
-        return;
-    }
-
-    CHIP_ERROR err = self.Pair(params->nodeId, Transport::PeerAddress::UDP(address, params->deviceRemotePort, interfaceId));
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(NotSpecified, "Failed to pair device, error: %s", ErrorStr(err));
-    }
+        CHIP_ERROR err = self.Pair(nodeId, Transport::PeerAddress::UDP(address, deviceRemotePort, interfaceId));
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(NotSpecified, "Failed to pair device, error: %s", ErrorStr(err));
+        }
+    });
 }
 
 CHIP_ERROR PairingManager::UnpairDevice(NodeId nodeId)
 {
-    auto params = Platform::MakeUnique<UnpairDeviceParams>();
-    VerifyOrReturnError(params != nullptr, CHIP_ERROR_NO_MEMORY);
+    return DeviceLayer::SystemLayer().ScheduleLambda([nodeId]() {
+        PairingManager & self = PairingManager::Instance();
 
-    params->nodeId = nodeId;
+        self.InitPairingCommand();
 
-    // Schedule work on the Matter thread
-    return DeviceLayer::PlatformMgr().ScheduleWork(OnUnpairDevice, reinterpret_cast<intptr_t>(params.release()));
+        self.mCurrentFabricRemover = Platform::MakeUnique<Controller::CurrentFabricRemover>(self.mCommissioner);
+
+        if (!self.mCurrentFabricRemover)
+        {
+            ChipLogError(NotSpecified, "Failed to unpair device, mCurrentFabricRemover is null");
+            return;
+        }
+
+        CHIP_ERROR err = self.mCurrentFabricRemover->RemoveCurrentFabric(nodeId, &self.mCurrentFabricRemoveCallback);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(NotSpecified, "Failed to unpair device, error: %s", ErrorStr(err));
+        }
+    });
 }
 
-void PairingManager::OnUnpairDevice(intptr_t context)
+void PairingManager::ResetForNextCommand()
 {
-    Platform::UniquePtr<PairDeviceParams> params(reinterpret_cast<PairDeviceParams *>(context));
-    PairingManager & self = PairingManager::Instance();
+    mCommissioningWindowDelegate = nullptr;
+    mPairingDelegate             = nullptr;
+    mNodeId                      = chip::kUndefinedNodeId;
+    mVerifier                    = chip::ByteSpan();
+    mSalt                        = chip::ByteSpan();
+    mDiscriminator               = 0;
+    mSetupPINCode                = 0;
+    mDeviceIsICD                 = false;
 
-    self.InitPairingCommand();
+    memset(mRandomGeneratedICDSymmetricKey, 0, sizeof(mRandomGeneratedICDSymmetricKey));
+    memset(mVerifierBuffer, 0, sizeof(mVerifierBuffer));
+    memset(mSaltBuffer, 0, sizeof(mSaltBuffer));
+    memset(mRemoteIpAddr, 0, sizeof(mRemoteIpAddr));
+    memset(mOnboardingPayload, 0, sizeof(mOnboardingPayload));
 
-    self.mCurrentFabricRemover = Platform::MakeUnique<Controller::CurrentFabricRemover>(self.mCommissioner);
+    mICDRegistration.ClearValue();
+    mICDCheckInNodeId.ClearValue();
+    mICDClientType.ClearValue();
+    mICDSymmetricKey.ClearValue();
+    mICDMonitoredSubject.ClearValue();
+    mICDStayActiveDurationMsec.ClearValue();
 
-    if (!self.mCurrentFabricRemover)
-    {
-        ChipLogError(NotSpecified, "Failed to unpair device, mCurrentFabricRemover is null");
-        return;
-    }
-
-    CHIP_ERROR err = self.mCurrentFabricRemover->RemoveCurrentFabric(params->nodeId, &self.mCurrentFabricRemoveCallback);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(NotSpecified, "Failed to unpair device, error: %s", ErrorStr(err));
-    }
+    mWindowOpener.reset();
+    mOnOpenCommissioningWindowCallback.Cancel();
+    mOnOpenCommissioningWindowVerifierCallback.Cancel();
+    mCurrentFabricRemover.reset();
+    mCurrentFabricRemoveCallback.Cancel();
 }
+
+} // namespace admin

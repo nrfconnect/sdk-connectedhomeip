@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2022 Project CHIP Authors
+ *    Copyright (c) 2022-2025 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
+#include <lib/support/CHIPMemString.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/DiagnosticDataProvider.h>
 #include <platform/Zephyr/DiagnosticDataProviderImpl.h>
@@ -33,6 +34,8 @@
 
 #if CHIP_DEVICE_LAYER_TARGET_NRFCONNECT
 #include <platform/nrfconnect/Reboot.h>
+#elif CHIP_DEVICE_LAYER_TARGET_TELINK
+#include <platform/telink/Reboot.h>
 #elif defined(CONFIG_MCUBOOT_IMG_MANAGER)
 #include <zephyr/dfu/mcuboot.h>
 #endif
@@ -56,6 +59,38 @@ namespace chip {
 namespace DeviceLayer {
 
 namespace {
+
+static void GetThreadInfo(const struct k_thread * thread, void * user_data)
+{
+    size_t unusedStackSize;
+    ThreadMetrics ** threadMetricsListHead = static_cast<ThreadMetrics **>(user_data);
+    ThreadMetrics * threadMetrics          = Platform::New<ThreadMetrics>();
+
+    VerifyOrReturn(threadMetrics != NULL, ChipLogError(DeviceLayer, "Failed to allocate ThreadMetrics"));
+
+#if defined(CONFIG_THREAD_NAME)
+    Platform::CopyString(threadMetrics->NameBuf, k_thread_name_get((k_tid_t) thread));
+    threadMetrics->name.Emplace(CharSpan::fromCharString(threadMetrics->NameBuf));
+#endif
+
+    threadMetrics->id = (uint64_t) thread;
+    threadMetrics->stackFreeCurrent.ClearValue(); // unsupported metric
+    threadMetrics->stackFreeMinimum.ClearValue();
+
+#if defined(CONFIG_THREAD_STACK_INFO)
+    threadMetrics->stackSize.Emplace(static_cast<uint32_t>(thread->stack_info.size));
+
+    if (k_thread_stack_space_get(thread, &unusedStackSize) == 0)
+    {
+        threadMetrics->stackFreeMinimum.Emplace(static_cast<uint32_t>(unusedStackSize));
+    }
+#else
+    (void) unusedStackSize;
+#endif
+
+    threadMetrics->Next    = *threadMetricsListHead;
+    *threadMetricsListHead = threadMetrics;
+}
 
 BootReasonType DetermineBootReason()
 {
@@ -90,7 +125,7 @@ BootReasonType DetermineBootReason()
 
     if (reason & RESET_SOFTWARE)
     {
-#if CHIP_DEVICE_LAYER_TARGET_NRFCONNECT
+#if CHIP_DEVICE_LAYER_TARGET_NRFCONNECT || CHIP_DEVICE_LAYER_TARGET_TELINK
         if (GetSoftwareRebootReason() == SoftwareRebootReason::kSoftwareUpdate)
         {
             return BootReasonType::kSoftwareUpdateCompleted;
@@ -184,6 +219,27 @@ CHIP_ERROR DiagnosticDataProviderImpl::ResetWatermarks()
 #else
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 #endif
+}
+
+CHIP_ERROR DiagnosticDataProviderImpl::GetThreadMetrics(ThreadMetrics ** threadMetricsOut)
+{
+#if defined(CONFIG_THREAD_MONITOR)
+    *threadMetricsOut = NULL;
+    k_thread_foreach((k_thread_user_cb_t) GetThreadInfo, threadMetricsOut);
+    return CHIP_NO_ERROR;
+#else
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+#endif
+}
+
+void DiagnosticDataProviderImpl::ReleaseThreadMetrics(ThreadMetrics * threadMetrics)
+{
+    while (threadMetrics)
+    {
+        ThreadMetrics * thread = threadMetrics;
+        threadMetrics          = threadMetrics->Next;
+        Platform::Delete<ThreadMetrics>(thread);
+    }
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetRebootCount(uint16_t & rebootCount)

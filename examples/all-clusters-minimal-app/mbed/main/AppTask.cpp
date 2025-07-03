@@ -24,6 +24,7 @@
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
+#include <data-model-providers/codegen/Instance.h>
 #include <setup_payload/OnboardingCodesUtil.h>
 
 #include <lib/support/logging/CHIPLogging.h>
@@ -67,7 +68,8 @@ int AppTask::Init()
     // Init ZCL Data Model and start server
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
-    error = Server::GetInstance().Init(initParams);
+    initParams.dataModelProvider = app::CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
+    error                        = Server::GetInstance().Init(initParams);
     if (error != CHIP_NO_ERROR)
     {
         ChipLogError(NotSpecified, "Server initialization failed: %s", error.AsString());

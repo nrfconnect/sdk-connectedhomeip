@@ -209,6 +209,19 @@ _ALIASES = {
                 'has_endpoint': False,
             },
         }
+    },
+
+    'WebRTC': {
+        'alias': 'webrtc',
+        'commands': {
+            'Connect': {
+                'has_destination': False,
+                'alias': 'connect',
+                'arguments': {
+                    'nodeId': 'node-id',
+                }
+            },
+        }
     }
 }
 
@@ -510,7 +523,16 @@ class Encoder:
         if aliases is None or aliases.get(argument_name) is None:
             return None
 
-        return aliases.get(argument_name)
+        value = aliases.get(argument_name)
+
+        if cluster_name == '*' and self.__is_darwin_framework_tool:
+            if argument_name == 'AttributeId':
+                return 'attribute-id'
+            elif argument_name == 'ClusterId':
+                return 'cluster-id'
+            elif argument_name == 'Value':
+                return 'attribute-value'
+        return value
 
     def _supports_endpoint(self, request):
         return self._has_support(request, 'has_endpoint')

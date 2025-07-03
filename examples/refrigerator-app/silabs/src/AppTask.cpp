@@ -24,7 +24,6 @@
 #include "AppTask.h"
 #include "AppConfig.h"
 #include "AppEvent.h"
-
 #include "LEDWidget.h"
 
 #ifdef DISPLAY_ENABLED
@@ -34,6 +33,10 @@
 #include "qrcodegen.h"
 #endif // QR_CODE_ENABLED
 #endif // DISPLAY_ENABLED
+
+#if defined(ENABLE_CHIP_SHELL)
+#include "EventHandlerLibShell.h"
+#endif // ENABLE_CHIP_SHELL
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/callback.h>
@@ -72,27 +75,26 @@ using namespace ::chip::DeviceLayer;
 
 AppTask AppTask::sAppTask;
 
-CHIP_ERROR AppTask::Init()
+CHIP_ERROR AppTask::AppInit()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::DeviceLayer::Silabs::GetPlatform().SetButtonsCb(AppTask::ButtonEventHandler);
 
-#ifdef DISPLAY_ENABLED
-    GetLCD().Init((uint8_t *) "Refrigrator-App");
-#endif
-
-    err = BaseApplication::Init();
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(AppServer, "BaseApplication::Init() failed");
-        appError(err);
-    }
     err = RefrigeratorMgr().Init();
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(AppServer, "RefrigeratorMgr::Init() failed");
         appError(err);
     }
+
+#if defined(ENABLE_CHIP_SHELL)
+    err = RegisterRefrigeratorEvents();
+    if (err != CHIP_NO_ERROR)
+    {
+        SILABS_LOG("RegisterRefrigeratorEvents() failed");
+        appError(err);
+    }
+#endif // ENABLE_CHIP_SHELL
 
     return err;
 }

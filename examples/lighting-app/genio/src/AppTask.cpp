@@ -283,10 +283,10 @@ static void RegisterLightCommands()
         },
     };
 
-    sShellLightOnOffSubCommands.RegisterCommands(sLightOnOffSubCommands, ArraySize(sLightOnOffSubCommands));
-    sShellLightSubCommands.RegisterCommands(sLightSubCommands, ArraySize(sLightSubCommands));
+    sShellLightOnOffSubCommands.RegisterCommands(sLightOnOffSubCommands, MATTER_ARRAY_SIZE(sLightOnOffSubCommands));
+    sShellLightSubCommands.RegisterCommands(sLightSubCommands, MATTER_ARRAY_SIZE(sLightSubCommands));
 
-    Engine::Root().RegisterCommands(sLightCommand, ArraySize(sLightCommand));
+    Engine::Root().RegisterCommands(sLightCommand, MATTER_ARRAY_SIZE(sLightCommand));
 }
 #endif // ENABLE_CHIP_SHELL
 
@@ -300,7 +300,7 @@ CHIP_ERROR AppTask::StartAppTask()
     }
 
     // Start App task.
-    sAppTaskHandle = xTaskCreateStatic(AppTaskMain, APP_TASK_NAME, ArraySize(appStack), NULL, 1, appStack, &appTaskStruct);
+    sAppTaskHandle = xTaskCreateStatic(AppTaskMain, APP_TASK_NAME, MATTER_ARRAY_SIZE(appStack), NULL, 1, appStack, &appTaskStruct);
     if (sAppTaskHandle == nullptr)
         return APP_ERROR_CREATE_TASK_FAILED;
 
@@ -325,6 +325,7 @@ CHIP_ERROR AppTask::Init()
     // Init ZCL Data Model and start server
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    initParams.dataModelProvider = chip::app::CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
     chip::Server::GetInstance().Init(initParams);
 
     // Initialize device attestation config

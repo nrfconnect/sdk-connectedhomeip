@@ -123,7 +123,7 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
 
 class ZapInstaller:
     INSTALL_DIR = Path('.zap-install')
-    ZAP_URL_PATTERN = 'https://github.com/project-chip/zap/releases/download/v%04d.%02d.%02d-nightly/%s.zip'
+    ZAP_URL_PATTERN = 'https://github.com/project-chip/zap/releases/download/v%04d.%02d.%02d/%s.zip'
 
     def __init__(self, matter_path: Path):
         self.matter_path = matter_path

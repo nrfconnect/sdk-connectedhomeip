@@ -15,20 +15,30 @@
 #    limitations under the License.
 #
 
-
 # === BEGIN CI TEST ARGUMENTS ===
-# test-runner-runs: run1
-# test-runner-run/run1/app: ${TERMS_AND_CONDITIONS_APP}
-# test-runner-run/run1/factoryreset: True
-# test-runner-run/run1/quiet: True
-# test-runner-run/run1/app-args: --tc-min-required-version 1 --tc-required-acknowledgements 1 --custom-flow 2 --capabilities 6
-# test-runner-run/run1/script-args: --PICS src/app/tests/suites/certification/ci-pics-values --in-test-commissioning-method on-network --tc-version-to-simulate 1 --tc-user-response-to-simulate 1 --qr-code MT:-24J0AFN00KA0648G00 --trace-to json:log
+# test-runner-runs:
+#   run1:
+#       app: ${TERMS_AND_CONDITIONS_APP}
+#       app-args: >
+#           --tc-min-required-version 1
+#           --tc-required-acknowledgements 1
+#           --custom-flow 2
+#           --capabilities 6
+#       script-args:
+#           --PICS src/app/tests/suites/certification/ci-pics-values
+#           --in-test-commissioning-method on-network
+#           --tc-version-to-simulate 1
+#           --tc-user-response-to-simulate 1
+#           --qr-code MT:-24J0AFN00KA0648G00
+#           --trace-to json:log
+#       factory-reset: true
+#       quiet: True
 # === END CI TEST ARGUMENTS ===
 
 import chip.clusters as Clusters
 from chip import ChipDeviceCtrl
 from chip.commissioning import ROOT_ENDPOINT_ID
-from matter_testing_support import MatterBaseTest, TestStep, async_test_body, default_matter_test_main
+from chip.testing.matter_testing import MatterBaseTest, TestStep, async_test_body, default_matter_test_main
 from mobly import asserts
 
 
@@ -42,8 +52,7 @@ class TC_CGEN_2_10(MatterBaseTest):
 
     def steps_TC_CGEN_2_10(self) -> list[TestStep]:
         return [
-            TestStep(0, description="", expectation="", is_commissioning=False),
-            TestStep(1, "TH reads from the DUT the attribute TCAcceptedVersion. Store the value as acceptedVersion."),
+            TestStep(1, "TH reads from the DUT the attribute TCAcceptedVersion. Store the value as acceptedVersion.", is_commissioning=False),
             TestStep(2, "TH reads from the DUT the attribute TCAcknowledgements. Store the value as userAcknowledgements."),
             TestStep(3, "TH Sends the SetTCAcknowledgements command to the DUT with the fields set as follows:\n* TCVersion: 0\n* TCUserResponse: 65535"),
             TestStep(4, "TH reads from the DUT the attribute TCAcceptedVersion."),
@@ -57,7 +66,6 @@ class TC_CGEN_2_10(MatterBaseTest):
     async def test_TC_CGEN_2_10(self):
         commissioner: ChipDeviceCtrl.ChipDeviceController = self.default_controller
 
-        self.step(0)
         if not self.check_pics("CGEN.S.F00"):
             asserts.skip('Root endpoint does not support the [commissioning] feature under test')
             return

@@ -15,8 +15,8 @@
  *    limitations under the License.
  */
 
-#include "system/SystemClock.h"
 #include <cstdarg>
+#include <cstdio>
 #include <memory>
 #include <type_traits>
 
@@ -29,12 +29,10 @@
 #include <controller/CHIPDeviceController.h>
 #include <controller/python/chip/interaction_model/Delegate.h>
 #include <controller/python/chip/native/PyChipError.h>
-#include <lib/support/CodeUtils.h>
-
-#include <cstdio>
-#include <lib/support/logging/CHIPLogging.h>
-
 #include <lib/core/Optional.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/logging/CHIPLogging.h>
+#include <system/SystemClock.h>
 
 using namespace chip;
 using namespace chip::app;
@@ -112,13 +110,16 @@ public:
         // callback. If we do, that's a bug.
         //
         VerifyOrDie(!aPath.IsListItemOperation());
-        size_t bufferLen                  = (apData == nullptr ? 0 : apData->GetRemainingLength() + apData->GetLengthRead());
-        std::unique_ptr<uint8_t[]> buffer = std::unique_ptr<uint8_t[]>(apData == nullptr ? nullptr : new uint8_t[bufferLen]);
-        size_t size                       = 0;
+
+        std::unique_ptr<uint8_t[]> buffer;
+        size_t size = 0;
+
         // When the apData is nullptr, means we did not receive a valid attribute data from server, status will be some error
         // status.
         if (apData != nullptr)
         {
+            size_t bufferLen = apData->GetRemainingLength() + apData->GetLengthRead();
+            buffer           = std::make_unique<uint8_t[]>(bufferLen);
             // The TLVReader's read head is not pointing to the first element in the container instead of the container itself, use
             // a TLVWriter to get a TLV with a normalized TLV buffer (Wrapped with a anonymous tag, no extra "end of container" tag
             // at the end.)
@@ -453,12 +454,20 @@ exit:
     return ToPyChipError(err);
 }
 
-void pychip_ReadClient_Abort(ReadClient * apReadClient, ReadClientCallback * apCallback)
+void pychip_ReadClient_ShutdownSubscription(ReadClient * apReadClient)
 {
-    VerifyOrDie(apReadClient != nullptr);
-    VerifyOrDie(apCallback != nullptr);
+    // If apReadClient is nullptr, it means that its life cycle has ended (such as an error happend), and nothing needs to be done.
+    VerifyOrReturn(apReadClient != nullptr);
+    // If it is not SubscriptionType, this function should not be executed.
+    VerifyOrDie(apReadClient->IsSubscriptionType());
 
-    delete apCallback;
+    Optional<SubscriptionId> subscriptionId = apReadClient->GetSubscriptionId();
+    VerifyOrDie(subscriptionId.HasValue());
+
+    FabricIndex fabricIndex = apReadClient->GetFabricIndex();
+    NodeId nodeId           = apReadClient->GetPeerNodeId();
+
+    InteractionModelEngine::GetInstance()->ShutdownSubscription(ScopedNodeId(nodeId, fabricIndex), subscriptionId.Value());
 }
 
 void pychip_ReadClient_OverrideLivenessTimeout(ReadClient * pReadClient, uint32_t livenessTimeoutMs)
@@ -497,21 +506,20 @@ void pychip_ReadClient_GetSubscriptionTimeoutMs(ReadClient * pReadClient, uint32
     }
 }
 
-PyChipError pychip_ReadClient_Read(void * appContext, ReadClient ** pReadClient, ReadClientCallback ** pCallback,
-                                   DeviceProxy * device, uint8_t * readParamsBuf, void ** attributePathsFromPython,
-                                   size_t numAttributePaths, void ** dataversionFiltersFromPython, size_t numDataversionFilters,
-                                   void ** eventPathsFromPython, size_t numEventPaths, uint64_t * eventNumberFilter)
+PyChipError pychip_ReadClient_Read(void * appContext, ReadClient ** pReadClient, DeviceProxy * device, uint8_t * readParamsBuf,
+                                   void ** attributePathsFromPython, size_t numAttributePaths, void ** dataversionFiltersFromPython,
+                                   size_t numDataversionFilters, void ** eventPathsFromPython, size_t numEventPaths,
+                                   uint64_t * eventNumberFilter)
 {
     CHIP_ERROR err                 = CHIP_NO_ERROR;
     PyReadAttributeParams pyParams = {};
     // The readParamsBuf might be not aligned, using a memcpy to avoid some unexpected behaviors.
     memcpy(&pyParams, readParamsBuf, sizeof(pyParams));
 
-    std::unique_ptr<ReadClientCallback> callback = std::make_unique<ReadClientCallback>(appContext);
-
-    std::unique_ptr<AttributePathParams[]> attributePaths(new AttributePathParams[numAttributePaths]);
-    std::unique_ptr<chip::app::DataVersionFilter[]> dataVersionFilters(new chip::app::DataVersionFilter[numDataversionFilters]);
-    std::unique_ptr<EventPathParams[]> eventPaths(new EventPathParams[numEventPaths]);
+    auto callback           = std::make_unique<ReadClientCallback>(appContext);
+    auto attributePaths     = std::make_unique<AttributePathParams[]>(numAttributePaths);
+    auto dataVersionFilters = std::make_unique<chip::app::DataVersionFilter[]>(numDataversionFilters);
+    auto eventPaths         = std::make_unique<EventPathParams[]>(numEventPaths);
     std::unique_ptr<ReadClient> readClient;
 
     for (size_t i = 0; i < numAttributePaths; i++)
@@ -612,7 +620,6 @@ PyChipError pychip_ReadClient_Read(void * appContext, ReadClient ** pReadClient,
     }
 
     *pReadClient = readClient.get();
-    *pCallback   = callback.get();
 
     callback->AdoptReadClient(std::move(readClient));
 

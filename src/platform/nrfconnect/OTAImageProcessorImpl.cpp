@@ -33,13 +33,10 @@
 
 #include "DFUSync.h"
 
+#include <dfu/dfu_multi_image.h>
 #include <dfu/dfu_target.h>
-
 #include <dfu/dfu_target_mcuboot.h>
 #include <zephyr/dfu/mcuboot.h>
-
-#include <dfu/dfu_multi_image.h>
-
 #include <zephyr/logging/log.h>
 #include <zephyr/pm/device.h>
 
@@ -99,11 +96,10 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
     for (int image_id = 0; image_id < CONFIG_UPDATEABLE_IMAGE_NUMBER; ++image_id)
     {
         dfu_image_writer writer;
-
         writer.image_id = image_id;
         writer.open     = [](int id, size_t size) { return dfu_target_init(DFU_TARGET_IMAGE_TYPE_MCUBOOT, id, size, nullptr); };
-        writer.write = [](const uint8_t * chunk, size_t chunk_size) { return dfu_target_write(chunk, chunk_size); };
-        writer.close = [](bool success) { return success ? dfu_target_done(success) : dfu_target_reset(); };
+        writer.write    = [](const uint8_t * chunk, size_t chunk_size) { return dfu_target_write(chunk, chunk_size); };
+        writer.close    = [](bool success) { return success ? dfu_target_done(success) : dfu_target_reset(); };
 
         ReturnErrorOnFailure(System::MapErrorZephyr(dfu_multi_image_register_writer(&writer)));
     };
@@ -132,15 +128,12 @@ CHIP_ERROR OTAImageProcessorImpl::Finalize()
 {
     PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadComplete);
     DFUSync::GetInstance().Free(mDfuSyncMutexId);
-
     return System::MapErrorZephyr(dfu_multi_image_done(true));
 }
 
 CHIP_ERROR OTAImageProcessorImpl::Abort()
 {
-    CHIP_ERROR error;
-
-    error = System::MapErrorZephyr(dfu_multi_image_done(false));
+    CHIP_ERROR error = System::MapErrorZephyr(dfu_multi_image_done(false));
 
     DFUSync::GetInstance().Free(mDfuSyncMutexId);
     TriggerFlashAction(ExternalFlashManager::Action::SLEEP);
@@ -152,7 +145,6 @@ CHIP_ERROR OTAImageProcessorImpl::Abort()
 CHIP_ERROR OTAImageProcessorImpl::Apply()
 {
     PostOTAStateChangeEvent(DeviceLayer::kOtaApplyInProgress);
-
     // Schedule update of all images
     int err = dfu_target_schedule_update(-1);
 
@@ -195,9 +187,9 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
         }
         else
         {
-            int err = dfu_multi_image_write(static_cast<size_t>(mParams.downloadedBytes), aBlock.data(), aBlock.size());
+            error = System::MapErrorZephyr(
+                dfu_multi_image_write(static_cast<size_t>(mParams.downloadedBytes), aBlock.data(), aBlock.size()));
             mParams.downloadedBytes += aBlock.size();
-            error = System::MapErrorZephyr(err);
         }
     }
 
@@ -220,10 +212,10 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
 bool OTAImageProcessorImpl::IsFirstImageRun()
 {
     OTARequestorInterface * requestor = GetRequestorInstance();
-    ReturnErrorCodeIf(requestor == nullptr, false);
+    VerifyOrReturnError(requestor != nullptr, false);
 
     uint32_t currentVersion;
-    ReturnErrorCodeIf(ConfigurationMgr().GetSoftwareVersion(currentVersion) != CHIP_NO_ERROR, false);
+    VerifyOrReturnError(ConfigurationMgr().GetSoftwareVersion(currentVersion) == CHIP_NO_ERROR, false);
 
     return requestor->GetCurrentUpdateState() == OTARequestorInterface::OTAUpdateStateEnum::kApplying &&
         requestor->GetTargetVersion() == currentVersion;
@@ -243,7 +235,7 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessHeader(ByteSpan & aBlock)
         CHIP_ERROR error = mHeaderParser.AccumulateAndDecode(aBlock, header);
 
         // Needs more data to decode the header
-        ReturnErrorCodeIf(error == CHIP_ERROR_BUFFER_TOO_SMALL, CHIP_NO_ERROR);
+        VerifyOrReturnError(error != CHIP_ERROR_BUFFER_TOO_SMALL, CHIP_NO_ERROR);
         ReturnErrorOnFailure(error);
 
         mParams.totalFileBytes = header.mPayloadSize;

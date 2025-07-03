@@ -31,7 +31,11 @@
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/PlatformManager.h>
 #include <platform/Zephyr/DiagnosticDataProviderImpl.h>
-#include <platform/internal/GenericPlatformManagerImpl_Zephyr.ipp>
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
+#include <platform/internal/GenericPlatformManagerImpl_ZephyrSelect.ipp>
+#else
+#include <platform/internal/GenericPlatformManagerImpl_ZephyrNoSelect.ipp>
+#endif
 
 #include <malloc.h>
 #include <zephyr/drivers/entropy.h>
@@ -45,7 +49,7 @@ PlatformManagerImpl PlatformManagerImpl::sInstance{ sChipThreadStack };
 
 static k_timer sOperationalHoursSavingTimer;
 
-#if !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
+#if !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ZEPHYR_ENTROPY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
 static bool sChipStackEntropySourceAdded = false;
 static int app_entropy_source(void * data, unsigned char * output, size_t len, size_t * olen)
 {
@@ -72,7 +76,7 @@ static int app_entropy_source(void * data, unsigned char * output, size_t len, s
 
     return ret;
 }
-#endif // !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
+#endif // !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ZEPHYR_ENTROPY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
 
 void PlatformManagerImpl::OperationalHoursSavingTimerEventHandler(k_timer * timer)
 {
@@ -117,16 +121,16 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
 {
     CHIP_ERROR err;
 
-#if !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
+#if !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ZEPHYR_ENTROPY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
     // Minimum required from source before entropy is released ( with mbedtls_entropy_func() ) (in bytes)
     const size_t kThreshold = 16;
-#endif // !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
+#endif // !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ZEPHYR_ENTROPY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
 
     // Initialize the configuration system.
     err = Internal::ZephyrConfig::Init();
     SuccessOrExit(err);
 
-#if !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
+#if !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ZEPHYR_ENTROPY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
     if (!sChipStackEntropySourceAdded)
     {
         // Add entropy source based on Zephyr entropy driver
@@ -134,7 +138,7 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
         SuccessOrExit(err);
         sChipStackEntropySourceAdded = true;
     }
-#endif // !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
+#endif // !defined(CONFIG_NRF_SECURITY) && !defined(CONFIG_MBEDTLS_ZEPHYR_ENTROPY) && !defined(CONFIG_MBEDTLS_ENTROPY_POLL_ZEPHYR)
 
     // Call _InitChipStack() on the generic implementation base class to finish the initialization process.
     err = Internal::GenericPlatformManagerImpl_Zephyr<PlatformManagerImpl>::_InitChipStack();

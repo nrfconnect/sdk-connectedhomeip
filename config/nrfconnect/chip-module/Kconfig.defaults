@@ -220,10 +220,10 @@ config MPSL_FEM_NRF21540_RUNTIME_PA_GAIN_CONTROL
     default y if MPSL_FEM
 
 # ==============================================================================
-# NFC configuration
+# NFC Onboarding Payload configuration
 # ==============================================================================
 
-config CHIP_NFC_COMMISSIONING
+config CHIP_NFC_ONBOARDING_PAYLOAD
     default y
 
 # Disable not needed NFC callback to save flash
@@ -268,7 +268,7 @@ config NRF_WIFI_FW_PATCH_DFU
 # ==============================================================================
 
 config NET_L2_OPENTHREAD
-    default y if !WIFI_NRF70
+    default y if !WIFI_NRF70 && NETWORKING
 
 if NET_L2_OPENTHREAD
 
@@ -368,7 +368,7 @@ config CHIP_CRYPTO_PSA
 if CHIP_CRYPTO_PSA
 
 config CHIP_CRYPTO_PSA_AEAD_SINGLE_PART
-    default y if SOC_NRF54LM20A
+    default y if SOC_SERIES_NRF54LX
 
 config PSA_CRYPTO_DRIVER_OBERON
     default y if (SOC_SERIES_NRF52X || SOC_SERIES_NRF53X)

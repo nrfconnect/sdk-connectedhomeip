@@ -156,8 +156,8 @@ Protocols::InteractionModel::Status HandleWriteOnOffAttribute(SubDevice * dev, c
 {
     ChipLogProgress(DeviceLayer, "HandleWriteOnOffAttribute: attrId=%" PRIu32, attributeId);
 
-    ReturnErrorCodeIf((attributeId != OnOff::Attributes::OnOff::Id) || (!dev->IsReachable()),
-                      Protocols::InteractionModel::Status::Failure);
+    VerifyOrReturnError((attributeId == OnOff::Attributes::OnOff::Id) && dev->IsReachable(),
+                        Protocols::InteractionModel::Status::Failure);
     dev->SetOnOff(*buffer == 1);
     return Protocols::InteractionModel::Status::Success;
 }
@@ -242,14 +242,6 @@ void HandleDeviceStatusChanged(SubDevice * dev, SubDevice::Changed_t itemChanged
 
 const EmberAfDeviceType gRootDeviceTypes[]          = { { DEVICE_TYPE_ROOT_NODE, DEVICE_VERSION_DEFAULT } };
 const EmberAfDeviceType gAggregateNodeDeviceTypes[] = { { DEVICE_TYPE_BRIDGE, DEVICE_VERSION_DEFAULT } };
-
-bool emberAfActionsClusterInstantActionCallback(app::CommandHandler * commandObj, const app::ConcreteCommandPath & commandPath,
-                                                const Actions::Commands::InstantAction::DecodableType & commandData)
-{
-    // No actions are implemented, just return status NotFound.
-    commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::NotFound);
-    return true;
-}
 
 void Init_Bridge_Endpoint()
 {

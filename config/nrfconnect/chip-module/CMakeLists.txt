@@ -68,7 +68,7 @@ endif()
 if (CONFIG_NRF_SECURITY)
     zephyr_include_directories($<TARGET_PROPERTY:mbedtls_external,INTERFACE_INCLUDE_DIRECTORIES>)
 
-    if(CONFIG_BUILD_WITH_TFM OR CONFIG_PSA_SSF_CRYPTO_CLIENT)
+    if(CONFIG_BUILD_WITH_TFM)
         zephyr_include_directories($<TARGET_PROPERTY:psa_crypto_config,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         zephyr_include_directories($<TARGET_PROPERTY:psa_crypto_library_config,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -105,7 +105,7 @@ matter_add_cxxflags(${ZEPHYR_GNU_CPP_STD})
 # Set up custom OpenThread configuration
 
 if (CONFIG_CHIP_OPENTHREAD_CONFIG)
-    get_filename_component(CHIP_OPENTHREAD_CONFIG 
+    get_filename_component(CHIP_OPENTHREAD_CONFIG
         ${CONFIG_CHIP_OPENTHREAD_CONFIG}
         REALPATH
         BASE_DIR ${CMAKE_SOURCE_DIR}
@@ -123,13 +123,6 @@ endif()
 
 get_property(CHIP_COMPILER_LAUNCHER GLOBAL PROPERTY RULE_LAUNCH_COMPILE)
 
-
-if (CONFIG_USE_CHIP_DATA_MODEL_INTERFACE)
-    set(DATA_MODEL_INTERFACE "enabled")
-else()
-    set(DATA_MODEL_INTERFACE "disabled")
-endif()
-
 # ==============================================================================
 # Generate configuration for CHIP GN build system
 # ==============================================================================
@@ -140,7 +133,6 @@ matter_common_gn_args(
     LIB_TESTS       CONFIG_CHIP_BUILD_TESTS
     PROJECT_CONFIG  ${CONFIG_CHIP_PROJECT_CONFIG}
     DEVICE_INFO_EXAMPLE_PROVIDER CONFIG_CHIP_EXAMPLE_DEVICE_INFO_PROVIDER
-    DATA_MODEL_INTERFACE ${DATA_MODEL_INTERFACE}
 )
 matter_add_gn_arg_string("zephyr_ar"                              ${CMAKE_AR})
 matter_add_gn_arg_string("zephyr_cc"                              ${CMAKE_C_COMPILER})
@@ -151,7 +143,7 @@ matter_add_gn_arg_bool  ("chip_enable_openthread"                 CONFIG_OPENTHR
 matter_add_gn_arg_bool  ("chip_openthread_ftd"                    CONFIG_OPENTHREAD_FTD)
 matter_add_gn_arg_bool  ("chip_config_network_layer_ble"          CONFIG_BT)
 matter_add_gn_arg_bool  ("chip_inet_config_enable_ipv4"           CONFIG_CHIP_IPV4)
-matter_add_gn_arg_bool  ("chip_enable_nfc"                        CONFIG_CHIP_NFC_COMMISSIONING)
+matter_add_gn_arg_bool  ("chip_enable_nfc_onboarding_payload"     CONFIG_CHIP_NFC_ONBOARDING_PAYLOAD)
 matter_add_gn_arg_bool  ("chip_enable_ota_requestor"              CONFIG_CHIP_OTA_REQUESTOR)
 matter_add_gn_arg_bool  ("chip_persist_subscriptions"             CONFIG_CHIP_PERSISTENT_SUBSCRIPTIONS)
 matter_add_gn_arg_bool  ("chip_monolithic_tests"                  CONFIG_CHIP_BUILD_TESTS)
@@ -168,6 +160,9 @@ matter_add_gn_arg_bool  ("chip_enable_factory_data"               CONFIG_CHIP_FA
 matter_add_gn_arg_bool  ("chip_enable_read_client"                CONFIG_CHIP_ENABLE_READ_CLIENT)
 matter_add_gn_arg_bool  ("chip_mdns_minimal"                      CONFIG_WIFI_NRF70)
 matter_add_gn_arg_bool  ("chip_mdns_platform"                     CONFIG_OPENTHREAD)
+
+matter_add_gn_arg_bool  ("chip_system_config_use_sockets"                   NOT CONFIG_CHIP_USE_OPENTHREAD_ENDPOINT)
+matter_add_gn_arg_bool  ("chip_system_config_use_openthread_inet_endpoints" CONFIG_CHIP_USE_OPENTHREAD_ENDPOINT)
 
 if (CONFIG_CHIP_ENABLE_ICD_SUPPORT)
     matter_add_gn_arg_bool  ("chip_enable_icd_lit"                       CONFIG_CHIP_ICD_LIT_SUPPORT)

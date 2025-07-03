@@ -15,10 +15,10 @@
 #    limitations under the License.
 #
 import chip.clusters as Clusters
-from conformance_support import ConformanceDecision, ConformanceException
-from global_attribute_ids import attribute_id_type, AttributeIdType
-from matter_testing_support import MatterBaseTest, default_matter_test_main
-from spec_parsing_support import PrebuiltDataModelDirectory, build_xml_clusters, dm_from_spec_version
+from chip.testing.conformance import ConformanceDecision, ConformanceException
+from chip.testing.global_attribute_ids import is_standard_attribute_id
+from chip.testing.matter_testing import MatterBaseTest, default_matter_test_main
+from chip.testing.spec_parsing import PrebuiltDataModelDirectory, build_xml_clusters, dm_from_spec_version
 from chip.tlv import uint
 from mobly import asserts, signals
 from TC_DeviceConformance import DeviceConformanceTests
@@ -38,16 +38,16 @@ class TestSpecParsingSelection(MatterBaseTest, DeviceConformanceTests):
                              "Incorrect directory selected for 1.4.1")
         asserts.assert_equal(dm_from_spec_version(0x01040100), PrebuiltDataModelDirectory.k1_4_1,
                              "Incorrect directory selected for 1.4.1")
-        asserts.assert_equal(dm_from_spec_version(0x01050000), PrebuiltDataModelDirectory.kMaster,
-                             "Incorrect directory selected for 1.5")
+        asserts.assert_equal(dm_from_spec_version(0x01040200), PrebuiltDataModelDirectory.k1_4_2,
+                             "Incorrect directory selected for 1.4.2")
 
         # We don't have data model files for 1.2, so these should error
         with asserts.assert_raises(ConformanceException, "Expected assertion was not raised for spec version 1.2"):
             dm_from_spec_version(0x01020000)
 
-        # Any dot release besides 0 and 1 for 1.4 should error
+        # Any dot release besides 0, 1 and 2 for 1.4 should error
         with asserts.assert_raises(ConformanceException, "Data model incorrectly identified for 1.4.2"):
-            dm_from_spec_version(0x01040200)
+            dm_from_spec_version(0x01040300)
 
         with asserts.assert_raises(ConformanceException, "Data model incorrectly identified for 1.4.FF"):
             dm_from_spec_version(0x0104FF00)
@@ -88,7 +88,7 @@ class TestSpecParsingSelection(MatterBaseTest, DeviceConformanceTests):
             attr = cluster.Attributes
 
             resp = {}
-            non_global_attrs = [a for a in attributes if attribute_id_type(a) == AttributeIdType.kStandardNonGlobal]
+            non_global_attrs = [a for a in attributes if is_standard_attribute_id(a)]
             for attribute_id in non_global_attrs:
                 # We don't use the values in these tests, set them all to 0. The types are wrong, but it shouldn't matter
                 resp[Clusters.ClusterObjects.ALL_ATTRIBUTES[cluster.id][attribute_id]] = 0

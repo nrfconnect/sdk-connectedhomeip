@@ -128,7 +128,6 @@ static void InitServer(intptr_t context)
     app::Clusters::ModeSelect::setSupportedModesManager(&sStaticSupportedModesManager);
 }
 
-// #include <laundry-washer-controls-server/laundry-washer-controls-server.h>
 #include <examples/all-clusters-app/all-clusters-common/include/laundry-washer-controls-delegate-impl.h>
 #include <src/app/clusters/laundry-washer-controls-server/laundry-washer-controls-server.h>
 
@@ -210,7 +209,6 @@ extern "C" void app_main()
     {
         ESP_LOGE(TAG, "GetAppTask().StartAppTask() failed : %" CHIP_ERROR_FORMAT, error.Format());
     }
-    ESPOpenThreadInit();
 
     chip::DeviceLayer::PlatformMgr().ScheduleWork(InitServer, reinterpret_cast<intptr_t>(nullptr));
 }

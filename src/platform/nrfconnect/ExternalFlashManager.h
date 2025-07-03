@@ -37,7 +37,7 @@ public:
     ExternalFlashManager(const ExternalFlashManager &)             = delete;
     ExternalFlashManager & operator=(ExternalFlashManager &&)      = delete;
 
-    static ExternalFlashManager& GetInstance()
+    static ExternalFlashManager & GetInstance()
     {
         static ExternalFlashManager sExternalFlashManager;
         return sExternalFlashManager;

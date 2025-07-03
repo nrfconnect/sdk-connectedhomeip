@@ -29,11 +29,7 @@
 #include <lib/core/CHIPEncoding.h>
 #include <protocols/interaction_model/StatusCode.h>
 
-#ifdef CHIP_BYPASS_IDL
-#include <zap-generated/PluginApplicationCallbacks.h>
-#else
 #include <app/PluginApplicationCallbacks.h>
-#endif
 
 using namespace chip;
 
@@ -106,7 +102,6 @@ void MatterAlarmsPluginServerInitCallback() {}
 void MatterTimePluginServerInitCallback() {}
 void MatterAclPluginServerInitCallback() {}
 void MatterPollControlPluginServerInitCallback() {}
-void MatterUnitLocalizationPluginServerInitCallback() {}
 void MatterProxyValidPluginServerInitCallback() {}
 void MatterProxyDiscoveryPluginServerInitCallback() {}
 void MatterProxyConfigurationPluginServerInitCallback() {}
@@ -143,6 +138,9 @@ void MatterElectricalPowerMeasurementPluginServerInitCallback() {}
 void MatterServiceAreaPluginServerInitCallback() {}
 void MatterWaterHeaterManagementPluginServerInitCallback() {}
 void MatterWaterHeaterModePluginServerInitCallback() {}
+void MatterCommodityPricePluginServerInitCallback() {}
+void MatterElectricalGridConditionsPluginServerInitCallback() {}
+void MatterSoilMeasurementPluginServerInitCallback() {}
 
 bool emberAfContainsAttribute(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId)
 {

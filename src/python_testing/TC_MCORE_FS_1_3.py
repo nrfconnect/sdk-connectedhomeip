@@ -26,8 +26,9 @@
 # test-runner-runs:
 #   run1:
 #     app: examples/fabric-admin/scripts/fabric-sync-app.py
-#     app-args: --app-admin=${FABRIC_ADMIN_APP} --app-bridge=${FABRIC_BRIDGE_APP} --stdin-pipe=dut-fsa-stdin --discriminator=1234
+#     app-args: --app-admin=${FABRIC_ADMIN_APP} --app-bridge=${FABRIC_BRIDGE_APP} --discriminator=1234
 #     app-ready-pattern: "Successfully opened pairing window on the device"
+#     app-stdin-pipe: dut-fsa-stdin
 #     script-args: >
 #       --PICS src/app/tests/suites/certification/ci-pics-values
 #       --storage-path admin_storage.json
@@ -37,7 +38,24 @@
 #       --string-arg th_server_no_uid_app_path:${LIGHTING_APP_NO_UNIQUE_ID} dut_fsa_stdin_pipe:dut-fsa-stdin
 #       --trace-to json:${TRACE_TEST_JSON}.json
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
-#     factoryreset: true
+#     factory-reset: true
+#     quiet: true
+#   run2:
+#     app: ${FABRIC_SYNC_APP}
+#     app-args: --discriminator=1234
+#     app-stdin-pipe: dut-fsa-stdin
+#     script-args: >
+#       --PICS src/app/tests/suites/certification/ci-pics-values
+#       --storage-path admin_storage.json
+#       --commissioning-method on-network
+#       --discriminator 1234
+#       --passcode 20202021
+#       --bool-arg unified_fabric_sync_app:true
+#       --string-arg th_server_no_uid_app_path:${LIGHTING_APP_NO_UNIQUE_ID}
+#       --string-arg dut_fsa_stdin_pipe:dut-fsa-stdin
+#       --trace-to json:${TRACE_TEST_JSON}.json
+#       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
+#     factory-reset: true
 #     quiet: true
 # === END CI TEST ARGUMENTS ===
 
@@ -50,9 +68,11 @@ import tempfile
 import chip.clusters as Clusters
 from chip import ChipDeviceCtrl
 from chip.interaction_model import Status
-from matter_testing_support import MatterBaseTest, TestStep, async_test_body, default_matter_test_main, type_matches
+from chip.testing.apps import AppServerSubprocess
+from chip.testing.matter_testing import MatterBaseTest, TestStep, async_test_body, default_matter_test_main, type_matches
 from mobly import asserts
-from TC_MCORE_FS_1_1 import AppServer
+
+_DEVICE_TYPE_AGGREGATOR = 0x000E
 
 
 class TC_MCORE_FS_1_3(MatterBaseTest):
@@ -69,11 +89,11 @@ class TC_MCORE_FS_1_3(MatterBaseTest):
         self.storage = None
 
         # Get the path to the TH_SERVER_NO_UID app from the user params.
-        th_server_app = self.user_params.get("th_server_no_uid_app_path", None)
-        if not th_server_app:
+        th_server_no_uid_app = self.user_params.get("th_server_no_uid_app_path", None)
+        if not th_server_no_uid_app:
             asserts.fail("This test requires a TH_SERVER_NO_UID app. Specify app path with --string-arg th_server_no_uid_app_path:<path_to_app>")
-        if not os.path.exists(th_server_app):
-            asserts.fail(f"The path {th_server_app} does not exist")
+        if not os.path.exists(th_server_no_uid_app):
+            asserts.fail(f"The path {th_server_no_uid_app} does not exist")
 
         # Create a temporary storage directory for keeping KVS files.
         self.storage = tempfile.TemporaryDirectory(prefix=self.__class__.__name__)
@@ -91,13 +111,15 @@ class TC_MCORE_FS_1_3(MatterBaseTest):
         self.th_server_passcode = 20202021
 
         # Start the TH_SERVER_NO_UID app.
-        self.th_server = AppServer(
-            th_server_app,
+        self.th_server = AppServerSubprocess(
+            th_server_no_uid_app,
             storage_dir=self.storage.name,
             port=self.th_server_port,
             discriminator=self.th_server_discriminator,
             passcode=self.th_server_passcode)
-        self.th_server.start()
+        self.th_server.start(
+            expected_output="Server initialization complete",
+            timeout=30)
 
     def teardown_class(self):
         if self.th_server is not None:
@@ -147,6 +169,26 @@ class TC_MCORE_FS_1_3(MatterBaseTest):
             endpoint=0,
         ))
 
+        aggregator_endpoint = 0
+
+        # Iterate through the endpoints on the DUT_FSA_BRIDGE
+        for endpoint in dut_fsa_bridge_endpoints:
+            # Read the DeviceTypeList attribute for the current endpoint
+            device_type_list = await self.read_single_attribute_check_success(
+                cluster=Clusters.Descriptor,
+                attribute=Clusters.Descriptor.Attributes.DeviceTypeList,
+                node_id=self.dut_node_id,
+                endpoint=endpoint
+            )
+
+            # Check if any of the device types is an AGGREGATOR
+            if any(device_type.deviceType == _DEVICE_TYPE_AGGREGATOR for device_type in device_type_list):
+                aggregator_endpoint = endpoint
+                logging.info(f"Aggregator endpoint found: {aggregator_endpoint}")
+                break
+
+        asserts.assert_not_equal(aggregator_endpoint, 0, "Invalid aggregator endpoint. Cannot proceed with commissioning.")
+
         # Open commissioning window on TH_SERVER_NO_UID.
         discriminator = random.randint(0, 4095)
         params = await self.default_controller.OpenCommissioningWindow(
@@ -168,8 +210,10 @@ class TC_MCORE_FS_1_3(MatterBaseTest):
                 f"If using FabricSync Admin, you may type:\n"
                 f">>> pairing onnetwork <desired_node_id> {params.setupPinCode}")
         else:
-            self.dut_fsa_stdin.write(
-                f"pairing onnetwork 10 {params.setupPinCode}\n")
+            if self.user_params.get("unified_fabric_sync_app"):
+                self.dut_fsa_stdin.write(f"app pair-device 10 {params.setupQRCode}\n")
+            else:
+                self.dut_fsa_stdin.write(f"pairing onnetwork 10 {params.setupPinCode}\n")
             self.dut_fsa_stdin.flush()
             # Wait for the commissioning to complete.
             await asyncio.sleep(5)

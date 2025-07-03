@@ -23,6 +23,7 @@
 #include "FreeRTOS.h"
 
 #include <credentials/DeviceAttestationCredsProvider.h>
+#include <data-model-providers/codegen/Instance.h>
 #include <examples/platform/cc13x4_26x4/CC13X4_26X4DeviceAttestationCreds.h>
 #include <lib/support/ThreadOperationalDataset.h>
 #include <platform/CHIPDeviceLayer.h>
@@ -160,6 +161,7 @@ CHIP_ERROR AppTask::Init()
     // Init ZCL Data Model and start server
     static chip::CommonCaseDeviceServerInitParams initParams;
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
+    initParams.dataModelProvider = app::CodegenDataModelProviderInstance(initParams.persistentStorageDelegate);
     chip::Server::GetInstance().Init(initParams);
 
     ret = PlatformMgr().StartEventLoopTask();

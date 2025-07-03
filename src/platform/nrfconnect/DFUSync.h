@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <lib/core/CHIPError.h>
 #include <atomic>
+#include <lib/core/CHIPError.h>
 
 class DFUSync
 {
@@ -54,7 +54,7 @@ public:
     }
 
 private:
-	/* Mutex to synchronize the DFU operations. */
+    /* Mutex to synchronize the DFU operations. */
     std::atomic<bool> mIsTaken = false;
-    uint32_t mOwnerId = 0;
+    uint32_t mOwnerId          = 0;
 };

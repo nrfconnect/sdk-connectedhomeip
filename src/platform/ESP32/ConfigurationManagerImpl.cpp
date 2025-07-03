@@ -245,8 +245,9 @@ CHIP_ERROR ConfigurationManagerImpl::GetSoftwareVersionString(char * buf, size_t
     appDescription = esp_ota_get_app_description();
 #endif
 
-    ReturnErrorCodeIf(bufSize < sizeof(appDescription->version), CHIP_ERROR_BUFFER_TOO_SMALL);
-    ReturnErrorCodeIf(sizeof(appDescription->version) > ConfigurationManager::kMaxSoftwareVersionStringLength, CHIP_ERROR_INTERNAL);
+    VerifyOrReturnError(bufSize >= sizeof(appDescription->version), CHIP_ERROR_BUFFER_TOO_SMALL);
+    VerifyOrReturnError(sizeof(appDescription->version) <= ConfigurationManager::kMaxSoftwareVersionStringLength,
+                        CHIP_ERROR_INTERNAL);
     strcpy(buf, appDescription->version);
     return CHIP_NO_ERROR;
 }
@@ -311,7 +312,7 @@ CHIP_ERROR ConfigurationManagerImpl::StoreCountryCode(const char * code, size_t 
 
 #if CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
 
-CHIP_ERROR ConfigurationManagerImpl::GetPrimaryMACAddress(MutableByteSpan buf)
+CHIP_ERROR ConfigurationManagerImpl::GetPrimaryMACAddress(MutableByteSpan & buf)
 {
     if (GetPrimaryEthernetMACAddress(buf) == CHIP_NO_ERROR)
     {
@@ -321,7 +322,7 @@ CHIP_ERROR ConfigurationManagerImpl::GetPrimaryMACAddress(MutableByteSpan buf)
     return CHIP_ERROR_NOT_FOUND;
 }
 
-CHIP_ERROR ConfigurationManagerImpl::GetPrimaryEthernetMACAddress(MutableByteSpan buf)
+CHIP_ERROR ConfigurationManagerImpl::GetPrimaryEthernetMACAddress(MutableByteSpan & buf)
 {
     if (buf.size() < ConfigurationManager::kPrimaryMACAddressLength)
         return CHIP_ERROR_BUFFER_TOO_SMALL;

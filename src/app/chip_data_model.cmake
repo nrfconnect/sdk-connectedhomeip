@@ -25,23 +25,13 @@ if (NOT CHIP_APP_ZAP_DIR)
 endif()
 
 include("${CHIP_ROOT}/build/chip/chip_codegen.cmake")
-include("${CHIP_ROOT}/src/app/codegen-data-model-provider/model.cmake")
+include("${CHIP_ROOT}/src/data-model-providers/codegen/model.cmake")
 
 # Configure ${APP_TARGET} with source files associated with ${CLUSTER} cluster
 #
 function(chip_configure_cluster APP_TARGET CLUSTER)
-    file(GLOB CLUSTER_SOURCES "${CHIP_APP_BASE_DIR}/clusters/${CLUSTER}/*.cpp")
-    target_sources(${APP_TARGET} PRIVATE ${CLUSTER_SOURCES})
-
-    # Add clusters dependencies
-    if (CLUSTER STREQUAL "icd-management-server")
-      # TODO(#32321): Remove after issue is resolved
-      # Add ICDConfigurationData when ICD management server cluster is included,
-      # but ICD support is disabled, e.g. lock-app on some platforms
-      if(NOT CONFIG_CHIP_ENABLE_ICD_SUPPORT)
-        target_sources(${APP_TARGET} PRIVATE ${CHIP_APP_BASE_DIR}/icd/server/ICDConfigurationData.cpp)
-      endif()
-    endif()
+    SET(CLUSTER_DIR "${CHIP_APP_BASE_DIR}/clusters/${CLUSTER}")
+    include("${CLUSTER_DIR}/app_config_dependent_sources.cmake")
 endfunction()
 
 #
@@ -97,6 +87,8 @@ function(chip_configure_data_model APP_TARGET)
 
     # CMAKE data model auto-includes the server side implementation
     target_sources(${APP_TARGET} ${SCOPE}
+        ${CHIP_APP_BASE_DIR}/SafeAttributePersistenceProvider.cpp
+        ${CHIP_APP_BASE_DIR}/StorageDelegateWrapper.cpp
         ${CHIP_APP_BASE_DIR}/server/AclStorage.cpp
         ${CHIP_APP_BASE_DIR}/server/CommissioningWindowManager.cpp
         ${CHIP_APP_BASE_DIR}/server/DefaultAclStorage.cpp
@@ -118,14 +110,15 @@ function(chip_configure_data_model APP_TARGET)
         endif()
     endif()
 
-    if (ARG_IDL AND NOT ARG_BYPASS_IDL)
+    if (ARG_IDL)
         chip_codegen(${APP_TARGET}-codegen
             INPUT "${ARG_IDL}"
             GENERATOR "cpp-app"
             OUTPUTS
             "app/PluginApplicationCallbacks.h"
             "app/callback-stub.cpp"
-            "app/cluster-init-callback.cpp"
+            "app/cluster-callbacks.cpp"
+            "app/static-cluster-config/{{server_cluster_name}}.h"
             OUTPUT_PATH APP_GEN_DIR
             OUTPUT_FILES APP_GEN_FILES
         )
@@ -133,28 +126,51 @@ function(chip_configure_data_model APP_TARGET)
         target_include_directories(${APP_TARGET} ${SCOPE} "${APP_GEN_DIR}")
         add_dependencies(${APP_TARGET} ${APP_TARGET}-codegen)
 
-        chip_zapgen(${APP_TARGET}-zapgen
-            INPUT "${ARG_ZAP_FILE}"
-            GENERATOR "app-templates"
-            OUTPUTS
-            "zap-generated/access.h"
-            "zap-generated/CHIPClientCallbacks.h"
-            "zap-generated/endpoint_config.h"
-            "zap-generated/gen_config.h"
-            "zap-generated/IMClusterCommandHandler.cpp"
-            OUTPUT_PATH APP_TEMPLATES_GEN_DIR
-            OUTPUT_FILES APP_TEMPLATES_GEN_FILES
-        )
-        target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
-        add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
-    else()
-        target_compile_definitions(${APP_TARGET} PRIVATE CHIP_BYPASS_IDL)
-        target_include_directories(${APP_TARGET} ${SCOPE} ${ARG_GEN_DIR})
-        set(APP_GEN_FILES
-            ${ARG_GEN_DIR}/callback-stub.cpp
-            ${ARG_GEN_DIR}/IMClusterCommandHandler.cpp
-        )
+        if (NOT ARG_BYPASS_IDL)
+            chip_zapgen(${APP_TARGET}-zapgen
+                INPUT "${ARG_ZAP_FILE}"
+                GENERATOR "app-templates"
+                OUTPUTS
+                "zap-generated/access.h"
+                "zap-generated/CHIPClientCallbacks.h"
+                "zap-generated/endpoint_config.h"
+                "zap-generated/gen_config.h"
+                "zap-generated/IMClusterCommandHandler.cpp"
+                OUTPUT_PATH APP_TEMPLATES_GEN_DIR
+                OUTPUT_FILES APP_TEMPLATES_GEN_FILES
+            )
+            target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
+            add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
+        else ()
+            target_compile_definitions(${APP_TARGET} PRIVATE CHIP_BYPASS_IDL)
+            target_include_directories(${APP_TARGET} ${SCOPE} ${ARG_GEN_DIR})
+            set(APP_GEN_FILES
+                ${ARG_GEN_DIR}/callback-stub.cpp
+                ${ARG_GEN_DIR}/IMClusterCommandHandler.cpp
+            )
+        endif()
     endif()
+
+    # These are:
+    #   //src/app/icd/server:notfier
+    #   //src/app/icd/server:monitoring-table
+    #   //src/app/icd/server:configuration-data
+    #
+    # TODO: ideally we would avoid duplication and would link gn-built items. In this case
+    #       it may be slightly harder because these are source_sets rather than libraries.
+    target_sources(${APP_TARGET} ${SCOPE}
+        ${CHIP_APP_BASE_DIR}/icd/server/ICDMonitoringTable.cpp
+        ${CHIP_APP_BASE_DIR}/icd/server/ICDNotifier.cpp
+        ${CHIP_APP_BASE_DIR}/icd/server/ICDConfigurationData.cpp
+    )
+
+    # This is:
+    #    //src/app/common:cluster-objects
+    #
+    # TODO: ideally we would avoid duplication and would link gn-built items
+    target_sources(${APP_TARGET} ${SCOPE}
+        ${CHIP_APP_BASE_DIR}/../../zzz_generated/app-common/app-common/zap-generated/cluster-objects.cpp
+    )
 
     target_sources(${APP_TARGET} ${SCOPE}
         ${CHIP_APP_ZAP_DIR}/app-common/zap-generated/attributes/Accessors.cpp
@@ -163,12 +179,12 @@ function(chip_configure_data_model APP_TARGET)
         ${CHIP_APP_BASE_DIR}/util/attribute-table.cpp
         ${CHIP_APP_BASE_DIR}/util/binding-table.cpp
         ${CHIP_APP_BASE_DIR}/util/DataModelHandler.cpp
-        ${CHIP_APP_BASE_DIR}/util/ember-compatibility-functions.cpp
-        ${CHIP_APP_BASE_DIR}/util/ember-global-attribute-access-interface.cpp
         ${CHIP_APP_BASE_DIR}/util/ember-io-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/generic-callback-stubs.cpp
         ${CHIP_APP_BASE_DIR}/util/privilege-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/util.cpp
+        ${CHIP_APP_BASE_DIR}/util/persistence/AttributePersistenceProvider.cpp
+        ${CHIP_APP_BASE_DIR}/util/persistence/DefaultAttributePersistenceProvider.cpp
         ${CODEGEN_DATA_MODEL_SOURCES}
         ${APP_GEN_FILES}
         ${APP_TEMPLATES_GEN_FILES}

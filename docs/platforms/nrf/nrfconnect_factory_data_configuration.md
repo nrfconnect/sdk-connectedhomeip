@@ -471,8 +471,8 @@ When added to the argument line, the final result would look like follows:
 
 The user data is not handled anywhere in the Matter stack, so you must handle it
 in your application. To do this, you can use the
-[Factory Data Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h) and
-apply one of the following methods:
+[Factory Data Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h)
+and apply one of the following methods:
 
 -   `GetUserData` method to obtain raw data in the CBOR format as a
     `MutableByteSpan`.
@@ -790,9 +790,10 @@ Alternatively, you can also add `SB_CONFIG_MATTER_FACTORY_DATA_GENERATE=y`
 Kconfig setting to the example's `sysbuild.conf` file.
 
 Each factory data parameter has a default value. These are described in the
-[Kconfig file](https://github.com/project-chip/connectedhomeip/blob/master/config/nrfconnect/chip-module/Kconfig). Setting a new value
-for the factory data parameter can be done either by providing it as a build
-argument list or by using interactive Kconfig interfaces.
+[Kconfig file](https://github.com/project-chip/connectedhomeip/blob/master/config/nrfconnect/chip-module/Kconfig).
+Setting a new value for the factory data parameter can be done either by
+providing it as a build argument list or by using interactive Kconfig
+interfaces.
 
 ### Providing factory data parameters as a build argument list
 
@@ -963,15 +964,18 @@ file containing all [factory data components](#factory-data-component-table) in
 any format and then implement a parser to read out all parameters and pass them
 to a provider. Each manufacturer can implement a factory data set on its own by
 implementing a parser and a factory data accessor inside the Matter stack. Use
-the [nRF Connect Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h)
-and [FactoryDataParser](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataParser.h) as
-examples.
+the
+[nRF Connect Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.h)
+and
+[FactoryDataParser](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataParser.h)
+as examples.
 
 You can read the factory data set from the device's flash memory in different
 ways, depending on the purpose and the format. In the nRF Connect example, the
 factory data is stored in the CBOR format. The device uses the
-[Factory Data Parser](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataParser.h) to read
-out raw data, decode it, and store it in the `FactoryData` structure. The
+[Factory Data Parser](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataParser.h)
+to read out raw data, decode it, and store it in the `FactoryData` structure.
+The
 [Factor Data Provider](https://github.com/project-chip/connectedhomeip/blob/master/src/platform/nrfconnect/FactoryDataProvider.c)
 implementation uses this parser to get all needed factory data parameters and
 provide them to the Matter core.

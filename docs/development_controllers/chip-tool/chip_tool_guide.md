@@ -54,8 +54,9 @@ it on Raspberry Pi, you must use a 64-bit OS.
 To build the CHIP Tool:
 
 1. Install all required packages for Matter and prepare the source code and the
-   build system. Read the [Building Matter](https://github.com/project-chip/connectedhomeip/blob/master/docs/guides/BUILDING.md) guide for
-   instructions.
+   build system. Read the
+   [Building Matter](https://github.com/project-chip/connectedhomeip/blob/master/docs/guides/BUILDING.md)
+   guide for instructions.
 2. Open a command prompt in the `connectedhomeip` directory.
 3. Run the following command:
 
@@ -810,7 +811,6 @@ against a paired Matter device.
     In this command:
 
     -   _<test_name\>_ is the name of the particular test.
-
 
 See the [Examples](#running-testclusters-test) section for an example of how to
 run a test from the test suite.

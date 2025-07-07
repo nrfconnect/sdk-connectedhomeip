@@ -18,6 +18,7 @@
 #include "FactoryDataProvider.h"
 #include "CHIPDevicePlatformConfig.h"
 #include <crypto/CHIPCryptoPAL.h>
+#include <platform/ConfigurationManager.h>
 
 #ifdef CONFIG_CHIP_CERTIFICATION_DECLARATION_STORAGE
 #include <credentials/CertificationDeclaration.h>
@@ -504,6 +505,11 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetProductPrimaryColor(app::Cl
     *primaryColor = static_cast<app::Clusters::BasicInformation::ColorEnum>(mFactoryData.primary_color);
 
     return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetSoftwareVersionString(char * buf, size_t bufSize){
+    return ConfigurationMgr().GetSoftwareVersionString(buf, bufSize);
 }
 
 template <class FlashFactoryData>

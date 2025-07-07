@@ -218,7 +218,7 @@ public:
     CHIP_ERROR GetRotatingDeviceIdUniqueId(MutableByteSpan & uniqueIdSpan) override;
     CHIP_ERROR GetProductFinish(app::Clusters::BasicInformation::ProductFinishEnum * finish) override;
     CHIP_ERROR GetProductPrimaryColor(app::Clusters::BasicInformation::ColorEnum * primaryColor) override;
-
+    CHIP_ERROR GetSoftwareVersionString(char * buf, size_t bufSize) override;
     // ===== Members functions that are platform-specific
     CHIP_ERROR GetEnableKey(MutableByteSpan & enableKey) override;
     CHIP_ERROR GetUserData(MutableByteSpan & userData) override;

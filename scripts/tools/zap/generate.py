@@ -376,6 +376,8 @@ def main():
             srcDir = f'{cmdLineArgs.outputDir}/{src}'
             if not os.path.exists(srcDir):
                 continue
+            if not os.path.exists(f'{cmdLineArgs.outputDir}/{dest}'):
+                os.makedirs(f'{cmdLineArgs.outputDir}/{dest}')
             print(f"Moving files from {srcDir} INTO {cmdLineArgs.outputDir}/{dest}")
             # move all files
             for name in glob.glob(f'{srcDir}/*'):

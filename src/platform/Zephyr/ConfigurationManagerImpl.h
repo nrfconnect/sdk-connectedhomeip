@@ -43,6 +43,20 @@ public:
     // This returns an instance of this class.
     static ConfigurationManagerImpl & GetDefaultInstance();
 
+#ifdef CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
+    void CaptureFactoryResetStartTime() { mFactoryResetStartTime = System::SystemClock().GetMonotonicTimestamp(); }
+
+    System::Clock::Milliseconds64 GetFactoryResetDuration()
+    {
+        System::Clock::Timestamp currentTime = System::SystemClock().GetMonotonicTimestamp();
+        if (currentTime >= mFactoryResetStartTime)
+        {
+            return std::chrono::duration_cast<System::Clock::Milliseconds64>(currentTime - mFactoryResetStartTime);
+        }
+        return System::Clock::Milliseconds64(0);
+    }
+#endif // CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
+
 private:
     // ===== Members that implement the ConfigurationManager public interface.
 
@@ -72,6 +86,10 @@ private:
     // ===== Private members reserved for use by this class only.
 
     static void DoFactoryReset(intptr_t arg);
+
+#ifdef CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
+    System::Clock::Timestamp mFactoryResetStartTime;
+#endif // CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
 };
 
 inline bool ConfigurationManagerImpl::CanFactoryReset()

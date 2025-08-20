@@ -39,7 +39,7 @@ PSAOperationalKeystore::PersistentP256Keypair::~PersistentP256Keypair()
     ToPsaContext(mKeypair).key_id = 0;
 }
 
-inline psa_key_id_t PSAOperationalKeystore::PersistentP256Keypair::GetKeyId() const
+psa_key_id_t PSAOperationalKeystore::PersistentP256Keypair::GetKeyId() const
 {
     return ToConstPsaContext(mKeypair).key_id;
 }

@@ -13,7 +13,8 @@ from textwrap import dedent
 import yaml
 from west import log
 from west.commands import CommandError, WestCommand
-from zap_common import DEFAULT_MATTER_PATH, ZapInstaller, existing_dir_path, existing_file_path, find_zap
+from zap_common import (DEFAULT_MATTER_PATH, ZapInstaller, existing_dir_path, existing_file_path, find_zap,
+                        post_process_generated_files)
 
 # fmt: off
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -211,6 +212,9 @@ class ZapGenerate(WestCommand):
                 finally:
                     # Restore original working directory
                     os.chdir(original_cwd)
+
+            # Post-process the generated files
+            post_process_generated_files(output_path.parent)
 
             log.inf(f"Done. Files generated in {output_path}")
 

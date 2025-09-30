@@ -21,7 +21,7 @@ if CHIP
 
 config CHIP_QSPI_NOR
 	bool "Enable QSPI NOR feature set"
-	imply NORDIC_QSPI_NOR
+	default y if NORDIC_QSPI_NOR
 	help
 	  Enables QSPI NOR flash with a set of options for configuring pages and
 	  buffer sizes.
@@ -35,9 +35,7 @@ endif # CHIP_QSPI_NOR
 
 config CHIP_SPI_NOR
 	bool "Enable SPI NOR feature set"
-	imply SPI
-	imply SPI_NOR
-	imply MULTITHREADING
+	default y if SPI_NOR
 	imply PM_OVERRIDE_EXTERNAL_DRIVER_CHECK
 	imply MCUMGR_GRP_IMG_ALLOW_ERASE_PENDING
 	help
@@ -130,8 +128,6 @@ endif
 
 config CHIP_DFU_OVER_BT_SMP
 	bool "Enable DFU over Bluetooth LE SMP feature set"
-	imply CHIP_QSPI_NOR if BOARD_NRF5340DK_NRF5340_CPUAPP || BOARD_NRF52840DK_NRF52840
-	imply CHIP_SPI_NOR if BOARD_NRF7002DK_NRF5340_CPUAPP || BOARD_NRF7002DK_NRF5340_CPUAPP_NRF7001 || BOARD_NRF54L15DK || BOARD_NRF54LM20DK
 	imply BOOTLOADER_MCUBOOT
 	select MCUMGR
 	select MCUMGR_TRANSPORT_BT

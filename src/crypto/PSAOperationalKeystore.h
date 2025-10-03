@@ -24,7 +24,7 @@
 namespace chip {
 namespace Crypto {
 
-class PSAOperationalKeystore final : public OperationalKeystore
+class PSAOperationalKeystore : public OperationalKeystore
 {
 public:
     bool HasPendingOpKeypair() const override;

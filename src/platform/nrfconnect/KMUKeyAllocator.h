@@ -32,7 +32,7 @@
      CONFIG_CHIP_KMU_SLOT_RANGE_END - CONFIG_CHIP_KMU_SLOT_RANGE_START)
 {
 #pragma message("NOC keys: " STRINGIFY(KMU_SLOTS_NOC_MAX_NUMBER) "+ ICD keys: " STRINGIFY(                                         \
-    KMU_SLOTS_ICD_MAX_NUMBER) "+ GROUP keys: " STRINGIFY(KMU_SLOTS_GROUP_MAX_NUMBER) ">" STRINGIFY(KMU_AVAILABLE_MATTER_SLOTS))
+        KMU_SLOTS_ICD_MAX_NUMBER) "+ GROUP keys: " STRINGIFY(KMU_SLOTS_GROUP_MAX_NUMBER) ">" STRINGIFY(KMU_AVAILABLE_MATTER_SLOTS))
 #error                                                                                                                             \
     "The number of slots exceeds the range of the KMU defined in CONFIG_CHIP_KMU_SLOT_RANGE_START and CONFIG_CHIP_KMU_SLOT_RANGE_END"
 }
@@ -91,6 +91,7 @@ public:
         if (psa_get_key_algorithm(&attrs) == PSA_ALG_ECDSA(PSA_ALG_SHA_256))
         {
             psa_set_key_algorithm(&attrs, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH));
+            psa_set_key_usage_flags(&attrs, psa_get_key_usage_flags(&attrs) | PSA_KEY_USAGE_EXPORT);
         }
 
         // TODO: Change PSA_ALG_AEAD_WITH_AT_LEAST_THIS_LENGTH_TAG(PSA_ALG_CCM, 8) to PSA_ALG_CCM

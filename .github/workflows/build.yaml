@@ -399,7 +399,7 @@ jobs:
               run: echo "$GITHUB_CONTEXT"
             - name: Dump Concurrency context
               env:
-                  CONCURRENCY_CONTEXT: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dismiss' && github.run_number) || github.sha }}
+                  CONCURRENCY_CONTEXT: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
               run: echo "$CONCURRENCY_CONTEXT"
             - name: Checkout
               uses: actions/checkout@v4

@@ -31,7 +31,7 @@ jobs:
     framework:
         name: Build framework
         if: github.actor != 'restyled-io[bot]'
-        runs-on: macos-13
+        runs-on: macos-15
         strategy:
             matrix:
                 options: # We don't need a full matrix
@@ -68,7 +68,7 @@ jobs:
         name: Run framework tests
         if: github.actor != 'restyled-io[bot]'
         needs: [framework] # serialize to avoid running to many parallel macos runners
-        runs-on: macos-13
+        runs-on: macos-15
         strategy:
             matrix:
                 options: # We don't need a full matrix
@@ -124,3 +124,4 @@ jobs:
                   name: darwin-framework-test-logs-${{ matrix.options.flavor }}
                   path: /tmp/darwin/framework-tests
                   retention-days: 5
+                  

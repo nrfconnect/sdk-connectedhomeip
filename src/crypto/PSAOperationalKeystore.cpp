@@ -39,7 +39,7 @@ PSAOperationalKeystore::PersistentP256Keypair::~PersistentP256Keypair()
     ToPsaContext(mKeypair).key_id = 0;
 }
 
-inline psa_key_id_t PSAOperationalKeystore::PersistentP256Keypair::GetKeyId() const
+psa_key_id_t PSAOperationalKeystore::PersistentP256Keypair::GetKeyId() const
 {
     return ToConstPsaContext(mKeypair).key_id;
 }
@@ -67,6 +67,8 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
     psa_set_key_bits(&attributes, kP256_PrivateKey_Length * 8);
     psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_COPY);
+
+    GetPSAKeyAllocator().UpdateKeyAttributes(attributes);
 
     status = psa_generate_key(&attributes, &keyId);
     VerifyOrExit(status == PSA_SUCCESS, error = CHIP_ERROR_INTERNAL);

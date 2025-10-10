@@ -184,7 +184,7 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
 #if defined(CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_ITS) &&                       \
     !defined(CONFIG_BUILD_WITH_TFM)
 #error "Do not use both CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS and CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY kconfig options " \
-       "while saving the DAC private key to ITS because you will permanently lose the DAC private key from the device."
+        "while saving the DAC private key to ITS because you will permanently lose the DAC private key from the device."
 #endif
         // Check once again if the saved key has attributes set before removing it from the factory data set.
         VerifyOrReturnError(psa_get_key_attributes(mDACPrivKeyId, &attributes) == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
@@ -508,7 +508,8 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetProductPrimaryColor(app::Cl
 }
 
 template <class FlashFactoryData>
-CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetSoftwareVersionString(char * buf, size_t bufSize){
+CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetSoftwareVersionString(char * buf, size_t bufSize)
+{
     return ConfigurationMgr().GetSoftwareVersionString(buf, bufSize);
 }
 
@@ -540,10 +541,10 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::GetUserKey(const char * userKe
 
 // Fully instantiate the template class in whatever compilation unit includes this file.
 template class FactoryDataProvider<InternalFlashFactoryData>;
-#if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1 && (defined(CONFIG_CHIP_QSPI_NOR) || defined(CONFIG_CHIP_SPI_NOR))
+#if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1 && (defined(CONFIG_SPI_NOR) || defined(CONFIG_NORDIC_QSPI_NOR))
 template class FactoryDataProvider<ExternalFlashFactoryData>;
-#endif // if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1 (defined(CONFIG_CHIP_QSPI_NOR) ||
-       // defined(CONFIG_CHIP_SPI_NOR))
+#endif // if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1 (defined(CONFIG_SPI_NOR) ||
+       // defined(CONFIG_NORDIC_QSPI_NOR))
 
 } // namespace DeviceLayer
 } // namespace chip

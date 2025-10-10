@@ -414,7 +414,7 @@ jobs:
 
     build_darwin:
         name: Build on Darwin (clang, simulated)
-        runs-on: macos-13
+        runs-on: macos-15
         if: github.actor != 'restyled-io[bot]'  && inputs.run-codeql != true
 
         steps:

@@ -25,7 +25,10 @@ source_set("commands") {
     "Meta.cpp",
   ]
 
-  public_deps = [ "${chip_root}/src/lib/shell:shell_core" ]
+  public_deps = [
+    "${chip_root}/src/app/server:server",
+    "${chip_root}/src/lib/shell:shell_core",
+  ]
 
   if (chip_device_platform != "none") {
     sources += [

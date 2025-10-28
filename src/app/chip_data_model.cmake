@@ -66,20 +66,36 @@ endfunction()
 #
 # Configure ${APP_TARGET} based on the selected data model configuration.
 # Available options are:
-#   SCOPE           CMake scope keyword that defines the scope of included sources.
-#                   The default is PRIVATE scope.
-#   BYPASS_IDL      Bypass code generation from .matter IDL file.
-#   ZAP_FILE        Path to the ZAP file, used to determine the list of clusters
-#                   supported by the application.
-#   IDL             .matter IDL file to use for codegen. Inferred from ZAP_FILE
-#                   if not provided
-#   EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
-#                   will not be used nor required for these clusters.
-#                   Format: MY_CUSTOM_CLUSTER'.
+# SCOPE             CMake scope keyword that defines the scope of included sources.
+# The default is PRIVATE scope.
+# BYPASS_IDL      Bypass code generation from .matter IDL file.
+# ZAP_FILE          Path to the ZAP file, used to determine the list of clusters
+# supported by the application.
+# GEN_DIR           Output directory to store the generated files.
+# IDL               .matter IDL file to use for codegen. Inferred from ZAP_FILE
+# if not provided
+# EXTERNAL_CLUSTERS Clusters with external implementations. The default implementations
+# will not be used nor required for these clusters.
+# Format: MY_CUSTOM_CLUSTER'.
+# ZCL_PATH          [OPTIONAL] Path to a custom ZCL JSON file.
+#                   This maps to the '--zcl' argument in the "scripts/tools/zap/generate.py" script.
+#                   By default, generate.py attempts to autodetect the ZCL path from the .zap 
+#                   file which is often a relative path. When the .zap file is relocated or symlinked,
+#                   these relative paths become invalid, causing the build to fail.
+#                   Passing ZCL_PATH explicitly via CMake ensures the build remains robust and portable.
+#                   If ZCL_PATH is not provided, the default behavior is preserved unless CHIP_ENABLE_ZCL_ARG
+#                   is enabled, in which case the default path "src/app/zap-templates/zcl/zcl.json" is 
+#                   automatically injected to simplify usage.
 #
+# Example usage:
+# chip_configure_data_model(
+#     APP_TARGET app
+#     ZAP_FILE "some_file.zap"
+#     ZCL_PATH "path/to/custom/zcl.json"  # Optional: override default ZCL path
+# )
 function(chip_configure_data_model APP_TARGET)
     set(SCOPE PRIVATE)
-    cmake_parse_arguments(ARG "BYPASS_IDL" "SCOPE;ZAP_FILE;GEN_DIR;IDL" "EXTERNAL_CLUSTERS" ${ARGN})
+    cmake_parse_arguments(ARG "BYPASS_IDL" "SCOPE;ZAP_FILE;GEN_DIR;IDL;ZCL_PATH" "EXTERNAL_CLUSTERS" ${ARGN})
 
     if(ARG_SCOPE)
         set(SCOPE ${ARG_SCOPE})
@@ -132,12 +148,14 @@ function(chip_configure_data_model APP_TARGET)
                 GENERATOR "app-templates"
                 OUTPUTS
                 "zap-generated/access.h"
-                "zap-generated/CHIPClientCallbacks.h"
                 "zap-generated/endpoint_config.h"
                 "zap-generated/gen_config.h"
                 "zap-generated/IMClusterCommandHandler.cpp"
+                "zap-generated/CodeDrivenInitShutdown.cpp"
+                "zap-generated/CodeDrivenCallback.h"
                 OUTPUT_PATH APP_TEMPLATES_GEN_DIR
                 OUTPUT_FILES APP_TEMPLATES_GEN_FILES
+                ZCL_PATH ${ARG_ZCL_PATH}
             )
             target_include_directories(${APP_TARGET} ${SCOPE} "${APP_TEMPLATES_GEN_DIR}")
             add_dependencies(${APP_TARGET} ${APP_TARGET}-zapgen)
@@ -147,6 +165,7 @@ function(chip_configure_data_model APP_TARGET)
             set(APP_GEN_FILES
                 ${ARG_GEN_DIR}/callback-stub.cpp
                 ${ARG_GEN_DIR}/IMClusterCommandHandler.cpp
+                ${ARG_GEN_DIR}/CodeDrivenInitShutdown.cpp
             )
         endif()
     endif()
@@ -177,14 +196,13 @@ function(chip_configure_data_model APP_TARGET)
         ${CHIP_APP_BASE_DIR}/reporting/reporting.cpp
         ${CHIP_APP_BASE_DIR}/util/attribute-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/attribute-table.cpp
-        ${CHIP_APP_BASE_DIR}/util/binding-table.cpp
         ${CHIP_APP_BASE_DIR}/util/DataModelHandler.cpp
         ${CHIP_APP_BASE_DIR}/util/ember-io-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/generic-callback-stubs.cpp
         ${CHIP_APP_BASE_DIR}/util/privilege-storage.cpp
         ${CHIP_APP_BASE_DIR}/util/util.cpp
-        ${CHIP_APP_BASE_DIR}/util/persistence/AttributePersistenceProvider.cpp
-        ${CHIP_APP_BASE_DIR}/util/persistence/DefaultAttributePersistenceProvider.cpp
+        ${CHIP_APP_BASE_DIR}/persistence/AttributePersistenceProviderInstance.cpp
+        ${CHIP_APP_BASE_DIR}/persistence/DefaultAttributePersistenceProvider.cpp
         ${CODEGEN_DATA_MODEL_SOURCES}
         ${APP_GEN_FILES}
         ${APP_TEMPLATES_GEN_FILES}

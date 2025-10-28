@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 
 import argparse
+import subprocess
 from pathlib import Path
-
 from textwrap import dedent
 
-from west.commands import WestCommand
 from west import log
-
-from zap_common import existing_file_path, existing_dir_path, find_zap, ZapInstaller, DEFAULT_MATTER_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH, DEFAULT_APP_TEMPLATES_RELATIVE_PATH, update_zcl_in_zap
+from west.commands import WestCommand
 from zap_append import add_cluster_to_zcl
+from zap_common import (DEFAULT_APP_TEMPLATES_RELATIVE_PATH, DEFAULT_MATTER_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH, ZapInstaller,
+                        existing_dir_path, existing_file_path, find_zap, fix_sandbox_permissions, update_zcl_in_zap)
 
 
 class ZapGui(WestCommand):
@@ -46,9 +46,8 @@ class ZapGui(WestCommand):
 
     def do_run(self, args, unknown_args):
         default_zcl_path = args.matter_path.joinpath(DEFAULT_ZCL_JSON_RELATIVE_PATH)
-
-        zap_file_path = args.zap_file or find_zap()
         zcl_json_path = Path(args.zcl_json).absolute() if args.zcl_json else default_zcl_path
+        zap_file_path = args.zap_file or find_zap()
 
         if zap_file_path is None:
             log.err("ZAP file not found!")
@@ -58,8 +57,10 @@ class ZapGui(WestCommand):
             # If the user provided the clusters and the zcl.json file provided by -j argument does not exist
             # we will create a new zcl.json file according to the base zcl.json file in default_zcl_path.
             # If the provided zcl.json file exists, we will use it as a base and update with a new cluster.
-            base_zcl = zcl_json_path if zcl_json_path.exists() else default_zcl_path
-            add_cluster_to_zcl(base_zcl, args.clusters, zcl_json_path)
+
+            # Add the new cluster to the zcl.json file
+            add_cluster_to_zcl(zcl_json_path, args.clusters, zcl_json_path, args.matter_path)
+
         elif not zcl_json_path.exists():
             # If clusters are not provided, but user provided a zcl.json file we need to check whether the file exists.
             log.err(f"ZCL file not found: {zcl_json_path}")
@@ -89,4 +90,8 @@ class ZapGui(WestCommand):
             cmd += ["--stateDirectory", args.cache.absolute()]
         else:
             cmd += ["--tempState"]
-        self.check_call([str(x) for x in cmd])
+
+        try:
+            self.check_call([str(x) for x in cmd])
+        except subprocess.CalledProcessError as e:
+            fix_sandbox_permissions(e)

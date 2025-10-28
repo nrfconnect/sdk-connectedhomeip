@@ -12,7 +12,7 @@ from west.commands import WestCommand
 from zap_common import DEFAULT_MATTER_PATH, DEFAULT_MATTER_TYPES_RELATIVE_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH
 
 
-def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict):
+def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict, matter_path: Path = DEFAULT_MATTER_PATH):
     """
     Parse the cluster XML file and add attributes with custom types to
     attributeAccessInterfaceAttributes in zcl_data.
@@ -20,11 +20,12 @@ def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict):
     Args:
         cluster_xml_path: Path to the cluster XML file
         zcl_data: The loaded zcl.json data dictionary
+        matter_path: Path to the Matter directory
     """
 
     # Step 1: Load all type names from chip-types.xml into a list
     types = []
-    tree = ET.parse(DEFAULT_MATTER_PATH / DEFAULT_MATTER_TYPES_RELATIVE_PATH)
+    tree = ET.parse(matter_path / DEFAULT_MATTER_TYPES_RELATIVE_PATH)
     root = tree.getroot()
 
     for type_element in root.findall('.//type'):
@@ -82,7 +83,7 @@ def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict):
     return modified
 
 
-def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path):
+def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path, matter_path: Path = DEFAULT_MATTER_PATH):
     """
     Add the cluster to the ZCL file.
     """
@@ -90,8 +91,13 @@ def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path):
     try:
         with open(zcl_base, "r") as zcl_json_base:
             zcl_json = json.load(zcl_json_base)
-    except IOError as e:
+    except IOError:
         raise RuntimeError(f"No such ZCL file: {zcl_base}")
+
+    # Resolve output.parent to normalize the path and remove any '..' segments
+    # This is needed for relative_to() to work correctly
+    # If output is None, use zcl_base.parent as the base for relative paths
+    output_parent = (output.parent.resolve() if output else zcl_base.parent.resolve())
 
     # If the output file is provided, we would like to generate a new ZCL file, so we must set
     # the relative paths from the xml.file to the data model directories and manufacturers.xml file.
@@ -104,16 +110,16 @@ def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path):
         # Replace existing paths with the relative to output ones
         for path in zcl_json.get("xmlRoot"):
             path = zcl_base.parent.joinpath(Path(path))
-            if not path == "./" and not path == "." and not path.is_relative_to(output.parent):
-                roots_replaced.append(str(path.relative_to(output.parent, walk_up=True)))
+            if not path == "./" and not path == "." and not path.is_relative_to(output_parent):
+                roots_replaced.append(str(path.relative_to(output_parent, walk_up=True)))
                 replace = True
         if replace:
             zcl_json["xmlRoot"] = roots_replaced
 
         # Add the relative path to manufacturers XML
         manufacturers_xml = zcl_base.parent.joinpath(Path(zcl_json.get("manufacturersXml"))).resolve()
-        if not manufacturers_xml.parent.is_relative_to(output.parent):
-            zcl_json.update({"manufacturersXml": str(manufacturers_xml.relative_to(output.parent, walk_up=True))})
+        if not manufacturers_xml.parent.is_relative_to(output_parent):
+            zcl_json.update({"manufacturersXml": str(manufacturers_xml.relative_to(output_parent, walk_up=True))})
 
     # Add the new clusters to the ZCL file
     for cluster in cluster_xml_paths:
@@ -123,19 +129,19 @@ def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path):
         # Get cluster file name
         file = Path(cluster).name
         # Get relative path from the cluster file to the output file.
-        relative_path = Path(cluster).absolute().parent.relative_to(output.parent, walk_up=True)
+        relative_path = Path(cluster).absolute().parent.relative_to(output_parent, walk_up=True)
 
         # We need to add two things:
         # 1. The absolute path to the directory where the new xml file exists to the xmlRoot array.
         # 2. The new xml file name to the xmlFile array.
-        if not str(relative_path) in zcl_json.get("xmlRoot"):
+        if str(relative_path) not in zcl_json.get("xmlRoot"):
             zcl_json.get("xmlRoot").append(str(relative_path))
-        if not file in zcl_json.get("xmlFile"):
+        if file not in zcl_json.get("xmlFile"):
             zcl_json.get("xmlFile").append(file)
             log.dbg(f"Successfully added {file}")
 
         # Add custom attributes from the XML file to the ZCL file
-        add_custom_attributes_from_xml(Path(cluster), zcl_json)
+        add_custom_attributes_from_xml(Path(cluster), zcl_json, matter_path)
 
     # If output file is not provided, we will edit the existing ZCL file
     file_to_write = output if output else zcl_base
@@ -163,7 +169,7 @@ class ZapAppend(WestCommand):
                             help=f"An absolute path to the Matter directory. If not set the path with be set to the {DEFAULT_MATTER_PATH}")
         parser.add_argument("-o", "--output", type=Path,
                             help=f"Output path to store the generated zcl.json file. If not provided the path will be set to the base zcl.json file (MATTER/{DEFAULT_ZCL_JSON_RELATIVE_PATH}).")
-        parser.add_argument("new_clusters", nargs='+',
+        parser.add_argument("--clusters", nargs='+',
                             help="Paths to the XML files that contain the custom cluster definitions")
         return parser
 
@@ -173,9 +179,9 @@ class ZapAppend(WestCommand):
         if not args.output:
             args.output = args.matter.joinpath(DEFAULT_ZCL_JSON_RELATIVE_PATH)
 
-        for cluster in args.new_clusters:
+        for cluster in args.clusters:
             if not Path(cluster).exists():
                 log.err(f"No such cluster file: {cluster}")
                 return
 
-        add_cluster_to_zcl(args.base.absolute(), args.new_clusters, args.output.absolute())
+        add_cluster_to_zcl(args.base.absolute(), args.clusters, args.output.absolute())

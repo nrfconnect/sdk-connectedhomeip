@@ -159,7 +159,7 @@ def post_process_generated_files(output_path: Path):
                 continue
 
 
-def synchronize_zcl_with_base(zcl_json: Path):
+def synchronize_zcl_with_base(zcl_json: Path, matter_path: Path = DEFAULT_MATTER_PATH):
     """
     Synchronizes a zcl.json file with the base/default zcl.json from Matter SDK.
 
@@ -170,7 +170,7 @@ def synchronize_zcl_with_base(zcl_json: Path):
 
     print(f"Synchronizing {zcl_json} with base zcl.json")
 
-    base_zcl_path = DEFAULT_MATTER_PATH / DEFAULT_ZCL_JSON_RELATIVE_PATH
+    base_zcl_path = matter_path / DEFAULT_ZCL_JSON_RELATIVE_PATH
     with open(base_zcl_path, 'r') as f:
         base_zcl_data = json.load(f)
 
@@ -178,7 +178,7 @@ def synchronize_zcl_with_base(zcl_json: Path):
         target_zcl_data = json.load(f)
 
     modified = False
-    fields_to_skip = {'xmlRoot'}  # Fields to skip in comparison
+    fields_to_skip = {'xmlRoot', 'manufacturersXml'}  # Fields to skip in comparison
 
     for key, value in base_zcl_data.items():
         if key in fields_to_skip:
@@ -188,6 +188,10 @@ def synchronize_zcl_with_base(zcl_json: Path):
             target_zcl_data[key] = value
             modified = True
             print(f"Added missing field: '{key}'")
+        if value != target_zcl_data[key]:
+            target_zcl_data[key] = value
+            modified = True
+            print(f"Updated field: '{key}'")
 
     if modified:
         with open(zcl_json, 'w') as f:
@@ -199,9 +203,23 @@ def synchronize_zcl_with_base(zcl_json: Path):
     print("Done")
 
 
+def fix_sandbox_permissions(e: subprocess.CalledProcessError) -> None:
+    """
+    Fix sandbox permissions if needed.
+    """
+    if e.returncode == -5:
+        log.inf("\nThe wrong sandbox permissions are used. Do you wanto to add the permissions to the sandbox?")
+        answer = input("y/n: ")
+        if answer == "y":
+            subprocess.check_call(['sudo', 'chown', 'root', str(
+                self.get_install_path() / 'chrome-sandbox')])
+            subprocess.check_call(['sudo', 'chmod', '4755', str(self.get_install_path() / 'chrome-sandbox')])
+            log.inf("Permissions added to the sandbox")
+
+
 class ZapInstaller:
     INSTALL_DIR = Path('.zap-install')
-    ZAP_URL_PATTERN = 'https://github.com/project-chip/zap/releases/download/v%04d.%02d.%02d/%s.zip'
+    ZAP_URL_PATTERN = 'https://github.com/project-chip/zap/releases/download/%s/%s.zip'
 
     def __init__(self, matter_path: Path):
         self.matter_path = matter_path
@@ -261,22 +279,20 @@ class ZapInstaller:
         """
         return self.install_path / self.zap_cli_exe
 
-    def get_recommended_version(self) -> Tuple[int, int, int]:
+    def get_recommended_version(self) -> str:
         """
         Returns ZAP package recommended version as a tuple of integers.
 
-        Parses zap_execution.py script from Matter SDK to determine the minimum
-        required ZAP package version.
+        Reads the version from zap.version file in Matter SDK.
+        Expected format: v{YEAR}.{MONTH}.{DAY}[-suffix]
+        Example: v2025.09.23-nightly
         """
-        RE_MIN_ZAP_VERSION = r'MIN_ZAP_VERSION\s*=\s*\'(\d+)\.(\d+)\.(\d+)'
-        zap_execution_path = self.matter_path / 'scripts/tools/zap/zap_execution.py'
+        zap_version_path = self.matter_path / 'scripts/setup/zap.version'
 
-        with open(zap_execution_path, 'r') as f:
-            if match := re.search(RE_MIN_ZAP_VERSION, f.read()):
-                return tuple(int(group) for group in match.groups())
-            raise RuntimeError(f'Failed to find MIN_ZAP_VERSION in {zap_execution_path}')
+        with open(zap_version_path, 'r') as f:
+            return f.read().strip()
 
-    def get_current_version(self) -> Tuple[int, int, int]:
+    def get_current_version(self) -> str:
         """
         Returns ZAP package current version as a tuple of integers.
 
@@ -292,7 +308,7 @@ class ZapInstaller:
 
         RE_VERSION = r'Version:\s*(\d+)\.(\d+)\.(\d+)'
         if match := re.search(RE_VERSION, output):
-            return tuple(int(group) for group in match.groups())
+            return match.group(1) + '.' + match.group(2) + '.' + match.group(3)
 
         raise RuntimeError("Failed to find version in ZAP output")
 
@@ -301,14 +317,14 @@ class ZapInstaller:
         Downloads and unpacks selected ZAP package version.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            url = ZapInstaller.ZAP_URL_PATTERN % (*version, self.package)
+            url = ZapInstaller.ZAP_URL_PATTERN % (version, self.package)
             log.inf(f'Downloading {url}...')
             zip_file_path = str(Path(temp_dir).joinpath(f'{self.package}.zip'))
 
             # Handle SIGINT and SIGTERM to clean up broken files if the user cancels
             # the installation
             def handle_signal(signum, frame):
-                log.inf(f'\nCancelled by user, cleaning up...')
+                log.inf('\nCancelled by user, cleaning up...')
                 shutil.rmtree(self.install_path, ignore_errors=True)
                 exit()
 
@@ -343,15 +359,24 @@ class ZapInstaller:
         recommended_version = self.get_recommended_version()
         current_version = self.get_current_version()
 
-        log.inf(f'ZAP installation directory: {self.install_path}')
+        # Extract version without prefix and suffix for comparison
+        # recommended_version format: v2025.09.23-nightly or v2025.09.23
+        # current_version format: 2025.9.23
+        recommended_version_clean = recommended_version
+        if match := re.search(r'v?(\d+\.\d+\.\d+)', recommended_version):
+            year, month, day = match.group(1).split('.')
+            recommended_version_clean = f"{int(year)}.{int(month)}.{int(day)}"
 
-        if current_version:
-            verdict = 'up to date' if current_version == recommended_version else 'outdated'
-            log.inf('Found ZAP {}.{}.{} ({})'.format(*current_version, verdict))
+            log.inf(f'ZAP installation directory: {self.install_path}')
+            log.inf(f"Current ZAP version: {current_version}")
 
-        if current_version != recommended_version:
-            log.inf('Installing ZAP {}.{}.{}'.format(*recommended_version))
-            self.install_zap(recommended_version)
+            if current_version:
+                verdict = 'up to date' if current_version == recommended_version_clean else 'outdated'
+                log.inf('Found ZAP {} ({})'.format(current_version, verdict))
+
+            if current_version != recommended_version_clean:
+                log.inf('Installing ZAP {}'.format(recommended_version))
+                self.install_zap(recommended_version)
 
     @staticmethod
     def set_exec_permission(path: Path) -> None:

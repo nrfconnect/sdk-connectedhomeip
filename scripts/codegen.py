@@ -149,7 +149,7 @@ def main(log_level, generator, option, output_dir, dry_run, name_only, expected_
         storage = FileSystemGeneratorStorage(output_dir)
 
     logging.info("Parsing idl from %s" % idl_path)
-    idl_tree = CreateParser().parse(open(idl_path, "rt").read(), file_name=idl_path)
+    idl_tree = CreateParser().parse(open(idl_path, "rt", encoding="utf-8").read(), file_name=idl_path)
 
     plugin_module = None
     if generator.startswith('custom:'):
@@ -202,7 +202,7 @@ def main(log_level, generator, option, output_dir, dry_run, name_only, expected_
             traceback.print_exc()
 
     if expected_outputs:
-        with open(expected_outputs, 'rt') as fin:
+        with open(expected_outputs, 'rt', encoding='utf-8') as fin:
             expected = set()
             for line in fin.readlines():
                 line = line.strip()

@@ -23,6 +23,7 @@ from west import log
 DEFAULT_MATTER_PATH = Path(__file__).parents[2]
 DEFAULT_ZCL_JSON_RELATIVE_PATH = Path('src/app/zap-templates/zcl/zcl.json')
 DEFAULT_APP_TEMPLATES_RELATIVE_PATH = Path('src/app/zap-templates/app-templates.json')
+DEFAULT_MATTER_TYPES_RELATIVE_PATH = Path('src/app/zap-templates/zcl/data-model/chip/chip-types.xml')
 
 
 def find_zap(root: Path = Path.cwd(), max_depth: int = 2):
@@ -156,6 +157,46 @@ def post_process_generated_files(output_path: Path):
             except Exception:
                 # Ignore files that can't be read/written as text
                 continue
+
+
+def synchronize_zcl_with_base(zcl_json: Path):
+    """
+    Synchronizes a zcl.json file with the base/default zcl.json from Matter SDK.
+
+    This function ensures that all fields present in the default zcl.json are also
+    present in the target zcl_json file. Missing fields are added with their default
+    values from the base file.
+    """
+
+    print(f"Synchronizing {zcl_json} with base zcl.json")
+
+    base_zcl_path = DEFAULT_MATTER_PATH / DEFAULT_ZCL_JSON_RELATIVE_PATH
+    with open(base_zcl_path, 'r') as f:
+        base_zcl_data = json.load(f)
+
+    with open(zcl_json, 'r') as f:
+        target_zcl_data = json.load(f)
+
+    modified = False
+    fields_to_skip = {'xmlRoot'}  # Fields to skip in comparison
+
+    for key, value in base_zcl_data.items():
+        if key in fields_to_skip:
+            continue
+
+        if key not in target_zcl_data:
+            target_zcl_data[key] = value
+            modified = True
+            print(f"Added missing field: '{key}'")
+
+    if modified:
+        with open(zcl_json, 'w') as f:
+            json.dump(target_zcl_data, f, indent=4)
+        print(f"Updated {zcl_json}")
+    else:
+        print("No changes needed - all fields are present")
+
+    print("Done")
 
 
 class ZapInstaller:

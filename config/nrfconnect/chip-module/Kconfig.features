@@ -84,6 +84,14 @@ config SYSTEM_WORKQUEUE_STACK_SIZE
 config BT_DEVICE_APPEARANCE
 	default 833
 
+# Workaround for KRKNWK-20979.
+# We must use BT multirole for NUS service to work after Matter commissioning.
+# TODO: Remove this once the issue is fixed.
+choice BT_LL_SOFTDEVICE_VARIANT
+	default BT_LL_SOFTDEVICE_MULTIROLE if SOC_SERIES_NRF54LX
+
+endchoice
+
 if !LOG
 
 config BT_APP_PASSKEY

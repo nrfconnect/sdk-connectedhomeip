@@ -43,12 +43,6 @@ CHIP_ROOT_DIR = os.path.realpath(
 DEFAULT_DATA_MODEL_DESCRIPTION_FILE = 'src/app/zap-templates/zcl/zcl.json'
 
 
-def NormalizePythonCommand(cmd: List[str]) -> List[str]:
-    if platform.system() == 'Windows':
-        cmd = [sys.executable] + [str(x) for x in cmd]
-    return cmd
-
-
 class TargetType(Flag):
     """Type of targets that can be re-generated"""
 
@@ -223,7 +217,10 @@ class ZAPGenerateTarget:
 
         generate_start = time.time()
 
-        subprocess.check_call(NormalizePythonCommand(cmd))
+        if platform.system() == 'Windows':
+            cmd = ['python3'] + cmd
+
+        subprocess.check_call(cmd)
         generate_end = time.time()
 
         if self.zap_config.is_for_chef_example:
@@ -262,8 +259,7 @@ class GoldenTestImageTarget():
 
     def generate(self) -> TargetRunStats:
         generate_start = time.time()
-
-        subprocess.check_call(NormalizePythonCommand(self.command))
+        subprocess.check_call(self.command)
         generate_end = time.time()
 
         return TargetRunStats(
@@ -317,10 +313,8 @@ class JinjaCodegenTarget():
             traceback.print_exc()
 
     def codeFormat(self):
-        cmd = ["./scripts/codegen.py", "--name-only", "--generator",
-               self.generator, "--log-level", "fatal", self.idl_path]
-
-        outputs = subprocess.check_output(NormalizePythonCommand(cmd)).decode("utf8").split("\n")
+        outputs = subprocess.check_output(["./scripts/codegen.py", "--name-only", "--generator",
+                                           self.generator, "--log-level", "fatal", self.idl_path]).decode("utf8").split("\n")
         outputs = [os.path.join(self.output_directory, name) for name in outputs if name]
 
         # Split output files by extension,
@@ -341,7 +335,7 @@ class JinjaCodegenTarget():
     def generate(self) -> TargetRunStats:
         generate_start = time.time()
 
-        subprocess.check_call(NormalizePythonCommand(self.command))
+        subprocess.check_call(self.command)
 
         self.codeFormat()
 

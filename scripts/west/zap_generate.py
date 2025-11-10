@@ -58,7 +58,7 @@ class ZapGenerate(WestCommand):
                             default=DEFAULT_MATTER_PATH, help='Path to Matter SDK')
         parser.add_argument('-f', '--full', action='store_true', help='Generate full data model files')
         parser.add_argument('-k', '--keep-previous', action='store_true', help='Keep previously generated files')
-        parser.add_argument('-j', '--zcl', type=existing_file_path, help='Generate clusters from zcl.json')
+        parser.add_argument('-j', '--zcl', action='store_true', help='Generate clusters from zcl.json')
         parser.add_argument('-y', '--yaml', type=existing_file_path,
                             help='Yaml file containing list of zap files to be used for generation. The file must contain the first entry as "base_dir" which is the relative path to the ZEPHYR_BASE directory. Then each other entry must contain the "name", "zap_file" and optionally "full" and "zcl_file"')
         return parser
@@ -117,15 +117,7 @@ class ZapGenerate(WestCommand):
             if not zap_file_path:
                 raise CommandError("No valid .zap file provided")
 
-            if args.zcl:
-                zcl_file = args.zcl.absolute()
-            elif (zap_file_path.parent / "zcl.json").exists():
-                zcl_file = zap_file_path.parent / "zcl.json"
-            else:
-                zcl_file = None
-
-            zap_files.append(ZapFile(name=zap_file_path.stem, zap_file=Path(
-                zap_file_path), full=args.full, zcl_file=zcl_file))
+            zap_files.append(ZapFile(name=zap_file_path.stem, zap_file=Path(zap_file_path), full=args.full, zcl_file=args.zcl))
 
         # Generate the zap file
         for zap in zap_files:

@@ -63,20 +63,6 @@ namespace DeviceLayer {
 
 using namespace ::chip::DeviceLayer::Internal;
 
-#ifdef CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
-void FactoryResetHandler(const ChipDeviceEvent * event, intptr_t /* unused */)
-{
-    switch (event->Type)
-    {
-    case DeviceEventType::kFactoryReset:
-        ConfigurationManagerImpl::GetDefaultInstance().CaptureFactoryResetStartTime();
-        break;
-    default:
-        break;
-    }
-}
-#endif // CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
-
 ConfigurationManagerImpl & ConfigurationManagerImpl::GetDefaultInstance()
 {
     static ConfigurationManagerImpl sInstance;
@@ -107,10 +93,6 @@ CHIP_ERROR ConfigurationManagerImpl::Init()
         err = StoreRebootCount(1);
         SuccessOrExit(err);
     }
-
-#ifdef CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
-    PlatformMgr().AddEventHandler(FactoryResetHandler, 0);
-#endif // CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
 
     err = CHIP_NO_ERROR;
 
@@ -257,11 +239,6 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
         ChipLogError(DeviceLayer, "Factory reset failed: %" CHIP_ERROR_FORMAT, err.Format());
     }
 #endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
-
-#ifdef CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
-    ChipLogProgress(DeviceLayer, "FACTORY RESET COMPLETED, IT TOOK: %" PRIu64 " ms",
-                    ConfigurationManagerImpl::GetDefaultInstance().GetFactoryResetDuration().count());
-#endif // CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
 
     PlatformMgr().Shutdown();
 }

@@ -171,6 +171,25 @@ void ConnectivityManagerImpl::_OnPlatformEvent(const ChipDeviceEvent * event)
         DeviceLayer::SystemLayer().StartTimer(System::Clock::Milliseconds32(kWlanInitWaitMs), ConnectNetworkTimerHandler,
                                               (void *) event->Platform.pNetworkDataEvent);
     }
+    else if (event->Type == DeviceLayer::DeviceEventType::kFailSafeTimerExpired)
+    {
+        /*
+         * This special case must be handled to address Wi-Fi connection failures during Matter commissioning.
+         * For instance, if an incorrect SSID or password is provided, we need a mechanism to stop the Wi-Fi driver from attempting
+         * to connect, allowing a new connection attempt later. If the failSafeTimer expires while the system is still in the
+         * process of connecting, a disconnect event should be scheduled. This ensures that, once disconnected, the
+         * wlan_remove_network function is called as part of the RevertConfiguration process.
+         */
+        if (mWiFiStationState == kWiFiStationState_Connecting)
+        {
+            mWiFiStationState = kWiFiStationState_Connecting_Failed;
+            int ret           = wlan_disconnect();
+            if (ret != WM_SUCCESS)
+            {
+                ChipLogError(NetworkProvisioning, "Failed to disconnect from network with error: %u", (uint8_t) ret);
+            }
+        }
+    }
 #endif
 }
 
@@ -442,6 +461,19 @@ void ConnectivityManagerImpl::ProcessWlanEvent(enum wlan_event_reason wlanEvent)
 
     case WLAN_REASON_USER_DISCONNECT:
         ChipLogProgress(DeviceLayer, "Disconnected from WLAN network");
+        /*
+         * If a disconnect was scheduled by the fail-safe timer while Wi-Fi was still in the connecting state,
+         * a new call to RevertConfiguration must be made to remove the Wi-Fi credentials from the driver.
+         * This step is necessary because the Wi-Fi driver's state machine requires a complete disconnection before
+         * wlan_remove_network can be invoked.
+         * Additionally mWifiIsProvisioned needs to be re-initialized to false
+         *
+         */
+        if (mWiFiStationState == kWiFiStationState_Connecting_Failed)
+        {
+            NetworkCommissioning::NXPWiFiDriver::GetInstance().RevertConfiguration();
+            mWifiIsProvisioned = false;
+        }
         sInstance._SetWiFiStationState(kWiFiStationState_NotConnected);
         sInstance.OnStationDisconnected();
         if (delegate)
@@ -453,6 +485,38 @@ void ConnectivityManagerImpl::ProcessWlanEvent(enum wlan_event_reason wlanEvent)
     case WLAN_REASON_INITIALIZED:
         sInstance._SetWiFiStationState(kWiFiStationState_NotConnected);
         sInstance._SetWiFiStationMode(kWiFiStationMode_Enabled);
+        if (mIsWifiRecovering)
+        {
+            /*
+            Wifi recovery mechanism (due to firmware hang) is finished, we will attempt to reconnect to the previously staged
+            network
+            */
+            mIsWifiRecovering = false;
+            CHIP_ERROR err    = NetworkCommissioning::NXPWiFiDriver::GetInstance().ConnectWiFiStagedNetwork();
+            if (err == CHIP_ERROR_KEY_NOT_FOUND)
+            {
+                /* if no SSID is staged, notify the network commissioning module to clean environnement for next commissioning  */
+                NetworkCommissioning::NXPWiFiDriver::GetInstance().OnConnectWiFiNetwork(
+                    NetworkCommissioning::Status::kNetworkIDNotFound, CharSpan(), wlanEvent);
+            }
+            else if (err != CHIP_NO_ERROR)
+            {
+                ChipLogError(DeviceLayer, "Failed to reconnect to staged network after WiFi FW recovery: %" CHIP_ERROR_FORMAT,
+                             err.Format());
+            }
+        }
+        break;
+
+    case WLAN_REASON_FW_HANG:
+        /*
+         If the Wifi driver hangs, a recovery mechanism has been triggered. This mechanism will end with re-initializing the wifi
+         driver. If the wifi state is different from kWiFiStationState_NotConnected and kWiFiStationState_Disconnecting, we want to
+         retry the wifi connection once the driver is re-initialized.
+        */
+        if (mWiFiStationState != kWiFiStationState_NotConnected && mWiFiStationState != kWiFiStationState_Disconnecting)
+        {
+            mIsWifiRecovering = true;
+        }
         break;
 
     default:
@@ -705,7 +769,7 @@ CHIP_ERROR ConnectivityManagerImpl::_DisconnectNetwork(void)
     int ret        = 0;
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    if (ConnectivityMgrImpl().IsWiFiStationConnected())
+    if (ConnectivityMgrImpl().IsWiFiStationConnected() || (mWiFiStationState == kWiFiStationState_Connecting))
     {
         ChipLogProgress(NetworkProvisioning, "Disconnecting from WiFi network.");
 

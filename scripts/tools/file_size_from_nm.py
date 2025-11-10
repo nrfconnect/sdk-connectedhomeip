@@ -14,12 +14,22 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
-
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "click",
+#     "cxxfilt",
+#     "coloredlogs",
+#     "pandas",
+#     "plotly",
+# ]
+# ///
+#
 # Displays a treemap code size as read by `nm` over a binary
 #
 # Example call:
 #
-# scripts/tools/file_size_from_nm.py \
+# uv run --script ./scripts/tools/file_size_from_nm.py \
 #     --max-depth 5                  \
 #     out/nrf-nrf52840dk-light-data-model-enabled/nrfconnect/zephyr/zephyr.elf
 #
@@ -33,13 +43,6 @@
 #   in the entire "src". We have duplicated file names for which we do not have a
 #   good way to disambiguate
 #
-
-# Requires:
-#    click
-#    cxxfilt
-#    coloredlogs
-#    pandas
-#    plotly
 
 import fnmatch
 import logging
@@ -59,7 +62,7 @@ import plotly.express as px
 __LOG_LEVELS__ = {
     "debug": logging.DEBUG,
     "info": logging.INFO,
-    "warn": logging.WARN,
+    "warn": logging.WARNING,
     "fatal": logging.FATAL,
 }
 
@@ -421,7 +424,15 @@ def build_treemap(
     root = f"FILE: {name}"
     if zoom:
         root = root + f" (FILTER: {zoom})"
-    data: dict[str, list] = dict(name=[root], parent=[""], size=[0], hover=[""], name_with_size=[""], short_name=[""], id=[root])
+    data: dict[str, list] = {
+        "name": [root],
+        "parent": [""],
+        "size": [0],
+        "hover": [""],
+        "name_with_size": [""],
+        "short_name": [""],
+        "id": [root],
+    }
 
     known_parents: set[str] = set()
     total_sizes: dict = {}
@@ -487,12 +498,12 @@ def build_treemap(
                 data["name_with_size"][idx] = f"{label}: {total_size}"
             else:
                 # The "full name" is generally quite long, so shorten it...
-                data["name_with_size"][idx] = f"{data["short_name"][idx]}: {total_size}"
+                data["name_with_size"][idx] = f"{data['short_name'][idx]}: {total_size}"
         else:
             # When using object files, the paths hare are the full "foo::bar::....::method"
             # so clean them up a bit
             short_name = shorten_name(data["short_name"][idx])
-            data["name_with_size"][idx] = f"{short_name}: {data["size"][idx]}"
+            data["name_with_size"][idx] = f"{short_name}: {data['size'][idx]}"
 
     extra_args = {}
     if color is not None:
@@ -751,8 +762,8 @@ def compute_symbol_diff(orig: list[Symbol], base: list[Symbol]) -> list[Symbol]:
 
     Symbols are the same if their "name" if the have the same tree path.
     """
-    orig_items = dict([(list_id(v.tree_path), v) for v in orig])
-    base_items = dict([(list_id(v.tree_path), v) for v in base])
+    orig_items = {list_id(v.tree_path): v for v in orig}
+    base_items = {list_id(v.tree_path): v for v in base}
 
     unique_paths = set(orig_items.keys()).union(set(base_items.keys()))
 

@@ -30,16 +30,18 @@
 #include <app/clusters/identify-server/identify-server.h>
 #include <app/clusters/network-commissioning/network-commissioning.h>
 #include <app/clusters/ota-requestor/OTATestEventTriggerHandler.h>
+#include <app/persistence/AttributePersistenceProviderInstance.h>
+#include <app/persistence/DefaultAttributePersistenceProvider.h>
+#include <app/persistence/DeferredAttributePersistenceProvider.h>
 #include <app/server/Dnssd.h>
 #include <app/server/Server.h>
-#include <app/util/persistence/DefaultAttributePersistenceProvider.h>
-#include <app/util/persistence/DeferredAttributePersistenceProvider.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <data-model-providers/codegen/Instance.h>
 #include <lib/core/ErrorStr.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
+#include <platform/nrfconnect/FactoryResetTestEventTriggerHandler.h>
 #include <setup_payload/OnboardingCodesUtil.h>
 #include <system/SystemClock.h>
 
@@ -271,8 +273,11 @@ CHIP_ERROR AppTask::Init()
     static CommonCaseDeviceServerInitParams initParams;
     static SimpleTestEventTriggerDelegate sTestEventTriggerDelegate{};
     static OTATestEventTriggerHandler sOtaTestEventTriggerHandler{};
+    static DeviceLayer::FactoryResetTestEventTriggerHandler sFactoryResetEventTriggerHandler{};
     VerifyOrDie(sTestEventTriggerDelegate.Init(ByteSpan(sTestEventTriggerEnableKey)) == CHIP_NO_ERROR);
     VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sOtaTestEventTriggerHandler) == CHIP_NO_ERROR);
+    VerifyOrDie(sTestEventTriggerDelegate.AddHandler(&sFactoryResetEventTriggerHandler) == CHIP_NO_ERROR);
+    LOG_INF("Factory Reset Test Event Trigger Handler registered");
 #ifdef CONFIG_CHIP_CRYPTO_PSA
     initParams.operationalKeystore = &sPSAOperationalKeystore;
 #endif

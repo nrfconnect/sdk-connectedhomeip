@@ -1,11 +1,11 @@
 ARG VERSION=1
 
-FROM ghcr.io/project-chip/chip-build:${VERSION} as build
+FROM ghcr.io/project-chip/chip-build:${VERSION} AS build
 
 # Compatible Nordic Connect SDK revision and required tools versions
-ARG NCS_REVISION=v3.0.0
-ARG JLINK_VERSION="JLink_Linux_V818_x86_64"
-ARG WEST_VERSION=1.2.0
+ARG NCS_REVISION=v3.1.0
+ARG JLINK_VERSION="JLink_Linux_V842_x86_64"
+ARG WEST_VERSION=1.4.0
 ARG CMAKE_VERSION=3.25.0
 
 # Requirements to clone SDKs
@@ -61,8 +61,25 @@ ENV ZEPHYR_BASE=/opt/NordicSemiconductor/nrfconnect/zephyr
 # Set up Zephyr SDK environment variables
 RUN set -x \
     # Setup Zephyr SDK environment variables
-    # Do not use the nrfconnect python environment because the python environment should be created by bootstrap.sh
-    && nrfutil sdk-manager toolchain env --as-script --ncs-version "$NCS_REVISION" --install-dir ${NRF5_TOOLS_ROOT}/zephyr-sdk | grep -v "PYTHONHOME\|PYTHONPATH" | tee -a /root/.bashrc \
+    && nrfutil sdk-manager toolchain env --as-script --ncs-version "$NCS_REVISION" --install-dir ${NRF5_TOOLS_ROOT}/zephyr-sdk > $ZEPHYR_BASE/zephyr-env.sh \
+    && echo "source $ZEPHYR_BASE/zephyr-env.sh" >> /etc/bash.bashrc \
+    # Create a symlink named "latest" pointing to the toolchain directory to avoid hash in the path
+    && source $ZEPHYR_BASE/zephyr-env.sh \
+    && ln -s ${ZEPHYR_SDK_INSTALL_DIR} ${NRF5_TOOLS_ROOT}/zephyr-sdk/toolchains/latest \
     # Remove redundant directory created by nrfutil
     && rm -rf ${NRF5_TOOLS_ROOT}/zephyr-sdk/downloads \
     && : # last line
+
+# Install Zephyr and nRF Connect SDK requirements
+RUN set -x \
+    && source $ZEPHYR_BASE/zephyr-env.sh \
+    && python3 -m pip install -v --no-build-isolation --no-cache-dir -r /opt/NordicSemiconductor/nrfconnect/zephyr/scripts/requirements-base.txt \
+    && python3 -m pip install -v --no-build-isolation --no-cache-dir -r /opt/NordicSemiconductor/nrfconnect/nrf/scripts/requirements-build.txt \
+    && python3 -m pip install -v --no-build-isolation --no-cache-dir -r /opt/NordicSemiconductor/nrfconnect/bootloader/mcuboot/scripts/requirements.txt \
+    && python3 -m pip install -v --no-build-isolation --no-cache-dir -r /opt/NordicSemiconductor/nrfconnect/modules/lib/matter/scripts/setup/requirements.nrfconnect.txt \
+    # Remove protobuf to avoid version conflict
+    && python3 -m pip uninstall -y protobuf \
+    && : # last line
+
+ENV ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+ENV ZEPHYR_SDK_INSTALL_DIR=${NRF5_TOOLS_ROOT}/zephyr-sdk/toolchains/latest

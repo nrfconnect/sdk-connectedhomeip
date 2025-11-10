@@ -41,13 +41,8 @@ class ZapGenerate(WestCommand):
         parser.add_argument('-k', '--keep-previous', action='store_true', help='Keep previously generated files')
         return parser
 
-    def build_command(self, zap_file_path, output_path, templates_path=None):
-        if templates_path is None:
-            # Generate the .matter file from the .zap file
-            cmd = [sys.executable, self.zap_generate_path, zap_file_path, "-o", output_path]
-        else:
-            # Generate source files from the .zap file
-            cmd = [sys.executable, self.zap_generate_path, zap_file_path, "-o", output_path, "-t", templates_path]
+    def build_command(self, zap_file_path, output_path, templates_path):
+        cmd = [sys.executable, self.zap_generate_path, zap_file_path, "-o", output_path, "-t", templates_path]
         return [str(x) for x in cmd]
 
     def do_run(self, args, unknown_args):
@@ -81,11 +76,7 @@ class ZapGenerate(WestCommand):
         if not args.keep_previous:
             self.clear_generated_files(output_path)
 
-        # Generate source files
         self.check_call(self.build_command(zap_file_path, output_path, app_templates_path))
-
-        # Generate .matter file
-        self.check_call(self.build_command(zap_file_path, output_path))
 
         if args.full:
             output_path = output_path / "app-common/zap-generated"
@@ -105,3 +96,4 @@ class ZapGenerate(WestCommand):
                             log.inf(f"\tRemoving {file}")
                             file.unlink()
                             break
+

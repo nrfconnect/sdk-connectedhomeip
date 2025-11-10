@@ -14,7 +14,7 @@ import yaml
 from west import log
 from west.commands import CommandError, WestCommand
 from zap_common import (DEFAULT_MATTER_PATH, ZapInstaller, existing_dir_path, existing_file_path, find_zap,
-                        post_process_generated_files, synchronize_zcl_with_base, update_zcl_in_zap)
+                        post_process_generated_files)
 
 # fmt: off
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -161,10 +161,6 @@ class ZapGenerate(WestCommand):
             # Generate .matter file
             self.check_call(self.build_command(zap.zap_file, output_path))
 
-            # Update the zcl in zap file if needed
-            # We need to do this in case the zap gui was not called before.
-            update_zcl_in_zap(zap.zap_file, zcl_file, app_templates_path)
-
             if args.full:
                 # Full build is about generating an apropertiate Matter data model files in a specific directory layout.
                 # Currently, we must align to the following directory layout:
@@ -199,11 +195,6 @@ class ZapGenerate(WestCommand):
                 template = 'src/app/common/templates/templates.json'
                 zap_output_dir = output_path / 'app-common' / 'zap-generated'
                 codegen_output_dir = output_path / 'clusters'
-
-                # Synchronize the zcl.json file with the base zcl.json file
-                # We need to do this to update the zcl.json file with the new clusters and attributes.
-                # It may be helpful if the Matter SDK was updated.
-                synchronize_zcl_with_base(zcl_file)
 
                 # Temporarily change directory to matter_path so JinjaCodegenTarget and ZAPGenerateTarget can find their scripts
                 original_cwd = os.getcwd()

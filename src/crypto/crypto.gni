@@ -26,8 +26,6 @@ declare_args() {
   # Crypto storage: psa, raw, app.
   #   app: includes zero new files and disables the unit tests for the keystore.
   chip_crypto_keystore = ""
-  # Use PSA AEAD single-part implementation.
-  chip_crypto_psa_aead_single_part = false
 }
 
 assert(

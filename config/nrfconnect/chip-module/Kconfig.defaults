@@ -298,9 +298,6 @@ config OPENTHREAD_DEFAULT_TX_POWER
 
 endif # OPENTHREAD
 
-config CHIP_USE_ZEPHYR_NETWORKING
-    default n if !CHIP_WIFI
-
 # ==============================================================================
 # Wi-Fi configuration
 # ==============================================================================

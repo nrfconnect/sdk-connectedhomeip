@@ -3,21 +3,22 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 
 import argparse
-import json
 import os
 import platform
 import re
 import shutil
-import signal
 import stat
 import subprocess
 import tempfile
+import wget
+import json
+import signal
+
 from collections import deque
 from pathlib import Path
 from typing import Tuple
 from zipfile import ZipFile
 
-import wget
 from west import log
 
 DEFAULT_MATTER_PATH = Path(__file__).parents[2]
@@ -95,7 +96,7 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
         for package in packages:
             if package.get("type") == "zcl-properties":
                 if zcl_json.parent.absolute() == zap_file.parent.absolute() or \
-                        not zcl_json.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+                    not zcl_json.parent.absolute().is_relative_to(zap_file.parent.absolute()):
                     try:
                         package.update({"path": str(zcl_json.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
                         updated = True
@@ -105,7 +106,7 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
 
             if package.get("type") == "gen-templates-json":
                 if app_templates.parent.absolute() == zap_file.parent.absolute() or \
-                        not app_templates.parent.absolute().is_relative_to(zap_file.parent.absolute()):
+                    not app_templates.parent.absolute().is_relative_to(zap_file.parent.absolute()):
                     try:
                         package.update({"path": str(app_templates.absolute().relative_to(zap_file.parent.absolute(), walk_up=True))})
                         updated = True
@@ -118,44 +119,6 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
         file.truncate()
 
     return updated
-
-
-def post_process_generated_files(output_path: Path):
-    """
-    Post-process the generated files:
-
-    - Decode as utf-8, fallback to system default if needed
-    - Ensure all files in output_path (recursively) have exactly one empty line at the end
-    """
-    for root, _, files in os.walk(output_path):
-        for fname in files:
-            file_path = os.path.join(root, fname)
-            # Only process regular files (skip symlinks, etc.)
-            if not os.path.isfile(file_path):
-                continue
-            try:
-                with open(file_path, 'rb') as f:
-                    content = f.read()
-                # Decode as utf-8, fallback to system default if needed
-                try:
-                    text = content.decode('utf-8')
-                except UnicodeDecodeError:
-                    try:
-                        text = content.decode()
-                    except Exception:
-                        continue  # skip non-text files
-
-                # Remove all trailing newlines
-                stripped = text.rstrip('\r\n')
-                # Add exactly one newline
-                new_text = stripped + '\n'
-
-                if new_text != text:
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.write(new_text)
-            except Exception:
-                # Ignore files that can't be read/written as text
-                continue
 
 
 class ZapInstaller:

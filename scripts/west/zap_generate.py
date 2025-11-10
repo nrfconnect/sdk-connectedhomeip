@@ -4,22 +4,15 @@
 
 import argparse
 import os
-import shutil
 import sys
-from pathlib import Path
+
 from textwrap import dedent
+from pathlib import Path
 
 from west import log
 from west.commands import CommandError, WestCommand
-from zap_common import DEFAULT_MATTER_PATH, ZapInstaller, existing_dir_path, existing_file_path, find_zap
 
-# fmt: off
-scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(scripts_dir)
-sys.path.append(os.path.join(scripts_dir, 'tools'))
-from tools.zap_regen_all import JinjaCodegenTarget, ZAPGenerateTarget, ZapInput
-
-# fmt: on
+from zap_common import existing_file_path, existing_dir_path, find_zap, ZapInstaller, DEFAULT_MATTER_PATH
 
 
 class ZapGenerate(WestCommand):
@@ -46,7 +39,6 @@ class ZapGenerate(WestCommand):
                             default=DEFAULT_MATTER_PATH, help='Path to Matter SDK')
         parser.add_argument('-f', '--full', action='store_true', help='Generate full data model files')
         parser.add_argument('-k', '--keep-previous', action='store_true', help='Keep previously generated files')
-        parser.add_argument('-j', '--zcl', action='store_true', help='Generate clusters from zcl.json')
         return parser
 
     def build_command(self, zap_file_path, output_path, templates_path=None):
@@ -88,10 +80,6 @@ class ZapGenerate(WestCommand):
 
         if not args.keep_previous:
             self.clear_generated_files(output_path)
-            if args.full:
-                log.inf(f"Clearing output directory: {output_path}")
-                shutil.rmtree(output_path)
-                output_path.mkdir(exist_ok=True)
 
         # Generate source files
         self.check_call(self.build_command(zap_file_path, output_path, app_templates_path))
@@ -100,56 +88,10 @@ class ZapGenerate(WestCommand):
         self.check_call(self.build_command(zap_file_path, output_path))
 
         if args.full:
-            # Full build is about generating an apropertiate Matter data model files in a specific directory layout.
-            # Currently, we must align to the following directory layout:
-            # sample/
-            #   |_ src/
-            #     |_ default_zap/
-            #       |_ zcl.xml
-            #       |_ sample.zap
-            #       |_ sample.matter
-            #       |_ clusters/
-            #         |_ *All clusters*
-            #       |_ app-common
-            #         |_ zap-generated/
-            #           |_ attributes/
-            #           |_ ids/
-            #
-            # Generation of the full data model files consist of three steps:
-            # 1. ZAPGenerateTarget generates "app-common/zap-generated" directory and a part of "clusters/" directory.
-            #    It generates Attrbutes.h/cpp, Events.h/cpp, Commands.h/cpp files for each cluster.
-            # 2. JinjaCodegenTarget generates "clusters/" directory.
-            #    It generates "AttributeIds.h/cpp", "EventIds.h", "CommandIds.h" files for each cluster.
-            #    It generates also BUILD.gn files that are used to configure build system.
-            #
-            # Currently, we must call JinjaCodegenTarget twice:
-            # - for all clusters using controller-clusters.matter file to generate all clusters defined in the Matter spec.
-            # - for the sample's .matter file to generate the new data model files that are not defined in the Matter spec.
-            #
-            # To generate the full data model files, we utilizes classes defined in the matter/scripts/tools/zap_regen_all.py file.
-            # These classes are supposed to be called from the matter root directory, so we must temporarily change the current working directory to the matter root directory.
-            zcl_file = args.zcl or zap_file_path.parent / "zcl.json"
-            zap_input = ZapInput.FromPropertiesJson(zcl_file)
-            template = 'src/app/common/templates/templates.json'
-            zap_output_dir = output_path / 'app-common' / 'zap-generated'
-            codegen_output_dir = output_path / 'clusters'
+            output_path = output_path / "app-common/zap-generated"
+            output_path.mkdir(parents=True, exist_ok=True)
 
-            # Temporarily change directory to matter_path so JinjaCodegenTarget and ZAPGenerateTarget can find their scripts
-            original_cwd = os.getcwd()
-            os.chdir(args.matter_path)
-            try:
-                ZAPGenerateTarget(zap_input, template=template, output_dir=zap_output_dir).generate()
-                JinjaCodegenTarget(
-                    generator="cpp-sdk",
-                    idl_path="src/controller/data_model/controller-clusters.matter",
-                    output_directory=codegen_output_dir).generate()
-                JinjaCodegenTarget(
-                    generator="cpp-sdk",
-                    idl_path=zap_file_path.with_suffix(".matter"),
-                    output_directory=codegen_output_dir).generate()
-            finally:
-                # Restore original working directory
-                os.chdir(original_cwd)
+            self.check_call(self.build_command(zap_file_path, output_path, templates_path))
 
         log.inf(f"Done. Files generated in {output_path}")
 

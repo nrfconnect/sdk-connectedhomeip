@@ -78,6 +78,7 @@ void ThreadStackManagerImpl::_UnlockThreadStack()
 #else
     openthread_api_mutex_unlock(openthread_get_default_context());
 #endif
+
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT

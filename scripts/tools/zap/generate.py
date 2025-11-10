@@ -296,14 +296,7 @@ def runClangPrettifier(templates_file, output_dir):
             clang_format = getClangFormatBinary()
             args = [clang_format, '-i']
             args.extend(clangOutputs)
-            try:
-                subprocess.check_call(args)
-            except FileNotFoundError as e:
-                print(e)
-                print("On Windows, the filename or extension may be too long to process it here.")
-                print("You can try to fix it by changing the LongPathsEnabled inside the \HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem registry key from 0 to 1.")
-                return
-
+            subprocess.check_call(args)
             print('Formatted %d files using %s (%s)' %
                   (len(clangOutputs), clang_format, subprocess.check_output([clang_format, '--version'])))
             for outputName in clangOutputs:

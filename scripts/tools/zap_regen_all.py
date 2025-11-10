@@ -20,7 +20,6 @@ import logging
 import multiprocessing
 import os
 import os.path
-import platform
 import shlex
 import shutil
 import subprocess
@@ -216,10 +215,6 @@ class ZAPGenerateTarget:
         logging.info("Generating target: %s" % shlex.join(cmd))
 
         generate_start = time.time()
-
-        if platform.system() == 'Windows':
-            cmd = ['python3'] + cmd
-
         subprocess.check_call(cmd)
         generate_end = time.time()
 

@@ -403,7 +403,9 @@ config CHIP_KMU_SLOT_RANGE_END
 endif # CHIP_STORE_KEYS_IN_KMU
 
 config CHIP_PERSISTENT_SUBSCRIPTIONS
-	default y
+	default n
+	# selecting experimental for this feature since there is an issue with multiple controllers.
+	select EXPERIMENTAL
 
 config CHIP_MAX_FABRICS
 	int "Maximum number of Matter fabrics"

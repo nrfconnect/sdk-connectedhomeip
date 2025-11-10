@@ -28,5 +28,36 @@
     Please replace this HTML comment with the actual information about related issues.
 -->
 
-> Add following line to test this PR against different NCS revision:
-> NCS PR: nrfconnect/sdk-nrf/pull/<PR ID>
+#### Testing
+
+<!--
+    This section will help the reviewer understand how this PR change was tested.
+    As a general rule, a proposed PR change must not break the existing code and must be well-tested.
+    Please include information about testing.
+
+    See testing guidelines: https://project-chip.github.io/connectedhomeip-doc/pull_request_guidelines.html#testing
+
+    Examples:
+        added unit tests
+        verified by YAML test: TC_ABC.yaml
+        added Python test: TC_DEF.py
+        manually tested (mention steps to reproduce)
+
+    Please replace this HTML comment with the actual information about how the testing was done.
+ -->
+
+#### Readability checklist
+
+The checklist below will help the reviewer finish PR review in time and keep the
+code readable:
+
+-   [ ] PR title is
+        [descriptive](https://project-chip.github.io/connectedhomeip-doc/pull_request_guidelines.html#title-formatting)
+-   [ ] Apply the
+        [_“When in Rome…”_](https://project-chip.github.io/connectedhomeip-doc/style/CODING_STYLE_GUIDE.html)
+        rule (coding style)
+-   [ ] PR size is short
+-   [ ] Try to avoid "squashing" and "force-update" in commit history
+-   [ ] CI time didn't increase
+
+See: [Pull Request Guidelines](https://project-chip.github.io/connectedhomeip-doc/pull_request_guidelines.html)

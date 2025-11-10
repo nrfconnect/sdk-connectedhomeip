@@ -15,7 +15,12 @@
 name: Build example - NXP
 
 on:
-    workflow_dispatch:
+    push:
+        branches:
+            - master
+            - "v*-branch"
+    pull_request:
+    merge_group:
 
 concurrency:
     group:

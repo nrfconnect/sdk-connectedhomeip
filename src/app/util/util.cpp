@@ -29,11 +29,8 @@
 #include <lib/core/CHIPEncoding.h>
 #include <protocols/interaction_model/StatusCode.h>
 
-#ifdef CHIP_BYPASS_IDL
-#include <zap-generated/PluginApplicationCallbacks.h>
-#else
+// TODO: figure out a clear path for compile-time codegen
 #include <app/PluginApplicationCallbacks.h>
-#endif
 
 using namespace chip;
 

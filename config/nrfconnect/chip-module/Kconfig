@@ -50,42 +50,6 @@ config CHIP_NFC_ONBOARDING_PAYLOAD
 	help
 	  Enables sharing the onboarding payload in the NFC tag.
 
-choice CHIP_BOOTLOADER
-	prompt "Bootloader implementation for Matter purposes"
-	default CHIP_BOOTLOADER_MCUBOOT if !BOARD_NRF21540DK
-	default CHIP_BOOTLOADER_NONE
-
-config CHIP_BOOTLOADER_MCUBOOT
-	bool "MCUBOOT for Matter Bootloader purpose"
-	imply BOOTLOADER_MCUBOOT
-	select IMG_MANAGER
-
-config CHIP_BOOTLOADER_NONE
-	bool "No bootloader selected for Matter purposes"
-
-endchoice
-
-config CHIP_DFU_LIBRARY_MCUMGR
-	bool "Use mcumgr library for Matter DFU purposes"
-	# MCUBOOT
-	select MCUMGR_GRP_IMG if CHIP_BOOTLOADER_MCUBOOT
-	select MCUMGR_GRP_OS if CHIP_BOOTLOADER_MCUBOOT
-	select MCUMGR_GRP_IMG_STATUS_HOOKS if CHIP_BOOTLOADER_MCUBOOT
-	# COMMON
-	select MCUMGR
-	imply STREAM_FLASH
-	imply STREAM_FLASH_ERASE
-
-config CHIP_DFU_LIBRARY_DFU_TARGET
-	bool "Use dfu target library for Matter DFU purposes"
-	imply DFU_MULTI_IMAGE
-	# COMMON
-	imply DFU_TARGET
-	imply STREAM_FLASH
-	imply STREAM_FLASH_ERASE
-	select ZCBOR
-	select ZCBOR_CANONICAL
-
 # See config/zephyr/Kconfig for full definition
 config CHIP_OTA_REQUESTOR
 	bool

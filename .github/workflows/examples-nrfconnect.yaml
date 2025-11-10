@@ -46,7 +46,7 @@ jobs:
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: ghcr.io/project-chip/chip-build-nrf-platform:145
+            image: ghcr.io/project-chip/chip-build-nrf-platform:140
             volumes:
                 - "/tmp/bloat_reports:/tmp/bloat_reports"
 
@@ -86,6 +86,8 @@ jobs:
                   scripts/run_in_build_env.sh "./scripts/tools/nrfconnect/tests/test_generate_factory_data.py"
             - name: Run unit tests for Zephyr native_posix_64 platform with NVS
               run: |
+                  # Temporarily fix link issue
+                  sed -i '151s/<LINK_FLAGS> //' /opt/NordicSemiconductor/nrfconnect/zephyr/cmake/linker/ld/target.cmake
                   scripts/run_in_build_env.sh "./scripts/build/build_examples.py --target nrf-native-sim-tests build"
             - name: Run unit tests for Zephyr native_posix_64 platform with ZMS
               run: |

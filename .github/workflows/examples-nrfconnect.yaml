@@ -43,6 +43,12 @@ jobs:
               uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
                 platform: nrfconnect
+            # Workaround, in docker image there is a change in the zephyr-env.sh script that breaks the checkout process.
+            # We need to restore the zephyr-env.sh script to the original state.
+            # It should be fixed during the next NCS bump in the Matter upstream repository.
+            - name: Pre-update NCS
+              run: |
+                  git -C /opt/NordicSemiconductor/nrfconnect/zephyr stash
             - name: Update NCS recommended version (workflow_dispatch)
               if: github.event_name == 'workflow_dispatch'
               run: |

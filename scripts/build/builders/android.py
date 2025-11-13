@@ -223,7 +223,7 @@ class AndroidBuilder(Builder):
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME", "")
         android_home = os.environ.get("ANDROID_HOME", "")
 
-        logging.info(f"Android environment paths:")
+        logging.info("Android environment paths:")
         logging.info(f"  ANDROID_NDK_HOME: {android_ndk_home}")
         logging.info(f"  ANDROID_HOME: {android_home}")
 
@@ -246,7 +246,7 @@ class AndroidBuilder(Builder):
             possible_fixes = [
                 f"1. Install Android SDK Command Line Tools in {android_home}",
                 f"2. Fix permissions: chmod +x {android_home}/cmdline-tools/*/bin/sdkmanager",
-                f"3. Verify ANDROID_HOME points to correct SDK directory"
+                "3. Verify ANDROID_HOME points to correct SDK directory"
             ]
 
             raise Exception(

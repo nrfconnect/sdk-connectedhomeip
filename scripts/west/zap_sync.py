@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 
 import argparse
+import shutil
 import subprocess
 from pathlib import Path
 from textwrap import dedent
@@ -10,9 +11,8 @@ from textwrap import dedent
 from west import log
 from west.commands import WestCommand
 from zap_append import add_cluster_to_zcl
-from zap_common import (DEFAULT_APP_TEMPLATES_RELATIVE_PATH, DEFAULT_MATTER_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH, ZapInstaller,
-                        existing_dir_path, existing_file_path, find_zap, fix_sandbox_permissions, synchronize_zcl_with_base,
-                        update_zcl_in_zap)
+from zap_common import (DEFAULT_MATTER_PATH, ZapInstaller, display_zap_message, existing_dir_path, existing_file_path, find_zap,
+                        fix_sandbox_permissions, get_app_templates_path, get_default_zcl_json_path, update_zcl_in_zap)
 
 
 class ZapSync(WestCommand):
@@ -49,53 +49,52 @@ class ZapSync(WestCommand):
             log.err("ZAP file not found!")
             return
 
-        if args.zcl_json:
-            zcl_file_path = Path(args.zcl_json).absolute()
-        else:
-            zcl_file_path = args.matter_path.joinpath(DEFAULT_ZCL_JSON_RELATIVE_PATH).absolute()
-
-        if not zcl_file_path.exists():
-            print(f"ZCL file not found: {zcl_file_path}")
-            return False
-
-        app_templates_path = args.matter_path.joinpath(DEFAULT_APP_TEMPLATES_RELATIVE_PATH)
+        default_zcl_path = get_default_zcl_json_path(args.matter_path)
+        app_templates_path = get_app_templates_path(args.matter_path)
 
         zap_installer = ZapInstaller(args.matter_path)
         zap_installer.update_zap_if_needed()
 
-        # zcl.json file was provided, so synchronize it with the Matter SDK
         if args.zcl_json:
-            if not args.clusters:
-                print("Clusters are not provided, so the zcl.json file cannot be synchronized")
-                return False
+            # Provided zcl.json file exists, so we need to remove it and create a copy of the default zcl.json file.
+            zcl_file_path = Path(args.zcl_json).absolute()
+            if zcl_file_path.exists():
+                zcl_file_path.unlink()
+            shutil.copy(default_zcl_path, zcl_file_path)
+        else:
+            # No zcl.json file provided, so we need to create a new one because a path was provided.
+            zcl_file_path = default_zcl_path
 
-            # First we need to update the zap file with the original zcl.json file path
-            # To catch all the changes from the Matter SDK
-            self.run_zap_convert(zap_installer, zap_file_path, args.matter_path.joinpath(
-                DEFAULT_ZCL_JSON_RELATIVE_PATH).absolute(), app_templates_path)
+        log.inf(f"Synchronizing zcl.json file ({zcl_file_path.absolute()})...")
 
-            # Then we need to synchronize the zcl.json file with the Matter SDK
-            # After this step we have a clean zcl.json file with all the changes from the Matter SDK,
-            # but without the custom clusters.
-            synchronize_zcl_with_base(zcl_file_path, args.matter_path)
+        if args.clusters:
+            log.inf(f"Appending custom clusters to the zcl.json file ({args.clusters})...")
+            # Append the new clusters, if zcl.json was provided, it will be updated, if not, clusters will be added to the default zcl.json file.
+            add_cluster_to_zcl(default_zcl_path, args.clusters, zcl_file_path, args.matter_path)
 
-            # Now add the new clusters again to the zcl.json file
-            add_cluster_to_zcl(zcl_file_path, args.clusters, zcl_file_path, args.matter_path)
-            update_zcl_in_zap(zap_file_path, zcl_file_path, app_templates_path)
+        update_zcl_in_zap(zap_file_path, zcl_file_path, app_templates_path)
 
+        log.inf(f"Synchronizing the ZAP file ({zap_file_path.absolute()})...")
         # Update the zap file with all the changes
-        self.run_zap_convert(zap_installer, zap_file_path, zcl_file_path, app_templates_path)
+        self.run_zap_convert(zap_installer, zap_file_path, zcl_file_path, app_templates_path, args.matter_path)
 
-    def run_zap_convert(self, installer: ZapInstaller, zap_file_path: Path, zcl_file_path: Path, app_templates_path: Path):
-        cmd = [installer.get_zap_cli_path()]
-        cmd += ["convert"]
-        cmd += [zap_file_path.absolute()]
-        cmd += ["--zcl", zcl_file_path.absolute()]
-        cmd += ["--gen", app_templates_path.absolute()]
-        cmd += ["--out", zap_file_path.absolute()]
-        cmd += ["--tempState"]
+    def run_zap_convert(self, installer: ZapInstaller, zap_file_path: Path, zcl_file_path: Path, app_templates_path: Path, matter_path: Path):
+
+        def run_zap():
+            cmd = [installer.get_zap_cli_path()]
+            cmd += ["convert"]
+            cmd += [zap_file_path.absolute()]
+            cmd += ["--zcl", zcl_file_path.absolute()]
+            cmd += ["--gen", app_templates_path.absolute()]
+            cmd += ["--out", zap_file_path.absolute()]
+            cmd += ["--tempState"]
+
+            output = subprocess.run([str(x) for x in cmd], capture_output=True, text=True)
+            display_zap_message(output)
+            return output
 
         try:
-            self.check_call([str(x) for x in cmd])
+            output = run_zap()
         except subprocess.CalledProcessError as e:
-            fix_sandbox_permissions(e)
+            fix_sandbox_permissions(e, installer)
+            output = run_zap()

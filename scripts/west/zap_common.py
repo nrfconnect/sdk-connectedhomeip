@@ -14,7 +14,8 @@ import subprocess
 import tempfile
 from collections import deque
 from pathlib import Path
-from typing import Tuple
+from tempfile import NamedTemporaryFile
+from typing import ContextManager, Tuple
 from zipfile import ZipFile
 
 import wget
@@ -24,6 +25,37 @@ DEFAULT_MATTER_PATH = Path(__file__).parents[2]
 DEFAULT_ZCL_JSON_RELATIVE_PATH = Path('src/app/zap-templates/zcl/zcl.json')
 DEFAULT_APP_TEMPLATES_RELATIVE_PATH = Path('src/app/zap-templates/app-templates.json')
 DEFAULT_MATTER_TYPES_RELATIVE_PATH = Path('src/app/zap-templates/zcl/data-model/chip/chip-types.xml')
+DEFAULT_ZAP_VERSION_RELATIVE_PATH = Path('scripts/setup/zap.version')
+DEFAULT_ZAP_GENERATE_RELATIVE_PATH = Path('scripts/tools/zap/generate.py')
+DEFAULT_RULES_RELATIVE_PATH = Path('src/app/zap-templates/zcl/upgrade-rules-matter.json')
+
+
+def get_rules_path(matter_path: Path = DEFAULT_MATTER_PATH) -> Path:
+    """
+    Returns absolute path to the upgrade-rules-matter.json file within the Matter SDK.
+    """
+    return matter_path.joinpath(DEFAULT_RULES_RELATIVE_PATH).absolute()
+
+
+def get_zap_generate_path(matter_path: Path = DEFAULT_MATTER_PATH) -> Path:
+    """
+    Returns absolute path to the zap-generate.py script within the Matter SDK.
+    """
+    return matter_path.joinpath(DEFAULT_ZAP_GENERATE_RELATIVE_PATH).absolute()
+
+
+def get_app_templates_path(matter_path: Path = DEFAULT_MATTER_PATH) -> Path:
+    """
+    Returns absolute path to the app-templates.json file within the Matter SDK.
+    """
+    return matter_path.joinpath(DEFAULT_APP_TEMPLATES_RELATIVE_PATH).absolute()
+
+
+def get_default_zcl_json_path(matter_path: Path = DEFAULT_MATTER_PATH) -> Path:
+    """
+    Returns absolute path to the default zcl.json file within the Matter SDK.
+    """
+    return matter_path.joinpath(DEFAULT_ZCL_JSON_RELATIVE_PATH).absolute()
 
 
 def find_zap(root: Path = Path.cwd(), max_depth: int = 2):
@@ -127,6 +159,7 @@ def post_process_generated_files(output_path: Path):
 
     - Decode as utf-8, fallback to system default if needed
     - Ensure all files in output_path (recursively) have exactly one empty line at the end
+    - If some files contains path to the local files, remove the absolute paths
     """
     for root, _, files in os.walk(output_path):
         for fname in files:
@@ -151,6 +184,21 @@ def post_process_generated_files(output_path: Path):
                 # Add exactly one newline
                 new_text = stripped + '\n'
 
+                # Check if the file contains absolute paths to .matter files
+                lines = new_text.splitlines()
+                for i, line in zip(range(20), lines):
+                    # Check if line contains "// based on" pattern with absolute path
+                    if '// based on' in line:
+                        # Find absolute paths to .matter files using regex
+                        # Pattern matches the entire absolute path ending with .matter
+                        pattern = r'(// based on .*?)(nrf/.*?\.matter)'
+                        match = re.search(pattern, line)
+                        if match:
+                            # Replace the entire line part with just "// based on " + relative path
+                            absolute_part = match.group(1)
+                            relative_path = match.group(2)
+                            new_text = new_text.replace(line, "// based on " + relative_path)
+
                 if new_text != text:
                     with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(new_text)
@@ -159,62 +207,106 @@ def post_process_generated_files(output_path: Path):
                 continue
 
 
-def synchronize_zcl_with_base(zcl_json: Path, matter_path: Path = DEFAULT_MATTER_PATH):
+def update_rules_paths(zcl_json: Path) -> ContextManager[Path]:
     """
-    Synchronizes a zcl.json file with the base/default zcl.json from Matter SDK.
+    Temporarily update all paths within the rules file to relative paths.
 
-    This function ensures that all fields present in the default zcl.json are also
-    present in the target zcl_json file. Missing fields are added with their default
-    values from the base file.
+    The rules file contains paths relative to the zcl.json file.
+    While updating the zap file with a custom zcl.json file (zap-gui or zap-sync) we need to use all rules scripts
+    with relative paths to the new zcl.json file.
+
+    This function returns a context manager that can be used with a "with" statement.
+    The zcl.json file is temporarily updated with the new temporary rules file.
+    The zcl.json file is restored to the original state when the context manager is exited.
     """
+    class RulesPathContextManager:
+        def __init__(self, zcl_json: Path):
+            self.zcl_json = zcl_json
+            self.source_path = get_rules_path(DEFAULT_MATTER_PATH)
+            self.zcl = json.load(open(zcl_json, 'r+')) if zcl_json else None
+            self.do_not_update_rules = True
 
-    print(f"Synchronizing {zcl_json} with base zcl.json")
+            if self.zcl and self.zcl_json.absolute() != get_default_zcl_json_path(DEFAULT_MATTER_PATH):
+                try:
+                    self.original_upgrade_rules = self.zcl["upgradeRules"]
+                    self.do_not_update_rules = False
+                except KeyError:
+                    self.do_not_update_rules = True
 
-    base_zcl_path = matter_path / DEFAULT_ZCL_JSON_RELATIVE_PATH
-    with open(base_zcl_path, 'r') as f:
-        base_zcl_data = json.load(f)
+        def __enter__(self) -> Path:
+            if self.do_not_update_rules:
+                return None
 
-    with open(zcl_json, 'r') as f:
-        target_zcl_data = json.load(f)
+            # Read the original rules file
+            with open(self.source_path, 'r') as f:
+                rules_data = json.load(f)
 
-    modified = False
-    fields_to_skip = {'xmlRoot', 'manufacturersXml'}  # Fields to skip in comparison
+            # Get the parent directory of rules_path for relative path calculation
+            rules_parent = self.source_path.parent
 
-    for key, value in base_zcl_data.items():
-        if key in fields_to_skip:
-            continue
+            # Update all paths in upgradeRuleScripts
+            if "upgradeRuleScripts" in rules_data:
+                for script in rules_data["upgradeRuleScripts"]:
+                    if "path" in script:
+                        original_path = Path(script["path"])
 
-        if key not in target_zcl_data:
-            target_zcl_data[key] = value
-            modified = True
-            print(f"Added missing field: '{key}'")
-        if value != target_zcl_data[key]:
-            target_zcl_data[key] = value
-            modified = True
-            print(f"Updated field: '{key}'")
+                        # If the path is absolute, make it relative to rules_parent
+                        if original_path.is_absolute():
+                            script["path"] = str(original_path.relative_to(rules_parent, walk_up=True))
+                        else:
+                            # If already relative, resolve it relative to rules_parent
+                            # and then make it relative again
+                            resolved_path = (rules_parent / original_path).resolve()
+                            script["path"] = str(resolved_path)
 
-    if modified:
-        with open(zcl_json, 'w') as f:
-            json.dump(target_zcl_data, f, indent=4)
-        print(f"Updated {zcl_json}")
+            # Create a temporary file
+            self.temp_file = NamedTemporaryFile(
+                mode='w',
+                suffix='.json',
+                delete=False
+            )
+            self.temp_path = Path(self.temp_file.name)
+
+            # Write updated JSON to temp file
+            json.dump(rules_data, self.temp_file, indent=4)
+            self.temp_file.close()
+
+            # Update the upgrade rules path in the zcl.json file
+            if self.zcl:
+                self.zcl["upgradeRules"] = str(self.temp_path.relative_to(self.zcl_json.parent.absolute(), walk_up=True))
+                with open(self.zcl_json, 'w') as f:
+                    json.dump(self.zcl, f, indent=4)
+
+            return self.temp_path
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if self.do_not_update_rules:
+                return
+
+            # Clean up the temporary file
+            if self.temp_path and self.temp_path.exists():
+                self.temp_path.unlink()
+
+            # Restore the original upgrade rules path in the zcl.json file
+            if self.zcl:
+                self.zcl["upgradeRules"] = self.original_upgrade_rules
+                with open(self.zcl_json, 'w') as f:
+                    json.dump(self.zcl, f, indent=4)
+
+            return False
+
+    return RulesPathContextManager(zcl_json)
+
+
+def display_zap_message(output: subprocess.CompletedProcess[str]) -> None:
+    """
+    If the output contains the error from napi_throw, suggest user to use zap-sync to sync the ZAP file.
+    """
+    if 'Unknown attribute' in output.stdout:
+        log.err("Your zcl.json file seems to be outdated. Please use 'west zap-sync' command to synchronize it with the newest Matter Data Model.")
+        return
     else:
-        print("No changes needed - all fields are present")
-
-    print("Done")
-
-
-def fix_sandbox_permissions(e: subprocess.CalledProcessError) -> None:
-    """
-    Fix sandbox permissions if needed.
-    """
-    if e.returncode == -5:
-        log.inf("\nThe wrong sandbox permissions are used. Do you wanto to add the permissions to the sandbox?")
-        answer = input("y/n: ")
-        if answer == "y":
-            subprocess.check_call(['sudo', 'chown', 'root', str(
-                self.get_install_path() / 'chrome-sandbox')])
-            subprocess.check_call(['sudo', 'chmod', '4755', str(self.get_install_path() / 'chrome-sandbox')])
-            log.inf("Permissions added to the sandbox")
+        print(f"output: {output.stdout}")
 
 
 class ZapInstaller:
@@ -287,7 +379,7 @@ class ZapInstaller:
         Expected format: v{YEAR}.{MONTH}.{DAY}[-suffix]
         Example: v2025.09.23-nightly
         """
-        zap_version_path = self.matter_path / 'scripts/setup/zap.version'
+        zap_version_path = self.matter_path / DEFAULT_ZAP_VERSION_RELATIVE_PATH
 
         with open(zap_version_path, 'r') as f:
             return f.read().strip()
@@ -381,3 +473,17 @@ class ZapInstaller:
     @staticmethod
     def set_exec_permission(path: Path) -> None:
         os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
+
+
+def fix_sandbox_permissions(e: subprocess.CalledProcessError, zap_installer: ZapInstaller) -> None:
+    """
+    Fix sandbox permissions if needed.
+    """
+    if e.returncode == -5:
+        log.inf("\nThe wrong sandbox permissions are used. Do you wanto to add the permissions to the sandbox?")
+        answer = input("y/n: ")
+        if answer == "y":
+            subprocess.check_call(['sudo', 'chown', 'root', str(
+                zap_installer.get_install_path().absolute() / 'chrome-sandbox')])
+            subprocess.check_call(['sudo', 'chmod', '4755', str(zap_installer.get_install_path().absolute() / 'chrome-sandbox')])
+            log.inf("Permissions added to the sandbox")

@@ -1,0 +1,44 @@
+# Copyright (c) 2025 Project CHIP Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: West ZAP Tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/west/**'
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  zap_tests:
+    name: west zap tests
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/project-chip/chip-build-nrf-platform:174
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Checkout submodules & Bootstrap
+        uses: ./.github/actions/checkout-submodules-and-bootstrap
+        with:
+          platform: nrfconnect
+      - name: Prepare environment
+        run: bash -c "source /opt/NordicSemiconductor/nrfconnect/zephyr/zephyr-env.sh && python3 -m pip install wget python-path"
+      - name: Run ZAP tests
+        run: bash -c "source /opt/NordicSemiconductor/nrfconnect/zephyr/zephyr-env.sh && python3 scripts/west/tests/zap_tests.py"

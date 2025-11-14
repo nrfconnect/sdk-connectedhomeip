@@ -59,7 +59,8 @@ class ZapGui(WestCommand):
             # If the provided zcl.json file exists, we will use it as a base and update with a new cluster.
 
             # Add the new cluster to the zcl.json file
-            add_cluster_to_zcl(zcl_json_path, args.clusters, zcl_json_path, args.matter_path)
+            base_zcl = zcl_json_path if zcl_json_path.exists() else default_zcl_path
+            add_cluster_to_zcl(base_zcl, args.clusters, zcl_json_path, args.matter_path)
 
         elif not zcl_json_path.exists():
             # If clusters are not provided, but user provided a zcl.json file we need to check whether the file exists.

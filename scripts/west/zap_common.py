@@ -24,6 +24,22 @@ DEFAULT_MATTER_PATH = Path(__file__).parents[2]
 DEFAULT_ZCL_JSON_RELATIVE_PATH = Path('src/app/zap-templates/zcl/zcl.json')
 DEFAULT_APP_TEMPLATES_RELATIVE_PATH = Path('src/app/zap-templates/app-templates.json')
 DEFAULT_MATTER_TYPES_RELATIVE_PATH = Path('src/app/zap-templates/zcl/data-model/chip/chip-types.xml')
+DEFAULT_ZAP_VERSION_RELATIVE_PATH = Path('scripts/setup/zap.version')
+DEFAULT_ZAP_GENERATE_RELATIVE_PATH = Path('scripts/tools/zap/generate.py')
+
+
+def get_zap_generate_path(matter_path: Path = DEFAULT_MATTER_PATH) -> Path:
+    """
+    Returns path to the zap-generate.py script.
+    """
+    return matter_path / DEFAULT_ZAP_GENERATE_RELATIVE_PATH
+
+
+def get_app_templates_path(matter_path: Path = DEFAULT_MATTER_PATH) -> Path:
+    """
+    Returns path to the app-templates.json file.
+    """
+    return matter_path / DEFAULT_APP_TEMPLATES_RELATIVE_PATH
 
 
 def find_zap(root: Path = Path.cwd(), max_depth: int = 2):
@@ -287,7 +303,7 @@ class ZapInstaller:
         Expected format: v{YEAR}.{MONTH}.{DAY}[-suffix]
         Example: v2025.09.23-nightly
         """
-        zap_version_path = self.matter_path / 'scripts/setup/zap.version'
+        zap_version_path = self.matter_path / DEFAULT_ZAP_VERSION_RELATIVE_PATH
 
         with open(zap_version_path, 'r') as f:
             return f.read().strip()

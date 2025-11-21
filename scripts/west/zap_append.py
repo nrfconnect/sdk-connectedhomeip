@@ -86,6 +86,12 @@ def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict, matter_path: 
 def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path, matter_path: Path = DEFAULT_MATTER_PATH):
     """
     Add the cluster to the ZCL file.
+
+    Args:
+        zcl_base: Path to the base zcl.json file
+        cluster_xml_paths: List of paths to the cluster XML files
+        output: Path to the output zcl.json file
+        matter_path: Path to the Matter directory
     """
 
     try:
@@ -123,6 +129,7 @@ def add_cluster_to_zcl(zcl_base: Path, cluster_xml_paths: list, output: Path, ma
 
     # Add the new clusters to the ZCL file
     for cluster in cluster_xml_paths:
+        cluster = Path(cluster).resolve()
         if not Path(cluster).exists():
             raise RuntimeError(f"No such cluster file: {cluster}")
 
@@ -184,4 +191,4 @@ class ZapAppend(WestCommand):
                 log.err(f"No such cluster file: {cluster}")
                 return
 
-        add_cluster_to_zcl(args.base.absolute(), args.clusters, args.output.absolute())
+        add_cluster_to_zcl(args.base.absolute(), args.clusters, args.output.absolute(), args.matter.absolute())

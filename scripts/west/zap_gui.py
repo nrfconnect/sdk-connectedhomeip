@@ -10,8 +10,9 @@ from textwrap import dedent
 from west import log
 from west.commands import WestCommand
 from zap_append import add_cluster_to_zcl
-from zap_common import (DEFAULT_APP_TEMPLATES_RELATIVE_PATH, DEFAULT_MATTER_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH, ZapInstaller,
-                        existing_dir_path, existing_file_path, find_zap, fix_sandbox_permissions, update_zcl_in_zap)
+from zap_common import (DEFAULT_APP_TEMPLATES_RELATIVE_PATH, DEFAULT_MATTER_PATH, ZapInstaller, display_zap_message,
+                        existing_dir_path, existing_file_path, find_zap, fix_sandbox_permissions, get_default_zcl_json_path,
+                        update_rules_paths, update_zcl_in_zap)
 
 
 class ZapGui(WestCommand):
@@ -45,7 +46,7 @@ class ZapGui(WestCommand):
         return parser
 
     def do_run(self, args, unknown_args):
-        default_zcl_path = args.matter_path.joinpath(DEFAULT_ZCL_JSON_RELATIVE_PATH)
+        default_zcl_path = get_default_zcl_json_path(args.matter_path)
         zcl_json_path = Path(args.zcl_json).absolute() if args.zcl_json else default_zcl_path
         zap_file_path = args.zap_file or find_zap()
 
@@ -59,7 +60,8 @@ class ZapGui(WestCommand):
             # If the provided zcl.json file exists, we will use it as a base and update with a new cluster.
 
             # Add the new cluster to the zcl.json file
-            add_cluster_to_zcl(zcl_json_path, args.clusters, zcl_json_path, args.matter_path)
+            base_zcl = zcl_json_path if zcl_json_path.exists() else default_zcl_path
+            add_cluster_to_zcl(base_zcl, args.clusters, zcl_json_path, args.matter_path)
 
         elif not zcl_json_path.exists():
             # If clusters are not provided, but user provided a zcl.json file we need to check whether the file exists.
@@ -82,16 +84,25 @@ class ZapGui(WestCommand):
         if args.cache and was_updated:
             log.wrn("ZCL file path in the ZAP file has been updated. The ZAP cache must be cleared to use it.")
 
-        cmd = [zap_installer.get_zap_path()]
-        cmd += [zap_file_path] if zap_file_path else []
-        cmd += ["--zcl", zcl_json_path.absolute()]
-        cmd += ["--gen", app_templates_path.absolute()]
-        if args.cache:
-            cmd += ["--stateDirectory", args.cache.absolute()]
-        else:
-            cmd += ["--tempState"]
+        def run_zap():
+
+            with update_rules_paths(zcl_json_path) as rules_path:
+
+                cmd = [zap_installer.get_zap_path()]
+                cmd += [zap_file_path] if zap_file_path else []
+                cmd += ["--zcl", zcl_json_path.absolute()]
+                cmd += ["--gen", app_templates_path.absolute()]
+                if args.cache:
+                    cmd += ["--stateDirectory", args.cache.absolute()]
+                else:
+                    cmd += ["--tempState"]
+
+                output = subprocess.run([str(x) for x in cmd], capture_output=True, text=True)
+                display_zap_message(output)
+                return output
 
         try:
-            self.check_call([str(x) for x in cmd])
+            output = run_zap()
         except subprocess.CalledProcessError as e:
-            fix_sandbox_permissions(e)
+            fix_sandbox_permissions(e, zap_installer)
+            output = run_zap()

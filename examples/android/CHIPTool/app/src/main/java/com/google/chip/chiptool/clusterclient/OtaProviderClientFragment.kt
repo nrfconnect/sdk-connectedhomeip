@@ -221,9 +221,8 @@ class OtaProviderClientFragment : Fragment() {
       AccessControlClusterAccessControlEntryStruct(
         privilege,
         2U /* CASE */,
-        listOf(nodeId), /* single nodeId as subject. */
-        null, /* null (empty) targets: wildcard access to everything */
-        Optional.empty(), /* no auxiliaryType (does not apply to writes) */
+        listOf(nodeId),
+        null,
         deviceController.fabricIndex.toUInt()
       )
     newEntry.toTlv(AnonymousTag, tlvWriter)

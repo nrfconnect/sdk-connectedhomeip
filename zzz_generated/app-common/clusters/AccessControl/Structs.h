@@ -169,12 +169,11 @@ using DecodableType = Type;
 namespace AccessControlEntryStruct {
 enum class Fields : uint8_t
 {
-    kPrivilege     = 1,
-    kAuthMode      = 2,
-    kSubjects      = 3,
-    kTargets       = 4,
-    kAuxiliaryType = 5,
-    kFabricIndex   = 254,
+    kPrivilege   = 1,
+    kAuthMode    = 2,
+    kSubjects    = 3,
+    kTargets     = 4,
+    kFabricIndex = 254,
 };
 
 struct Type
@@ -184,7 +183,6 @@ public:
     AccessControlEntryAuthModeEnum authMode   = static_cast<AccessControlEntryAuthModeEnum>(0);
     DataModel::Nullable<DataModel::List<const uint64_t>> subjects;
     DataModel::Nullable<DataModel::List<const Structs::AccessControlTargetStruct::Type>> targets;
-    Optional<AccessControlAuxiliaryTypeEnum> auxiliaryType;
     chip::FabricIndex fabricIndex = static_cast<chip::FabricIndex>(0);
 
     static constexpr bool kIsFabricScoped = true;
@@ -207,7 +205,6 @@ public:
     AccessControlEntryAuthModeEnum authMode   = static_cast<AccessControlEntryAuthModeEnum>(0);
     DataModel::Nullable<DataModel::DecodableList<uint64_t>> subjects;
     DataModel::Nullable<DataModel::DecodableList<Structs::AccessControlTargetStruct::DecodableType>> targets;
-    Optional<AccessControlAuxiliaryTypeEnum> auxiliaryType;
     chip::FabricIndex fabricIndex = static_cast<chip::FabricIndex>(0);
 
     CHIP_ERROR Decode(TLV::TLVReader & reader);

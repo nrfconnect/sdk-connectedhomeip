@@ -1230,7 +1230,6 @@ private:
 | * AccessControlEntriesPerFabric                                     | 0x0004 |
 | * CommissioningARL                                                  | 0x0005 |
 | * Arl                                                               | 0x0006 |
-| * AuxiliaryACL                                                      | 0x0007 |
 | * GeneratedCommandList                                              | 0xFFF8 |
 | * AcceptedCommandList                                               | 0xFFF9 |
 | * AttributeList                                                     | 0xFFFB |
@@ -1241,7 +1240,6 @@ private:
 | * AccessControlEntryChanged                                         | 0x0000 |
 | * AccessControlExtensionChanged                                     | 0x0001 |
 | * FabricRestrictionReviewUpdate                                     | 0x0002 |
-| * AuxiliaryAccessUpdated                                            | 0x0003 |
 \*----------------------------------------------------------------------------*/
 
 /*
@@ -19924,7 +19922,6 @@ void registerClusterAccessControl(Commands & commands, CredentialIssuerCommands 
                                    credsIssuerConfig),                                                                     //
         make_unique<ReadAttribute>(Id, "commissioning-arl", Attributes::CommissioningARL::Id, credsIssuerConfig),          //
         make_unique<ReadAttribute>(Id, "arl", Attributes::Arl::Id, credsIssuerConfig),                                     //
-        make_unique<ReadAttribute>(Id, "auxiliary-acl", Attributes::AuxiliaryACL::Id, credsIssuerConfig),                  //
         make_unique<ReadAttribute>(Id, "generated-command-list", Attributes::GeneratedCommandList::Id, credsIssuerConfig), //
         make_unique<ReadAttribute>(Id, "accepted-command-list", Attributes::AcceptedCommandList::Id, credsIssuerConfig),   //
         make_unique<ReadAttribute>(Id, "attribute-list", Attributes::AttributeList::Id, credsIssuerConfig),                //
@@ -19952,9 +19949,6 @@ void registerClusterAccessControl(Commands & commands, CredentialIssuerCommands 
         make_unique<WriteAttributeAsComplex<
             chip::app::DataModel::List<const chip::app::Clusters::AccessControl::Structs::AccessRestrictionEntryStruct::Type>>>(
             Id, "arl", Attributes::Arl::Id, WriteCommandType::kForceWrite, credsIssuerConfig), //
-        make_unique<WriteAttributeAsComplex<
-            chip::app::DataModel::List<const chip::app::Clusters::AccessControl::Structs::AccessControlEntryStruct::Type>>>(
-            Id, "auxiliary-acl", Attributes::AuxiliaryACL::Id, WriteCommandType::kForceWrite, credsIssuerConfig), //
         make_unique<WriteAttributeAsComplex<chip::app::DataModel::List<const chip::CommandId>>>(
             Id, "generated-command-list", Attributes::GeneratedCommandList::Id, WriteCommandType::kForceWrite,
             credsIssuerConfig), //
@@ -19977,7 +19971,6 @@ void registerClusterAccessControl(Commands & commands, CredentialIssuerCommands 
                                         credsIssuerConfig),                                                                     //
         make_unique<SubscribeAttribute>(Id, "commissioning-arl", Attributes::CommissioningARL::Id, credsIssuerConfig),          //
         make_unique<SubscribeAttribute>(Id, "arl", Attributes::Arl::Id, credsIssuerConfig),                                     //
-        make_unique<SubscribeAttribute>(Id, "auxiliary-acl", Attributes::AuxiliaryACL::Id, credsIssuerConfig),                  //
         make_unique<SubscribeAttribute>(Id, "generated-command-list", Attributes::GeneratedCommandList::Id, credsIssuerConfig), //
         make_unique<SubscribeAttribute>(Id, "accepted-command-list", Attributes::AcceptedCommandList::Id, credsIssuerConfig),   //
         make_unique<SubscribeAttribute>(Id, "attribute-list", Attributes::AttributeList::Id, credsIssuerConfig),                //
@@ -19991,16 +19984,14 @@ void registerClusterAccessControl(Commands & commands, CredentialIssuerCommands 
         make_unique<ReadEvent>(Id, "access-control-extension-changed", Events::AccessControlExtensionChanged::Id,
                                credsIssuerConfig), //
         make_unique<ReadEvent>(Id, "fabric-restriction-review-update", Events::FabricRestrictionReviewUpdate::Id,
-                               credsIssuerConfig),                                                                     //
-        make_unique<ReadEvent>(Id, "auxiliary-access-updated", Events::AuxiliaryAccessUpdated::Id, credsIssuerConfig), //
-        make_unique<SubscribeEvent>(Id, credsIssuerConfig),                                                            //
+                               credsIssuerConfig),          //
+        make_unique<SubscribeEvent>(Id, credsIssuerConfig), //
         make_unique<SubscribeEvent>(Id, "access-control-entry-changed", Events::AccessControlEntryChanged::Id,
                                     credsIssuerConfig), //
         make_unique<SubscribeEvent>(Id, "access-control-extension-changed", Events::AccessControlExtensionChanged::Id,
                                     credsIssuerConfig), //
         make_unique<SubscribeEvent>(Id, "fabric-restriction-review-update", Events::FabricRestrictionReviewUpdate::Id,
-                                    credsIssuerConfig),                                                                     //
-        make_unique<SubscribeEvent>(Id, "auxiliary-access-updated", Events::AuxiliaryAccessUpdated::Id, credsIssuerConfig), //
+                                    credsIssuerConfig), //
     };
 
     commands.RegisterCluster(clusterName, clusterCommands);

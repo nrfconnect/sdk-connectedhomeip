@@ -204,12 +204,15 @@ inline CHIP_ERROR ReadCapabilityMinima(AttributeValueEncoder & aEncoder)
     return aEncoder.Encode(capabilityMinima);
 }
 
-inline CHIP_ERROR ReadConfigurationVersion(DeviceLayer::ConfigurationManager & configManager, AttributeValueEncoder & aEncoder)
-{
-    uint32_t configurationVersion = 0;
-    ReturnErrorOnFailure(configManager.GetConfigurationVersion(configurationVersion));
-    return aEncoder.Encode(configurationVersion);
-}
+// WORKAROUND: The ConfigurationVersion attribute is marked as mandatory and cannot be disabled, but it is provisional and
+// should not be used.
+// TODO: Remove this workaround when the ConfigurationVersion attribute is no longer provisional.
+// inline CHIP_ERROR ReadConfigurationVersion(DeviceLayer::ConfigurationManager & configManager, AttributeValueEncoder & aEncoder)
+// {
+//     uint32_t configurationVersion = 0;
+//     ReturnErrorOnFailure(configManager.GetConfigurationVersion(configurationVersion));
+//     return aEncoder.Encode(configurationVersion);
+// }
 
 inline CHIP_ERROR ReadLocation(DeviceLayer::ConfigurationManager & configManager, AttributeValueEncoder & aEncoder)
 {
@@ -341,7 +344,11 @@ DataModel::ActionReturnStatus BasicInformationCluster::ReadAttribute(const DataM
     case MaxPathsPerInvoke::Id:
         return encoder.Encode<uint16_t>(CHIP_CONFIG_MAX_PATHS_PER_INVOKE);
     case ConfigurationVersion::Id:
-        return ReadConfigurationVersion(configManager, encoder);
+        // WORKAROUND: The ConfigurationVersion attribute is marked as mandatory and cannot be disabled, but it is provisional and
+        // should not be used.
+        // TODO: Remove this workaround when the ConfigurationVersion attribute is no longer provisional.
+        // return ReadConfigurationVersion(configManager, encoder);
+        return Protocols::InteractionModel::Status::UnsupportedAttribute;
     case Reachable::Id:
         // On some platforms `true` is defined as a unsigned int and that gets
         // a ambigous TLVWriter::Put error. Hence the specialization.

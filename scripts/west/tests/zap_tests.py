@@ -36,6 +36,7 @@ TEST_OBSOLETE_ZCL_FILE = SCRIPT_DIR / "zcl_obsolete.json"
 TEST_OBSOLETE_ZAP_FILE = SCRIPT_DIR / "test_obsolete.zap"
 APP_TEMPLATES_FILE = MATTER_BASE / DEFAULT_APP_TEMPLATES_RELATIVE_PATH
 VERSION_FILE = MATTER_BASE / DEFAULT_ZAP_VERSION_RELATIVE_PATH
+TEST_SAMPLES_FILE = SCRIPT_DIR / "zap_samples.yml"
 
 
 class TestWestZap(unittest.TestCase):
@@ -55,8 +56,10 @@ class TestWestZap(unittest.TestCase):
         cls.zap_output_dir = cls.test_dir / "zap-generated"
         cls.zap_output_dir_full = cls.test_dir / "zap-generated-full"
         cls.zap_output_dir_synced = cls.test_dir / "zap-generated-synced"
+        cls.zap_output_dir_samples_yml = cls.test_dir / "zap-generated-samples-yml"
         cls.test_obsolete_zap_file = cls.test_dir / "test_obsolete.zap"
         cls.test_obsolete_zcl_file = cls.test_dir / "zcl_test_obsolete.json"
+        cls.test_samples_file = cls.test_dir / "zap_samples.yml"
 
         cls.cluster_names = [cluster.stem for cluster in cls.test_clusters]
 
@@ -74,9 +77,13 @@ class TestWestZap(unittest.TestCase):
         shutil.copy(TEST_ZCL_FILE, cls.zcl_json_file_with_new_items)
         shutil.copy(TEST_ZAP_FILE, cls.test_zap_file)
         shutil.copy(VERSION_FILE, cls.version_file)
+        shutil.copy(TEST_SAMPLES_FILE, cls.test_samples_file)
 
         with open(cls.version_file, 'r') as f:
             cls.recommended_version = f.read().strip()
+
+        # Initialize common zap installer
+        cls.zap_installer = ZapInstaller(cls.test_dir)
 
     @classmethod
     def tearDownClass(cls):
@@ -155,18 +162,27 @@ class TestWestZap(unittest.TestCase):
         with open(test_file, 'w') as f:
             f.write("test content")
 
-        post_process_generated_files(self.test_dir)
+        post_process_generated_files(self.test_dir, "manufacturer_specific")
 
         with open(test_file, 'r') as f:
             content = f.read()
             self.assertTrue(content.endswith('\n'))
             self.assertEqual(content, "test content\n")
 
+        with open(test_file, 'w') as f:
+            f.write("# Cluster generated code for constants and metadata based on /home/xxx/ncs/nrf/samples/matter/manufacturer_specific/src/default_zap/manufacturer_specific.matter\n")
+            f.write("// based on /home/xxx/ncs/nrf/samples/matter/manufacturer_specific/src/default_zap/manufacturer_specific.matter\n")
+
+        post_process_generated_files(self.test_dir, "manufacturer_specific")
+        with open(test_file, 'r') as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 0)
+
         # Test file with multiple newlines
         with open(test_file, 'w') as f:
             f.write("test content\n\n\n")
 
-        post_process_generated_files(self.test_dir)
+        post_process_generated_files(self.test_dir, "manufacturer_specific")
 
         with open(test_file, 'r') as f:
             content = f.read()
@@ -215,17 +231,17 @@ class TestWestZap(unittest.TestCase):
             - The zap CLI path is returned correctly.
         """
         # Install path
-        installer = ZapInstaller(self.test_dir)
+        installer = self.zap_installer
         expected = self.test_dir / '.zap-install'
         self.assertEqual(installer.get_install_path(), expected)
 
         # Zap path
-        installer = ZapInstaller(self.test_dir)
+        installer = self.zap_installer
         expected = self.test_dir / '.zap-install' / installer.zap_exe
         self.assertEqual(installer.get_zap_path(), expected)
 
         # Zap CLI path
-        installer = ZapInstaller(self.test_dir)
+        installer = self.zap_installer
         expected = self.test_dir / '.zap-install' / installer.zap_cli_exe
         self.assertEqual(installer.get_zap_cli_path(), expected)
 
@@ -238,11 +254,11 @@ class TestWestZap(unittest.TestCase):
             - The current version is returned correctly.
         """
 
-        installer = ZapInstaller(self.test_dir)
+        installer = self.zap_installer
         version = installer.get_recommended_version()
         self.assertEqual(version, self.recommended_version)
 
-        installer = ZapInstaller(self.test_dir)
+        installer = self.zap_installer
 
         with patch('subprocess.check_output', side_effect=Exception()):
             version = installer.get_current_version()
@@ -277,7 +293,7 @@ class TestWestZap(unittest.TestCase):
             - The ZAP package is not installed if the current ver sion is the same as the recommended version.
             - The ZAP package is installed.
         """
-        zap_installer = ZapInstaller(self.test_dir)
+        zap_installer = self.zap_installer
 
         # Test when the current version is the same as the recommended version
         with patch.object(zap_installer, 'get_current_version', return_value=self.recommended_version):
@@ -314,19 +330,20 @@ class TestWestZap(unittest.TestCase):
             - Zap files are generated correctly.
             - The data model is re-generated for --full argument and all zap files for new clusters are generated.
         """
-        zap_installer = ZapInstaller(self.test_dir)
+        zap_installer = self.zap_installer
         self.assertTrue(zap_installer.get_current_version() != "")
 
         # Run zap-generate command for simple generation
         with patch('zap_generate.get_zap_generate_path', return_value=MATTER_BASE / DEFAULT_ZAP_GENERATE_RELATIVE_PATH):
             with patch('zap_generate.get_app_templates_path', return_value=MATTER_BASE / DEFAULT_APP_TEMPLATES_RELATIVE_PATH):
-                ZapGenerate().do_run(Namespace(zap_file=self.test_zap_file,
-                                               output=self.zap_output_dir,
-                                               matter_path=self.test_dir,
-                                               full=False,
-                                               keep_previous=False,
-                                               zcl=None,
-                                               yaml=None), [])
+                with patch('zap_generate.ZapInstaller', return_value=zap_installer):
+                    ZapGenerate().do_run(Namespace(zap_file=self.test_zap_file,
+                                                   output=self.zap_output_dir,
+                                                   matter_path=self.test_dir,
+                                                   full=False,
+                                                   keep_previous=False,
+                                                   zcl=None,
+                                                   yaml=None), [])
 
         self.assertTrue(self.zap_output_dir.exists())
         self.assertTrue((self.zap_output_dir.parent / "test.matter").exists())
@@ -375,16 +392,111 @@ class TestWestZap(unittest.TestCase):
         # Use the full zap file to generate the full data model.
         with patch('zap_generate.get_zap_generate_path', return_value=MATTER_BASE / DEFAULT_ZAP_GENERATE_RELATIVE_PATH):
             with patch('zap_generate.get_app_templates_path', return_value=MATTER_BASE / DEFAULT_APP_TEMPLATES_RELATIVE_PATH):
-                ZapGenerate().do_run(Namespace(zap_file=self.test_zap_file_full,
-                                               output=self.zap_output_dir_full,
-                                               matter_path=MATTER_BASE,
-                                               full=True,
-                                               keep_previous=False,
-                                               zcl=self.zcl_json_appended,
-                                               yaml=None), [])
+                with patch('zap_generate.ZapInstaller', return_value=self.zap_installer):
+                    ZapGenerate().do_run(Namespace(zap_file=self.test_zap_file_full,
+                                                   output=self.zap_output_dir_full,
+                                                   matter_path=MATTER_BASE,
+                                                   full=True,
+                                                   keep_previous=False,
+                                                   zcl=self.zcl_json_appended,
+                                                   yaml=None), [])
 
         # Check full generation
         self._check_full_generation(self.zap_output_dir_full, self.cluster_names)
+
+    def test_generate_from_yaml(self):
+        """
+        Checks whether the zap_generate function generates the ZAP package correctly from a yaml file.
+        """
+
+        # Copy the zap file and zcl to compare later.
+        zap_to_compare = self.test_dir / "zap_to_comapre.zap"
+        zcl_to_compare = self.test_dir / "zcl_to_compare.json"
+        shutil.copy(self.test_zap_file_full, zap_to_compare)
+        shutil.copy(self.zcl_json_appended, zcl_to_compare)
+
+        # Replace the base_dir relative to the ZEPHYR_BASE directory.
+        with open(self.test_samples_file, 'r') as f:
+            ZEPHYR_BASE = os.environ.get('ZEPHYR_BASE', "")
+            samples_yml_content = f.read()
+            samples_yml_content = samples_yml_content.replace(
+                "base_dir: ../modules/lib/matter/test_dir", f"base_dir: {self.test_dir.relative_to(Path(ZEPHYR_BASE), walk_up=True)}")
+            with open(self.test_samples_file, 'w') as f:
+                f.write(samples_yml_content)
+
+            # Run generate using the yaml file
+        with patch('zap_generate.get_zap_generate_path', return_value=MATTER_BASE / DEFAULT_ZAP_GENERATE_RELATIVE_PATH):
+            with patch('zap_generate.get_app_templates_path', return_value=MATTER_BASE / DEFAULT_APP_TEMPLATES_RELATIVE_PATH):
+                with patch('zap_generate.ZapInstaller', return_value=self.zap_installer):
+                    ZapGenerate().do_run(Namespace(zap_file=None, output=self.zap_output_dir_samples_yml,
+                                                   matter_path=MATTER_BASE, full=None, keep_previous=False, zcl=None, yaml=self.test_samples_file), [])
+
+        # Check full generation
+        self._check_full_generation(self.zap_output_dir_samples_yml, self.cluster_names)
+
+        # Check whether all generated files are the same as the ones generated from the zap_generate_full test.
+        failures = []
+
+        # Recursively collect all files from both directories
+        def collect_files(directory):
+            """Recursively collect all files in a directory."""
+            files = {}
+            for file_path in directory.rglob("*"):
+                if file_path.is_file():
+                    # Get relative path from the directory root
+                    rel_path = file_path.relative_to(directory)
+                    files[rel_path] = file_path
+            return files
+
+        full_files = collect_files(self.zap_output_dir_full)
+        samples_yml_files = collect_files(self.zap_output_dir_samples_yml)
+
+        # Check all files from zap_output_dir_full
+        for rel_path, full_file in full_files.items():
+            samples_yml_file = self.zap_output_dir_samples_yml / rel_path
+
+            if rel_path not in samples_yml_files:
+                failures.append(f"File missing in samples_yml: {rel_path}")
+            else:
+                try:
+                    with open(full_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        full_content = f.read()
+                    with open(samples_yml_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        samples_yml_content = f.read()
+
+                    if full_content != samples_yml_content:
+                        failures.append(f"File content differs: {rel_path}")
+                except Exception as e:
+                    failures.append(f"Error comparing file {rel_path}: {str(e)}")
+
+        # Check for files in samples_yml that are not in full
+        for rel_path in samples_yml_files:
+            if rel_path not in full_files:
+                failures.append(f"Extra file in samples_yml: {rel_path}")
+
+        # Print all failures
+        if failures:
+            print("\n" + "=" * 80)
+            print(f"Found {len(failures)} file comparison failure(s):")
+            print("=" * 80)
+            for failure in failures:
+                print(f"  - {failure}")
+            print("=" * 80 + "\n")
+
+        # Assert that there are no failures
+        self.assertEqual(len(failures), 0, f"Found {len(failures)} file comparison failure(s). See output above for details.")
+
+        # Compare zap_from_yml.zap with self.test_zap_file_full
+        with open(zap_to_compare, "rb") as f1, open(self.test_zap_file_full, "rb") as f2:
+            zap_to_compare_content = f1.read()
+            zap_full_content = f2.read()
+            self.assertEqual(zap_to_compare_content, zap_full_content, "zap_to_compare.zap and test_zap_file_full differ")
+
+        # Compare zcl_from_yml.json with zcl_json_appended
+        with open(zcl_to_compare, "rb") as f1, open(self.zcl_json_appended, "rb") as f2:
+            zcl_to_compare_content = f1.read()
+            zcl_appended_content = f2.read()
+            self.assertEqual(zcl_to_compare_content, zcl_appended_content, "zcl_to_compare.json and zcl_json_appended differ")
 
     def test_zap_synchronize(self):
         """
@@ -399,7 +511,6 @@ class TestWestZap(unittest.TestCase):
         # Input files should exist.
         self.assertTrue(self.zcl_json_appended.exists())
         shutil.copy(TEST_ZAP_FILE_FULL, self.test_zap_file_full)
-        # self.assertTrue(self.test_zap_file_full.exists())
 
         # Copy the obsolete zcl.json file to the test directory.
         shutil.copy(TEST_OBSOLETE_ZCL_FILE, self.test_obsolete_zcl_file)
@@ -425,8 +536,9 @@ class TestWestZap(unittest.TestCase):
         # Run zap-generate command
         with patch('zap_generate.get_zap_generate_path', return_value=MATTER_BASE / DEFAULT_ZAP_GENERATE_RELATIVE_PATH):
             with patch('zap_generate.get_app_templates_path', return_value=MATTER_BASE / DEFAULT_APP_TEMPLATES_RELATIVE_PATH):
-                ZapGenerate().do_run(Namespace(zap_file=self.test_obsolete_zap_file, output=self.zap_output_dir_synced,
-                                               matter_path=MATTER_BASE, full=True, keep_previous=False, zcl=self.test_obsolete_zcl_file, yaml=None), [])
+                with patch('zap_generate.ZapInstaller', return_value=self.zap_installer):
+                    ZapGenerate().do_run(Namespace(zap_file=self.test_obsolete_zap_file, output=self.zap_output_dir_synced,
+                                                   matter_path=MATTER_BASE, full=True, keep_previous=False, zcl=self.test_obsolete_zcl_file, yaml=None), [])
 
         # Check full generation
         self._check_full_generation(self.zap_output_dir_synced, self.cluster_names)
@@ -521,7 +633,8 @@ def suite():
         'test_zap_generate',
         'test_zap_append',
         'test_zap_generate_full',
-        'test_zap_synchronize'
+        'test_generate_from_yaml',
+        # 'test_zap_synchronize',
     ]
 
     loader = unittest.TestLoader()

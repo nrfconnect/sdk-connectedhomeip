@@ -65,7 +65,7 @@ class ZapSync(WestCommand):
             # No zcl.json file provided, so we need to create a new one because a path was provided.
             zcl_file_path = default_zcl_path
 
-        log.inf(f"Synchronizing zcl.json file ({zcl_file_path.absolute()})...")
+        log.inf(f"Synchronizing zcl.json file ({zcl_file_path.resolve()})...")
 
         if args.clusters:
             log.inf(f"Appending custom clusters to the zcl.json file ({args.clusters})...")
@@ -74,19 +74,20 @@ class ZapSync(WestCommand):
 
         update_zcl_in_zap(zap_file_path, zcl_file_path, app_templates_path)
 
-        log.inf(f"Synchronizing the ZAP file ({zap_file_path.absolute()})...")
+        log.inf(f"Synchronizing the ZAP file ({zap_file_path.resolve()})...")
         # Update the zap file with all the changes
-        self.run_zap_convert(zap_installer, zap_file_path, zcl_file_path, app_templates_path, args.matter_path)
+        self.run_zap_convert(zap_installer, zap_file_path.resolve(), zcl_file_path.resolve(),
+                             app_templates_path.resolve(), args.matter_path)
 
     def run_zap_convert(self, installer: ZapInstaller, zap_file_path: Path, zcl_file_path: Path, app_templates_path: Path, matter_path: Path):
 
         def run_zap():
             cmd = [installer.get_zap_cli_path()]
             cmd += ["convert"]
-            cmd += [zap_file_path.absolute()]
-            cmd += ["--zcl", zcl_file_path.absolute()]
-            cmd += ["--gen", app_templates_path.absolute()]
-            cmd += ["--out", zap_file_path.absolute()]
+            cmd += [zap_file_path]
+            cmd += ["--zcl", zcl_file_path]
+            cmd += ["--gen", app_templates_path]
+            cmd += ["--out", zap_file_path]
             cmd += ["--tempState"]
 
             output = subprocess.run([str(x) for x in cmd], capture_output=True, text=True)

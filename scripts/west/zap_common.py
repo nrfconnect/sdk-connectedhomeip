@@ -120,6 +120,9 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
     Functions returns True if the path was updated, False otherwise.
     """
     updated = False
+    zap_file = zap_file.resolve()
+    zcl_json = zcl_json.resolve()
+    app_templates = app_templates.resolve()
 
     with open(zap_file, 'r+') as file:
         data = json.load(file)
@@ -153,13 +156,15 @@ def update_zcl_in_zap(zap_file: Path, zcl_json: Path, app_templates: Path) -> bo
     return updated
 
 
-def post_process_generated_files(output_path: Path):
+def post_process_generated_files(output_path: Path, base_dir: str):
     """
     Post-process the generated files:
 
     - Decode as utf-8, fallback to system default if needed
     - Ensure all files in output_path (recursively) have exactly one empty line at the end
     - If some files contains path to the local files, remove the absolute paths
+
+    - The base_dir is used to find and clear all absolute paths to the local files.
     """
     for root, _, files in os.walk(output_path):
         for fname in files:
@@ -187,17 +192,11 @@ def post_process_generated_files(output_path: Path):
                 # Check if the file contains absolute paths to .matter files
                 lines = new_text.splitlines()
                 for i, line in zip(range(20), lines):
-                    # Check if line contains "// based on" pattern with absolute path
-                    if '// based on' in line:
-                        # Find absolute paths to .matter files using regex
-                        # Pattern matches the entire absolute path ending with .matter
-                        pattern = r'(// based on .*?)(nrf/.*?\.matter)'
-                        match = re.search(pattern, line)
-                        if match:
-                            # Replace the entire line part with just "// based on " + relative path
-                            absolute_part = match.group(1)
-                            relative_path = match.group(2)
-                            new_text = new_text.replace(line, "// based on " + relative_path)
+                    # Check if line contains "based on" pattern with absolute path
+                    if 'based on' in line:
+                        # Remove the line if it contains '// based on' or '# based on'
+                        if line.strip().startswith("// based on") or line.strip().startswith("# Cluster generated code for constants and metadata based on" or line.strip().startswith("# List of cluster")):
+                            new_text = new_text.replace(line + '\n', '')
 
                 if new_text != text:
                     with open(file_path, 'w', encoding='utf-8') as f:

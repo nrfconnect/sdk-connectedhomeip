@@ -14,7 +14,7 @@ import yaml
 from west import log
 from west.commands import CommandError, WestCommand
 from zap_common import (DEFAULT_MATTER_PATH, ZapInstaller, existing_dir_path, existing_file_path, find_zap, get_app_templates_path,
-                        get_zap_generate_path, post_process_generated_files, update_zcl_in_zap)
+                        get_default_zcl_json_path, get_zap_generate_path, post_process_generated_files, update_zcl_in_zap)
 from zap_sync import ZapSync
 
 # fmt: off
@@ -34,6 +34,7 @@ class ZapFile:
     zap_file: Path = None
     full: bool = False
     zcl_file: Path = None
+    base_dir: Path = None
 
 
 class ZapGenerate(WestCommand):
@@ -129,7 +130,7 @@ class ZapGenerate(WestCommand):
                         # Run zap_update to update and synchronize zap/zcl with clusters using the current Matter SDK
                         ZapSync().do_run(zap_sync_args, [])
 
-                        zap_entry = ZapFile(name=name, zap_file=zap_file, full=full, zcl_file=zcl_file)
+                        zap_entry = ZapFile(name=name, zap_file=zap_file, full=full, zcl_file=zcl_file, base_dir=base_dir)
                         zap_files.append(zap_entry)
         else:
             if args.zap_file:
@@ -148,7 +149,7 @@ class ZapGenerate(WestCommand):
                 zcl_file = None
 
             zap_files.append(ZapFile(name=zap_file_path.stem, zap_file=Path(
-                zap_file_path), full=args.full, zcl_file=zcl_file))
+                zap_file_path), full=args.full, zcl_file=zcl_file, base_dir=zap_file_path.parent.name))
 
         # Generate the zap file
         for zap in zap_files:
@@ -169,12 +170,12 @@ class ZapGenerate(WestCommand):
 
             log.inf('----------------------------------------------------------')
             log.inf(f"Generating source files for: {zap.name}")
-            log.inf(f"ZAP file: {zap.zap_file}")
+            log.inf(f"ZAP file: {zap.zap_file.resolve()}")
             log.inf(f"Output path: {output_path}")
             log.inf(f"App templates path: {app_templates_path}")
             log.inf(f"Full: {args.full}")
             log.inf(f"Keep previous: {args.keep_previous}")
-            log.inf(f"ZCL file: {zap.zcl_file}")
+            log.inf(f"ZCL file: {zap.zcl_file.resolve() if zap.zcl_file else get_default_zcl_json_path(args.matter_path).resolve()}")
             log.inf('----------------------------------------------------------')
 
             if zap.full:
@@ -223,6 +224,10 @@ class ZapGenerate(WestCommand):
                 zap_output_dir = output_path / 'app-common' / 'zap-generated'
                 codegen_output_dir = output_path / 'clusters'
 
+                # Resolve the matter file path before changing directories
+                # The .matter file is generated next to the .zap file by extractGeneratedIdl
+                matter_file_path = zap.zap_file.with_suffix(".matter").resolve()
+
                 # Temporarily change directory to matter_path so JinjaCodegenTarget and ZAPGenerateTarget can find their scripts
                 original_cwd = os.getcwd()
                 os.chdir(args.matter_path)
@@ -232,16 +237,18 @@ class ZapGenerate(WestCommand):
                         generator="cpp-sdk",
                         idl_path="src/controller/data_model/controller-clusters.matter",
                         output_directory=codegen_output_dir).generate()
+                    # Use absolute path as string to ensure it's resolved correctly
+                    # even after changing working directory
                     JinjaCodegenTarget(
                         generator="cpp-sdk",
-                        idl_path=zap.zap_file.with_suffix(".matter"),
+                        idl_path=str(matter_file_path),
                         output_directory=codegen_output_dir).generate()
                 finally:
                     # Restore original working directory
                     os.chdir(original_cwd)
 
             # Post-process the generated files
-            post_process_generated_files(output_path.parent)
+            post_process_generated_files(output_path.parent, zap.base_dir)
 
             log.inf(f"Done. Files generated in {output_path}")
 

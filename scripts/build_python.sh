@@ -54,6 +54,7 @@ declare chip_build_controller_dynamic_server=true
 declare enable_pw_rpc=false
 declare enable_ccache=no
 declare enable_webrtc=true
+declare enable_wifi_paf=false
 
 help() {
 
@@ -120,6 +121,7 @@ while (($#)); do
             ;;
         --enable_wifi_paf | -p)
             declare wifi_paf_arg="$2"
+            enable_wifi_paf=$2
             if [[ "$wifi_paf_arg" != "true" && "$wifi_paf_arg" != "false" ]]; then
                 echo "Error: --enable_wifi_paf/-p should have a true/false value, not '$wifi_paf_arg'" >&2
                 exit 1

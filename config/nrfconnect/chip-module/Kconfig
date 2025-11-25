@@ -433,10 +433,14 @@ config CHIP_WIFI
 	select WIFI
 	select WIFI_NM_WPA_SUPPLICANT
 	select NETWORKING
+	imply NORDIC_SECURITY_BACKEND
+	imply MBEDTLS_ENTROPY_C
+	imply MBEDTLS_PSA_CRYPTO_C
 	imply NET_STATISTICS
 	imply NET_L2_ETHERNET
 	imply NET_PKT_TXTIME
 	imply NET_PKT_TIMESTAMP
+	imply MBEDTLS_PROMPTLESS
 	imply BUILD_OUTPUT_META
 	imply USE_DT_CODE_PARTITION # might be removed when the OTA is enabled
 	imply NET_IPV6_ND # enable Neighbor Discovery to handle Router Advertisements
@@ -477,7 +481,7 @@ config CHIP_WIFI_CRYPTO_BACKEND_MBEDTLS
 endchoice
 
 config CHIP_IM_PRETTY_PRINT
-	bool "Enable detailed logging of Matter messages"
+	bool "Detailed logging of Matter messages"
 	depends on !CHIP_LOG_SIZE_OPTIMIZATION
 	depends on MATTER_LOG_LEVEL_DBG
 	help
@@ -502,5 +506,13 @@ config CHIP_QSPI_NOR_POWER_MANAGEMENT_SUPPORT
 	help
 	  Enables management of nRF QSPI NOR external flash power state
 	  transitions during Matter operations.
+
+config CHIP_CRYPTO_USE_X509
+	bool "X.509 certificate support"
+	default n if CHIP_CRYPTO_PSA
+	default y if MBEDTLS_X509_LIBRARY # We still need it to be enabled if we use mbedTLS as the crypto backend
+	help
+	  Enables X.509 certificate support for Matter.
+
 
 endif # CHIP

@@ -28,6 +28,11 @@ declare_args() {
   chip_crypto_keystore = ""
   # Use PSA AEAD single-part implementation.
   chip_crypto_psa_aead_single_part = false
+
+  # Enable support for x509 certificates.
+  # Disable this argument to reduce the code footprint if your device does not
+  # need to manage the x509 certificates.
+  chip_crypto_use_x509 = true
 }
 
 assert(

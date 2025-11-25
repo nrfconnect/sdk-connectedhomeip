@@ -41,16 +41,16 @@
 
 #include <mbedtls/x509_csr.h>
 
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
 #include <mbedtls/x509_crt.h>
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
 namespace chip {
 namespace Crypto {
 
 CHIP_ERROR VerifyCertificateSigningRequest(const uint8_t * csr_buf, size_t csr_length, P256PublicKey & pubkey)
 {
-#if defined(MBEDTLS_X509_CSR_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     ReturnErrorOnFailure(VerifyCertificateSigningRequestFormat(csr_buf, csr_length));
 
     // TODO: For some embedded targets, mbedTLS library doesn't have mbedtls_x509_csr_parse_der, and mbedtls_x509_csr_parse_free.
@@ -138,7 +138,7 @@ exit:
 
 namespace {
 
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
 bool IsTimeGreaterThanEqual(const mbedtls_x509_time * const timeA, const mbedtls_x509_time * const timeB)
 {
 
@@ -216,13 +216,13 @@ constexpr uint8_t sOID_Extension_CRLDistributionPoint[]   = { 0x55, 0x1D, 0x1F }
      (sizeof(oid) == (oidBuf).CHIP_CRYPTO_PAL_PRIVATE_X509(len)) &&                                                                \
      (memcmp((oid), (oidBuf).CHIP_CRYPTO_PAL_PRIVATE_X509(p), (oidBuf).CHIP_CRYPTO_PAL_PRIVATE_X509(len)) == 0))
 
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
 } // anonymous namespace
 
 CHIP_ERROR VerifyAttestationCertificateFormat(const ByteSpan & cert, AttestationCertType certType)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     int result       = 0;
     mbedtls_x509_crt mbed_cert;
@@ -384,7 +384,7 @@ exit:
     (void) cert;
     (void) certType;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
@@ -393,7 +393,7 @@ CHIP_ERROR ValidateCertificateChain(const uint8_t * rootCertificate, size_t root
                                     size_t caCertificateLen, const uint8_t * leafCertificate, size_t leafCertificateLen,
                                     CertificateChainValidationResult & result)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     mbedtls_x509_crt certChain;
     mbedtls_x509_crt rootCert;
@@ -460,14 +460,14 @@ exit:
     (void) leafCertificateLen;
     (void) result;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
 
 CHIP_ERROR IsCertificateValidAtIssuance(const ByteSpan & candidateCertificate, const ByteSpan & issuerCertificate)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     mbedtls_x509_crt mbedCandidateCertificate;
     mbedtls_x509_crt mbedIssuerCertificate;
@@ -498,14 +498,14 @@ exit:
     (void) candidateCertificate;
     (void) issuerCertificate;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
 
 CHIP_ERROR IsCertificateValidAtCurrentTime(const ByteSpan & certificate)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     mbedtls_x509_crt mbedCertificate;
     int result;
@@ -532,14 +532,14 @@ exit:
 #else
     (void) certificate;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
 
 CHIP_ERROR ExtractPubkeyFromX509Cert(const ByteSpan & certificate, Crypto::P256PublicKey & pubkey)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     mbedtls_x509_crt mbed_cert;
     size_t pubkey_size = 0;
@@ -594,7 +594,7 @@ exit:
     (void) certificate;
     (void) pubkey;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
@@ -603,7 +603,7 @@ namespace {
 
 CHIP_ERROR ExtractKIDFromX509Cert(bool extractSKID, const ByteSpan & certificate, MutableByteSpan & kid)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_ERROR_NOT_FOUND;
     mbedtls_x509_crt mbed_cert;
     unsigned char * p         = nullptr;
@@ -680,7 +680,7 @@ exit:
     (void) certificate;
     (void) kid;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
@@ -699,7 +699,7 @@ CHIP_ERROR ExtractAKIDFromX509Cert(const ByteSpan & certificate, MutableByteSpan
 
 CHIP_ERROR ExtractCRLDistributionPointURIFromX509Cert(const ByteSpan & certificate, MutableCharSpan & cdpurl)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_ERROR_NOT_FOUND;
     mbedtls_x509_crt mbed_cert;
     unsigned char * p         = nullptr;
@@ -819,14 +819,14 @@ exit:
     (void) certificate;
     (void) cdpurl;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
 
 CHIP_ERROR ExtractCDPExtensionCRLIssuerFromX509Cert(const ByteSpan & certificate, MutableByteSpan & crlIssuer)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_ERROR_NOT_FOUND;
     mbedtls_x509_crt mbed_cert;
     unsigned char * p         = nullptr;
@@ -935,14 +935,14 @@ exit:
     (void) certificate;
     (void) crlIssuer;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
 
 CHIP_ERROR ExtractSerialNumberFromX509Cert(const ByteSpan & certificate, MutableByteSpan & serialNumber)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     int result       = 0;
     uint8_t * p      = nullptr;
@@ -969,14 +969,14 @@ exit:
     (void) certificate;
     (void) serialNumber;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
 
 CHIP_ERROR ExtractVIDPIDFromX509Cert(const ByteSpan & certificate, AttestationCertVidPid & vidpid)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     mbedtls_x509_crt mbed_cert;
     mbedtls_asn1_named_data * dnIterator = nullptr;
@@ -1025,7 +1025,7 @@ exit:
     (void) certificate;
     (void) vidpid;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
@@ -1033,7 +1033,7 @@ exit:
 namespace {
 CHIP_ERROR ExtractRawDNFromX509Cert(bool extractSubject, const ByteSpan & certificate, MutableByteSpan & dn)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     CHIP_ERROR error = CHIP_NO_ERROR;
     int result       = 0;
     uint8_t * p      = nullptr;
@@ -1069,7 +1069,7 @@ exit:
     (void) certificate;
     (void) dn;
     CHIP_ERROR error = CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 
     return error;
 }
@@ -1088,7 +1088,7 @@ CHIP_ERROR ExtractIssuerFromX509Cert(const ByteSpan & certificate, MutableByteSp
 CHIP_ERROR ReplaceCertIfResignedCertFound(const ByteSpan & referenceCertificate, const ByteSpan * candidateCertificates,
                                           size_t candidateCertificatesCount, ByteSpan & outCertificate)
 {
-#if defined(MBEDTLS_X509_CRT_PARSE_C)
+#if CHIP_CRYPTO_USE_X509
     uint8_t referenceSubjectBuf[kMaxCertificateDistinguishedNameLength];
     uint8_t referenceSKIDBuf[kSubjectKeyIdentifierLength];
     MutableByteSpan referenceSubject(referenceSubjectBuf);
@@ -1126,7 +1126,7 @@ CHIP_ERROR ReplaceCertIfResignedCertFound(const ByteSpan & referenceCertificate,
     (void) candidateCertificatesCount;
     (void) outCertificate;
     return CHIP_ERROR_NOT_IMPLEMENTED;
-#endif // defined(MBEDTLS_X509_CRT_PARSE_C)
+#endif // CHIP_CRYPTO_USE_X509
 }
 
 } // namespace Crypto

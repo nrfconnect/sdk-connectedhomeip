@@ -35,6 +35,11 @@ declare_args() {
   # Trusty TEE, please refer the website listed below:
   # https://source.android.com/docs/security/features/trusty
   chip_with_trusty_os = false
+
+  # Enable support for x509 certificates.
+  # Disable this argument to reduce the code footprint if your device does not
+  # need to manage the x509 certificates.
+  chip_crypto_use_x509 = true
 }
 
 assert(

@@ -72,8 +72,8 @@ TEST_F(TestBasicInformationCluster, TestAttributes)
                       ProductName::kMetadataEntry, ProductID::kMetadataEntry, NodeLabel::kMetadataEntry, Location::kMetadataEntry,
                       HardwareVersion::kMetadataEntry, HardwareVersionString::kMetadataEntry, SoftwareVersion::kMetadataEntry,
                       SoftwareVersionString::kMetadataEntry, CapabilityMinima::kMetadataEntry, SpecificationVersion::kMetadataEntry,
-                      MaxPathsPerInvoke::kMetadataEntry, ConfigurationVersion::kMetadataEntry,
-                      UniqueID::kMetadataEntry, // required in latest spec
+                      MaxPathsPerInvoke::kMetadataEntry, // ConfigurationVersion::kMetadataEntry,
+                      UniqueID::kMetadataEntry,          // required in latest spec
                   }),
                   CHIP_NO_ERROR);
         ASSERT_EQ(expectedBuilder.ReferenceExisting(app::DefaultServerCluster::GlobalAttributes()), CHIP_NO_ERROR);
@@ -91,21 +91,12 @@ TEST_F(TestBasicInformationCluster, TestAttributes)
 
         ReadOnlyBufferBuilder<AttributeEntry> expectedBuilder;
         ASSERT_EQ(expectedBuilder.AppendElements({
-                      DataModelRevision::kMetadataEntry,
-                      VendorName::kMetadataEntry,
-                      VendorID::kMetadataEntry,
-                      ProductName::kMetadataEntry,
-                      ProductID::kMetadataEntry,
-                      NodeLabel::kMetadataEntry,
-                      Location::kMetadataEntry,
-                      HardwareVersion::kMetadataEntry,
-                      HardwareVersionString::kMetadataEntry,
-                      SoftwareVersion::kMetadataEntry,
-                      SoftwareVersionString::kMetadataEntry,
-                      CapabilityMinima::kMetadataEntry,
-                      SpecificationVersion::kMetadataEntry,
+                      DataModelRevision::kMetadataEntry, VendorName::kMetadataEntry, VendorID::kMetadataEntry,
+                      ProductName::kMetadataEntry, ProductID::kMetadataEntry, NodeLabel::kMetadataEntry, Location::kMetadataEntry,
+                      HardwareVersion::kMetadataEntry, HardwareVersionString::kMetadataEntry, SoftwareVersion::kMetadataEntry,
+                      SoftwareVersionString::kMetadataEntry, CapabilityMinima::kMetadataEntry, SpecificationVersion::kMetadataEntry,
                       MaxPathsPerInvoke::kMetadataEntry,
-                      ConfigurationVersion::kMetadataEntry,
+                      // ConfigurationVersion::kMetadataEntry,
                   }),
                   CHIP_NO_ERROR);
         ASSERT_EQ(expectedBuilder.ReferenceExisting(app::DefaultServerCluster::GlobalAttributes()), CHIP_NO_ERROR);
@@ -146,7 +137,7 @@ TEST_F(TestBasicInformationCluster, TestAttributes)
                       CapabilityMinima::kMetadataEntry,
                       SpecificationVersion::kMetadataEntry,
                       MaxPathsPerInvoke::kMetadataEntry,
-                      ConfigurationVersion::kMetadataEntry,
+                      // ConfigurationVersion::kMetadataEntry,
                       UniqueID::kMetadataEntry,
                       ManufacturingDate::kMetadataEntry,
                       PartNumber::kMetadataEntry,

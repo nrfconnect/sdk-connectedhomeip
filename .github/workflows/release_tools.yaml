@@ -96,10 +96,10 @@ jobs:
               run: |
                   scripts/build_python.sh --enable_ble true --chip_detail_logging true --chip_mdns platform --enable_wifi_paf true
                   python3 -m zipfile -c /tmp/output_binaries/python_matter_controller.zip \
-                      out/python_lib/controller/python/chip_clusters-0.0-py3-none-any.whl \
-                      out/python_lib/controller/python/chip_core-0.0-cp37-abi3-linux_x86_64.whl \
-                      out/python_lib/obj/scripts/matter_yamltests_distribution._build_wheel/*.whl \
-                      out/python_lib/python/obj/src/python_testing/matter_testing_infrastructure/chip-testing._build_wheel/*.whl
+                      out/python_lib/controller/python/matter*.whl \
+                      out/python_lib/python/obj/scripts/py_matter_yamltests/matter-yamltests._build_wheel/matter_yamltests-*.whl \
+                      out/python_lib/obj/src/python_testing/matter_testing_infrastructure/matter-testing._build_wheel/matter_testing-*.whl \
+                      out/python_lib/python/obj/scripts/py_matter_idl/matter-idl._build_wheel/matter_idl-*.whl
             - name: Build arm64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |

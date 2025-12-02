@@ -28,7 +28,6 @@
 if (CONFIG_CHIP)
 
 include(ExternalProject)
-include(../../zephyr/ota-image.cmake)
 include(../../zephyr/zephyr-util.cmake)
 include(generate_factory_data.cmake)
 

@@ -35,10 +35,10 @@
 #define FACTORY_DATA_SIZE PM_FACTORY_DATA_SIZE
 #else
 #include <zephyr/storage/flash_map.h>
-#define FACTORY_DATA_SIZE DT_REG_SIZE(DT_ALIAS(factory_data))
-#define FACTORY_DATA_ADDRESS DT_REG_ADDR(DT_ALIAS(factory_data))
-#define SETTINGS_STORAGE_ADDRESS DT_REG_ADDR(DT_ALIAS(settings_storage))
-#define SETTINGS_STORAGE_SIZE DT_REG_SIZE(DT_ALIAS(settings_storage))
+#define FACTORY_DATA_SIZE DT_REG_SIZE(DT_NODELABEL(factory_data_partition))
+#define FACTORY_DATA_ADDRESS DT_REG_ADDR(DT_NODELABEL(factory_data_partition))
+#define SETTINGS_STORAGE_ADDRESS DT_REG_ADDR(DT_NODELABEL(storage_partition))
+#define SETTINGS_STORAGE_SIZE DT_REG_SIZE(DT_NODELABEL(storage_partition))
 #endif // if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1
 
 #include <system/SystemError.h>
@@ -82,12 +82,15 @@ struct InternalFlashFactoryData
 #if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1
         // Only the partition that is protected by fprotect must be aligned to fprotect block size
         constexpr size_t kSettingsBlockEnd = PM_SETTINGS_STORAGE_ADDRESS + PM_SETTINGS_STORAGE_SIZE;
-#else
-        constexpr size_t kSettingsBlockEnd = SETTINGS_STORAGE_ADDRESS + SETTINGS_STORAGE_SIZE;
-#endif
 
         constexpr bool kOverlapsCheck =
             (kSettingsBlockEnd <= FactoryDataBlockBegin()) || (kFactoryDataBlockEnd <= PM_SETTINGS_STORAGE_ADDRESS);
+#else
+        constexpr size_t kSettingsBlockEnd = SETTINGS_STORAGE_ADDRESS + SETTINGS_STORAGE_SIZE;
+
+        constexpr bool kOverlapsCheck =
+            (kSettingsBlockEnd <= FactoryDataBlockBegin()) || (kFactoryDataBlockEnd <= SETTINGS_STORAGE_ADDRESS);
+#endif
 
         static_assert(kOverlapsCheck,
                       "FPROTECT memory block, which contains factory data"

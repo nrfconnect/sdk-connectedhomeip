@@ -35,22 +35,20 @@ jobs:
             image: ghcr.io/project-chip/chip-build-nrf-platform:174
             volumes:
                 - "/tmp/bloat_reports:/tmp/bloat_reports"
+                - "/:/runner-root-volume"
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v5
+              uses: actions/checkout@v4
+            - name: Free up disk space on the github runner
+              uses: ./.github/actions/cleanup-runner
             - name: Checkout submodules & Bootstrap
               uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
                 platform: nrfconnect
             - name: Cleanup unuseful directories
               run: |
-                rm -rf ./.environment/cipd/packages/zap
-                rm -rf ./.environment/cipd/packages/zap/resources
-                rm -rf ./.environment/cipd/packages/arm/bin
-                rm -rf ./.environment/gn_out/python-venv
-            - name: Dump disk info
-              uses: ./.github/actions/dump-disk-info
+                rm -rf ./.environment
             # Workaround, in docker image there is a change in the zephyr-env.sh script that breaks the checkout process.
             # We need to restore the zephyr-env.sh script to the original state.
             # It should be fixed during the next NCS bump in the Matter upstream repository.
@@ -81,21 +79,23 @@ jobs:
             - name: Check nRF Connect SDK revision.
               run: scripts/run_in_build_env.sh "python3 scripts/setup/nrfconnect/update_ncs.py --update --shallow"
               continue-on-error: true
-            - name: Dump disk info
-              uses: ./.github/actions/dump-disk-info
             - name: Run unit tests of factory data generation script
               run: |
                   scripts/run_in_build_env.sh 'source $ZEPHYR_BASE/../zephyr-env.sh && pip3 install -r scripts/setup/requirements.nrfconnect.txt'
                   scripts/run_in_build_env.sh 'source $ZEPHYR_BASE/../zephyr-env.sh && ./scripts/tools/nrfconnect/tests/test_generate_factory_data.py'
-            - name: Cleanup build directory
-              run: rm -rf ./out/nrf-native-sim-tests
+                  rm -rf out/nrf-native-sim-tests
+                  rm -rf src/test_driver/nrfconnect/build
             - name: Run unit tests for Zephyr native_posix_64 platform with NVS
               run: |
                   scripts/run_in_build_env.sh 'source $ZEPHYR_BASE/../zephyr-env.sh && ./scripts/build/build_examples.py --target nrf-native-sim-tests build'
+                  rm -rf out/nrf-native-sim-tests
+                  rm -rf src/test_driver/nrfconnect/build
             - name: Run unit tests for Zephyr native_posix_64 platform with ZMS
               run: |
                   scripts/run_in_build_env.sh "source $ZEPHYR_BASE/../zephyr-env.sh && scripts/examples/nrfconnect_example.sh ../src/test_driver native_sim -DCONFIG_ZMS=y -DCONFIG_ZMS_LOOKUP_CACHE=y -DCONFIG_ZMS_LOOKUP_CACHE_SIZE=512 -DCONFIG_ZMS_LOOKUP_CACHE_FOR_SETTINGS=y -DCONFIG_NVS=n"
                   ctest --build-nocmake -V --output-on-failure --test-dir src/test_driver/nrfconnect/build/nrfconnect --no-tests=error
+                  rm -rf out/nrf-native-sim-tests
+                  rm -rf src/test_driver/nrfconnect/build
             - name: Uploading Failed Test Logs
               uses: actions/upload-artifact@v4
               if: ${{ failure() && !env.ACT }}

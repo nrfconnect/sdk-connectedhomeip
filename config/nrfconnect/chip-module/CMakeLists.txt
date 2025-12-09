@@ -41,7 +41,10 @@ if (NOT CHIP_ROOT)
     get_filename_component(CHIP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../.. REALPATH)
 endif()
 
-if (NOT CHIP_APP_ZAP_DIR)
+if (CONFIG_CHIP_APP_ZAP_DIR)
+    string(CONFIGURE "${CONFIG_CHIP_APP_ZAP_DIR}" app_zap_dir)
+    get_filename_component(CHIP_APP_ZAP_DIR ${app_zap_dir} REALPATH)
+elseif (NOT CHIP_APP_ZAP_DIR)
     get_filename_component(CHIP_APP_ZAP_DIR ${CHIP_ROOT}/zzz_generated/app-common REALPATH)
 endif()
 

@@ -181,7 +181,12 @@ endif()
 set(FACTORY_DATA_SCRIPT_PATH ${CHIP_ROOT}/scripts/tools/nrfconnect/generate_nrfconnect_chip_factory_data.py)
 set(GENERATE_CBOR_SCRIPT_PATH ${CHIP_ROOT}/scripts/tools/nrfconnect/nrfconnect_generate_partition.py)
 set(FACTORY_DATA_SCHEMA_PATH ${CHIP_ROOT}/scripts/tools/nrfconnect/nrfconnect_factory_data.schema)
-set(OUTPUT_FILE_PATH ${APPLICATION_BINARY_DIR}/zephyr)
+
+if(CONFIG_PARTITION_MANAGER_ENABLED)
+  set(OUTPUT_FILE_PATH ${APPLICATION_BINARY_DIR}/zephyr)
+else()
+  set(OUTPUT_FILE_PATH ${APPLICATION_BINARY_DIR})
+endif()
 
 # create a .hex file with factory data in CBOR format based on the JSON file created previously 
 nrfconnect_create_factory_data(factory_data
@@ -194,9 +199,6 @@ if(CONFIG_CHIP_FACTORY_DATA_MERGE_WITH_FIRMWARE)
         # set custom target for merging factory_data hex file
         set_property(GLOBAL PROPERTY factory_data_PM_HEX_FILE ${OUTPUT_FILE_PATH}/factory_data.hex)
         set_property(GLOBAL PROPERTY factory_data_PM_TARGET factory_data)
-    else()
-        set_property(GLOBAL APPEND PROPERTY HEX_FILES_TO_MERGE ${OUTPUT_FILE_PATH}/factory_data.hex ${OUTPUT_FILE_PATH}/zephyr.hex)
-        set_property(TARGET runners_yaml_props_target PROPERTY hex_file ${OUTPUT_FILE_PATH}/merged.hex)
     endif()
 endif()
 

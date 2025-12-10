@@ -39,7 +39,7 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
             - name: Free up disk space on the github runner
               uses: ./.github/actions/cleanup-runner
             - name: Checkout submodules & Bootstrap

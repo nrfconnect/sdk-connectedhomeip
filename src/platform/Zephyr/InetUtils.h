@@ -17,14 +17,14 @@
 
 #include <inet/InetInterface.h>
 
-struct in6_addr;
+struct net_in6_addr;
 struct net_if;
 
 namespace chip {
 namespace DeviceLayer {
 namespace InetUtils {
 
-in6_addr ToZephyrAddr(const Inet::IPAddress & address);
+net_in6_addr ToZephyrAddr(const Inet::IPAddress & address);
 net_if * GetInterface(Inet::InterfaceId ifaceId = Inet::InterfaceId::Null());
 net_if * GetWiFiInterface();
 

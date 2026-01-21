@@ -75,7 +75,7 @@ config BT_BONDABLE
 	default n
 
 config BT_RX_STACK_SIZE
-	default 2560 if SOC_SERIES_NRF54LX
+	default 2560 if SOC_SERIES_NRF54L
 	default 1536
 
 config SYSTEM_WORKQUEUE_STACK_SIZE
@@ -88,7 +88,7 @@ config BT_DEVICE_APPEARANCE
 # We must use BT multirole for NUS service to work after Matter commissioning.
 # TODO: Remove this once the issue is fixed.
 choice BT_LL_SOFTDEVICE_VARIANT
-	default BT_LL_SOFTDEVICE_MULTIROLE if SOC_SERIES_NRF54LX
+	default BT_LL_SOFTDEVICE_MULTIROLE if SOC_SERIES_NRF54L
 
 endchoice
 
@@ -178,7 +178,7 @@ config MCUMGR_TRANSPORT_NETBUF_SIZE
 config SYSTEM_WORKQUEUE_STACK_SIZE
 	default 2800
 
-if SOC_SERIES_NRF53X
+if SOC_SERIES_NRF53
 
 # Enable custom SMP request to erase settings partition.
 config MCUMGR_GRP_ZBASIC
@@ -187,7 +187,7 @@ config MCUMGR_GRP_ZBASIC
 config MCUMGR_GRP_ZBASIC_STORAGE_ERASE
 	default y
 
-endif # SOC_SERIES_NRF53X
+endif # SOC_SERIES_NRF53
 
 endif # CHIP_DFU_OVER_BT_SMP
 

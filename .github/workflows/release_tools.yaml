@@ -55,7 +55,7 @@ jobs:
                   ln -snf /usr/bin/python3.11 /usr/bin/python
                   ln -snf /usr/bin/python3.11 /usr/bin/python3
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
               with:
                   ref: "${{ github.event.inputs.commit }}"
             - name: Bootstrap

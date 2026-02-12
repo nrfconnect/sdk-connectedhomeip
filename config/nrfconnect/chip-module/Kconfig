@@ -500,4 +500,12 @@ config CHIP_CRYPTO_USE_X509
 	help
 	  Enables X.509 certificate support for Matter.
 
+config CHIP_QSPI_NOR_POWER_MANAGEMENT_SUPPORT
+	bool "nRF QSPI NOR power management support"
+	default y
+	depends on PM_DEVICE && NORDIC_QSPI_NOR
+	help
+	  Enables management of nRF QSPI NOR external flash power state
+	  transitions during Matter operations.
+
 endif # CHIP

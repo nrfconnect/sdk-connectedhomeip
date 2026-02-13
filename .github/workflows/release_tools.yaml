@@ -73,6 +73,14 @@ jobs:
                   apt install -y --no-install-recommends -o APT::Immediate-Configure=false g++-aarch64-linux-gnu libgirepository1.0-dev
                   dpkg --add-architecture arm64
                   apt install -y --no-install-recommends -o APT::Immediate-Configure=false libavahi-client-dev:arm64 libglib2.0-dev:arm64 libssl-dev:arm64 libreadline-dev:arm64
+            - name: Build arm64 OTA Provider
+              timeout-minutes: 10
+              run: |
+                  mkdir -p examples/ota-provider-app/linux/build/toolchain
+                  cp -r build/toolchain/custom examples/ota-provider-app/linux/build/toolchain/custom
+                  scripts/run_in_build_env.sh "gn gen out/chipotaprovider_arm64 --args='symbol_level=0 is_debug=false chip_crypto=\"mbedtls\" custom_toolchain=\"//build/toolchain/custom\" target_cc=\"aarch64-linux-gnu-gcc\" target_cxx=\"aarch64-linux-gnu-g++\" target_ar=\"aarch64-linux-gnu-ar\" target_cpu=\"arm64\"' --root=examples/ota-provider-app/linux"
+                  scripts/run_in_build_env.sh "ninja -C out/chipotaprovider_arm64"
+                  aarch64-linux-gnu-strip out/chipotaprovider_arm64/chip-ota-provider-app -o /tmp/output_binaries/chip-ota-provider-app_arm64
             - name: Build x64 CHIP Tool with debug logs enabled
               timeout-minutes: 10
               run: |

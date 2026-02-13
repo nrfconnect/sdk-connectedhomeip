@@ -115,6 +115,19 @@ jobs:
                       chip_crypto=\"mbedtls\"'"
                   scripts/run_in_build_env.sh "ninja -C out/chiptool_arm64_debug chip-tool"
                   aarch64-linux-gnu-strip out/chiptool_arm64_debug/chip-tool -o /tmp/output_binaries/chip-tool_arm64
+            - name: Build arm64 OTA Provider
+              timeout-minutes: 10
+              run: |
+                  scripts/run_in_build_env.sh "gn gen out/chipotaprovider_arm64 --args='custom_toolchain=\"../../../build/toolchain/custom\"
+                      target_cc=\"aarch64-linux-gnu-gcc\"
+                      target_cxx=\"aarch64-linux-gnu-g++\"
+                      target_ar=\"aarch64-linux-gnu-ar\"
+                      target_cpu=\"arm64\"
+                      symbol_level=0
+                      is_debug=false
+                      chip_crypto=\"mbedtls\"' --root=examples/ota-provider-app/linux"
+                  scripts/run_in_build_env.sh "ninja -C out/chipotaprovider_arm64 chip-ota-provider-app"
+                  aarch64-linux-gnu-strip out/chipotaprovider_arm64/chip-ota-provider-app -o /tmp/output_binaries/chip-ota-provider-app_arm64
             - name: Upload release packages
               uses: softprops/action-gh-release@v1
               if: github.event.inputs.publishRelease == 'true'

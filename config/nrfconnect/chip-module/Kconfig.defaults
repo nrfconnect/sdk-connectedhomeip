@@ -363,10 +363,10 @@ endif # CHIP_WIFI
 # Crypto configuration
 # ==============================================================================
 
-choice OPENTHREAD_SECURITY
+choice OPENTHREAD_SECURITY_CONFIG
     default OPENTHREAD_NRF_SECURITY_PSA_CHOICE if CHIP_CRYPTO_PSA
     default OPENTHREAD_NRF_SECURITY_CHOICE
-    
+
 endchoice
 
 choice RNG_GENERATOR_CHOICE
@@ -421,9 +421,6 @@ endif # CHIP_CRYPTO_PSA
 if !CHIP_CRYPTO_PSA
 
 config OBERON_BACKEND
-    default y
-
-config NRF_SECURITY_ADVANCED
     default y
 
 config MBEDTLS_AES_C
@@ -553,7 +550,7 @@ if CHIP_LIB_SHELL
 choice POSIX_AEP_CHOICE
 	default POSIX_AEP_CHOICE_NONE
 
-endchoice 
+endchoice
 
 endif # CHIP_LIB_SHELL
 

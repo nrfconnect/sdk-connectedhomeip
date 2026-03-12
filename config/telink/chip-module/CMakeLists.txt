@@ -65,7 +65,7 @@ matter_add_cxxflags("${ZEPHYR_CFLAGS_CC}")
 zephyr_get_gnu_cpp_standard(ZEPHYR_GNU_CPP_STD)
 matter_add_cxxflags(${ZEPHYR_GNU_CPP_STD})
 
-matter_add_flags(-DMBEDTLS_USER_CONFIG_FILE=<${CONFIG_MBEDTLS_CFG_FILE}>)
+matter_add_flags(-DMBEDTLS_USER_CONFIG_FILE=<${CONFIG_MBEDTLS_CONFIG_FILE}>)
 
 # Set up custom OpenThread configuration
 

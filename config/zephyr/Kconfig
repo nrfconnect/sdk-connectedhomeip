@@ -255,7 +255,7 @@ config CHIP_OTA_REQUESTOR
 	bool "OTA Software Update Requestor"
 	help
 	  Enables over-the-air (OTA) Requestor role that allows the node to perform
-	  Device Firmware Upgrade by quering and downloading a new firmware image
+	  Device Firmware Upgrade by querying and downloading a new firmware image
 	  from a peer OTA Provider node.
 
 config CHIP_ROTATING_DEVICE_ID

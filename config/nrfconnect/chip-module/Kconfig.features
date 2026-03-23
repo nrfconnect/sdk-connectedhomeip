@@ -103,7 +103,7 @@ config CHIP_NUS_MAX_COMMAND_LEN
 	int "Maximum length of single command in Bytes"
 	default 10
 	help
-	  Maximum length of single command. This command will be send via Bluetooth LE to
+	  Maximum length of single command. This command will be send through Bluetooth LE to
 	  a paired smart home device.
 
 config CHIP_NUS_FIXED_PASSKEY
@@ -240,7 +240,7 @@ choice CHIP_LAST_FABRIC_REMOVED_ACTION
 	help
 	  After removing the last fabric the device will perform the factory reset and
 	  then reboot. The current RAM state will be removed and the new commissioning to
-	  the new fabric will use the initial fabric index. This option is the most safe.
+	  the new fabric will use the initial fabric index. This option is the safest.
 
 	config CHIP_LAST_FABRIC_REMOVED_ERASE_AND_PAIRING_START
 	bool "After removing the last fabric erase NVS and start Bluetooth LE advertising"

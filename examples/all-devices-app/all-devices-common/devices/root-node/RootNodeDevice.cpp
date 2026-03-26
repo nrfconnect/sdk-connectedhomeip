@@ -98,7 +98,7 @@ CHIP_ERROR RootNodeDevice::Register(EndpointId endpointId, CodeDrivenDataModelPr
             .groupDataProvider = mContext.groupDataProvider,
             .timerDelegate     = mContext.timerDelegate,
         },
-        BitFlags<Groupcast::Feature>{ Groupcast::Feature::kListener });
+        BitFlags<Clusters::Groupcast::Feature>(Clusters::Groupcast::Feature::kListener, Clusters::Groupcast::Feature::kSender));
     ReturnErrorOnFailure(provider.AddCluster(mGroupcastCluster.Registration()));
 
     mSoftwareDiagnosticsServerCluster.Create(SoftwareDiagnosticsServerCluster::OptionalAttributeSet{},

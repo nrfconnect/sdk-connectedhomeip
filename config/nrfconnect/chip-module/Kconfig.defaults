@@ -363,7 +363,7 @@ endif # CHIP_WIFI
 # Crypto configuration
 # ==============================================================================
 
-choice OPENTHREAD_SECURITY
+choice OPENTHREAD_SECURITY_CONFIG
     default OPENTHREAD_NRF_SECURITY_PSA_CHOICE if CHIP_CRYPTO_PSA
     default OPENTHREAD_NRF_SECURITY_CHOICE
     

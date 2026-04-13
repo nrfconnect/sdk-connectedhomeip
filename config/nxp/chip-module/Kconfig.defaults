@@ -378,7 +378,7 @@ endif
 config MBEDTLS
 	default y
 
-config MBEDTLS_CFG_FILE
+config MBEDTLS_CONFIG_FILE
 	default "config-tls-generic.h"
 
 config MBEDTLS_PSA_KEY_SLOT_COUNT

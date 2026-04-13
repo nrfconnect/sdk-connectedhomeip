@@ -478,7 +478,7 @@ def fix_sandbox_permissions(e: subprocess.CalledProcessError, zap_installer: Zap
     """
     Fix sandbox permissions if needed.
     """
-    if e.returncode == -5:
+    if e is None or e.returncode == -5:
         log.inf("\nThe wrong sandbox permissions are used. Do you wanto to add the permissions to the sandbox?")
         answer = input("y/n: ")
         if answer == "y":

@@ -43,6 +43,7 @@ class ZapGui(WestCommand):
                             help="Paths to the XML files that contain the external cluster definitions")
         parser.add_argument('-c', '--cache', type=Path,
                             help='Path to the custom cache directory. If not provided a temporary directory will be used and cleared after the usage.')
+        parser.add_argument('--fix-permissions', action='store_true', help='Fix sandbox permissions if needed.')
         return parser
 
     def do_run(self, args, unknown_args):
@@ -76,6 +77,9 @@ class ZapGui(WestCommand):
 
         zap_installer = ZapInstaller(args.matter_path)
         zap_installer.update_zap_if_needed()
+
+        if args.fix_permissions:
+            fix_sandbox_permissions(None, zap_installer)
 
         # The zcl.json path in the .zap file must be the same as the one provided by the user
         # If not, update the .zap file with the new relative path to the zcl.json file.

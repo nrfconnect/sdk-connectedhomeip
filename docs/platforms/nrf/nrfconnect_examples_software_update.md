@@ -17,7 +17,7 @@ protocols:
 
 > **_NOTE:_** The procedure presented below requires that you have OpenThread
 > Border Router (OTBR) set up either in Docker or on a Raspberry Pi. Read
-> [Setup OpenThread Border Router on Raspberry Pi](https://github.com/project-chip/connectedhomeip/blob/master/docs/platforms/openthread/openthread_border_router_pi.md)
+> [Setup OpenThread Border Router on Raspberry Pi](../openthread/openthread_border_router_pi.md)
 > to learn how to install the OTBR on a Raspberry Pi.
 
 The DFU over Matter involves two kinds of nodes:

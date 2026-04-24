@@ -8,7 +8,7 @@ The following diagram shows a simplified structure of a Matter application that
 runs on the nRF Connect platform and uses Bluetooth® LE and Thread stacks for
 communication purposes:
 
-![nrfconnect platform overview](https://github.com/project-chip/connectedhomeip/blob/master/docs/platforms/nrf/images/matter_nrfconnect_overview_simplified_ncs.svg)
+![nrfconnect platform overview](./images/matter_nrfconnect_overview_simplified_ncs.svg)
 
 > **Note**: For readability, the diagram does not show all projects components,
 > only the most important ones for a typical Matter application.

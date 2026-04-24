@@ -430,7 +430,7 @@ void UDPEndPointImplSockets::CloseImpl()
 {
     if (mSocket != kInvalidSocketFd)
     {
-        static_cast<System::LayerSockets *>(&GetSystemLayer())->StopWatchingSocket(&mWatch);
+        TEMPORARY_RETURN_IGNORED static_cast<System::LayerSockets *>(&GetSystemLayer())->StopWatchingSocket(&mWatch);
         close(mSocket);
         mSocket = kInvalidSocketFd;
     }
@@ -595,7 +595,7 @@ void UDPEndPointImplSockets::HandlePendingIO(System::SocketEvents events)
         msgIOV.iov_len  = lBuffer->AvailableDataLength();
 
         memset(&lPeerSockAddr, 0, sizeof(lPeerSockAddr));
-
+        memset(controlData, 0, sizeof(controlData));
         memset(&msgHeader, 0, sizeof(msgHeader));
 
         msgHeader.msg_name       = &lPeerSockAddr;
@@ -848,7 +848,7 @@ CHIP_ERROR UDPEndPointImplSockets::IPv6JoinLeaveMulticastGroupImpl(InterfaceId a
             interfaceFound = true;
 
             char ifName[InterfaceId::kMaxIfNameLength];
-            interfaceIt.GetInterfaceName(ifName, sizeof(ifName));
+            TEMPORARY_RETURN_IGNORED interfaceIt.GetInterfaceName(ifName, sizeof(ifName));
 
             // Ignore errors here, except for logging, because we expect some of
             // these interfaces to not work, and some (e.g. loopback) to always

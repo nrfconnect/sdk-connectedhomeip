@@ -38,12 +38,12 @@ using namespace chip;
 
 #define JNI_METHOD(RETURN, METHOD_NAME) extern "C" JNIEXPORT RETURN JNICALL Java_com_matter_casting_core_CastingApp_##METHOD_NAME
 
-jint JNI_OnLoad(JavaVM * jvm, void * reserved)
+jint JNIEXPORT JNI_OnLoad(JavaVM * jvm, void * reserved)
 {
     return AndroidAppServerJNI_OnLoad(jvm, reserved);
 }
 
-void JNI_OnUnload(JavaVM * jvm, void * reserved)
+void JNIEXPORT JNI_OnUnload(JavaVM * jvm, void * reserved)
 {
     return AndroidAppServerJNI_OnUnload(jvm, reserved);
 }
@@ -75,7 +75,7 @@ JNI_METHOD(jobject, finishInitialization)(JNIEnv *, jobject, jobject jAppParamet
     chip::MutableByteSpan * uniqueId = uniqueIdProvider->Get();
     if (uniqueId != nullptr)
     {
-        chip::DeviceLayer::ConfigurationMgr().SetRotatingDeviceIdUniqueId(*uniqueId);
+        TEMPORARY_RETURN_IGNORED chip::DeviceLayer::ConfigurationMgr().SetRotatingDeviceIdUniqueId(*uniqueId);
     }
 #endif // CHIP_ENABLE_ROTATING_DEVICE_ID
 

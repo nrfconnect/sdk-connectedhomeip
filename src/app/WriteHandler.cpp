@@ -40,6 +40,7 @@
 #include <lib/support/logging/TextOnlyLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <protocols/interaction_model/StatusCode.h>
+#include <transport/raw/GroupcastTesting.h>
 
 #include <optional>
 
@@ -191,10 +192,10 @@ CHIP_ERROR WriteHandler::OnMessageReceived(Messaging::ExchangeContext * apExchan
         {
             CHIP_ERROR statusError = CHIP_NO_ERROR;
             // Parse the status response so we can log it properly.
-            StatusResponse::ProcessStatusResponse(std::move(aPayload), statusError);
+            TEMPORARY_RETURN_IGNORED StatusResponse::ProcessStatusResponse(std::move(aPayload), statusError);
         }
         ChipLogDetail(DataManagement, "Unexpected message type %d", aPayloadHeader.GetMessageType());
-        StatusResponse::Send(Status::InvalidAction, apExchangeContext, false /*aExpectResponse*/);
+        TEMPORARY_RETURN_IGNORED StatusResponse::Send(Status::InvalidAction, apExchangeContext, false /*aExpectResponse*/);
         Close();
         return CHIP_ERROR_INVALID_MESSAGE_TYPE;
     }
@@ -214,7 +215,7 @@ CHIP_ERROR WriteHandler::OnMessageReceived(Messaging::ExchangeContext * apExchan
         err = StatusResponse::Send(status, apExchangeContext, false /*aExpectResponse*/);
         Close();
     }
-    return CHIP_NO_ERROR;
+    return err;
 }
 
 void WriteHandler::OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext)
@@ -503,6 +504,15 @@ CHIP_ERROR WriteHandler::ProcessGroupAttributeDataIBs(TLV::TLVReader & aAttribut
             }
 
             dataAttributePath.mEndpointId = mapping.endpoint_id;
+            // Groupcast Testing
+            auto & testing = Groupcast::GetTesting();
+            if (testing.IsEnabled() && testing.IsFabricUnderTest(fabric))
+            {
+                testing.SetGroupID(groupId);
+                testing.SetEndpointID(dataAttributePath.mEndpointId);
+                testing.SetClusterID(dataAttributePath.mClusterId);
+                testing.SetElementID(static_cast<uint32_t>(dataAttributePath.mAttributeId));
+            }
 
             // Try to get the metadata from for the attribute from one of the expanded endpoints (it doesn't really matter which
             // endpoint we pick, as long as it's valid) and update the path info according to it and recheck if we need to report
@@ -590,7 +600,7 @@ exit:
     // The DeliverFinalListWriteEndForGroupWrite above will deliver the successful state of the list write and clear the
     // mProcessingAttributePath making the following call no-op. So we call it again after the exit label to deliver a failure state
     // to the clusters. Ignore the error code since we need to deliver other more important failures.
-    DeliverFinalListWriteEndForGroupWrite(false);
+    TEMPORARY_RETURN_IGNORED DeliverFinalListWriteEndForGroupWrite(false);
     return err;
 }
 
@@ -619,7 +629,7 @@ Status WriteHandler::ProcessWriteRequest(System::PacketBufferHandle && aPayload,
     SuccessOrExit(err);
 
 #if CHIP_CONFIG_IM_PRETTY_PRINT
-    writeRequestParser.PrettyPrint();
+    TEMPORARY_RETURN_IGNORED writeRequestParser.PrettyPrint();
 #endif // CHIP_CONFIG_IM_PRETTY_PRINT
     bool boolValue;
 
@@ -891,10 +901,8 @@ CHIP_ERROR WriteHandler::WriteClusterData(const Access::SubjectDescriptor & aSub
     DataModel::ActionReturnStatus status = CheckWriteAllowed(aSubject, aPath);
     if (status.IsSuccess())
     {
-        DataModel::WriteAttributeRequest request;
+        DataModel::WriteAttributeRequest request(aPath, aSubject);
 
-        request.path              = aPath;
-        request.subjectDescriptor = &aSubject;
         request.writeFlags.Set(DataModel::WriteFlags::kTimed, IsTimedWrite());
 
         AttributeValueDecoder decoder(aData, aSubject);

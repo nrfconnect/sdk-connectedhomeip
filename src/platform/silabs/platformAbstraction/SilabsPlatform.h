@@ -85,8 +85,19 @@ public:
      */
     CHIP_ERROR NvmInit();
 
+#if SL_MATTER_DEBUG_WATCHDOG_ENABLE
+    void WatchdogInit();
+    void WatchdogFeed();
+    void WatchdogEnable();
+    void WatchdogDisable();
+#endif
+
 private:
     friend SilabsPlatform & GetPlatform(void);
+
+#if defined(SL_MATTER_USE_SI70XX_SENSOR) && SL_MATTER_USE_SI70XX_SENSOR
+    sl_status_t EnableSi70xxSensorGpio() override;
+#endif // defined(SL_MATTER_USE_SI70XX_SENSOR) && SL_MATTER_USE_SI70XX_SENSOR
 
     // To make underlying SDK thread safe
     void SilabsPlatformLock(void);

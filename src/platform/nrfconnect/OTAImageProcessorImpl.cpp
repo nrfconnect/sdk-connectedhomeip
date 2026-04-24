@@ -21,7 +21,6 @@
 
 #include <app/clusters/ota-requestor/OTADownloader.h>
 #include <app/clusters/ota-requestor/OTARequestorInterface.h>
-#include <cstring>
 #include <lib/support/CodeUtils.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <system/SystemError.h>
@@ -127,29 +126,20 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownloadImpl()
 
 CHIP_ERROR OTAImageProcessorImpl::Finalize()
 {
-    return DeviceLayer::SystemLayer().ScheduleLambda([this] {
-        PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadComplete);
-        DFUSync::GetInstance().Free(mDfuSyncMutexId);
-        CHIP_ERROR error = System::MapErrorZephyr(dfu_multi_image_done(true));
-        if (error != CHIP_NO_ERROR)
-        {
-            ChipLogError(SoftwareUpdate, "OTA failed to finalize: %" CHIP_ERROR_FORMAT, error.Format());
-        }
-    });
+    PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadComplete);
+    DFUSync::GetInstance().Free(mDfuSyncMutexId);
+    return System::MapErrorZephyr(dfu_multi_image_done(true));
 }
 
 CHIP_ERROR OTAImageProcessorImpl::Abort()
 {
-    return DeviceLayer::SystemLayer().ScheduleLambda([this] {
-        CHIP_ERROR error = System::MapErrorZephyr(dfu_multi_image_done(false));
-        DFUSync::GetInstance().Free(mDfuSyncMutexId);
-        TriggerFlashAction(ExternalFlashManager::Action::SLEEP);
-        PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadAborted);
-        if (error != CHIP_NO_ERROR)
-        {
-            ChipLogError(SoftwareUpdate, "Failed to abort OTA: %" CHIP_ERROR_FORMAT, error.Format());
-        }
-    });
+    CHIP_ERROR error = System::MapErrorZephyr(dfu_multi_image_done(false));
+
+    DFUSync::GetInstance().Free(mDfuSyncMutexId);
+    TriggerFlashAction(ExternalFlashManager::Action::SLEEP);
+    PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadAborted);
+
+    return error;
 }
 
 CHIP_ERROR OTAImageProcessorImpl::Apply()
@@ -172,25 +162,14 @@ CHIP_ERROR OTAImageProcessorImpl::Apply()
             },
             nullptr /* context */);
     }
-    PostOTAStateChangeEvent(DeviceLayer::kOtaApplyFailed);
-    return System::MapErrorZephyr(err);
+    else
+    {
+        PostOTAStateChangeEvent(DeviceLayer::kOtaApplyFailed);
+        return System::MapErrorZephyr(err);
+    }
 #else
     return System::MapErrorZephyr(err);
 #endif
-}
-
-CHIP_ERROR OTAImageProcessorImpl::WriteToFlash(size_t offset, const uint8_t * chunk, size_t chunk_size)
-{
-    int err = dfu_multi_image_write(offset, chunk, chunk_size);
-    if (err != 0)
-    {
-        ChipLogError(SoftwareUpdate, "OTA block write failed %d", err);
-        return CHIP_ERROR_WRITE_FAILED;
-    }
-    mParams.downloadedBytes += chunk_size;
-    ChipLogDetail(SoftwareUpdate, "Downloaded %u/%u bytes", static_cast<unsigned>(mParams.downloadedBytes),
-                  static_cast<unsigned>(mParams.totalFileBytes));
-    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
@@ -199,40 +178,32 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & aBlock)
 
     CHIP_ERROR error = ProcessHeader(aBlock);
 
-    const size_t blockOffset = static_cast<size_t>(mParams.downloadedBytes);
-    const size_t blockSize   = aBlock.size();
-
-    if (error == CHIP_NO_ERROR && blockSize > kBufferSize)
+    if (error == CHIP_NO_ERROR)
     {
-        error = CHIP_ERROR_BUFFER_TOO_SMALL;
+        // DFU target library buffers data internally, so do not clone the block data.
+        if (mParams.downloadedBytes > std::numeric_limits<size_t>::max())
+        {
+            error = CHIP_ERROR_BUFFER_TOO_SMALL;
+        }
+        else
+        {
+            error = System::MapErrorZephyr(
+                dfu_multi_image_write(static_cast<size_t>(mParams.downloadedBytes), aBlock.data(), aBlock.size()));
+            mParams.downloadedBytes += aBlock.size();
+        }
     }
 
-    if (error != CHIP_NO_ERROR)
-    {
-        DeviceLayer::SystemLayer().ScheduleLambda([this, error] {
+    // Report the result back to the downloader asynchronously.
+    return DeviceLayer::SystemLayer().ScheduleLambda([this, error, aBlock] {
+        if (error == CHIP_NO_ERROR)
+        {
+            ChipLogDetail(SoftwareUpdate, "Downloaded %u/%u bytes", static_cast<unsigned>(mParams.downloadedBytes),
+                          static_cast<unsigned>(mParams.totalFileBytes));
+            mDownloader->FetchNextData();
+        }
+        else
+        {
             mDownloader->EndDownload(error);
-            PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadFailed);
-        });
-        return error;
-    }
-
-    memcpy(mStagingBuffer, aBlock.data(), blockSize);
-
-    return DeviceLayer::SystemLayer().ScheduleLambda([this, blockOffset, blockSize] {
-        CHIP_ERROR err         = CHIP_NO_ERROR;
-        const bool isLastBlock = blockOffset + blockSize >= mParams.totalFileBytes;
-        if (!isLastBlock)
-        {
-            err = mDownloader->FetchNextData();
-        }
-        if (err == CHIP_NO_ERROR)
-        {
-            err = WriteToFlash(blockOffset, mStagingBuffer, blockSize);
-        }
-        if (err != CHIP_NO_ERROR)
-        {
-            ChipLogError(SoftwareUpdate, "OTA block processing failed: %" CHIP_ERROR_FORMAT, err.Format());
-            mDownloader->EndDownload(err);
             PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadFailed);
         }
     });

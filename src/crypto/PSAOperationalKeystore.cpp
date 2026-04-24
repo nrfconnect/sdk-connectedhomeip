@@ -60,13 +60,18 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
     psa_status_t status             = PSA_SUCCESS;
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
     psa_key_id_t keyId              = 0;
-    size_t publicKeyLength          = 0;
+    size_t publicKeyLength;
+
+    Destroy();
 
     // Type based on ECC with the elliptic curve SECP256r1 -> PSA_ECC_FAMILY_SECP_R1
     psa_set_key_type(&attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&attributes, kP256_PrivateKey_Length * 8);
     psa_set_key_algorithm(&attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
-    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_COPY);
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_PERSISTENT);
+    psa_set_key_id(&attributes, GetKeyId());
+    GetPSAKeyAllocator().UpdateKeyAttributes(attributes);
 
     status = psa_generate_key(&attributes, &keyId);
     VerifyOrExit(status == PSA_SUCCESS, error = CHIP_ERROR_INTERNAL);
@@ -76,9 +81,6 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
     VerifyOrExit(publicKeyLength == kP256_PublicKey_Length, error = CHIP_ERROR_INTERNAL);
 
 exit:
-    // Save the volatile key id to the context
-    ToPsaContext(mKeypair).key_id = keyId;
-
     psa_reset_key_attributes(&attributes);
 
     return error;
@@ -86,9 +88,7 @@ exit:
 
 CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Destroy()
 {
-    psa_status_t status = PSA_SUCCESS;
-
-    status = psa_destroy_key(GetKeyId());
+    psa_status_t status = psa_destroy_key(GetKeyId());
 
     VerifyOrReturnError(status != PSA_ERROR_INVALID_HANDLE, CHIP_ERROR_INVALID_FABRIC_INDEX);
     VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
@@ -183,37 +183,9 @@ CHIP_ERROR PSAOperationalKeystore::CommitOpKeypairForFabric(FabricIndex fabricIn
     VerifyOrReturnError(IsValidFabricIndex(fabricIndex) && mPendingFabricIndex == fabricIndex, CHIP_ERROR_INVALID_FABRIC_INDEX);
     VerifyOrReturnError(mIsPendingKeypairActive, CHIP_ERROR_INCORRECT_STATE);
 
-    psa_status_t status             = PSA_SUCCESS;
-    CHIP_ERROR error                = CHIP_NO_ERROR;
-    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t keyId              = 0;
+    ReleasePendingKeypair();
 
-    PersistentP256Keypair keyPairToCommit(fabricIndex);
-
-    status = psa_get_key_attributes(mPendingKeypair->GetKeyId(), &attributes);
-    VerifyOrExit(status == PSA_SUCCESS, error = CHIP_ERROR_INTERNAL);
-
-    psa_destroy_key(keyPairToCommit.GetKeyId());
-
-    // Switch to the persistent key
-    psa_set_key_id(&attributes, keyPairToCommit.GetKeyId());
-    psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_PERSISTENT);
-
-    // Update the key attributes if needed
-    GetPSAKeyAllocator().UpdateKeyAttributes(attributes);
-
-    status = psa_copy_key(mPendingKeypair->GetKeyId(), &attributes, &keyId);
-    VerifyOrExit(status == PSA_SUCCESS, error = CHIP_ERROR_INTERNAL);
-    VerifyOrExit(keyId == keyPairToCommit.GetKeyId(), error = CHIP_ERROR_INTERNAL);
-
-    // Copied was done, so we can revert the pending keypair
-    RevertPendingKeypair();
-
-exit:
-    LogPsaError(status);
-    psa_reset_key_attributes(&attributes);
-
-    return error;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR PSAOperationalKeystore::ExportOpKeypairForFabric(FabricIndex fabricIndex, Crypto::P256SerializedKeypair & outKeypair)

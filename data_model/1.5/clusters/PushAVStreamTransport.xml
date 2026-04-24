@@ -62,7 +62,9 @@ Davis, CA 95616, USA
     <revision revision="1" summary="Initial Release"/>
   </revisionHistory>
   <clusterIds>
-    <clusterId id="0x0555" name="Push AV Stream Transport"/>
+    <clusterId id="0x0555" name="Push AV Stream Transport">
+      <provisionalConform/>
+    </clusterId>
   </clusterIds>
   <classification hierarchy="base" role="application" picsCode="PAVST" scope="Endpoint"/>
   <features>

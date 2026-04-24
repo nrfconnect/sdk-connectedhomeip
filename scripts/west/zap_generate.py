@@ -14,8 +14,7 @@ import yaml
 from west import log
 from west.commands import CommandError, WestCommand
 from zap_common import (DEFAULT_MATTER_PATH, ZapInstaller, existing_dir_path, existing_file_path, find_zap,
-                        post_process_generated_files, update_zcl_in_zap)
-from zap_sync import ZapSync
+                        post_process_generated_files, synchronize_zcl_with_base, update_zcl_in_zap)
 
 # fmt: off
 scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -107,24 +106,6 @@ class ZapGenerate(WestCommand):
                         if zcl_file and not zcl_file.exists():
                             raise CommandError(f"ZCL file {zcl_file} does not exist")
                         full = zap.get('full', False)
-                        clusters = None
-
-                        if full:
-                            clusters = [Path(ZEPHYR_BASE, base_dir, cluster).absolute() for cluster in zap.get('clusters', [])]
-                            if not all(cluster.exists() for cluster in clusters):
-                                raise CommandError("Some cluster files do not exist: " +
-                                                   ", ".join([cluster.absolute() for cluster in clusters if not cluster.exists()]))
-
-                        # Prepare arguments for ZapUpdate
-                        zap_sync_args = argparse.Namespace(
-                            zap_file=zap_file,
-                            zcl_json=zcl_file,
-                            clusters=clusters,
-                            matter_path=args.matter_path
-                        )
-
-                        # Run zap_update to update and synchronize zap/zcl with clusters using the current Matter SDK
-                        ZapSync().do_run(zap_sync_args, [])
 
                         zap_entry = ZapFile(name=name, zap_file=zap_file, full=full, zcl_file=zcl_file)
                         zap_files.append(zap_entry)
@@ -180,7 +161,11 @@ class ZapGenerate(WestCommand):
             # Generate .matter file
             self.check_call(self.build_command(zap.zap_file, output_path))
 
-            if args.full or zap.full:
+            # Update the zcl in zap file if needed
+            # We need to do this in case the zap gui was not called before.
+            update_zcl_in_zap(zap.zap_file, zcl_file, app_templates_path)
+
+            if args.full:
                 # Full build is about generating an apropertiate Matter data model files in a specific directory layout.
                 # Currently, we must align to the following directory layout:
                 # sample/
@@ -215,9 +200,10 @@ class ZapGenerate(WestCommand):
                 zap_output_dir = output_path / 'app-common' / 'zap-generated'
                 codegen_output_dir = output_path / 'clusters'
 
-                # Update the zcl in zap file if needed
-                # We need to do this in case the zap gui was not called before.
-                update_zcl_in_zap(zap.zap_file, zcl_file, app_templates_path)
+                # Synchronize the zcl.json file with the base zcl.json file
+                # We need to do this to update the zcl.json file with the new clusters and attributes.
+                # It may be helpful if the Matter SDK was updated.
+                synchronize_zcl_with_base(zcl_file)
 
                 # Temporarily change directory to matter_path so JinjaCodegenTarget and ZAPGenerateTarget can find their scripts
                 original_cwd = os.getcwd()

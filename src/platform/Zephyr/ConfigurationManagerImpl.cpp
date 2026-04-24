@@ -50,7 +50,7 @@
 #endif // CONFIG_SETTINGS_NVS || CONFIG_SETTINGS_ZMS || CONFIG_SETTINGS_ZMS_LEGACY
 #endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 
-#ifdef CONFIG_OPENTHREAD
+#ifdef CONFIG_NET_L2_OPENTHREAD
 #include <platform/ThreadStackManager.h>
 #endif
 
@@ -202,7 +202,7 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
 
 // Lock the Thread stack to avoid unwanted interaction with settings NVS during factory reset.
-#ifdef CONFIG_OPENTHREAD
+#ifdef CONFIG_NET_L2_OPENTHREAD
     ThreadStackMgr().LockThreadStack();
 #endif
 

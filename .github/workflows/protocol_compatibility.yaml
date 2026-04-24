@@ -15,8 +15,6 @@
 name: Backwards compatibility check
 on:
   pull_request:
-    branches:
-      - '!upmerge-*'
     paths:
       - "src/controller/data_model/controller-clusters.matter"
 

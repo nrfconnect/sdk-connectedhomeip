@@ -47,7 +47,6 @@ static_library("nrfconnect") {
     "DiagnosticDataProviderImplNrf.cpp",
     "DiagnosticDataProviderImplNrf.h",
     "ExternalFlashManager.h",
-    "FactoryDataProviderBase.h",
     "FactoryResetTestEventTriggerHandler.cpp",
     "FactoryResetTestEventTriggerHandler.h",
     "InetPlatformConfig.h",

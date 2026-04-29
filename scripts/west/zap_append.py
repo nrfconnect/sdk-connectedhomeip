@@ -12,6 +12,15 @@ from west.commands import WestCommand
 from zap_common import DEFAULT_MATTER_PATH, DEFAULT_MATTER_TYPES_RELATIVE_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH
 
 
+def get_attribute_name(attribute: ET.Element) -> str | None:
+    """If attribute has a name, return it, otherwise fallback to the text of the attribute entry."""
+    from_attr = attribute.get('name')
+    if from_attr:
+        return from_attr
+    text = ''.join(attribute.itertext()).strip()
+    return text or None
+
+
 def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict, matter_path: Path = DEFAULT_MATTER_PATH):
     """
     Parse the cluster XML file and add attributes with custom types to
@@ -50,7 +59,7 @@ def add_custom_attributes_from_xml(xml_file: Path, zcl_data: dict, matter_path: 
         # Check all attributes in the cluster
         for attribute in cluster.findall('attribute'):
             attr_type = attribute.get('type')
-            attr_name = attribute.get('name')
+            attr_name = get_attribute_name(attribute)
 
             if attr_type and attr_type not in types:
                 attributes_with_missing_types.append({

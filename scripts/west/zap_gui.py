@@ -102,6 +102,10 @@ class ZapGui(WestCommand):
                     cmd += ["--tempState"]
 
                 output = subprocess.run([str(x) for x in cmd], capture_output=True, text=True)
+                # Chromium often prints nothing to stdout when the sandbox aborts early.
+                # returncode -5 is a sentinel consumed by fix_sandbox_permissions().
+                if not output.stdout:
+                    raise subprocess.CalledProcessError(-5, cmd)
                 display_zap_message(output)
                 return output
 

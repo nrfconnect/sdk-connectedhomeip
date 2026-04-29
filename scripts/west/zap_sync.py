@@ -56,13 +56,17 @@ class ZapSync(WestCommand):
         zap_installer.update_zap_if_needed()
 
         if args.zcl_json:
-            # Provided zcl.json file exists, so we need to remove it and create a copy of the default zcl.json file.
-            zcl_file_path = Path(args.zcl_json).absolute()
-            if zcl_file_path.exists():
-                zcl_file_path.unlink()
-            shutil.copy(default_zcl_path, zcl_file_path)
+            zcl_candidate = Path(args.zcl_json).absolute()
+            # Reset project zcl.json from the SDK default. If -j is the default path itself,
+            # do not unlink/copy (to avoid deleting the source then failing to copy if the path is the same).
+            if zcl_candidate.resolve() == default_zcl_path.resolve():
+                zcl_file_path = default_zcl_path
+            else:
+                if zcl_candidate.exists():
+                    zcl_candidate.unlink()
+                shutil.copy(default_zcl_path, zcl_candidate)
+                zcl_file_path = zcl_candidate
         else:
-            # No zcl.json file provided, so we need to create a new one because a path was provided.
             zcl_file_path = default_zcl_path
 
         log.inf(f"Synchronizing zcl.json file ({zcl_file_path.resolve()})...")
@@ -91,6 +95,10 @@ class ZapSync(WestCommand):
             cmd += ["--tempState"]
 
             output = subprocess.run([str(x) for x in cmd], capture_output=True, text=True)
+            # Chromium often prints nothing to stdout when the sandbox aborts early.
+            # returncode -5 is a sentinel consumed by fix_sandbox_permissions().
+            if not output.stdout:
+                raise subprocess.CalledProcessError(-5, cmd)
             display_zap_message(output)
             return output
 

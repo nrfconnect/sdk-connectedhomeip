@@ -48,6 +48,7 @@
 #include <transport/SecureMessageCodec.h>
 #include <transport/TracingStructs.h>
 #include <transport/TransportMgr.h>
+#include <transport/raw/GroupcastTesting.h>
 
 namespace chip {
 
@@ -128,6 +129,9 @@ CHIP_ERROR SessionManager::Init(System::Layer * systemLayer, TransportMgrBase * 
     mConnClosedCb   = nullptr;
 #endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
+    // Ensure MessageStats struct is at default state on Init
+    mMessageStats = MessageStats();
+
     return CHIP_NO_ERROR;
 }
 
@@ -167,7 +171,7 @@ void SessionManager::Shutdown()
  */
 void SessionManager::FabricRemoved(FabricIndex fabricIndex)
 {
-    gGroupPeerTable->FabricRemoved(fabricIndex);
+    TEMPORARY_RETURN_IGNORED gGroupPeerTable->FabricRemoved(fabricIndex);
 }
 
 CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, PayloadHeader & payloadHeader,
@@ -211,7 +215,7 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
 
         packetHeader.SetDestinationGroupId(groupSession->GetGroupId());
         packetHeader.SetMessageCounter(mGroupClientCounter.GetCounter(isControlMsg));
-        mGroupClientCounter.IncrementCounter(isControlMsg);
+        TEMPORARY_RETURN_IGNORED mGroupClientCounter.IncrementCounter(isControlMsg);
         packetHeader.SetSessionType(Header::SessionType::kGroupSession);
         sourceNodeId = fabric->GetNodeId();
         packetHeader.SetSourceNodeId(sourceNodeId);
@@ -221,7 +225,11 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
             return CHIP_ERROR_INTERNAL;
         }
 
-        destination_address = Transport::PeerAddress::Multicast(fabric->GetFabricId(), groupSession->GetGroupId());
+        Credentials::GroupDataProvider::GroupInfo info;
+        ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
+        destination_address = (info.UsePerGroupAddress())
+            ? Transport::PeerAddress::Multicast(fabric->GetFabricId(), groupSession->GetGroupId())
+            : Transport::PeerAddress::Groupcast();
 
         Crypto::SymmetricKeyContext * keyContext =
             groups->GetKeyContext(groupSession->GetFabricIndex(), groupSession->GetGroupId());
@@ -238,7 +246,8 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
         CHIP_TRACE_MESSAGE_SENT(payloadHeader, packetHeader, destination_address, message->Start(), message->TotalLength());
 
         CryptoContext::NonceStorage nonce;
-        CryptoContext::BuildNonce(nonce, packetHeader.GetSecurityFlags(), packetHeader.GetMessageCounter(), sourceNodeId);
+        ReturnErrorOnFailure(
+            CryptoContext::BuildNonce(nonce, packetHeader.GetSecurityFlags(), packetHeader.GetMessageCounter(), sourceNodeId));
         CHIP_ERROR err = SecureMessageCodec::Encrypt(cryptoContext, nonce, payloadHeader, packetHeader, message);
         keyContext->Release();
         ReturnErrorOnFailure(err);
@@ -277,7 +286,7 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
 
         CryptoContext::NonceStorage nonce;
         sourceNodeId = session->GetLocalScopedNodeId().GetNodeId();
-        CryptoContext::BuildNonce(nonce, packetHeader.GetSecurityFlags(), messageCounter, sourceNodeId);
+        ReturnErrorOnFailure(CryptoContext::BuildNonce(nonce, packetHeader.GetSecurityFlags(), messageCounter, sourceNodeId));
 
         ReturnErrorOnFailure(SecureMessageCodec::Encrypt(cryptoContext, nonce, payloadHeader, packetHeader, message));
 
@@ -396,6 +405,7 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
 
     preparedMessage = EncryptedPacketBufferHandle::MarkEncrypted(std::move(message));
 
+    CountMessagesSent(sessionHandle, payloadHeader);
     return CHIP_NO_ERROR;
 }
 
@@ -415,8 +425,14 @@ CHIP_ERROR SessionManager::SendPreparedMessage(const SessionHandle & sessionHand
 
         const FabricInfo * fabric = mFabricTable->FindFabricWithIndex(groupSession->GetFabricIndex());
         VerifyOrReturnError(fabric != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+        auto * groups = Credentials::GetGroupDataProvider();
+        VerifyOrReturnError(nullptr != groups, CHIP_ERROR_INTERNAL);
 
-        multicastAddress = Transport::PeerAddress::Multicast(fabric->GetFabricId(), groupSession->GetGroupId());
+        Credentials::GroupDataProvider::GroupInfo info;
+        ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
+        multicastAddress = (info.UsePerGroupAddress())
+            ? Transport::PeerAddress::Multicast(fabric->GetFabricId(), groupSession->GetGroupId())
+            : Transport::PeerAddress::Groupcast();
         destination      = &multicastAddress;
     }
     break;
@@ -454,10 +470,10 @@ CHIP_ERROR SessionManager::SendPreparedMessage(const SessionHandle & sessionHand
 
         while (interfaceIt.Next())
         {
-            char name[Inet::InterfaceId::kMaxIfNameLength];
-            interfaceIt.GetInterfaceName(name, Inet::InterfaceId::kMaxIfNameLength);
             if (interfaceIt.SupportsMulticast() && interfaceIt.IsUp())
             {
+                char name[Inet::InterfaceId::kMaxIfNameLength];
+                TEMPORARY_RETURN_IGNORED interfaceIt.GetInterfaceName(name, Inet::InterfaceId::kMaxIfNameLength);
                 interfaceId = interfaceIt.GetInterfaceId();
                 if (CHIP_NO_ERROR == interfaceId.GetLinkLocalAddr(&addr))
                 {
@@ -711,6 +727,7 @@ void SessionManager::HandleConnectionClosed(Transport::ActiveTCPConnectionState 
         appTCPConnCbCtxt->connClosedCb(conn, conErr);
     }
     MarkSecureSessionOverTCPForEviction(conn, conErr);
+    mUnauthenticatedSessions.MarkSessionOverTCPForEviction(conn);
 }
 
 CHIP_ERROR SessionManager::TCPConnect(const PeerAddress & peerAddress, Transport::AppTCPConnectionCallbackCtxt * appState,
@@ -847,6 +864,7 @@ void SessionManager::UnauthenticatedMessageDispatch(const PacketHeader & partial
                                     messageTotalSize);
 
         CHIP_TRACE_MESSAGE_RECEIVED(payloadHeader, packetHeader, unsecuredSession, peerAddress, msg->Start(), msg->TotalLength());
+        CountMessagesReceived(session, payloadHeader);
         mCB->OnMessageReceived(packetHeader, payloadHeader, session, isDuplicate, std::move(msg));
     }
     else
@@ -946,10 +964,11 @@ void SessionManager::SecureUnicastMessageDispatch(const PacketHeader & partialPa
     CryptoContext::NonceStorage nonce;
     // PASE Sessions use the undefined node ID of all zeroes, since there is no node ID to use
     // and the key is short-lived and always different for each PASE session.
-    CryptoContext::BuildNonce(nonce, packetHeader.GetSecurityFlags(), packetHeader.GetMessageCounter(),
-                              secureSession->GetSecureSessionType() == SecureSession::Type::kCASE ? secureSession->GetPeerNodeId()
-                                                                                                  : kUndefinedNodeId);
-    if (SecureMessageCodec::Decrypt(secureSession->GetCryptoContext(), nonce, payloadHeader, packetHeader, msg) != CHIP_NO_ERROR)
+    CHIP_ERROR nonceResult = CryptoContext::BuildNonce(
+        nonce, packetHeader.GetSecurityFlags(), packetHeader.GetMessageCounter(),
+        secureSession->GetSecureSessionType() == SecureSession::Type::kCASE ? secureSession->GetPeerNodeId() : kUndefinedNodeId);
+    if ((nonceResult != CHIP_NO_ERROR) ||
+        SecureMessageCodec::Decrypt(secureSession->GetCryptoContext(), nonce, payloadHeader, packetHeader, msg) != CHIP_NO_ERROR)
     {
         ChipLogError(Inet, "Secure transport received message, but failed to decode/authenticate it, discarding");
         return;
@@ -1000,6 +1019,8 @@ void SessionManager::SecureUnicastMessageDispatch(const PacketHeader & partialPa
             secureSession->SetCaseCommissioningSessionStatus(secureSession->GetFabricIndex() ==
                                                              mFabricTable->GetPendingNewFabricIndex());
         }
+
+        CountMessagesReceived(session.Value(), payloadHeader);
         mCB->OnMessageReceived(packetHeader, payloadHeader, session.Value(), isDuplicate, std::move(msg));
     }
     else
@@ -1056,9 +1077,11 @@ static bool GroupKeyDecryptAttempt(const PacketHeader & partialPacketHeader, Pac
     }
 
     CryptoContext::NonceStorage nonce;
-    CryptoContext::BuildNonce(nonce, packetHeaderCopy.GetSecurityFlags(), packetHeaderCopy.GetMessageCounter(),
-                              packetHeaderCopy.GetSourceNodeId().Value());
-    decrypted = (CHIP_NO_ERROR == SecureMessageCodec::Decrypt(context, nonce, payloadHeader, packetHeaderCopy, msgCopy));
+    CHIP_ERROR nonceResult =
+        CryptoContext::BuildNonce(nonce, packetHeaderCopy.GetSecurityFlags(), packetHeaderCopy.GetMessageCounter(),
+                                  packetHeaderCopy.GetSourceNodeId().Value());
+    decrypted = (nonceResult == CHIP_NO_ERROR) &&
+        (CHIP_NO_ERROR == SecureMessageCodec::Decrypt(context, nonce, payloadHeader, packetHeaderCopy, msgCopy));
 
     return decrypted;
 }
@@ -1144,7 +1167,16 @@ void SessionManager::SecureGroupMessageDispatch(const PacketHeader & partialPack
 #endif // CHIP_CONFIG_PRIVACY_ACCEPT_NONSPEC_SVE2
     }
     iter.Release();
-
+    // Groupcast Testing
+    auto & testing = chip::Groupcast::GetTesting();
+    if (testing.IsEnabled() && testing.IsFabricUnderTest(groupContext.fabric_index))
+    {
+        testing.SetGroupID(packetHeaderCopy.GetDestinationGroupId().Value());
+        if (!decrypted)
+        {
+            testing.SetTestResult(chip::Groupcast::Testing::Result::kNoAvailableKey);
+        }
+    }
     if (!decrypted)
     {
         ChipLogError(Inet, "Failed to decrypt group message. Discarding everything");
@@ -1223,8 +1255,11 @@ void SessionManager::SecureGroupMessageDispatch(const PacketHeader & partialPack
                                     messageTotalSize);
 
         CHIP_TRACE_MESSAGE_RECEIVED(payloadHeader, packetHeaderCopy, &groupSession, peerAddress, msg->Start(), msg->TotalLength());
-        mCB->OnMessageReceived(packetHeaderCopy, payloadHeader, SessionHandle(groupSession),
-                               SessionMessageDelegate::DuplicateMessage::No, std::move(msg));
+        SessionHandle session(groupSession);
+
+        CountMessagesReceived(session, payloadHeader);
+        mCB->OnMessageReceived(packetHeaderCopy, payloadHeader, session, SessionMessageDelegate::DuplicateMessage::No,
+                               std::move(msg));
     }
     else
     {
@@ -1303,17 +1338,26 @@ void SessionManager::MarkSecureSessionOverTCPForEviction(Transport::ActiveTCPCon
 {
     // Mark the corresponding secure sessions for eviction
     mSecureSessions.ForEachSession([&](auto session) {
-        if (session->IsActiveSession() && session->GetTCPConnection() == conn)
+        if (session->GetTCPConnection() == conn)
         {
-            SessionHandle handle(*session);
-            // Notify the SessionConnection delegate of the connection
-            // closure.
-            if (mConnDelegate != nullptr)
+            bool isActive = session->IsActiveSession();
+
+            if (isActive)
             {
-                mConnDelegate->OnTCPConnectionClosed(conn, handle, conErr);
+                // Notify the SessionConnection delegate of the connection
+                // closure before session eviction detaches holders and
+                // releases exchanges.
+                if (mConnDelegate != nullptr)
+                {
+                    SessionHandle handle(*session);
+                    mConnDelegate->OnTCPConnectionClosed(conn, handle, conErr);
+                }
             }
 
-            // Mark session for eviction.
+            // Explicitly release the TCP connection handle to ensure the transport resource is reclaimed immediately.
+            session->ReleaseTCPConnection();
+
+            // Mark session for eviction regardless of its current state (Active, Defunct, or Establishing).
             session->MarkForEviction();
         }
 
@@ -1333,6 +1377,24 @@ void SessionManager::MarkSecureSessionOverTCPForEviction(Transport::ActiveTCPCon
         return Loop::Continue;
     });
     return CHIP_NO_ERROR;
+}
+
+// Session handle parameter included here for future counting usage.
+void SessionManager::CountMessagesReceived(const SessionHandle &, const PayloadHeader & payloadHeader)
+{
+    if (payloadHeader.GetProtocolID() == Protocols::InteractionModel::Id)
+    {
+        mMessageStats.interactionModelMessagesReceived++;
+    }
+}
+
+// Session handle parameter included here for future counting usage.
+void SessionManager::CountMessagesSent(const SessionHandle &, const PayloadHeader & payloadHeader)
+{
+    if (payloadHeader.GetProtocolID() == Protocols::InteractionModel::Id)
+    {
+        mMessageStats.interactionModelMessagesSent++;
+    }
 }
 
 } // namespace chip

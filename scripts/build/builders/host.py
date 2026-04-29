@@ -32,10 +32,11 @@ class HostCryptoLibrary(Enum):
     def gn_argument(self):
         if self == HostCryptoLibrary.OPENSSL:
             return 'chip_crypto="openssl"'
-        elif self == HostCryptoLibrary.MBEDTLS:
+        if self == HostCryptoLibrary.MBEDTLS:
             return 'chip_crypto="mbedtls"'
-        elif self == HostCryptoLibrary.BORINGSSL:
+        if self == HostCryptoLibrary.BORINGSSL:
             return 'chip_crypto="boringssl"'
+        raise ValueError("Unknown host crypto library: %r" % self)
 
 
 class HostFuzzingType(Enum):
@@ -49,6 +50,7 @@ class HostFuzzingType(Enum):
 class HostApp(Enum):
     ALL_CLUSTERS = auto()
     ALL_CLUSTERS_MINIMAL = auto()
+    ALL_DEVICES_APP = auto()
     CHIP_TOOL = auto()
     CHIP_TOOL_DARWIN = auto()
     THERMOSTAT = auto()
@@ -86,7 +88,8 @@ class HostApp(Enum):
     AIR_QUALITY_SENSOR = auto()
     NETWORK_MANAGER = auto()
     ENERGY_GATEWAY = auto()
-    ENERGY_MANAGEMENT = auto()
+    EVSE = auto()
+    WATER_HEATER = auto()
     WATER_LEAK_DETECTOR = auto()
     TERMS_AND_CONDITIONS = auto()
     CAMERA = auto()
@@ -120,92 +123,95 @@ class HostApp(Enum):
     def ExamplePath(self):
         if self == HostApp.ALL_CLUSTERS:
             return 'all-clusters-app/linux'
-        elif self == HostApp.ALL_CLUSTERS_MINIMAL:
+        if self == HostApp.ALL_CLUSTERS_MINIMAL:
             return 'all-clusters-minimal-app/linux'
-        elif self == HostApp.CHIP_TOOL:
+        if self == HostApp.ALL_DEVICES_APP:
+            return 'all-devices-app/posix'
+        if self == HostApp.CHIP_TOOL:
             return 'chip-tool'
-        elif self == HostApp.CHIP_TOOL_DARWIN:
+        if self == HostApp.CHIP_TOOL_DARWIN:
             return 'darwin-framework-tool'
-        elif self == HostApp.THERMOSTAT:
+        if self == HostApp.THERMOSTAT:
             return 'thermostat/linux'
-        elif self == HostApp.RPC_CONSOLE:
+        if self == HostApp.RPC_CONSOLE:
             return 'common/pigweed/rpc_console'
-        elif self == HostApp.MIN_MDNS:
+        if self == HostApp.MIN_MDNS:
             return 'minimal-mdns'
-        elif self == HostApp.TV_APP:
+        if self == HostApp.TV_APP:
             return 'tv-app/linux'
-        elif self == HostApp.TV_CASTING_APP:
+        if self == HostApp.TV_CASTING_APP:
             return 'tv-casting-app/linux'
-        elif self == HostApp.LIGHT:
+        if self == HostApp.LIGHT:
             return 'lighting-app/linux'
-        elif self == HostApp.LIGHT_DATA_MODEL_NO_UNIQUE_ID:
+        if self == HostApp.LIGHT_DATA_MODEL_NO_UNIQUE_ID:
             return 'lighting-app-data-mode-no-unique-id/linux'
-        elif self == HostApp.LOCK:
+        if self == HostApp.LOCK:
             return 'lock-app/linux'
-        elif self == HostApp.SHELL:
+        if self == HostApp.SHELL:
             return 'shell/standalone'
-        elif self == HostApp.OTA_PROVIDER:
+        if self == HostApp.OTA_PROVIDER:
             return 'ota-provider-app/linux'
-        elif self in [HostApp.SIMULATED_APP1, HostApp.SIMULATED_APP2]:
+        if self in [HostApp.SIMULATED_APP1, HostApp.SIMULATED_APP2]:
             return 'placeholder/linux/'
-        elif self == HostApp.OTA_REQUESTOR:
+        if self == HostApp.OTA_REQUESTOR:
             return 'ota-requestor-app/linux'
-        elif self in [HostApp.ADDRESS_RESOLVE, HostApp.TESTS, HostApp.PYTHON_BINDINGS, HostApp.CERT_TOOL]:
+        if self in [HostApp.ADDRESS_RESOLVE, HostApp.TESTS, HostApp.PYTHON_BINDINGS, HostApp.CERT_TOOL]:
             return '../'
-        elif self == HostApp.EFR32_TEST_RUNNER:
+        if self == HostApp.EFR32_TEST_RUNNER:
             return '../src/test_driver/efr32'
-        elif self == HostApp.TV_CASTING:
+        if self == HostApp.TV_CASTING:
             return 'tv-casting-app/linux'
-        elif self == HostApp.BRIDGE:
+        if self == HostApp.BRIDGE:
             return 'bridge-app/linux'
-        elif self == HostApp.FABRIC_ADMIN:
+        if self == HostApp.FABRIC_ADMIN:
             return 'fabric-admin'
-        elif self == HostApp.FABRIC_BRIDGE:
+        if self == HostApp.FABRIC_BRIDGE:
             return 'fabric-bridge-app/linux'
-        elif self == HostApp.FABRIC_SYNC:
+        if self == HostApp.FABRIC_SYNC:
             return 'fabric-sync'
-        elif self == HostApp.JAVA_MATTER_CONTROLLER:
+        if self == HostApp.JAVA_MATTER_CONTROLLER:
             return 'java-matter-controller'
-        elif self == HostApp.KOTLIN_MATTER_CONTROLLER:
+        if self == HostApp.KOTLIN_MATTER_CONTROLLER:
             return 'kotlin-matter-controller'
-        elif self == HostApp.CONTACT_SENSOR:
+        if self == HostApp.CONTACT_SENSOR:
             return 'contact-sensor-app/linux'
-        elif self == HostApp.DISHWASHER:
+        if self == HostApp.DISHWASHER:
             return 'dishwasher-app/linux'
-        elif self == HostApp.MICROWAVE_OVEN:
+        if self == HostApp.MICROWAVE_OVEN:
             return 'microwave-oven-app/linux'
-        elif self == HostApp.REFRIGERATOR:
+        if self == HostApp.REFRIGERATOR:
             return 'refrigerator-app/linux'
-        elif self == HostApp.RVC:
+        if self == HostApp.RVC:
             return 'rvc-app/linux'
-        elif self == HostApp.AIR_PURIFIER:
+        if self == HostApp.AIR_PURIFIER:
             return 'air-purifier-app/linux'
-        elif self == HostApp.LIT_ICD:
+        if self == HostApp.LIT_ICD:
             return 'lit-icd-app/linux'
-        elif self == HostApp.AIR_QUALITY_SENSOR:
+        if self == HostApp.AIR_QUALITY_SENSOR:
             return 'air-quality-sensor-app/linux'
-        elif self == HostApp.NETWORK_MANAGER:
+        if self == HostApp.NETWORK_MANAGER:
             return 'network-manager-app/linux'
-        elif self == HostApp.ENERGY_GATEWAY:
+        if self == HostApp.ENERGY_GATEWAY:
             return 'energy-gateway-app/linux'
-        elif self == HostApp.ENERGY_MANAGEMENT:
-            return 'energy-management-app/linux'
-        elif self == HostApp.WATER_LEAK_DETECTOR:
+        if self == HostApp.EVSE:
+            return 'evse-app/linux'
+        if self == HostApp.WATER_HEATER:
+            return 'water-heater-app/linux'
+        if self == HostApp.WATER_LEAK_DETECTOR:
             return 'water-leak-detector-app/linux'
-        elif self == HostApp.TERMS_AND_CONDITIONS:
+        if self == HostApp.TERMS_AND_CONDITIONS:
             return 'terms-and-conditions-app/linux'
-        elif self == HostApp.CAMERA:
+        if self == HostApp.CAMERA:
             return 'camera-app/linux'
-        elif self == HostApp.CAMERA_CONTROLLER:
+        if self == HostApp.CAMERA_CONTROLLER:
             return 'camera-controller'
-        elif self == HostApp.JF_CONTROL:
+        if self == HostApp.JF_CONTROL:
             return 'jf-control-app'
-        elif self == HostApp.JF_ADMIN:
+        if self == HostApp.JF_ADMIN:
             return 'jf-admin-app/linux'
-        elif self == HostApp.CLOSURE:
+        if self == HostApp.CLOSURE:
             return 'closure-app/linux'
-        else:
-            raise Exception('Unknown app type: %r' % self)
+        raise Exception('Unknown app type: %r' % self)
 
     def OutputNames(self):
         if self == HostApp.ALL_CLUSTERS:
@@ -214,6 +220,9 @@ class HostApp(Enum):
         elif self == HostApp.ALL_CLUSTERS_MINIMAL:
             yield 'chip-all-clusters-minimal-app'
             yield 'chip-all-clusters-minimal-app.map'
+        elif self == HostApp.ALL_DEVICES_APP:
+            yield 'all-devices-app'
+            yield 'all-devices-app.map'
         elif self == HostApp.CHIP_TOOL:
             yield 'chip-tool'
             yield 'chip-tool.map'
@@ -319,9 +328,12 @@ class HostApp(Enum):
         elif self == HostApp.ENERGY_GATEWAY:
             yield 'chip-energy-gateway-app'
             yield 'chip-energy-gateway-app.map'
-        elif self == HostApp.ENERGY_MANAGEMENT:
-            yield 'chip-energy-management-app'
-            yield 'chip-energy-management-app.map'
+        elif self == HostApp.EVSE:
+            yield 'chip-evse-app'
+            yield 'chip-evse-app.map'
+        elif self == HostApp.WATER_HEATER:
+            yield 'matter-water-heater-app'
+            yield 'matter-water-heater-app.map'
         elif self == HostApp.WATER_LEAK_DETECTOR:
             yield 'water-leak-detector-app'
             yield 'water-leak-detector-app.map'
@@ -368,28 +380,26 @@ class HostBoard(Enum):
                 arch = 'arm64'
 
             return arch
-        elif self == HostBoard.ARM64:
+        if self == HostBoard.ARM64:
             return 'arm64'
-        elif self == HostBoard.FAKE:
+        if self == HostBoard.FAKE:
             return 'fake'
-        else:
-            raise Exception('Unknown host board type: %r' % self)
+        raise Exception('Unknown host board type: %r' % self)
 
     def PlatformName(self):
         if self == HostBoard.NATIVE:
             return uname().system.lower()
-        elif self == HostBoard.FAKE:
+        if self == HostBoard.FAKE:
             return 'fake'
-        else:
-            # Cross compilation assumes linux currently
-            return 'linux'
+        # Cross compilation assumes linux currently
+        return 'linux'
 
 
 class HostBuilder(GnBuilder):
 
     def __init__(self, root, runner, app: HostApp, board=HostBoard.NATIVE,
                  enable_ipv4=True, enable_ble=True, enable_wifi=True, enable_wifipaf=True,
-                 enable_thread=True, use_tsan=False, use_asan=False, use_ubsan=False,
+                 enable_groupcast=True, enable_thread=True, use_tsan=False, use_asan=False, use_ubsan=False,
                  separate_event_loop=True, fuzzing_type: HostFuzzingType = HostFuzzingType.NONE, use_clang=False,
                  interactive_mode=True, extra_tests=False, use_nl_fault_injection=False, use_platform_mdns=False, enable_rpcs=False,
                  use_coverage=False, use_dmalloc=False, minmdns_address_policy=None,
@@ -401,7 +411,9 @@ class HostBuilder(GnBuilder):
                  use_googletest=False,
                  enable_webrtc=False,
                  terms_and_conditions_required: Optional[bool] = None, chip_enable_nfc_based_commissioning=None,
-                 unified=False
+                 openthread_endpoint=False,
+                 unified=False,
+                 chip_enable_endpoint_unique_id: Optional[bool] = None,
                  ):
         """
         Construct a host builder.
@@ -431,6 +443,9 @@ class HostBuilder(GnBuilder):
         if not enable_ipv4:
             self.extra_gn_options.append('chip_inet_config_enable_ipv4=false')
 
+        if not enable_groupcast:
+            self.extra_gn_options.append('chip_config_enable_groupcast=false')
+
         if not enable_ble:
             self.extra_gn_options.append('chip_config_network_layer_ble=false')
             self.extra_gn_options.append('chip_enable_ble=false')
@@ -450,7 +465,7 @@ class HostBuilder(GnBuilder):
             self.extra_gn_options.append('chip_enable_wifi=false')
 
         if not enable_thread:
-            self.extra_gn_options.append('chip_enable_openthread=false')
+            self.extra_gn_options.append('chip_enable_thread=false')
 
         if disable_shell:
             self.extra_gn_options.append('chip_build_libshell=false')
@@ -532,6 +547,13 @@ class HostBuilder(GnBuilder):
             # include things added by the test_runner efr32 build
             self.extra_gn_options.append('silabs_board="BRD4187C"')
 
+            if "GSDK_ROOT" in os.environ:
+                # EFR32 SDK is very large. If the SDK path is already known (the
+                # case for pre-installed images), use it directly.
+                sdk_path = shlex.quote(os.environ['GSDK_ROOT'])
+                self.extra_gn_options.append(f"efr32_sdk_root=\"{sdk_path}\"")
+                self.extra_gn_options.append(f"openthread_root=\"{sdk_path}/openthread_stack/util/third_party/openthread\"")
+
         # Crypto library has per-platform defaults (like openssl for linux/mac
         # and mbedtls for android/freertos/zephyr/mbed/...)
         if crypto_library:
@@ -555,6 +577,11 @@ class HostBuilder(GnBuilder):
 
         if chip_casting_simplified is not None:
             self.extra_gn_options.append(f'chip_casting_simplified={str(chip_casting_simplified).lower()}')
+            if chip_casting_simplified:
+                self.extra_gn_options.append(
+                    'chip_cluster_objects_source_override='
+                    '"${chip_root}/examples/tv-casting-app/tv-casting-common/casting-cluster-objects.cpp"'
+                )
 
         if enable_webrtc:
             self.extra_gn_options.append('chip_support_webrtc_python_bindings=true')
@@ -564,6 +591,18 @@ class HostBuilder(GnBuilder):
                 self.extra_gn_options.append('chip_terms_and_conditions_required=true')
             else:
                 self.extra_gn_options.append('chip_terms_and_conditions_required=false')
+
+        if chip_enable_endpoint_unique_id is not None:
+            if chip_enable_endpoint_unique_id:
+                self.extra_gn_options.append('chip_enable_endpoint_unique_id=true')
+            else:
+                self.extra_gn_options.append('chip_enable_endpoint_unique_id=false')
+
+        if openthread_endpoint:
+            if enable_wifi:
+                raise Exception("OpenThread EndPoint mode does not support Wifi")
+
+            self.extra_gn_options.append('chip_system_config_use_openthread_inet_endpoints=true')
 
         if self.board == HostBoard.ARM64:
             if not use_clang:
@@ -601,29 +640,24 @@ class HostBuilder(GnBuilder):
             self.extra_gn_options.append('chip_build_tests_googletest=true')
 
     def GnBuildArgs(self):
-        if self.board == HostBoard.NATIVE:
-            return self.extra_gn_options
-        elif self.board == HostBoard.ARM64:
-            self.extra_gn_options.extend(
-                [
+        args = super().GnBuildArgs()
+        args.extend(self.extra_gn_options)
+        match self.board:
+            case HostBoard.NATIVE:
+                pass
+            case HostBoard.ARM64:
+                args.extend([
                     'target_cpu="arm64"',
                     'sysroot="%s"' % self.SysRootPath('SYSROOT_AARCH64')
-                ]
-            )
-
-            return self.extra_gn_options
-        elif self.board == HostBoard.FAKE:
-            self.extra_gn_options.extend(
-                [
+                ])
+            case HostBoard.FAKE:
+                args.extend([
                     'custom_toolchain="//build/toolchain/fake:fake_x64_gcc"',
                     'chip_link_tests=true',
                     'chip_device_platform="fake"',
                     'chip_fake_platform=true',
-                ]
-            )
-            return self.extra_gn_options
-        else:
-            raise Exception('Unknown host board type: %r' % self)
+                ])
+        return args
 
     def createJavaExecutable(self, java_program):
         self._Execute(

@@ -5,5 +5,5 @@ zeroconf
 ifaddr
 langcodes
 requests
-pyscard
-ndeflib
+pycountry
+validators

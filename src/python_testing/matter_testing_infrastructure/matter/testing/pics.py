@@ -29,6 +29,10 @@ from matter.testing.spec_parsing import XmlCluster
 from matter.tlv import uint
 
 
+def event_pics_str(pics_base: str, id: int) -> str:
+    return f'{pics_base}.S.E{id:02x}'
+
+
 def attribute_pics_str(pics_base: str, id: int) -> str:
     return f'{pics_base}.S.A{id:04x}'
 
@@ -106,10 +110,9 @@ def read_pics_from_file(path: str) -> dict[str, bool]:
                 pics_dict.update(parse_pics_xml(contents))
         return pics_dict
 
-    else:
-        with open(path, 'r') as f:
-            lines = f.readlines()
-            return parse_pics(lines)
+    with open(path, 'r') as f:
+        lines = f.readlines()
+        return parse_pics(lines)
 
 
 def generate_device_element_pics_from_device_wildcard(wildcard: AsyncReadTransaction.ReadResponse, xml_clusters: dict[uint, XmlCluster]) -> tuple[dict[int, list[str]], list[ProblemNotice]]:

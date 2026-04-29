@@ -20,9 +20,11 @@
 #include "AES_CCM_128_test_vectors.h"
 #include "DerSigConversion_test_vectors.h"
 #include "ECDH_P256_test_vectors.h"
+#include "ECDSA_det_test_vectors.h"
 #include "HKDF_SHA256_test_vectors.h"
 #include "HMAC_SHA256_test_vectors.h"
 #include "Hash_SHA256_test_vectors.h"
+#include "P256_test_vectors.h"
 #include "PBKDF2_SHA256_test_vectors.h"
 
 #include "RawIntegerToDer_test_vectors.h"
@@ -42,7 +44,9 @@
 #include <lib/core/CHIPError.h>
 #include <lib/core/StringBuilderAdapters.h>
 #include <lib/support/CodeUtils.h>
-#include <lib/support/ScopedBuffer.h>
+#include <lib/support/ScopedMemoryBuffer.h>
+#include <lib/support/Span.h>
+#include <lib/support/tests/ExtraPwTestMacros.h>
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -616,14 +620,41 @@ TEST_F(TestChipCryptoPAL, TestAES_CCM_128DecryptInvalidNonceLen)
     EXPECT_GT(numOfTestsRan, 0);
 }
 
+TEST_F(TestChipCryptoPAL, TestSymmetricKeyHandleOpaqueBytesRoundTrip)
+{
+    HeapChecker heapChecker;
+
+    constexpr Symmetric128BitsKeyByteArray keyBytes = { 0xd0, 0x0f };
+    constexpr uint8_t nonce[NONCE_LENGTH]           = { 0xf0, 0x0d };
+    constexpr uint8_t plaintext[16]                 = { 0xca, 0xfe };
+
+    // Create an arbitrary Aes128KeyHandle
+    DefaultSessionKeystore keystore;
+    Aes128KeyHandle originalHandle;
+    ASSERT_SUCCESS(keystore.CreateKey(keyBytes, originalHandle));
+
+    // Simulate a roundtrip into a new handle via persistent storage using OpaqueBytes.
+    Aes128KeyHandle restoredHandle;
+    memcpy(restoredHandle.OpaqueBytes().data(), originalHandle.OpaqueBytes().data(), Aes128KeyHandle::Size());
+
+    // Verify the two handles reference the same key by round-tripping some data
+    uint8_t ciphertext[16];
+    ASSERT_SUCCESS(AES_CTR_crypt(plaintext, sizeof(plaintext), originalHandle, nonce, NONCE_LENGTH, ciphertext));
+    uint8_t recovered[16];
+    ASSERT_SUCCESS(AES_CTR_crypt(ciphertext, sizeof(ciphertext), restoredHandle, nonce, NONCE_LENGTH, recovered));
+    EXPECT_EQ(memcmp(recovered, plaintext, sizeof(plaintext)), 0);
+
+    // Destroy the key via the restored handle only
+    keystore.DestroyKey(restoredHandle);
+}
+
 TEST_F(TestChipCryptoPAL, TestSensitiveDataBuffer)
 {
     HeapChecker heapChecker;
 
-    constexpr size_t kCapacity         = 32;
-    constexpr size_t kLength           = 16;
-    using Buffer                       = SensitiveDataBuffer<kCapacity>;
-    const uint8_t kAllZeros[kCapacity] = { 0 };
+    constexpr size_t kCapacity = 32;
+    constexpr size_t kLength   = 16;
+    using Buffer               = SensitiveDataBuffer<kCapacity>;
     uint8_t testVector[kCapacity];
 
     // Give us some data.
@@ -637,7 +668,7 @@ TEST_F(TestChipCryptoPAL, TestSensitiveDataBuffer)
 
     // Put data in the buffer and test all accessors
     memcpy(buffer.Bytes(), testVector, kCapacity);
-    buffer.SetLength(kLength);
+    EXPECT_SUCCESS(buffer.SetLength(kLength));
 
     EXPECT_EQ(buffer.ConstBytes(), (const uint8_t *) buffer.Bytes());
     EXPECT_EQ(buffer.ConstBytes(), buffer.Span().data());
@@ -645,20 +676,27 @@ TEST_F(TestChipCryptoPAL, TestSensitiveDataBuffer)
     EXPECT_EQ(buffer.Length(), buffer.Span().size());
 
     // Test sanitization of entire buffer (even though length < capacity)
-    const void * bufferStorage = buffer.ConstBytes();
+    [[maybe_unused]] const void * bufferStorage = buffer.ConstBytes();
     buffer.~Buffer();
+    // This check reads memory after the SensitiveDataBuffer destructor is called explicitly to verify secure erasure.
+    // MSan (correctly) flags the memcmp after destructor call as use-of-uninitialized-value, so skip under MSan.
+#if !CHIP_MEMORY_SANITIZER_ENABLED
+    const uint8_t kAllZeros[kCapacity] = { 0 };
     EXPECT_EQ(memcmp(bufferStorage, kAllZeros, kCapacity), 0);
     EXPECT_TRUE(memcmp(bufferStorage, testVector, kCapacity));
+#endif
+
+    // Reconstruct so the automatic destructor at scope exit does not double-destroy.
+    new (&buffer) Buffer();
 }
 
 TEST_F(TestChipCryptoPAL, TestSensitiveDataFixedBuffer)
 {
     HeapChecker heapChecker;
 
-    constexpr size_t kCapacity         = 32;
-    using Buffer                       = SensitiveDataFixedBuffer<kCapacity>;
-    using BufferSpan                   = FixedByteSpan<kCapacity>;
-    const uint8_t kAllZeros[kCapacity] = { 0 };
+    constexpr size_t kCapacity = 32;
+    using Buffer               = SensitiveDataFixedBuffer<kCapacity>;
+    using BufferSpan           = FixedByteSpan<kCapacity>;
     uint8_t testVector[kCapacity];
 
     // Give us some data.
@@ -671,11 +709,16 @@ TEST_F(TestChipCryptoPAL, TestSensitiveDataFixedBuffer)
     EXPECT_EQ(buffer.ConstBytes(), buffer.Span().data());
     EXPECT_EQ(memcmp(buffer.ConstBytes(), testVector, kCapacity), 0);
 
-    // Test sanitization
-    const void * bufferStorage = buffer.ConstBytes();
+    // Verify that the destructor clears sensitive data
+    [[maybe_unused]] const void * bufferStorage = buffer.ConstBytes();
     buffer.~Buffer();
+    // This check reads memory after the SensitiveDataBuffer destructor is called explicitly to verify secure erasure.
+    // MSan (correctly) flags the memcmp after destructor call as use-of-uninitialized-value, so skip under MSan.
+#if !CHIP_MEMORY_SANITIZER_ENABLED
+    const uint8_t kAllZeros[kCapacity] = { 0 };
     EXPECT_EQ(memcmp(bufferStorage, kAllZeros, kCapacity), 0);
     EXPECT_TRUE(memcmp(bufferStorage, testVector, kCapacity));
+#endif
 
     // Give us different data
     err = DRBG_get_bytes(testVector, sizeof(testVector));
@@ -948,7 +991,7 @@ TEST_F(TestChipCryptoPAL, TestHash_SHA256)
     {
         hash_sha256_vector v = hash_sha256_test_vectors[numOfTestsExecuted];
         uint8_t out_buffer[kSHA256_Hash_Length];
-        Hash_SHA256(v.data, v.data_length, out_buffer);
+        EXPECT_SUCCESS(Hash_SHA256(v.data, v.data_length, out_buffer));
         bool success = memcmp(v.hash, out_buffer, sizeof(out_buffer)) == 0;
         EXPECT_TRUE(success);
     }
@@ -1033,7 +1076,7 @@ TEST_F(TestChipCryptoPAL, TestHash_SHA256_Stream)
             EXPECT_EQ(partial_digest_span1.size(), kSHA256_Hash_Length);
 
             // Validate partial digest matches expectations
-            Hash_SHA256(&source_buf[0], block1_size, &partial_digest_ref[0]);
+            EXPECT_SUCCESS(Hash_SHA256(&source_buf[0], block1_size, &partial_digest_ref[0]));
             EXPECT_EQ(0, memcmp(partial_digest_span1.data(), partial_digest_ref, partial_digest_span1.size()));
 
             // Compute partial digest and total digest after second block
@@ -1046,7 +1089,7 @@ TEST_F(TestChipCryptoPAL, TestHash_SHA256_Stream)
             EXPECT_EQ(total_digest_span.size(), kSHA256_Hash_Length);
 
             // Validate second partial digest matches final digest
-            Hash_SHA256(&source_buf[0], block1_size + block2_size, &total_digest_ref[0]);
+            EXPECT_SUCCESS(Hash_SHA256(&source_buf[0], block1_size + block2_size, &total_digest_ref[0]));
             EXPECT_EQ(0, memcmp(partial_digest_span2.data(), total_digest_ref, partial_digest_span2.size()));
             EXPECT_EQ(0, memcmp(total_digest_span.data(), total_digest_ref, total_digest_span.size()));
         }
@@ -1061,7 +1104,7 @@ TEST_F(TestChipCryptoPAL, TestHash_SHA256_Stream)
         MutableByteSpan digest_span_too_small(digest_buf_too_small);
         MutableByteSpan digest_span_ok(digest_buf_ok);
 
-        Hash_SHA256(&source_buf2[0], sizeof(source_buf2), &digest_buf_ref[0]);
+        EXPECT_SUCCESS(Hash_SHA256(&source_buf2[0], sizeof(source_buf2), &digest_buf_ref[0]));
 
         Hash_SHA256_stream sha256;
         EXPECT_EQ(sha256.Begin(), CHIP_NO_ERROR);
@@ -1097,12 +1140,34 @@ TEST_F(TestChipCryptoPAL, TestHMAC_SHA256_RawKey)
         chip::Platform::ScopedMemoryBuffer<uint8_t> out_buffer;
         out_buffer.Alloc(out_length);
         EXPECT_TRUE(out_buffer);
-        mHMAC.HMAC_SHA256(v.key, v.key_length, v.message, v.message_length, out_buffer.Get(), v.output_hash_length);
+        EXPECT_SUCCESS(mHMAC.HMAC_SHA256(v.key, v.key_length, v.message, v.message_length, out_buffer.Get(), v.output_hash_length));
         bool success = memcmp(v.output_hash, out_buffer.Get(), out_length) == 0;
         EXPECT_TRUE(success);
     }
     EXPECT_EQ(numOfTestsExecuted, numOfTestCases);
 }
+
+#if CHIP_CRYPTO_PSA
+// Regression test for a bug where HMAC_SHA256 returned CHIP_NO_ERROR even when the underlying PSA call failed.
+// Fault Injection: A key larger than PSA_MAX_KEY_BITS makes the PAL's internal psa_import_key() return
+// PSA_ERROR_NOT_SUPPORTED; the PAL must return a non-success CHIP_ERROR.
+TEST_F(TestChipCryptoPAL, TestHMAC_SHA256_RawKey_PsaFailurePropagates)
+{
+    constexpr size_t kOversizedKeyBytes = PSA_BITS_TO_BYTES(PSA_MAX_KEY_BITS) + 1;
+    chip::Platform::ScopedMemoryBuffer<uint8_t> oversizedKey;
+    oversizedKey.Alloc(kOversizedKeyBytes);
+    ASSERT_TRUE(oversizedKey);
+    memset(oversizedKey.Get(), 0, kOversizedKeyBytes);
+
+    const uint8_t msg[8]                          = {};
+    uint8_t mac[PSA_HASH_LENGTH(PSA_ALG_SHA_256)] = {};
+
+    TestHMAC_sha mHMAC;
+    CHIP_ERROR err = mHMAC.HMAC_SHA256(oversizedKey.Get(), kOversizedKeyBytes, msg, sizeof(msg), mac, sizeof(mac));
+
+    EXPECT_NE(err, CHIP_NO_ERROR);
+}
+#endif
 
 #if !(CHIP_CRYPTO_KEYSTORE_APP)
 TEST_F(TestChipCryptoPAL, TestHMAC_SHA256_KeyHandle)
@@ -1127,7 +1192,7 @@ TEST_F(TestChipCryptoPAL, TestHMAC_SHA256_KeyHandle)
         Hmac128KeyHandle keyHandle;
         EXPECT_EQ(keystore.CreateKey(keyMaterial, keyHandle), CHIP_NO_ERROR);
 
-        mHMAC.HMAC_SHA256(keyHandle, v.message, v.message_length, out_buffer.Get(), v.output_hash_length);
+        EXPECT_SUCCESS(mHMAC.HMAC_SHA256(keyHandle, v.message, v.message_length, out_buffer.Get(), v.output_hash_length));
         bool success = memcmp(v.output_hash, out_buffer.Get(), out_length) == 0;
         EXPECT_TRUE(success);
 
@@ -1151,8 +1216,8 @@ TEST_F(TestChipCryptoPAL, TestHKDF_SHA256)
         chip::Platform::ScopedMemoryBuffer<uint8_t> out_buffer;
         out_buffer.Alloc(out_length);
         EXPECT_TRUE(out_buffer);
-        mHKDF.HKDF_SHA256(v.initial_key_material, v.initial_key_material_length, v.salt, v.salt_length, v.info, v.info_length,
-                          out_buffer.Get(), v.output_key_material_length);
+        EXPECT_SUCCESS(mHKDF.HKDF_SHA256(v.initial_key_material, v.initial_key_material_length, v.salt, v.salt_length, v.info,
+                                         v.info_length, out_buffer.Get(), v.output_key_material_length));
         bool success = memcmp(v.output_key_material, out_buffer.Get(), out_length) == 0;
         EXPECT_TRUE(success);
     }
@@ -1367,6 +1432,72 @@ TEST_F(TestChipCryptoPAL, TestECDSA_ValidationHashInvalidParam)
     signing_error = CHIP_NO_ERROR;
 }
 
+TEST_F(TestChipCryptoPAL, TestP256_DeterministicECDSA_Sanity)
+{
+    HeapChecker heapChecker;
+    P256Keypair keypair;
+    ASSERT_SUCCESS(keypair.Initialize(ECPKeyTarget::ECDSA));
+
+    const char * msg         = "Test Message for Deterministic ECDSA";
+    const uint8_t * test_msg = Uint8::from_const_char(msg);
+    size_t msglen            = strlen(msg);
+
+    // Sign the same message twice and verify the signatures are identical (and valid)
+    P256ECDSASignature sig1;
+    CHIP_ERROR err = keypair.ECDSA_sign_msg_det(test_msg, msglen, sig1);
+    if (err == CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE)
+    {
+        GTEST_SKIP() << "Skipping test: P256Keypair::ECDSA_sign_msg_det not supported";
+    }
+    EXPECT_SUCCESS(err);
+    EXPECT_SUCCESS(keypair.Pubkey().ECDSA_validate_msg_signature(test_msg, msglen, sig1));
+
+    P256ECDSASignature sig2;
+    EXPECT_SUCCESS(keypair.ECDSA_sign_msg_det(test_msg, msglen, sig2));
+    EXPECT_TRUE(sig1.Span().data_equal(sig2.Span()));
+}
+
+TEST_F(TestChipCryptoPAL, TestP256_DeterministicECDSA_TestVectors)
+{
+    HeapChecker heapChecker;
+
+    for (const auto & tv : ecdsa_det_test_vectors)
+    {
+        // Construct a serialized keypair from the test vector: [04 || Qx || Qy || d]
+        P256SerializedKeypair serialized;
+        uint8_t * p = serialized.Bytes();
+        *p++        = 0x04;
+        memcpy(p, tv.public_key_x, sizeof(tv.public_key_x));
+        p += sizeof(tv.public_key_x);
+        memcpy(p, tv.public_key_y, sizeof(tv.public_key_y));
+        p += sizeof(tv.public_key_y);
+        memcpy(p, tv.private_key, sizeof(tv.private_key));
+        p += sizeof(tv.private_key);
+        EXPECT_EQ(serialized.Bytes() + serialized.Capacity(), p);
+        EXPECT_SUCCESS(serialized.SetLength(serialized.Capacity()));
+
+        P256Keypair keypair;
+        EXPECT_SUCCESS(keypair.Deserialize(serialized));
+
+        CharSpan message = CharSpan::fromCharString(tv.message);
+        P256ECDSASignature sig;
+        CHIP_ERROR err = keypair.ECDSA_sign_msg_det(Uint8::from_const_char(message.data()), message.size(), sig);
+        if (err == CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE)
+        {
+            GTEST_SKIP() << "Skipping test: P256Keypair::ECDSA_sign_msg_det not supported";
+        }
+        EXPECT_SUCCESS(err);
+
+        // Verify the signature is valid
+        EXPECT_SUCCESS(keypair.Pubkey().ECDSA_validate_msg_signature(Uint8::from_const_char(message.data()), message.size(), sig));
+
+        // Compare r and s against expected values
+        EXPECT_EQ(sig.Length(), kP256_ECDSA_Signature_Length_Raw);
+        EXPECT_EQ(memcmp(sig.ConstBytes(), tv.r, kP256_FE_Length), 0);
+        EXPECT_EQ(memcmp(sig.ConstBytes() + kP256_FE_Length, tv.s, kP256_FE_Length), 0);
+    }
+}
+
 TEST_F(TestChipCryptoPAL, TestECDH_EstablishSecret)
 {
     HeapChecker heapChecker;
@@ -1377,10 +1508,11 @@ TEST_F(TestChipCryptoPAL, TestECDH_EstablishSecret)
     EXPECT_EQ(keypair2.Initialize(ECPKeyTarget::ECDH), CHIP_NO_ERROR);
 
     P256ECDHDerivedSecret out_secret1;
-    out_secret1.Bytes()[0] = 0;
+    memset(out_secret1.Bytes(), 0, out_secret1.Capacity());
 
     P256ECDHDerivedSecret out_secret2;
-    out_secret2.Bytes()[0] = 1;
+    // Initialise out_secret2 to 1s to ensure that we pass the sanity check below
+    memset(out_secret2.Bytes(), 1, out_secret2.Capacity());
 
     CHIP_ERROR error = CHIP_NO_ERROR;
     EXPECT_NE(memcmp(out_secret1.ConstBytes(), out_secret2.ConstBytes(), out_secret1.Capacity()),
@@ -1456,6 +1588,28 @@ TEST_F(TestChipCryptoPAL, TestPBKDF2_SHA256_TestVectors)
     EXPECT_GT(numOfTestsRan, 0);
 }
 
+#if CHIP_CRYPTO_PSA
+// Regression test for a bug where pbkdf2_sha256 returned CHIP_NO_ERROR even when the underlying PSA call failed.
+// Fault Injection: A password larger than PSA_MAX_KEY_BITS makes the PAL's internal psa_import_key() return
+// PSA_ERROR_NOT_SUPPORTED; the PAL must return a non-success CHIP_ERROR.
+TEST_F(TestChipCryptoPAL, TestPBKDF2_SHA256_PsaFailurePropagates)
+{
+    constexpr size_t kOversizedPassBytes = PSA_BITS_TO_BYTES(PSA_MAX_KEY_BITS) + 1;
+    chip::Platform::ScopedMemoryBuffer<uint8_t> oversizedPass;
+    oversizedPass.Alloc(kOversizedPassBytes);
+    ASSERT_TRUE(oversizedPass);
+    memset(oversizedPass.Get(), 0, kOversizedPassBytes);
+
+    const uint8_t salt[16] = {};
+    uint8_t outKey[32]     = {};
+
+    TestPBKDF2_sha256 pbkdf;
+    CHIP_ERROR err = pbkdf.pbkdf2_sha256(oversizedPass.Get(), kOversizedPassBytes, salt, sizeof(salt), 1, sizeof(outKey), outKey);
+
+    EXPECT_NE(err, CHIP_NO_ERROR);
+}
+#endif
+
 TEST_F(TestChipCryptoPAL, TestP256_Keygen)
 {
     HeapChecker heapChecker;
@@ -1469,6 +1623,74 @@ TEST_F(TestChipCryptoPAL, TestP256_Keygen)
     P256ECDSASignature test_sig;
     EXPECT_EQ(keypair.ECDSA_sign_msg(test_msg, msglen, test_sig), CHIP_NO_ERROR);
     EXPECT_EQ(keypair.Pubkey().ECDSA_validate_msg_signature(test_msg, msglen, test_sig), CHIP_NO_ERROR);
+}
+
+TEST_F(TestChipCryptoPAL, TestP256_InitializeFromBitsOrReject)
+{
+    HeapChecker heapChecker;
+    P256Keypair keypair;
+    static constexpr uint8_t kZeroes[kP256_PrivateKey_Length] = { 0 };
+
+    CHIP_ERROR err = keypair.InitializeFromBitsOrReject(FixedSpan(kZeroes));
+    if (err == CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE)
+    {
+        GTEST_SKIP() << "Skipping test: P256Keypair::InitializeFromBitsOrReject not supported";
+    }
+    EXPECT_SUCCESS(err);
+
+    uint8_t bits[kP256_PrivateKey_Length];
+    for (auto & tv : p256_test_vectors)
+    {
+        static_assert(sizeof(bits) == sizeof(tv.d));
+        memcpy(bits, tv.d, sizeof(bits));
+
+        // Decrement big integer `bits` by 1. Valid values for d are in [1, N-1],
+        // but FIPS 186-5 A.4.2 requires checking for x in [0, N-2] and then
+        // setting d = x + 1. Note that the subtraction here doesn't handle
+        // underflow, but none of the test vectors have an LSB of 0.
+        ASSERT_TRUE(bits[kP256_PrivateKey_Length - 1]-- != 0);
+
+        keypair.Clear();
+        EXPECT_SUCCESS(keypair.InitializeFromBitsOrReject(FixedSpan(bits)));
+
+        // Construct expected serialized keypair from the test vector
+        P256SerializedKeypair expected;
+        uint8_t * p = expected.Bytes();
+        *p++        = 0x04; // Uncompressed point tag
+        memcpy(p, tv.Qx, sizeof(tv.Qx));
+        p += sizeof(tv.Qx);
+        memcpy(p, tv.Qy, sizeof(tv.Qy));
+        p += sizeof(tv.Qy);
+        memcpy(p, tv.d, sizeof(tv.d));
+        p += sizeof(tv.d);
+        EXPECT_EQ(expected.Bytes() + expected.Capacity(), p);
+        EXPECT_SUCCESS(expected.SetLength(expected.Capacity()));
+
+        P256SerializedKeypair actual;
+        EXPECT_SUCCESS(keypair.Serialize(actual));
+        EXPECT_TRUE(actual.Span().data_equal(expected.Span()));
+    }
+
+    static constexpr uint8_t kP256CurveOrder[] = { 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff,
+                                                   0xff, 0xff, 0xff, 0xff, 0xff, 0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17,
+                                                   0x9e, 0x84, 0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51 };
+    static_assert(sizeof(kP256CurveOrder) == kP256_PrivateKey_Length);
+
+    // Test a few values around the curve order boundary. Values up to and including N-2 are valid.
+    for (int ofs = -4; ofs < 2; ofs++)
+    {
+        memcpy(bits, kP256CurveOrder, sizeof(bits));
+        bits[kP256_PrivateKey_Length - 1] = static_cast<uint8_t>(
+            bits[kP256_PrivateKey_Length - 1] + ofs); // LSB of curve order is 0x51, no over/underflow handling needed
+
+        keypair.Clear();
+        CHIP_ERROR expected = (ofs <= -2) ? CHIP_NO_ERROR : CHIP_ERROR_INVALID_ARGUMENT;
+        EXPECT_EQ(keypair.InitializeFromBitsOrReject(FixedSpan(bits)), expected);
+    }
+
+    memset(bits, 0xff, sizeof(bits));
+    keypair.Clear();
+    EXPECT_EQ(keypair.InitializeFromBitsOrReject(FixedSpan(bits)), CHIP_ERROR_INVALID_ARGUMENT);
 }
 
 TEST_F(TestChipCryptoPAL, TestCSR_Verify)

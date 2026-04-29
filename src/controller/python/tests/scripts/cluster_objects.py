@@ -84,15 +84,15 @@ class ClusterObjectTests:
     @base.test_case
     def TestAPI(cls):
         if Clusters.OnOff.id != 6:
-            raise ValueError()
+            raise ValueError
         if Clusters.OnOff.Commands.Off.command_id != 0:
-            raise ValueError()
+            raise ValueError
         if Clusters.OnOff.Commands.Off.cluster_id != 6:
-            raise ValueError()
+            raise ValueError
         if Clusters.OnOff.Commands.On.command_id != 1:
-            raise ValueError()
+            raise ValueError
         if Clusters.OnOff.Commands.On.cluster_id != 6:
-            raise ValueError()
+            raise ValueError
 
     @classmethod
     @base.test_case
@@ -102,7 +102,7 @@ class ClusterObjectTests:
         if res is not None:
             logger.error(
                 f"Got {res} Response from server, but None is expected.")
-            raise ValueError()
+            raise ValueError
 
     @classmethod
     @base.test_case
@@ -122,10 +122,10 @@ class ClusterObjectTests:
         res = await devCtrl.SendCommand(nodeId=NODE_ID, endpoint=LIGHTING_ENDPOINT_ID, payload=req)
         if not isinstance(res, Clusters.UnitTesting.Commands.TestAddArgumentsResponse):
             logger.error(f"Unexpected response of type {type(res)} received.")
-            raise ValueError()
+            raise ValueError
         logger.info(f"Received response: {res}")
         if res.returnValue != 5:
-            raise ValueError()
+            raise ValueError
 
     @classmethod
     @base.test_case
@@ -451,11 +451,8 @@ class ClusterObjectTests:
             number_of_events = len(events)
             if number_of_events != 1:
                 return False
-
             parsed_event_number = events[0].Header.EventNumber
-            if parsed_event_number != current_event_filter:
-                return False
-            return True
+            return parsed_event_number == current_event_filter
 
         await cls._RetryForContent(request=lambda: devCtrl.ReadEvent(
             nodeId=NODE_ID,
@@ -489,8 +486,7 @@ class ClusterObjectTests:
         logger.info(f"return result is {res}")
         if len(res) != 0:
             raise AssertionError("failure: not expect to receive fabric-scoped event when fabric is undefined")
-        else:
-            logger.info("TestGenerateUndefinedFabricScopedEventRequests: Success")
+        logger.info("TestGenerateUndefinedFabricScopedEventRequests: Success")
 
     @classmethod
     @base.test_case

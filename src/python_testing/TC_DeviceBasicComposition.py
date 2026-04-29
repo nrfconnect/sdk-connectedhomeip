@@ -20,7 +20,7 @@
 #
 # === BEGIN CI TEST ARGUMENTS ===
 # test-runner-runs:
-#   run1:
+#   run1: # Runs through all tests with debug mode enabled (dumps attribute data on failure)
 #     app: ${ALL_CLUSTERS_APP}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
@@ -29,21 +29,22 @@
 #       --PICS src/app/tests/suites/certification/ci-pics-values
 #       --trace-to json:${TRACE_TEST_JSON}.json
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
+#       --debug
 #     factory-reset: true
 #     quiet: true
-#   run2:
+#   run2: # tests PASE connection using manual code (12.1 only)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: --storage-path admin_storage.json --manual-code 10054912339
 #     factory-reset: true
 #     quiet: true
-#   run3:
+#   run3: # tests PASE connection using QR code (12.1 only)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: --storage-path admin_storage.json --qr-code MT:-24J0Q1212-10648G00
 #     factory-reset: true
 #     quiet: true
-#   run4:
+#   run4: # tests PASE connection using discriminator and passcode (12.1 only)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: >
@@ -52,7 +53,7 @@
 #       --passcode 20202021
 #     factory-reset: true
 #     quiet: true
-#   run5:
+#   run5: # Tests CASE connection using manual code (12.1 only)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: >
@@ -61,7 +62,7 @@
 #       --commissioning-method on-network
 #     factory-reset: true
 #     quiet: true
-#   run6:
+#   run6: # Tests CASE connection using QR code (12.1 only)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: >
@@ -70,7 +71,7 @@
 #       --commissioning-method on-network
 #     factory-reset: true
 #     quiet: true
-#   run7:
+#   run7: # Tests CASE connection using manual discriminator and passcode (12.1 only)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: >
@@ -80,18 +81,20 @@
 #       --commissioning-method on-network
 #     factory-reset: true
 #     quiet: true
-#   run8:
+#   run8: # Tests reusing storage from run7 (i.e. factory-reset=false)
 #     app: ${CHIP_LOCK_APP}
 #     app-args: --discriminator 1234 --KVS kvs1
 #     script-args: --storage-path admin_storage.json
 #     factory-reset: false
 #     quiet: true
-#   run9:
-#     script-args: --storage-path admin_storage.json --string-arg test_from_file:device_dump_0xFFF1_0x8001_1.json --tests test_TC_IDM_11_1
+#   run9: # Test using the generated attribute wildcard file from previous run
+#     script-args:
+#       --string-arg test_from_file:device_dump_0xFFF1_0x8001_1.json
+#       --PICS src/app/tests/suites/certification/ci-pics-values
 #     factory-reset: false
 #     quiet: true
-#   run10:
-#     app: ${ENERGY_MANAGEMENT_APP}
+#   run10: # Tests against energy-management-app
+#     app: ${EVSE_APP}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
 #       --storage-path admin_storage.json
@@ -101,7 +104,7 @@
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
 #     quiet: true
-#   run11:
+#   run11: # Tests against lit-icd app
 #     app: ${LIT_ICD_APP}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
@@ -112,7 +115,7 @@
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
 #     quiet: true
-#   run12:
+#   run12: # Tests against microwave-oven app
 #     app: ${CHIP_MICROWAVE_OVEN_APP}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
@@ -123,7 +126,7 @@
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
 #     quiet: true
-#   run13:
+#   run13: # Tests against chip-rvc app
 #     app: ${CHIP_RVC_APP}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
@@ -134,7 +137,7 @@
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
 #     quiet: true
-#   run14:
+#   run14: # Tests against network-management-app
 #     app: ${NETWORK_MANAGEMENT_APP}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
@@ -145,7 +148,7 @@
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
 #     quiet: true
-#   run15:
+#   run15: # Tests against lighting-app-data-mode-no-unique-id
 #     app: ${LIGHTING_APP_NO_UNIQUE_ID}
 #     app-args: --discriminator 1234 --KVS kvs1 --trace-to json:${TRACE_APP}.json
 #     script-args: >
@@ -156,29 +159,39 @@
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
 #     quiet: true
+#   run16: # Tests against all-devices-app - default (contactsensor)
+#     app: ${ALL_DEVICES_APP}
+#     app-args: >
+#       --discriminator 1234
+#       --KVS kvs1
+#     script-args: >
+#       --storage-path admin_storage.json
+#       --manual-code 10054912339
+#       --PICS src/app/tests/suites/certification/ci-pics-values
+#       --trace-to json:${TRACE_TEST_JSON}.json
+#       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
+#     factory-reset: true
+#     quiet: true
+#   run17: # Tests against all-devices-app - on/off light
+#     app: ${ALL_DEVICES_APP}
+#     app-args: >
+#       --discriminator 1234
+#       --KVS kvs1
+#       --device on-off-light
+#     script-args: >
+#       --storage-path admin_storage.json
+#       --manual-code 10054912339
+#       --PICS src/app/tests/suites/certification/ci-pics-values
+#       --trace-to json:${TRACE_TEST_JSON}.json
+#       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
+#     factory-reset: true
+#     quiet: true
 # === END CI TEST ARGUMENTS ===
 
-# Run 1: runs through all tests
-# Run 2: tests PASE connection using manual code (12.1 only)
-# Run 3: tests PASE connection using QR code (12.1 only)
-# Run 4: tests PASE connection using discriminator and passcode (12.1 only)
-# Run 5: Tests CASE connection using manual code (12.1 only)
-# Run 6: Tests CASE connection using QR code (12.1 only)
-# Run 7: Tests CASE connection using manual discriminator and passcode (12.1 only)
-# Run 8: Tests reusing storage from run7 (i.e. factory-reset=false)
-# Run 9: Test using the generated attribute wildcard file from previous run
-# Run 10: Tests against energy-management-app
-# Run 11: Tests against lit-icd app
-# Run 12: Tests against microwave-oven app
-# Run 13: Tests against chip-rvc app
-# Run 14: Tests against network-management-app
-# Run 15: Tests against lighting-app-data-mode-no-unique-id
-
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any, Callable
-
-from test_testing.DeviceConformanceTests import get_supersets
 
 import matter.clusters as Clusters
 import matter.clusters.ClusterObjects
@@ -190,14 +203,18 @@ from matter.clusters.Types import Nullable
 from matter.exceptions import ChipStackError
 from matter.interaction_model import InteractionModelError, Status
 from matter.testing.basic_composition import BasicCompositionTests
+from matter.testing.decorators import async_test_body
+from matter.testing.device_conformance_tests import get_supersets
 from matter.testing.global_attribute_ids import (AttributeIdType, ClusterIdType, CommandIdType, GlobalAttributeIds,
                                                  attribute_id_type, cluster_id_type, command_id_type)
-from matter.testing.matter_testing import MatterBaseTest, TestStep, async_test_body, default_matter_test_main
 from matter.testing.problem_notices import AttributePathLocation, ClusterPathLocation, CommandPathLocation, UnknownProblemLocation
+from matter.testing.runner import TestStep, default_matter_test_main
 from matter.testing.taglist_and_topology_test import (create_device_type_list_for_root, create_device_type_lists,
                                                       find_tag_list_problems, find_tree_roots, flat_list_ok,
                                                       get_direct_children_of_root, parts_list_problems, separate_endpoint_types)
 from matter.tlv import uint
+
+log = logging.getLogger(__name__)
 
 
 def get_vendor_id(mei: int) -> int:
@@ -272,7 +289,7 @@ def check_no_duplicates(obj: Any) -> None:
         raise ValueError(f"Value {str(obj)} contains duplicate values")
 
 
-class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
+class TC_DeviceBasicComposition(BasicCompositionTests):
     @async_test_body
     async def setup_class(self):
         super().setup_class()
@@ -323,13 +340,61 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
                                   problem=f'Root node does not contain required cluster {c}', spec_location="Root node device type")
                 self.fail_current_test()
 
+        # NOTE: This was provisional in 1.6.0, but due to issues with reaching the finish line,
+        #       this step was punted to a later release to reduce friction for SVE participants.
+        self.print_step(6, "Verify that the specification version is above 1.6.0 for the next steps")
+        specification_version = root[Clusters.BasicInformation].get(Clusters.BasicInformation.Attributes.SpecificationVersion, 0)
+        # Gate Groupcast requirements on Matter > 1.6.0
+        if specification_version > 0x01060000:
+            groupcast_feature_map = 0
+            if Clusters.Groupcast in root:
+                groupcast_feature_map = root[Clusters.Groupcast][Clusters.Groupcast.Attributes.FeatureMap]
+            has_groupcast_listener = bool(groupcast_feature_map & Clusters.Groupcast.Bitmaps.Feature.kListener)
+            has_groupcast_sender = bool(groupcast_feature_map & Clusters.Groupcast.Bitmaps.Feature.kSender)
+
+            self.print_step(7, "Verify GroupcastListenerCond: if any endpoint has Groups server, "
+                            "Groupcast with Listener feature must be on EP0")
+            has_groups_server = any(
+                Clusters.Groups in self.endpoints[ep_id]
+                for ep_id in self.endpoints if ep_id != 0
+            )
+            log.info(f"has_groups_server: {has_groups_server}, has_groupcast_listener: {has_groupcast_listener}")
+            if has_groups_server and not has_groupcast_listener:
+                self.record_error(self.get_test_name(), location=AttributePathLocation(endpoint_id=0),
+                                  problem="Groups server found on an endpoint but Groupcast cluster with Listener "
+                                  "feature is not present on the root node (EP0)",
+                                  spec_location="Root node device type - GroupcastListenerCond")
+                self.fail_current_test()
+
+            self.print_step(8, "Verify GroupcastSenderCond: if any endpoint has Binding server, "
+                            "Groupcast with Sender feature must be on EP0")
+            has_binding_server = any(
+                Clusters.Binding in self.endpoints[ep_id]
+                for ep_id in self.endpoints if ep_id != 0
+            )
+            log.info(f"has_binding_server: {has_binding_server}, has_groupcast_sender: {has_groupcast_sender}")
+            if has_binding_server and not has_groupcast_sender:
+                self.record_error(self.get_test_name(), location=AttributePathLocation(endpoint_id=0),
+                                  problem="Binding server found on an endpoint but Groupcast cluster with Sender "
+                                  "feature is not present on the root node (EP0)",
+                                  spec_location="Root node device type - GroupcastSenderCond")
+                self.fail_current_test()
+            if has_groupcast_listener:
+                acl_feature_map = root[Clusters.AccessControl][Clusters.AccessControl.Attributes.FeatureMap]
+                has_acl_aux = bool(acl_feature_map & Clusters.AccessControl.Bitmaps.Feature.kAuxiliary)
+                if not has_acl_aux:
+                    self.record_error(self.get_test_name(), location=AttributePathLocation(endpoint_id=0),
+                                      problem="Groupcast with Listener feature is on EP0 but Access Control cluster does not have Auxiliary feature",
+                                      spec_location="Root node device type - GroupcastListenerCond")
+                    self.fail_current_test()
+
     def test_TC_DT_1_1(self):
         self.print_step(1, "Perform a wildcard read of attributes on all endpoints - already done")
         self.print_step(2, "Verify that each endpoint includes a descriptor cluster")
         success = True
         for endpoint_id, endpoint in self.endpoints.items():
             has_descriptor = (Clusters.Descriptor in endpoint)
-            logging.info(f"Checking descriptor on Endpoint {endpoint_id}: {'found' if has_descriptor else 'not_found'}")
+            log.info(f"Checking descriptor on Endpoint {endpoint_id}: {'found' if has_descriptor else 'not_found'}")
             if not has_descriptor:
                 self.record_error(self.get_test_name(), location=AttributePathLocation(endpoint_id=endpoint_id, cluster_id=Clusters.Descriptor.id),
                                   problem=f"Did not find a descriptor on endpoint {endpoint_id}", spec_location="Base Cluster Requirements for Matter")
@@ -372,8 +437,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
         error_type_ok = attr_ret is not None and isinstance(
             attr_ret, Clusters.Attribute.ValueDecodeFailure) and isinstance(attr_ret.Reason, InteractionModelError)
 
-        got_expected_error = error_type_ok and attr_ret.Reason.status == Status.UnsupportedRead
-        return got_expected_error
+        return error_type_ok and attr_ret.Reason.status == Status.UnsupportedRead
 
     @async_test_body
     async def test_TC_IDM_10_1(self):
@@ -409,7 +473,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
 
                     has_attribute = (req_attribute.id in cluster)
                     location = AttributePathLocation(endpoint_id, cluster_id, req_attribute.id)
-                    logging.debug(
+                    log.debug(
                         f"Checking for mandatory global {attribute_string} on {location.as_cluster_string(self.cluster_mapper)}: {'found' if has_attribute else 'not_found'}")
 
                     # Check attribute is actually present
@@ -448,7 +512,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
                         has_attribute = attribute_id in cluster
 
                         attribute_string = self.cluster_mapper.get_attribute_string(cluster_id, attribute_id)
-                        logging.debug(
+                        log.debug(
                             f"Checking presence of claimed supported {attribute_string} on {location.as_cluster_string(self.cluster_mapper)}: {'found' if has_attribute else 'not_found'}")
 
                         if not has_attribute:
@@ -632,7 +696,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
 
         self.print_step(8, "Validate that all cluster ID prefixes are in the standard or MEI range")
         for endpoint_id, endpoint in self.endpoints_tlv.items():
-            cluster_prefixes = [a & 0xFFFF_0000 for a in endpoint.keys()]
+            cluster_prefixes = [a & 0xFFFF_0000 for a in endpoint]
             bad_clusters_ids = [a for a in cluster_prefixes if a >= bad_prefix_min]
             for bad_cluster_id in bad_clusters_ids:
                 location = ClusterPathLocation(endpoint_id=endpoint_id, cluster_id=bad_cluster_id)
@@ -643,7 +707,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
 
         self.print_step(9, "Validate that all clusters in the standard range have a known cluster ID")
         for endpoint_id, endpoint in self.endpoints_tlv.items():
-            standard_clusters = [a for a in endpoint.keys() if a < mei_range_min]
+            standard_clusters = [a for a in endpoint if a < mei_range_min]
             unknown_clusters = sorted(set(standard_clusters) - set(matter.clusters.ClusterObjects.ALL_CLUSTERS))
             for bad in unknown_clusters:
                 location = ClusterPathLocation(endpoint_id=endpoint_id, cluster_id=bad)
@@ -653,7 +717,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
 
         self.print_step(10, "Validate that all clusters in the MEI range have a suffix in the manufacturer suffix range")
         for endpoint_id, endpoint in self.endpoints_tlv.items():
-            mei_clusters = [a for a in endpoint.keys() if a >= mei_range_min]
+            mei_clusters = [a for a in endpoint if a >= mei_range_min]
             bad_clusters = [a for a in mei_clusters if ((a & 0x0000_FFFF) < 0xFC00) or ((a & 0x0000_FFFF) > 0xFFFE)]
             for bad in bad_clusters:
                 location = ClusterPathLocation(endpoint_id=endpoint_id, cluster_id=bad)
@@ -690,19 +754,22 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
         self.print_step(12, "Validate that event wildcard subscription works")
 
         test_failure = None
-        try:
-            subscription = await self.default_controller.ReadEvent(nodeId=self.dut_node_id,
-                                                                   events=[('*')],
-                                                                   fabricFiltered=False,
-                                                                   reportInterval=(100, 1000))
-            if len(subscription.GetEvents()) == 0:
-                test_failure = 'Wildcard event subscription returned no events'
-        except ChipStackError as e:  # chipstack-ok: assert_raises not suitable here since error must be inspected before determining test outcome
-            # Connection over PASE will fail subscriptions with "Unsupported access"
-            # TODO: ideally we should SKIP this test for PASE connections
-            _IM_UNSUPPORTED_ACCESS_CODE = 0x500 + Status.UnsupportedAccess
-            if e.code != _IM_UNSUPPORTED_ACCESS_CODE:
-                test_failure = f"Failed to wildcard subscribe events(*): {e}"
+        if self.test_from_file:
+            log.warning("Skipping check of event wildcards as this test is being run from an attribute file")
+        else:
+            try:
+                subscription = await self.default_controller.ReadEvent(nodeId=self.dut_node_id,
+                                                                       events=[('*')],
+                                                                       fabricFiltered=False,
+                                                                       reportInterval=(100, 1000))
+                if len(subscription.GetEvents()) == 0:
+                    test_failure = 'Wildcard event subscription returned no events'
+            except ChipStackError as e:  # chipstack-ok: assert_raises not suitable here since error must be inspected before determining test outcome
+                # Connection over PASE will fail subscriptions with "Unsupported access"
+                # TODO: ideally we should SKIP this test for PASE connections
+                _IM_UNSUPPORTED_ACCESS_CODE = 0x500 + Status.UnsupportedAccess
+                if e.code != _IM_UNSUPPORTED_ACCESS_CODE:
+                    test_failure = f"Failed to wildcard subscribe events(*): {e}"
 
         if test_failure:
             self.record_error(self.get_test_name(), problem=test_failure, location=UnknownProblemLocation())
@@ -970,15 +1037,8 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
         json_str, txt_str = self.dump_wildcard(dump_device_composition_path)
 
         # Structured dump so we can pull these back out of the logs
-        def log_structured_data(start_tag: str, dump_string):
-            lines = dump_string.splitlines()
-            logging.info(f'{start_tag}BEGIN ({len(lines)} lines)====')
-            for line in lines:
-                logging.info(f'{start_tag}{line}')
-            logging.info(f'{start_tag}END ====')
-
-        log_structured_data('==== json: ', json_str)
-        log_structured_data('==== txt: ', txt_str)
+        self.log_structured_data('==== json: ', json_str)
+        self.log_structured_data('==== txt: ', txt_str)
 
     @async_test_body
     async def test_TC_DESC_2_1(self):
@@ -1151,7 +1211,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
                 if len(taglist) not in range(TAG_LIST_EP_RANGE_MIN, TAG_LIST_EP_RANGE_MAX):
                     self.fail_current_test("Number of tagList is not in the range of 1 to 6")
 
-            no_duplicate_tag = []
+            no_duplicate_tag_keys = set()
             for tag_struct in taglist:
                 self.print_step(5.1, "verifying atleast 1 NamespaceID and tag property in the taglist struct for endpoint: {endpoint_id}".format(
                     endpoint_id=endpoint_id))
@@ -1162,12 +1222,13 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
                 if not isinstance(tag_struct.tag, int):
                     self.fail_current_test("Atleast 1 Tag is not present")
 
-                if tag_struct.tag in no_duplicate_tag:
+                mfg_code_key = None if isinstance(tag_struct.mfgCode, Nullable) else int(tag_struct.mfgCode)
+                tag_key = (mfg_code_key, int(tag_struct.namespaceID), int(tag_struct.tag))
+                if tag_key in no_duplicate_tag_keys:
                     self.record_error(self.get_test_name(), location=AttributePathLocation(endpoint_id=endpoint_id),
-                                      problem="duplicate Tags found in taglist struct", spec_location="TagList")
-                    self.fail_current_test("Duplicate tag found")
-                no_duplicate_tag.append(tag_struct.tag)
-
+                                      problem=f"duplicate Tag found in taglist struct: {tag_key}", spec_location="TagList")
+                    self.fail_current_test(f"Duplicate tag found: {tag_key}")
+                no_duplicate_tag_keys.add(tag_key)
                 self.print_step(5.2, "verifying namespaceID value falls under defined namespaces for endpoint: {endpoint_id}".format(
                     endpoint_id=endpoint_id))
 
@@ -1256,4 +1317,7 @@ class TC_DeviceBasicComposition(MatterBaseTest, BasicCompositionTests):
 
 
 if __name__ == "__main__":
+    # TODO: This is a temporary solution to enable asyncio debug mode for the test run.
+    #       Please remove it once the root cause of the issue #42068 is identified and fixed.
+    os.environ["PYTHONASYNCIODEBUG"] = "1"
     default_matter_test_main()

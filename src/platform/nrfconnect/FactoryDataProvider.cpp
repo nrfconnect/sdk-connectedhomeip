@@ -31,7 +31,7 @@
 #endif
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA
-#include <lib/support/ScopedBuffer.h>
+#include <lib/support/ScopedMemoryBuffer.h>
 #include <psa/crypto.h>
 #include <zephyr/drivers/flash.h>
 

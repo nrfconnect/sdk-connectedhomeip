@@ -81,9 +81,9 @@ CHIP_ERROR OTAImageProcessorImpl::PrepareDownload()
         CHIP_ERROR err = PrepareDownloadImpl();
         if (err != CHIP_NO_ERROR)
         {
-            DFUSync::GetInstance().Free(mDfuSyncMutexId);
+            TEMPORARY_RETURN_IGNORED DFUSync::GetInstance().Free(mDfuSyncMutexId);
         }
-        mDownloader->OnPreparedForDownload(err);
+        TEMPORARY_RETURN_IGNORED mDownloader->OnPreparedForDownload(err);
     });
 }
 
@@ -129,7 +129,7 @@ CHIP_ERROR OTAImageProcessorImpl::Finalize()
 {
     return DeviceLayer::SystemLayer().ScheduleLambda([this] {
         PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadComplete);
-        DFUSync::GetInstance().Free(mDfuSyncMutexId);
+        TEMPORARY_RETURN_IGNORED DFUSync::GetInstance().Free(mDfuSyncMutexId);
         CHIP_ERROR error = System::MapErrorZephyr(dfu_multi_image_done(true));
         if (error != CHIP_NO_ERROR)
         {
@@ -142,7 +142,7 @@ CHIP_ERROR OTAImageProcessorImpl::Abort()
 {
     return DeviceLayer::SystemLayer().ScheduleLambda([this] {
         CHIP_ERROR error = System::MapErrorZephyr(dfu_multi_image_done(false));
-        DFUSync::GetInstance().Free(mDfuSyncMutexId);
+        TEMPORARY_RETURN_IGNORED DFUSync::GetInstance().Free(mDfuSyncMutexId);
         TriggerFlashAction(ExternalFlashManager::Action::SLEEP);
         PostOTAStateChangeEvent(DeviceLayer::kOtaDownloadAborted);
         if (error != CHIP_NO_ERROR)

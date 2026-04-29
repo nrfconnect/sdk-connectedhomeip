@@ -94,7 +94,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
                         // Starting from Zephyr 4.0 Automatic advertiser resumption is deprecated,
                         // so the BLE Advertising Arbiter has to take over the responsibility of restarting the advertiser.
                         // Restart advertising in this callback if there are pending requests after the connection is released.
-                        RestartAdvertising();
+                        TEMPORARY_RETURN_IGNORED RestartAdvertising();
                     }
                 });
                 // Reset the disconnection flag to avoid restarting advertising multiple times
@@ -172,7 +172,7 @@ void CancelRequest(Request & request)
     // If cancelled request was top-priority, restart the advertising.
     if (isTopPriority)
     {
-        RestartAdvertising();
+        TEMPORARY_RETURN_IGNORED RestartAdvertising();
     }
 }
 

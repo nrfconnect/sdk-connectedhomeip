@@ -139,7 +139,7 @@ matter_add_gn_arg_string("zephyr_cc"                              ${CMAKE_C_COMP
 matter_add_gn_arg_string("zephyr_cxx"                             ${CMAKE_CXX_COMPILER})
 matter_add_gn_arg_string("chip_app_zap_dir"                       ${CHIP_APP_ZAP_DIR})
 matter_add_gn_arg_bool  ("chip_logging"                           CONFIG_LOG)
-matter_add_gn_arg_bool  ("chip_enable_openthread"                 CONFIG_OPENTHREAD)
+matter_add_gn_arg_bool  ("chip_enable_thread"                     CONFIG_OPENTHREAD)
 matter_add_gn_arg_bool  ("chip_openthread_ftd"                    CONFIG_OPENTHREAD_FTD)
 matter_add_gn_arg_bool  ("chip_config_network_layer_ble"          CONFIG_BT)
 matter_add_gn_arg_bool  ("chip_inet_config_enable_ipv4"           CONFIG_CHIP_IPV4)
@@ -159,6 +159,7 @@ matter_add_gn_arg_bool  ("chip_enable_icd_server"                 CONFIG_CHIP_EN
 matter_add_gn_arg_bool  ("chip_enable_factory_data"               CONFIG_CHIP_FACTORY_DATA_NRFCONNECT_BACKEND)
 matter_add_gn_arg_bool  ("chip_enable_read_client"                CONFIG_CHIP_ENABLE_READ_CLIENT)
 matter_add_gn_arg_bool  ("chip_mdns_minimal"                      CONFIG_WIFI_NRF70)
+matter_add_gn_arg_bool  ("chip_config_enable_groupcast"           CONFIG_CHIP_ENABLE_GROUPCAST)
 matter_add_gn_arg_bool  ("chip_mdns_platform"                     CONFIG_OPENTHREAD)
 matter_add_gn_arg_bool  ("enable_im_pretty_print"                 CONFIG_CHIP_IM_PRETTY_PRINT)
 matter_add_gn_arg_bool  ("chip_crypto_use_x509"                   CONFIG_CHIP_CRYPTO_USE_X509)
@@ -194,9 +195,13 @@ endif()
 
 if (CONFIG_CHIP_CRYPTO_PSA)
     matter_add_gn_arg_string("chip_crypto"                      "psa")
-    matter_add_gn_arg_bool  ("chip_crypto_psa_spake2p"          CONFIG_PSA_WANT_ALG_SPAKE2P_MATTER)
     matter_add_gn_arg_bool  ("chip_crypto_psa_aead_single_part" CONFIG_CHIP_CRYPTO_PSA_AEAD_SINGLE_PART)
     matter_add_gn_arg_bool  ("chip_use_cracen_kmu"              CONFIG_CHIP_STORE_KEYS_IN_KMU)
+endif()
+
+
+if(CONFIG_CHIP_CRYPTO_PSA AND CONFIG_PSA_WANT_ALG_SPAKE2P_MATTER)
+    matter_add_gn_arg_string("chip_crypto_spake2p" "psa")
 endif()
 
 if (BOARD STREQUAL "native_sim")

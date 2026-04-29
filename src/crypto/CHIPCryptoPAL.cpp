@@ -242,7 +242,7 @@ CHIP_ERROR Find16BitUpperCaseHexAfterPrefix(const ByteSpan & buffer, const char 
 
 using HKDF_sha_crypto = HKDF_sha;
 
-#if !CHIP_CRYPTO_PSA_SPAKE2P
+#if !CHIP_CRYPTO_SPAKE2P_PSA
 
 CHIP_ERROR Spake2p::InternalHash(const uint8_t * in, size_t in_len)
 {
@@ -1181,7 +1181,7 @@ CHIP_ERROR GenerateCertificateSigningRequest(const P256Keypair * keypair, Mutabl
          *        attributes    [0] Attributes{{ CRIAttributes }}
          *     }
          */
-        GenerateCertificationRequestInformation(writer, keypair->Pubkey());
+        ReturnErrorOnFailure(GenerateCertificationRequestInformation(writer, keypair->Pubkey()));
 
         // algorithm  AlgorithmIdentifier
         ASN1_START_SEQUENCE
@@ -1322,6 +1322,21 @@ CHIP_ERROR P256Keypair::HazardousOperationLoadKeypairFromRaw(ByteSpan private_ke
     memcpy(serialized_keypair.Bytes(), public_key.data(), public_key.size());
     memcpy(serialized_keypair.Bytes() + public_key.size(), private_key.data(), private_key.size());
     return this->Deserialize(serialized_keypair);
+}
+
+__attribute__((weak)) CHIP_ERROR P256Keypair::InitializeFromBitsOrReject(FixedByteSpan<kP256_PrivateKey_Length> privateKeyBits)
+{
+    IgnoreUnusedVariable(privateKeyBits);
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+}
+
+__attribute__((weak)) CHIP_ERROR P256Keypair::ECDSA_sign_msg_det(const uint8_t * msg, size_t msg_length,
+                                                                 P256ECDSASignature & out_signature) const
+{
+    IgnoreUnusedVariable(msg);
+    IgnoreUnusedVariable(msg_length);
+    IgnoreUnusedVariable(out_signature);
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 } // namespace Crypto

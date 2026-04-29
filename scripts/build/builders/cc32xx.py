@@ -26,18 +26,16 @@ class cc32xxApp(Enum):
     def ExampleName(self):
         if self == cc32xxApp.LOCK:
             return 'lock-app'
-        elif self == cc32xxApp.AIR_PURIFIER:
+        if self == cc32xxApp.AIR_PURIFIER:
             return 'air-purifier-app'
-        else:
-            raise Exception('Unknown app type: %r' % self)
+        raise Exception('Unknown app type: %r' % self)
 
     def AppNamePrefix(self):
         if self == cc32xxApp.LOCK:
             return 'chip-CC3235SF_LAUNCHXL-lock-example'
-        elif self == cc32xxApp.AIR_PURIFIER:
+        if self == cc32xxApp.AIR_PURIFIER:
             return 'chip-CC3235SF_LAUNCHXL-air-purifier-example'
-        else:
-            raise Exception('Unknown app type: %r' % self)
+        raise Exception('Unknown app type: %r' % self)
 
     def BuildRoot(self, root):
         return os.path.join(root, 'examples', self.ExampleName(), 'cc32xx')
@@ -63,9 +61,9 @@ class cc32xxBuilder(GnBuilder):
                 'TI_SYSCONFIG_ROOT_CC32XX environment variable must be set for CC32XX builds. Please point it to the TI SysConfig installation directory.'
             )
 
-        return [
-            'ti_sysconfig_root="%s"' % sysconfig_root,
-        ]
+        args = super().GnBuildArgs()
+        args.append(f'ti_sysconfig_root="{sysconfig_root}"')
+        return args
 
     def build_outputs(self):
         if (self.app == cc32xxApp.LOCK):

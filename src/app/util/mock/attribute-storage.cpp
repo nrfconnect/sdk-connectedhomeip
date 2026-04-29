@@ -30,10 +30,10 @@
 
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/ids/Attributes.h>
+#include <app/InteractionModelEngine.h>
 #include <app/MessageDef/AttributeDataIB.h>
 #include <app/MessageDef/AttributeReportIB.h>
 #include <app/MessageDef/AttributeStatusIB.h>
-#include <app/data-model-provider/ProviderChangeListener.h>
 #include <app/util/attribute-storage.h>
 #include <app/util/endpoint-config-api.h>
 #include <app/util/mock/Constants.h>
@@ -55,7 +55,7 @@
 typedef uint8_t EmberAfClusterMask;
 
 using namespace chip;
-using namespace chip::Test;
+using namespace chip::Testing;
 using namespace chip::app;
 using namespace Clusters::Globals::Attributes;
 
@@ -117,7 +117,7 @@ const MockNodeConfig & GetMockNodeConfig()
 } // namespace
 
 namespace chip {
-namespace Test {
+namespace Testing {
 
 const uint16_t mockClusterRevision = 1;
 const uint32_t mockFeatureMap      = 0x1234;
@@ -135,7 +135,7 @@ const uint8_t mockAttribute4[256]  = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
 };
 
-} // namespace Test
+} // namespace Testing
 } // namespace chip
 
 uint16_t emberAfEndpointCount()
@@ -391,16 +391,17 @@ chip::Span<const EmberAfDeviceType> emberAfDeviceTypeListFromEndpointIndex(unsig
     return GetMockNodeConfig().endpoints[index].deviceTypes();
 }
 
-void emberAfAttributeChanged(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId,
-                             DataModel::ProviderChangeListener * listener)
+void emberAfAttributeChanged(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId)
 {
     dataVersion++;
-    listener->MarkDirty(AttributePathParams(endpoint, clusterId, attributeId));
-}
 
-void emberAfEndpointChanged(EndpointId endpoint, DataModel::ProviderChangeListener * listener)
-{
-    listener->MarkDirty(AttributePathParams(endpoint));
+    InteractionModelEngine * interactionmodelEngine = InteractionModelEngine::GetInstance();
+    VerifyOrReturn(interactionmodelEngine != nullptr);
+
+    DataModel::Provider * dataModelProvider = interactionmodelEngine->GetDataModelProvider();
+    VerifyOrReturn(dataModelProvider != nullptr);
+
+    dataModelProvider->NotifyAttributeChanged({ endpoint, clusterId, attributeId }, DataModel::AttributeChangeType::kReportable);
 }
 
 unsigned emberAfMetadataStructureGeneration()
@@ -447,7 +448,7 @@ void EnabledEndpointsWithServerCluster::EnsureMatchingEndpoint()
 
 } // namespace app
 
-namespace Test {
+namespace Testing {
 
 void ResetVersion()
 {
@@ -486,7 +487,10 @@ CHIP_ERROR ReadSingleMockClusterData(FabricIndex aAccessingFabricIndex, const Co
         ReturnErrorOnFailure(attributeReport.GetError());
         AttributePathIB::Builder & attributePath = attributeStatus.CreatePath();
         ReturnErrorOnFailure(attributeStatus.GetError());
-        attributePath.Endpoint(aPath.mEndpointId).Cluster(aPath.mClusterId).Attribute(aPath.mAttributeId).EndOfAttributePathIB();
+        TEMPORARY_RETURN_IGNORED attributePath.Endpoint(aPath.mEndpointId)
+            .Cluster(aPath.mClusterId)
+            .Attribute(aPath.mAttributeId)
+            .EndOfAttributePathIB();
         ReturnErrorOnFailure(attributePath.GetError());
         StatusIB::Builder & errorStatus = attributeStatus.CreateErrorStatus();
         ReturnErrorOnFailure(attributeStatus.GetError());
@@ -527,7 +531,10 @@ CHIP_ERROR ReadSingleMockClusterData(FabricIndex aAccessingFabricIndex, const Co
     attributeData.DataVersion(dataVersion);
     AttributePathIB::Builder & attributePath = attributeData.CreatePath();
     ReturnErrorOnFailure(attributeData.GetError());
-    attributePath.Endpoint(aPath.mEndpointId).Cluster(aPath.mClusterId).Attribute(aPath.mAttributeId).EndOfAttributePathIB();
+    TEMPORARY_RETURN_IGNORED attributePath.Endpoint(aPath.mEndpointId)
+        .Cluster(aPath.mClusterId)
+        .Attribute(aPath.mAttributeId)
+        .EndOfAttributePathIB();
     ReturnErrorOnFailure(attributePath.GetError());
 
     TLV::TLVWriter * writer = attributeData.GetWriter();
@@ -573,5 +580,5 @@ void ResetMockNodeConfig()
     mockConfig = nullptr;
 }
 
-} // namespace Test
+} // namespace Testing
 } // namespace chip

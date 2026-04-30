@@ -299,13 +299,13 @@ def update_rules_paths(zcl_json: Path) -> ContextManager[Path]:
 
 def display_zap_message(output: subprocess.CompletedProcess[str]) -> None:
     """
-    If the output contains the error from napi_throw, suggest user to use zap-sync to sync the ZAP file.
+    If the output contains the error from napi_throw, suggest user to use zap-sync to sync the ZAP file and make sure that all attributes are provided.
     """
+    print(f"output: {output.stdout}")
     if 'Unknown attribute' in output.stdout:
-        log.err("Your zcl.json file seems to be outdated. Please use 'west zap-sync' command to synchronize it with the newest Matter Data Model.")
-        return
-    else:
-        print(f"output: {output.stdout}")
+        log.err("Your zcl.json file seems to be outdated or is missing some attributes. "
+                "Please use 'west zap-sync' command to synchronize it with the newest Matter Data Model "
+                "and make sure that all cluster attributes are properly defined in the cluster XML file.")
 
 
 class ZapInstaller:

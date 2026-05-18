@@ -518,5 +518,13 @@ config CHIP_CRYPTO_USE_X509
 	help
 	  Enables X.509 certificate support for Matter.
 
+config CHIP_BLE_MULTI_IDENTITY_SUPPORT
+  bool "Support for multiple BLE identities"
+  depends on BT
+  help
+    Enables support for multiple BLE identities, allowing the device to maintain separate BLE
+    advertisements and connections for different purposes. When this option is enabled, Matter
+    connection handlers will ignore events for connections established with a different local
+    identity.
 
 endif # CHIP

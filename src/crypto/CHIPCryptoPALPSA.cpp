@@ -35,8 +35,14 @@
 
 #include <psa/crypto.h>
 
+#if (MBEDTLS_VERSION_NUMBER >= 0x04000000)
+#include <mbedtls/private/bignum.h>
+#include <mbedtls/private/ecp.h>
+#else
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecp.h>
+#endif
+
 #include <mbedtls/error.h>
 #include <mbedtls/x509_csr.h>
 

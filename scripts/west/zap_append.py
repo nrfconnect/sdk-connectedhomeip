@@ -12,7 +12,7 @@ from west.commands import WestCommand
 from zap_common import DEFAULT_MATTER_PATH, DEFAULT_MATTER_TYPES_RELATIVE_PATH, DEFAULT_ZCL_JSON_RELATIVE_PATH
 
 
-def get_attribute_name(attribute: ET.Element) -> str | None:
+def get_attribute_name(attribute: ET.Element) -> str:
     """If attribute has a name, return it, otherwise fallback to the text of the attribute entry."""
     from_attr = attribute.get('name')
     if from_attr:

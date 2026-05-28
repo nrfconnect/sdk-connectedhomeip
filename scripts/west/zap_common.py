@@ -301,7 +301,12 @@ def display_zap_message(output: subprocess.CompletedProcess[str]) -> None:
     """
     If the output contains the error from napi_throw, suggest user to use zap-sync to sync the ZAP file and make sure that all attributes are provided.
     """
-    print(f"output: {output.stdout}")
+    if output.stdout:
+        log.dbg(f"output: {output.stdout}")
+
+    if output.stderr:
+        log.wrn(f"stderr: {output.stderr}")
+
     if 'Unknown attribute' in output.stdout:
         log.err("Your zcl.json file seems to be outdated or is missing some attributes. "
                 "Please use 'west zap-sync' command to synchronize it with the newest Matter Data Model "

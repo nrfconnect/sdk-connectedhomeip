@@ -77,7 +77,7 @@ protected:
         void Release() override { chip::Platform::Delete(this); }
 
     private:
-        static constexpr size_t kNumSupportedLocales = 2;
+        static constexpr size_t kNumSupportedLocales = 1;
         size_t mIndex                                = 0;
     };
 

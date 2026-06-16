@@ -62,7 +62,9 @@ Davis, CA 95616, USA
     <revision revision="1" summary="Initial version of the Zone Management cluster"/>
   </revisionHistory>
   <clusterIds>
-    <clusterId id="0x0550" name="Zone Management"/>
+    <clusterId id="0x0550" name="Zone Management">
+      <provisionalConform/>
+    </clusterId>
   </clusterIds>
   <classification hierarchy="base" role="application" picsCode="ZONEMGMT" scope="Endpoint"/>
   <features>

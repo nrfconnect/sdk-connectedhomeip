@@ -16,7 +16,7 @@
 #
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Optional, Union
 
 from matter.testing.conversions import cluster_id_with_name, format_decimal_and_hex
@@ -33,9 +33,8 @@ class ClusterMapper:
         mapping = self._mapping._CLUSTER_ID_DICT.get(cluster_id, None)
         if not mapping:
             return f"Cluster Unknown ({cluster_id}, 0x{cluster_id:08X})"
-        else:
-            name = mapping["clusterName"]
-            return f"Cluster {name} ({cluster_id}, 0x{cluster_id:04X})"
+        name = mapping["clusterName"]
+        return f"Cluster {name} ({cluster_id}, 0x{cluster_id:04X})"
 
     def get_attribute_string(self, cluster_id: int, attribute_id) -> str:
         global_attrs = [item.value for item in GlobalAttributeIds]
@@ -44,14 +43,12 @@ class ClusterMapper:
         mapping = self._mapping._CLUSTER_ID_DICT.get(cluster_id, None)
         if not mapping:
             return f"Attribute Unknown ({attribute_id}, 0x{attribute_id:08X})"
-        else:
-            attribute_mapping = mapping["attributes"].get(attribute_id, None)
+        attribute_mapping = mapping["attributes"].get(attribute_id, None)
 
-            if not attribute_mapping:
-                return f"Attribute Unknown ({attribute_id}, 0x{attribute_id:08X})"
-            else:
-                attribute_name = attribute_mapping["attributeName"]
-                return f"Attribute {attribute_name} ({attribute_id}, 0x{attribute_id:04X})"
+        if not attribute_mapping:
+            return f"Attribute Unknown ({attribute_id}, 0x{attribute_id:08X})"
+        attribute_name = attribute_mapping["attributeName"]
+        return f"Attribute {attribute_name} ({attribute_id}, 0x{attribute_id:04X})"
 
 
 @dataclass
@@ -152,12 +149,8 @@ class UnknownProblemLocation:
 
 ProblemLocation = Union[ClusterPathLocation, DeviceTypePathLocation, UnknownProblemLocation, NamespacePathLocation]
 
-# ProblemSeverity is not using StrEnum, but rather Enum, since StrEnum only
-# appeared in 3.11. To make it JSON serializable easily, multiple inheritance
-# from `str` is used. See https://stackoverflow.com/a/51976841.
 
-
-class ProblemSeverity(str, Enum):
+class ProblemSeverity(StrEnum):
     NOTE = "NOTE"
     WARNING = "WARNING"
     ERROR = "ERROR"

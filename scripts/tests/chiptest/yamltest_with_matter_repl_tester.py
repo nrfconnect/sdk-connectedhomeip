@@ -41,6 +41,8 @@ from matter.yaml.runner import ReplTestRunner
 from matter.yamltests.definitions import SpecDefinitionsFromPaths
 from matter.yamltests.parser import PostProcessCheckStatus, TestParser, TestParserConfig, build_revision_var_name
 
+log = logging.getLogger(__name__)
+
 _DEFAULT_CHIP_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 _CLUSTER_XML_DIRECTORY_PATH = os.path.abspath(
@@ -64,27 +66,25 @@ async def execute_test(yaml, runner):
             except (ValueError, IndexError, KeyError):
                 current_val = "unknown"
 
-            logging.warning(f"Step {test_step.label} skipped due to ClusterRevision range not matching (val={current_val}, "
-                            f"min={test_step.min_revision}, "
-                            f"max={test_step.max_revision})")
+            log.warning("Step '%s' skipped due to ClusterRevision range not matching (val=%s, min=%s, max=%s)",
+                        test_step.label, current_val, test_step.min_revision, test_step.max_revision)
             continue
 
         test_action = runner.encode(test_step)
         if test_action is None:
-            raise Exception(
-                f'Failed to encode test step {test_step.label}')
+            raise RuntimeError(f'Failed to encode test step {test_step.label}')
 
         response = await runner.execute(test_action)
         decoded_response = runner.decode(response)
         post_processing_result = test_step.post_process_response(
             decoded_response)
         if not post_processing_result.is_success():
-            logging.warning(f"Test step failure in {test_step.label}")
+            log.warning("Test step failure in '%s'", test_step.label)
             for entry in post_processing_result.entries:
                 if entry.state == PostProcessCheckStatus.SUCCESS:
                     continue
-                logging.warning("%s: %s", entry.state, entry.message)
-            raise Exception(f'Test step failed {test_step.label}')
+                log.warning("%s: %s", entry.state, entry.message)
+            raise RuntimeError(f"Test step failed '{test_step.label}'")
 
 
 def asyncio_executor(f):
@@ -111,8 +111,13 @@ def asyncio_executor(f):
     '--pics-file',
     default=None,
     help='Optional PICS file')
+@click.option(
+    '--value-wait-extra-duration-ms',
+    default=250,
+    type=int,
+    help='Extra timeout duration in milliseconds for WaitForAttributeValue.')
 @asyncio_executor
-async def main(setup_code, yaml_path, node_id, pics_file):
+async def main(setup_code, yaml_path, node_id, pics_file, value_wait_extra_duration_ms):
     # Setting up python environment for running YAML CI tests using python parser.
     with tempfile.NamedTemporaryFile() as chip_stack_storage:
         matter.native.Init()
@@ -149,7 +154,8 @@ async def main(setup_code, yaml_path, node_id, pics_file):
             ])
 
             # Parsing YAML test and setting up matter-repl yamltests runner.
-            parser_config = TestParserConfig(pics_file, clusters_definitions)
+            parser_config = TestParserConfig(pics_file, clusters_definitions, {
+                                             'valueWaitExtraDurationMs': value_wait_extra_duration_ms})
             yaml = TestParser(yaml_path, parser_config)
             runner = ReplTestRunner(
                 clusters_definitions, certificate_authority_manager, dev_ctrl)

@@ -15,12 +15,14 @@
 #    limitations under the License.
 #
 
+import asyncio
 import logging
 import queue
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from matter.idl.generators.filters import to_pascal_case, to_snake_case
 from matter.yamltests.pseudo_clusters.pseudo_clusters import get_default_pseudo_clusters
@@ -379,8 +381,7 @@ class AttributeChangeAccumulator:
             result = _ActionResult(status=_ActionStatus.SUCCESS, response=path.AttributeType(data))
 
             item = _AttributeSubscriptionCallbackResult(self._name, path, result)
-            LOGGER.debug(
-                f'Got subscription report on client {self.name} for {path.AttributeType}: {data}')
+            LOGGER.debug('Got subscription report on client %s for %s: %s', self.name, path.AttributeType, data)
             self._output_queue.put(item)
 
     @property
@@ -401,7 +402,7 @@ class EventChangeAccumulator:
             result = _ActionResult(status=_ActionStatus.SUCCESS, response=event_response)
 
             item = _EventSubscriptionCallbackResult(self._name, result)
-            LOGGER.debug(f'Got subscription report on client {self.name}')
+            LOGGER.debug('Got subscription report on client %s', self.name)
             self._output_queue.put(item)
 
     @property
@@ -585,8 +586,7 @@ class WriteAttributeAction(BaseAction):
         if len(resp) == 1 and isinstance(resp[0], AttributeStatus):
             if resp[0].Status == MatterInteractionModel.Status.Success:
                 return _ActionResult(status=_ActionStatus.SUCCESS, response=None)
-            else:
-                return _ActionResult(status=_ActionStatus.ERROR, response=resp[0].Status)
+            return _ActionResult(status=_ActionStatus.ERROR, response=resp[0].Status)
 
         # We always expecte the response to be a list of length 1, for that reason we return error
         # here.
@@ -674,7 +674,7 @@ class DiscoveryCommandAction(BaseAction):
     """DiscoveryCommand implementation (FindCommissionable* methods)."""
 
     @staticmethod
-    def _filter_for_step(test_step) -> Tuple[discovery.FilterType, Any]:
+    def _filter_for_step(test_step) -> tuple[discovery.FilterType, Any]:
         """Given a test step, figure out the correct filters to give to
            DiscoverCommissionableNodes.
         """
@@ -690,19 +690,19 @@ class DiscoveryCommandAction(BaseAction):
         args = test_step.arguments['values']
         request_data_as_dict = Converter.convert_list_of_name_value_pair_to_dict(args)
 
-        filter = request_data_as_dict['value']
+        flt = request_data_as_dict['value']
 
         if test_step.command == 'FindCommissionableByDeviceType':
-            return discovery.FilterType.DEVICE_TYPE, filter
+            return discovery.FilterType.DEVICE_TYPE, flt
 
         if test_step.command == 'FindCommissionableByLongDiscriminator':
-            return discovery.FilterType.LONG_DISCRIMINATOR, filter
+            return discovery.FilterType.LONG_DISCRIMINATOR, flt
 
         if test_step.command == 'FindCommissionableByShortDiscriminator':
-            return discovery.FilterType.SHORT_DISCRIMINATOR, filter
+            return discovery.FilterType.SHORT_DISCRIMINATOR, flt
 
         if test_step.command == 'FindCommissionableByVendorId':
-            return discovery.FilterType.VENDOR_ID, filter
+            return discovery.FilterType.VENDOR_ID, flt
 
         raise UnexpectedActionCreationError(f'Invalid command: {test_step.command}')
 
@@ -715,12 +715,12 @@ class DiscoveryCommandAction(BaseAction):
             filterType=self.filterType, filter=self.filter, stopOnFirst=True, timeoutSecond=5)
 
         # Devices will be a list: [CommissionableNode(), ...]
-        LOGGER.info("Discovered devices: %r" % devices)
+        LOGGER.info("Discovered devices: %r", devices)
 
         if not devices:
             LOGGER.error("No devices found")
             return _ActionResult(status=_ActionStatus.ERROR, response="NO DEVICES FOUND")
-        elif len(devices) > 1:
+        if len(devices) > 1:
             LOGGER.warning("Commissionable discovery found multiple results!")
 
         return _ActionResult(status=_ActionStatus.SUCCESS, response=devices[0])
@@ -736,6 +736,82 @@ class NotImplementedAction(BaseAction):
 
     async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
         raise Exception(f"NOT YET IMPLEMENTED: {self.cluster}::{self.command}")
+
+
+class WaitForAttributeValueAction(BaseAction):
+    ''' Wait for attribute value action to be executed.'''
+
+    def __init__(self, test_step, context: _ExecutionContext):
+        super().__init__(test_step)
+
+        args = test_step.arguments['values']
+        args_dict = Converter.convert_list_of_name_value_pair_to_dict(args)
+
+        self._attribute_name = to_pascal_case(args_dict['attribute'])
+        self._cluster = args_dict['cluster'].replace(' ', '').replace('/', '').replace('.', '')
+        self._endpoint = args_dict['endpoint']
+        self._expected_value = args_dict['expectedValue']
+        self._expected_duration_ms = args_dict['expectedDurationMs']
+        self._node_id = test_step.node_id
+
+        self._fabric_filtered = True
+        if test_step.fabric_filtered is not None:
+            self._fabric_filtered = test_step.fabric_filtered
+
+        self._extra_duration_ms = test_step.get_config_value('valueWaitExtraDurationMs', 250)
+
+        self._cluster_object = context.data_model_lookup.get_cluster(self._cluster)
+        if self._cluster_object is None:
+            raise UnexpectedActionCreationError(
+                f'WaitForAttributeValue failed to find cluster object:{self._cluster}')
+
+        self._request_object = context.data_model_lookup.get_attribute(
+            self._cluster, self._attribute_name)
+        if self._request_object is None:
+            raise UnexpectedActionCreationError(
+                f'WaitForAttributeValue failed to find attribute:{self._attribute_name} '
+                f'in cluster:{self._cluster}')
+
+        if self._request_object.attribute_type is None:
+            raise UnexpectedActionCreationError(
+                'WaitForAttributeValue attribute doesn\'t have valid attribute_type')
+
+    async def run_action(self, dev_ctrl: ChipDeviceController) -> _ActionResult:
+        start_time = time.monotonic()
+        timeout_s = (self._expected_duration_ms + self._extra_duration_ms) / 1000.0
+        poll_interval_s = 0.1
+
+        LOGGER.info("Waiting for attribute %s.%s to become %s (timeout: %ss)",
+                    self._cluster, self._attribute_name, self._expected_value, timeout_s)
+
+        while True:
+            try:
+                raw_resp = await dev_ctrl.ReadAttribute(self._node_id,
+                                                        [(self._endpoint, self._request_object)],
+                                                        fabricFiltered=self._fabric_filtered)
+
+                resp = raw_resp[self._endpoint][self._cluster_object][self._request_object]
+                if not isinstance(resp, ValueDecodeFailure):
+                    return_val = self._request_object(resp)
+                    if return_val.value == self._expected_value:
+                        LOGGER.info("Attribute reached expected value %s after %.2fs",
+                                    self._expected_value, time.monotonic() - start_time)
+                        return _ActionResult(status=_ActionStatus.SUCCESS, response=None)
+            except (AttributeError, NameError, TypeError):
+                # Let programming errors (bugs in our code or test definition)
+                # propagate immediately instead of timing out.
+                raise
+            except (MatterInteractionModel.InteractionModelError, ChipStackError, TimeoutError, KeyError) as e:
+                LOGGER.debug("ReadAttribute failed during wait: %s", e)
+
+            if time.monotonic() - start_time >= timeout_s:
+                break
+
+            await asyncio.sleep(poll_interval_s)
+
+        LOGGER.error("Timeout waiting for attribute %s.%s to become %s",
+                     self._cluster, self._attribute_name, self._expected_value)
+        return _ActionResult(status=_ActionStatus.ERROR, response=None)
 
 
 class ReplTestRunner:
@@ -824,6 +900,9 @@ class ReplTestRunner:
     def _wait_for_commissionee_action_factory(self, test_step):
         return WaitForCommissioneeAction(test_step)
 
+    def _wait_for_attribute_value_action_factory(self, test_step):
+        return WaitForAttributeValueAction(test_step, self._context)
+
     def _wait_for_report_action_factory(self, test_step):
         return WaitForReportAction(test_step, self._context)
 
@@ -834,7 +913,7 @@ class ReplTestRunner:
         try:
             return DefaultPseudoCluster(test_step)
         except ActionCreationError as e:
-            LOGGER.warning(f"Failed to create default pseudo cluster: {e}")
+            LOGGER.warning("Failed to create default pseudo cluster: %s", e)
             return None
 
     def encode(self, request) -> Optional[BaseAction]:
@@ -846,10 +925,12 @@ class ReplTestRunner:
         # Some of the tests contain 'cluster over-rides' that refer to a different
         # cluster than that specified in 'config'.
 
-        elif cluster == 'DiscoveryCommands':
+        if cluster == 'DiscoveryCommands':
             return DiscoveryCommandAction(request)
-        elif cluster == 'DelayCommands' and command == 'WaitForCommissionee':
+        if cluster == 'DelayCommands' and command == 'WaitForCommissionee':
             action = self._wait_for_commissionee_action_factory(request)
+        elif cluster == 'DelayCommands' and command == 'WaitForAttributeValue':
+            action = self._wait_for_attribute_value_action_factory(request)
         elif command == 'writeAttribute':
             action = self._attribute_write_action_factory(request, cluster)
         elif command == 'readAttribute':
@@ -870,7 +951,7 @@ class ReplTestRunner:
             action = self._default_pseudo_cluster(request)
 
         if action is None:
-            LOGGER.warning(f"Failed to parse {request.label}")
+            LOGGER.warning("Failed to parse %s", request.label)
         return action
 
     def decode(self, result: _ActionResult):
@@ -933,8 +1014,7 @@ class ReplTestRunner:
             if not response.event_result_list:
                 # This means that the event result we got back was empty, below is how we
                 # represent this.
-                decoded_response = [{}]
-                return decoded_response
+                return [{}]
             decoded_response = []
             for event in response.event_result_list:
                 if event.Status != MatterInteractionModel.Status.Success:
@@ -994,8 +1074,8 @@ class ReplTestRunner:
 
         return decoded_response
 
-    def _get_fabric_id(self, id):
-        return _TestFabricId[id.upper()].value
+    def _get_fabric_id(self, _id):
+        return _TestFabricId[_id.upper()].value
 
     def _get_dev_ctrl(self, action: BaseAction):
         if action.identity is not None:

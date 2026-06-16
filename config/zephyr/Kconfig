@@ -508,13 +508,6 @@ config CHIP_FACTORY_RESET_ERASE_SETTINGS
 	  configuration is supposed to be cleared on a factory reset, including
 	  device-specific entries.
 
-config CHIP_FACTORY_RESET_TIME_MEASUREMENT
-	bool "Measure time of factory reset"
-	help
-	  Enables measuring the time it takes to perform a factory reset. The time
-	  is measured from the moment the factory reset is scheduled until the
-	  device is shutdown. The measured time is printed in the log.
-
 config CHIP_MALLOC_SYS_HEAP
 	bool "Memory allocator based on Zephyr sys_heap"
 	imply SYS_HEAP_RUNTIME_STATS

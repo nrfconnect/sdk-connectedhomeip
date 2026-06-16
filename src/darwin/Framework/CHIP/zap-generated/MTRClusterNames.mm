@@ -831,6 +831,10 @@ NSString * MTRAttributeNameForID(MTRClusterIDType clusterID, MTRAttributeIDType 
             result = @"ARL";
             break;
 
+        case MTRAttributeIDTypeClusterAccessControlAttributeAuxiliaryACLID:
+            result = @"AuxiliaryACL";
+            break;
+
         case MTRAttributeIDTypeClusterAccessControlAttributeGeneratedCommandListID:
             result = @"GeneratedCommandList";
             break;
@@ -14489,6 +14493,10 @@ NSString * MTREventNameForID(MTRClusterIDType clusterID, MTREventIDType eventID)
 
         case MTREventIDTypeClusterAccessControlEventFabricRestrictionReviewUpdateID:
             result = @"FabricRestrictionReviewUpdate";
+            break;
+
+        case MTREventIDTypeClusterAccessControlEventAuxiliaryAccessUpdatedID:
+            result = @"AuxiliaryAccessUpdated";
             break;
 
         default:

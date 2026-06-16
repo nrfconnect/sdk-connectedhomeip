@@ -28,14 +28,8 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
 
-#include <mbedtls/oid.h>
-
-#if (MBEDTLS_VERSION_NUMBER >= 0x04000000)
-#include <mbedtls/private/ecp.h>
-#else
 #include <mbedtls/ecp.h>
-#endif
-
+#include <mbedtls/oid.h>
 #include <mbedtls/x509.h>
 #include <mbedtls/x509_csr.h>
 

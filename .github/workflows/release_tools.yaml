@@ -133,7 +133,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             - name: Upload packages
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v6
               if: github.event.inputs.publishRelease == 'false'
               with:
                   path: /tmp/output_binaries

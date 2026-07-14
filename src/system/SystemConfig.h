@@ -176,6 +176,19 @@
 #undef SUCCESS
 #endif
 #include <lwip/opt.h>
+
+// TODO: this is an awkward workaround for some platforms (AmebaD - platform_stdlib_rtl8721d)
+// defining false as 0, resulting in casting `inconsistent types/ bool and int` errors for
+// lambda argument deduction.
+//
+// Currently this happens as an inclusion of `lwip/opt.h`, so the undefine is added in this header
+#ifdef false
+#undef false
+#endif
+#ifdef true
+#undef true
+#endif
+
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 /* Configuration option variables defined below */
@@ -313,7 +326,7 @@
 
 #ifdef CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
 #error "DEPRECATED: CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT, Please use CHIP_SYSTEM_CONFIG_USE_OPENTHREAD_ENDPOINT instead!"
-#endif // CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT
+#endif // CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING && CHIP_SYSTEM_CONFIG_NO_LOCKING
        //
 /**
  *  @def CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE

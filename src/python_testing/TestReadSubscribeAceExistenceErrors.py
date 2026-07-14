@@ -36,17 +36,16 @@
 # === END CI TEST ARGUMENTS ===
 
 import copy
-import logging
-from typing import Type, Union
+from typing import Union
 
 from mobly import asserts  # type: ignore
 
 import matter.clusters as Clusters
 from matter.exceptions import ChipStackError
 from matter.interaction_model import Status
-from matter.testing.matter_testing import MatterBaseTest, async_test_body, default_matter_test_main
-
-logger = logging.getLogger(__name__)
+from matter.testing.decorators import async_test_body
+from matter.testing.matter_testing import MatterBaseTest
+from matter.testing.runner import default_matter_test_main
 
 ROOT_NODE_ENDPOINT_ID = 0
 UNIT_TESTING_ENDPOINT_ID = 1
@@ -61,9 +60,7 @@ class TestReadSubscribeAceExistenceErrors(MatterBaseTest):
             attributes=[(ROOT_NODE_ENDPOINT_ID, Clusters.AccessControl.Attributes.Acl)],
             fabricFiltered=True
         )
-        acl_list = sub[ROOT_NODE_ENDPOINT_ID][Clusters.AccessControl][Clusters.AccessControl.Attributes.Acl]
-
-        return acl_list
+        return sub[ROOT_NODE_ENDPOINT_ID][Clusters.AccessControl][Clusters.AccessControl.Attributes.Acl]
 
     async def write_acl(self, ctrl, acl):
         result = await ctrl.WriteAttribute(
@@ -91,8 +88,8 @@ class TestReadSubscribeAceExistenceErrors(MatterBaseTest):
 
     @staticmethod
     def verify_attribute_exists(res: Union[Clusters.Attribute.SubscriptionTransaction, dict],
-                                cluster:  Type[Clusters.ClusterObjects.Cluster],
-                                attribute: Type[Clusters.ClusterObjects.ClusterAttributeDescriptor],
+                                cluster:  type[Clusters.ClusterObjects.Cluster],
+                                attribute: type[Clusters.ClusterObjects.ClusterAttributeDescriptor],
                                 ep: int = ROOT_NODE_ENDPOINT_ID):
         '''
         This method can be used with the Response of Read Request and Subscribe Requests.

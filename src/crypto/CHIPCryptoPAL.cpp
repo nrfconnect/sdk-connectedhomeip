@@ -242,7 +242,7 @@ CHIP_ERROR Find16BitUpperCaseHexAfterPrefix(const ByteSpan & buffer, const char 
 
 using HKDF_sha_crypto = HKDF_sha;
 
-#if !CHIP_CRYPTO_PSA_SPAKE2P
+#if !CHIP_CRYPTO_SPAKE2P_PSA
 
 CHIP_ERROR Spake2p::InternalHash(const uint8_t * in, size_t in_len)
 {
@@ -554,8 +554,8 @@ CHIP_ERROR Spake2p_P256_SHA256_HKDF_HMAC::ComputeW0(uint8_t * w0out, size_t * w0
 
 CHIP_ERROR Spake2pVerifier::Generate(uint32_t pbkdf2IterCount, const ByteSpan & salt, uint32_t setupPin)
 {
-    uint8_t serializedWS[kSpake2p_WS_Length * 2] = { 0 };
-    ReturnErrorOnFailure(ComputeWS(pbkdf2IterCount, salt, setupPin, serializedWS, sizeof(serializedWS)));
+    SensitiveDataFixedBuffer<kSpake2p_WS_Length * 2> serializedWS;
+    ReturnErrorOnFailure(ComputeWS(pbkdf2IterCount, salt, setupPin, serializedWS.Bytes(), serializedWS.Capacity()));
 
     CHIP_ERROR err = CHIP_NO_ERROR;
     size_t len;
@@ -567,12 +567,12 @@ CHIP_ERROR Spake2pVerifier::Generate(uint32_t pbkdf2IterCount, const ByteSpan & 
 
     // Compute w0
     len = sizeof(mW0);
-    SuccessOrExit(err = spake2p.ComputeW0(mW0, &len, &serializedWS[0], kSpake2p_WS_Length));
+    SuccessOrExit(err = spake2p.ComputeW0(mW0, &len, serializedWS.Bytes(), kSpake2p_WS_Length));
     VerifyOrExit(len == sizeof(mW0), err = CHIP_ERROR_INTERNAL);
 
     // Compute L
     len = sizeof(mL);
-    SuccessOrExit(err = spake2p.ComputeL(mL, &len, &serializedWS[kSpake2p_WS_Length], kSpake2p_WS_Length));
+    SuccessOrExit(err = spake2p.ComputeL(mL, &len, serializedWS.Bytes() + kSpake2p_WS_Length, kSpake2p_WS_Length));
     VerifyOrExit(len == sizeof(mL), err = CHIP_ERROR_INTERNAL);
 
 exit:
@@ -608,15 +608,15 @@ CHIP_ERROR Spake2pVerifier::ComputeWS(uint32_t pbkdf2IterCount, const ByteSpan &
                                       uint32_t ws_len)
 {
     PBKDF2_sha256 pbkdf2;
-    uint8_t littleEndianSetupPINCode[sizeof(uint32_t)];
-    Encoding::LittleEndian::Put32(littleEndianSetupPINCode, setupPin);
+    SensitiveDataFixedBuffer<sizeof(uint32_t)> littleEndianSetupPINCode;
+    Encoding::LittleEndian::Put32(littleEndianSetupPINCode.Bytes(), setupPin);
 
     VerifyOrReturnError(salt.size() >= kSpake2p_Min_PBKDF_Salt_Length && salt.size() <= kSpake2p_Max_PBKDF_Salt_Length,
                         CHIP_ERROR_INVALID_ARGUMENT);
     VerifyOrReturnError(pbkdf2IterCount >= kSpake2p_Min_PBKDF_Iterations && pbkdf2IterCount <= kSpake2p_Max_PBKDF_Iterations,
                         CHIP_ERROR_INVALID_ARGUMENT);
 
-    return pbkdf2.pbkdf2_sha256(littleEndianSetupPINCode, sizeof(littleEndianSetupPINCode), salt.data(), salt.size(),
+    return pbkdf2.pbkdf2_sha256(littleEndianSetupPINCode.Bytes(), littleEndianSetupPINCode.Capacity(), salt.data(), salt.size(),
                                 pbkdf2IterCount, ws_len, ws);
 }
 
@@ -1181,7 +1181,7 @@ CHIP_ERROR GenerateCertificateSigningRequest(const P256Keypair * keypair, Mutabl
          *        attributes    [0] Attributes{{ CRIAttributes }}
          *     }
          */
-        GenerateCertificationRequestInformation(writer, keypair->Pubkey());
+        ReturnErrorOnFailure(GenerateCertificationRequestInformation(writer, keypair->Pubkey()));
 
         // algorithm  AlgorithmIdentifier
         ASN1_START_SEQUENCE
@@ -1322,6 +1322,21 @@ CHIP_ERROR P256Keypair::HazardousOperationLoadKeypairFromRaw(ByteSpan private_ke
     memcpy(serialized_keypair.Bytes(), public_key.data(), public_key.size());
     memcpy(serialized_keypair.Bytes() + public_key.size(), private_key.data(), private_key.size());
     return this->Deserialize(serialized_keypair);
+}
+
+__attribute__((weak)) CHIP_ERROR P256Keypair::InitializeFromBitsOrReject(FixedByteSpan<kP256_PrivateKey_Length> privateKeyBits)
+{
+    IgnoreUnusedVariable(privateKeyBits);
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+}
+
+__attribute__((weak)) CHIP_ERROR P256Keypair::ECDSA_sign_msg_det(const uint8_t * msg, size_t msg_length,
+                                                                 P256ECDSASignature & out_signature) const
+{
+    IgnoreUnusedVariable(msg);
+    IgnoreUnusedVariable(msg_length);
+    IgnoreUnusedVariable(out_signature);
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 } // namespace Crypto

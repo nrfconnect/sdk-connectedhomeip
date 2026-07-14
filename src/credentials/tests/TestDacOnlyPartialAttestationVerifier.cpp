@@ -32,6 +32,7 @@
 #include <lib/support/BufferWriter.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/Span.h>
+#include <lib/support/tests/ExtraPwTestMacros.h>
 
 using namespace chip;
 using namespace chip::Credentials;
@@ -147,11 +148,11 @@ CHIP_ERROR TestDacOnlyPartialAttestationVerifier::ConstructAttestationElementsTL
     // Reference: Matter 1.4 Core Specification — 11.18.4.6. Attestation Elements
 
     ReturnErrorOnFailure(writer.StartContainer(chip::TLV::AnonymousTag(), chip::TLV::kTLVType_Structure, outerType));
-    writer.Put(chip::TLV::ContextTag(1), cdData);
-    writer.Put(chip::TLV::ContextTag(2), nonceData);
-    writer.Put(chip::TLV::ContextTag(3), static_cast<uint32_t>(0));
-    writer.Put(chip::TLV::ContextTag(4), ByteSpan());
-    writer.Put(chip::TLV::ContextTag(5), ByteSpan());
+    EXPECT_SUCCESS(writer.Put(chip::TLV::ContextTag(1), cdData));
+    EXPECT_SUCCESS(writer.Put(chip::TLV::ContextTag(2), nonceData));
+    EXPECT_SUCCESS(writer.Put(chip::TLV::ContextTag(3), static_cast<uint32_t>(0)));
+    EXPECT_SUCCESS(writer.Put(chip::TLV::ContextTag(4), ByteSpan()));
+    EXPECT_SUCCESS(writer.Put(chip::TLV::ContextTag(5), ByteSpan()));
     ReturnErrorOnFailure(writer.EndContainer(outerType));
 
     tlvLen = writer.GetLengthWritten();
@@ -200,6 +201,19 @@ TEST_F(TestDacOnlyPartialAttestationVerifier, TestWithInvalidParameters)
     // Call the verifier with invalid info
     verifier.VerifyAttestationInformation(invalidInfo, &attestationCallback);
     EXPECT_EQ(attestationResult, AttestationVerificationResult::kInvalidArgument);
+}
+
+// VerifyAttestationInformation must not crash when given a null completion callback.
+TEST_F(TestDacOnlyPartialAttestationVerifier, TestWithNullCompletionCallback)
+{
+    DeviceAttestationVerifier::AttestationInfo invalidInfo(ByteSpan(), ByteSpan(), ByteSpan(), ByteSpan(), ByteSpan(), ByteSpan(),
+                                                           kTestVendorId, kTestProductId);
+
+    // Must return without dereferencing the null callback (previously a null-pointer crash).
+    verifier.VerifyAttestationInformation(invalidInfo, nullptr);
+
+    // The callback was never invoked, so the captured result is left at its initial value.
+    EXPECT_EQ(attestationResult, AttestationVerificationResult::kSuccess);
 }
 
 // Test verifier behavior with oversized attestationElements buffer - verifies handling of large data

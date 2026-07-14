@@ -50,7 +50,7 @@
 #endif // CONFIG_SETTINGS_NVS || CONFIG_SETTINGS_ZMS || CONFIG_SETTINGS_ZMS_LEGACY
 #endif // CONFIG_CHIP_FACTORY_RESET_ERASE_SETTINGS
 
-#ifdef CONFIG_OPENTHREAD
+#if defined(CONFIG_OPENTHREAD) || defined(CONFIG_NET_L2_OPENTHREAD)
 #include <platform/ThreadStackManager.h>
 #endif
 
@@ -109,7 +109,7 @@ CHIP_ERROR ConfigurationManagerImpl::Init()
     }
 
 #ifdef CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
-    PlatformMgr().AddEventHandler(FactoryResetHandler, 0);
+    TEMPORARY_RETURN_IGNORED PlatformMgr().AddEventHandler(FactoryResetHandler, 0);
 #endif // CONFIG_CHIP_FACTORY_RESET_TIME_MEASUREMENT
 
     err = CHIP_NO_ERROR;
@@ -146,7 +146,7 @@ CHIP_ERROR ConfigurationManagerImpl::StoreTotalOperationalHours(uint32_t totalOp
 
 void ConfigurationManagerImpl::InitiateFactoryReset()
 {
-    PlatformMgr().ScheduleWork(DoFactoryReset);
+    TEMPORARY_RETURN_IGNORED PlatformMgr().ScheduleWork(DoFactoryReset);
 }
 
 CHIP_ERROR ConfigurationManagerImpl::ReadConfigValue(Key key, bool & val)
@@ -216,11 +216,11 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
     ChipLogProgress(DeviceLayer, "Performing factory reset");
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
-    ThreadStackMgr().ClearAllSrpHostAndServices();
+    TEMPORARY_RETURN_IGNORED ThreadStackMgr().ClearAllSrpHostAndServices();
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
 
 // Lock the Thread stack to avoid unwanted interaction with settings NVS during factory reset.
-#ifdef CONFIG_OPENTHREAD
+#if defined(CONFIG_OPENTHREAD) || defined(CONFIG_NET_L2_OPENTHREAD)
     ThreadStackMgr().LockThreadStack();
 #endif
 

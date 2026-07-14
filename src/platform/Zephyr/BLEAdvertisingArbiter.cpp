@@ -23,6 +23,13 @@
 #include <system/SystemError.h>
 #include <zephyr/bluetooth/conn.h>
 
+#if defined(CONFIG_ZEPHYR_VERSION_3_3)
+#include <version.h>
+#else
+#include <zephyr/random/random.h>
+#include <zephyr/version.h>
+#endif
+
 namespace chip {
 namespace DeviceLayer {
 namespace BLEAdvertisingArbiter {
@@ -34,6 +41,10 @@ sys_slist_t sRequests;
 bool sIsInitialized = false;
 atomic_t sRestart   = ATOMIC_INIT(0);
 uint8_t sBtId       = 0;
+
+#if KERNEL_VERSION_MAJOR >= 4
+bool sWasDisconnection = false;
+#endif // KERNEL_VERSION_MAJOR >= 4
 
 // Cast an intrusive list node to the containing request object
 const BLEAdvertisingArbiter::Request & ToRequest(const sys_snode_t * node)
@@ -96,12 +107,16 @@ CHIP_ERROR RestartAdvertising()
     return System::MapErrorZephyr(result);
 }
 
+#if KERNEL_VERSION_MAJOR >= 4
 BT_CONN_CB_DEFINE(conn_callbacks) = {
     .disconnected =
         [](struct bt_conn * conn, uint8_t reason) {
+            (void) reason;
 #ifdef CONFIG_CHIP_BLE_MULTI_IDENTITY_SUPPORT
             // Ignore disconnections from other identities
             VerifyOrReturn(IsOurIdentity(conn));
+#else
+            (void) conn;
 #endif // CONFIG_CHIP_BLE_MULTI_IDENTITY_SUPPORT
             atomic_set(&sRestart, 1);
         },
@@ -115,8 +130,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 
             if (shouldRestart)
             {
-
-                SystemLayer().ScheduleLambda([] {
+                TEMPORARY_RETURN_IGNORED SystemLayer().ScheduleLambda([] {
                     if (!sys_slist_is_empty(&sRequests))
                     {
                         // Starting from Zephyr 4.0 Automatic advertiser resumption is deprecated,
@@ -132,6 +146,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
             }
         },
 };
+#endif // KERNEL_VERSION_MAJOR >= 4
 } // namespace
 
 CHIP_ERROR Init(uint8_t btId)
@@ -202,7 +217,7 @@ void CancelRequest(Request & request)
     // If cancelled request was top-priority, restart the advertising.
     if (isTopPriority)
     {
-        RestartAdvertising();
+        TEMPORARY_RETURN_IGNORED RestartAdvertising();
     }
 }
 

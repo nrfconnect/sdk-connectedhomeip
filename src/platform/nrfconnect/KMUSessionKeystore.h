@@ -62,7 +62,7 @@ public:
 
     exit:
         DestroyKey(key);
-        memset(keyEx, 0, sizeof(keyEx));
+        chip::Crypto::ClearSecret(keyEx, sizeof(keyEx));
         psa_reset_key_attributes(&attrs);
 
         if (err == CHIP_NO_ERROR)

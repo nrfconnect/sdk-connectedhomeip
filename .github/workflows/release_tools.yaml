@@ -51,7 +51,7 @@ jobs:
                   echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu ${CODENAME} main" > /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-${CODENAME}.list
                   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BA6932366A755776
                   apt update
-                  apt install -y --no-install-recommends python3.11 python3.11-dev python3.11-venv g++ git libffi-dev libglib2.0-dev-bin libghc-gio-dev zlib1g-dev libavahi-client-dev libavahi-common-dev libgirepository-1.0-1 libssl-dev binutils-aarch64-linux-gnu
+                  apt install -y --no-install-recommends python3.11 python3.11-dev python3.11-venv g++ git libffi-dev libglib2.0-dev-bin libghc-gio-dev zlib1g-dev libavahi-client-dev libavahi-common-dev libgirepository-1.0-1 libssl-dev libevent-dev binutils-aarch64-linux-gnu
                   ln -snf /usr/bin/python3.11 /usr/bin/python
                   ln -snf /usr/bin/python3.11 /usr/bin/python3
             - name: Checkout
@@ -104,7 +104,7 @@ jobs:
               run: |
                   scripts/build_python.sh --enable_ble true --chip_detail_logging true --chip_mdns platform --enable_wifi_paf true
                   python3 -m zipfile -c /tmp/output_binaries/python_matter_controller.zip \
-                      out/python_lib/controller/python/matter*.whl \
+                      out/python_lib/obj/src/controller/python/matter-controller-wheels/matter*.whl \
                       out/python_lib/python/obj/scripts/py_matter_yamltests/matter-yamltests._build_wheel/matter_yamltests-*.whl \
                       out/python_lib/obj/src/python_testing/matter_testing_infrastructure/matter-testing._build_wheel/matter_testing-*.whl \
                       out/python_lib/python/obj/scripts/py_matter_idl/matter-idl._build_wheel/matter_idl-*.whl

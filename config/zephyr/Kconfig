@@ -14,15 +14,6 @@
 #   limitations under the License.
 #
 
-# Workaround to pass the nRF compliance check
-config CHIP_NXP_PLATFORM
-	bool
-	default n
-	help
-	  States that the configuration uses Matter NXP platform,
-	  what can be used to conditionally deviate from Zephyr generic configuration
-	  for NXP platform related purposes.
-
 menuconfig CHIP
 	bool "Matter protocol stack"
 	default n

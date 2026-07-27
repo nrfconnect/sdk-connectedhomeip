@@ -233,8 +233,8 @@ CHIP_ERROR KeyValueStoreManagerImpl::_Delete(const char * key)
 
     ReturnErrorOnFailure(MakeFullKey(fullKey, key));
 
-    VerifyOrReturnError(settings_get_val_len(fullKey), CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
-    VerifyOrReturnError(settings_delete(fullKey) == 0, CHIP_ERROR_PERSISTED_STORAGE_FAILED);
+    VerifyOrReturnError(!settings_get_val_len(fullKey), CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    VerifyOrReturnError(settings_delete(fullKey) != 0, CHIP_ERROR_PERSISTED_STORAGE_FAILED);
 
     return CHIP_NO_ERROR;
 }

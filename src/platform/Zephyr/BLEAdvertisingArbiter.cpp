@@ -31,9 +31,9 @@ namespace {
 // List of advertising requests ordered by priority
 sys_slist_t sRequests;
 
-bool sIsInitialized = false;
-atomic_t sRestart   = ATOMIC_INIT(0);
-uint8_t sBtId       = 0;
+bool sIsInitialized    = false;
+bool sWasDisconnection = false;
+uint8_t sBtId          = 0;
 
 // Cast an intrusive list node to the containing request object
 const BLEAdvertisingArbiter::Request & ToRequest(const sys_snode_t * node)
@@ -103,32 +103,25 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
             // Ignore disconnections from other identities
             VerifyOrReturn(IsOurIdentity(conn));
 #endif // CONFIG_CHIP_BLE_MULTI_IDENTITY_SUPPORT
-            atomic_set(&sRestart, 1);
+            sWasDisconnection = true;
         },
     .recycled =
         []() {
             // In this callback the connection object was returned to the pool and we can try to re-start connectable
-            // advertising, but only if the disconnection was detected or a previous restart attempt failed.
-            constexpr atomic_val_t oldValue = 1;
-            constexpr atomic_val_t newValue = 0;
-            const bool shouldRestart        = atomic_cas(&sRestart, oldValue, newValue);
-
-            if (shouldRestart)
+            // advertising, but only if the disconnection was detected.
+            if (sWasDisconnection)
             {
-
                 SystemLayer().ScheduleLambda([] {
                     if (!sys_slist_is_empty(&sRequests))
                     {
                         // Starting from Zephyr 4.0 Automatic advertiser resumption is deprecated,
                         // so the BLE Advertising Arbiter has to take over the responsibility of restarting the advertiser.
                         // Restart advertising in this callback if there are pending requests after the connection is released.
-                        const CHIP_ERROR result = RestartAdvertising();
-                        if (result != CHIP_NO_ERROR)
-                        {
-                            atomic_set(&sRestart, 1);
-                        }
+                        RestartAdvertising();
                     }
                 });
+                // Reset the disconnection flag to avoid restarting advertising multiple times
+                sWasDisconnection = false;
             }
         },
 };

@@ -20,17 +20,6 @@
 import argparse
 import sys
 
-
-class _GnArgs(object):
-    """Parsed GN arguments for write_gn_args()."""
-
-    def __init__(self):
-        self.module = None
-        self.arg = []
-        self.arg_string = []
-        self.arg_cflags = []
-
-
 GN_SPECIAL_SEPARATOR = "+|+"
 GN_CFLAG_EXCLUDES = [
     '-fno-asynchronous-unwind-tables',
@@ -84,53 +73,13 @@ def write_gn_args(args):
             key, "{}-".format(GN_SPECIAL_SEPARATOR).join(filtered_value), GN_SPECIAL_SEPARATOR, cflag_excludes))
 
 
-def parse_args_tmp_file(path):
-    """Parse args.tmp (one token per line).
-
-    argparse treats lines starting with '-' as options when using @file, which
-    breaks when a --arg-cflags value is a single compiler flag.
-    """
-    args = _GnArgs()
-    with open(path, encoding='utf-8') as args_file:
-        lines = [line.rstrip('\n\r') for line in args_file]
-
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if not line:
-            i += 1
-            continue
-        if line == '--module':
-            i += 1
-            args.module = lines[i]
-            i += 1
-        elif line == '--arg-cflags':
-            i += 1
-            args.arg_cflags.append([lines[i], lines[i + 1]])
-            i += 2
-        elif line == '--arg-string':
-            i += 1
-            args.arg_string.append([lines[i], lines[i + 1]])
-            i += 2
-        elif line == '--arg':
-            i += 1
-            args.arg.append([lines[i], lines[i + 1]])
-            i += 2
-        else:
-            raise ValueError('Unexpected line in {}: {!r}'.format(path, line))
-    return args
-
-
 def main():
-    if len(sys.argv) == 2 and sys.argv[1].startswith('@'):
-        args = parse_args_tmp_file(sys.argv[1][1:])
-    else:
-        parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
-        parser.add_argument('--module', action='store')
-        parser.add_argument('--arg', action='append', nargs=2, default=[])
-        parser.add_argument('--arg-string', action='append', nargs=2, default=[])
-        parser.add_argument('--arg-cflags', action='append', nargs=2, default=[])
-        args = parser.parse_args()
+    parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+    parser.add_argument('--module', action='store')
+    parser.add_argument('--arg', action='append', nargs=2, default=[])
+    parser.add_argument('--arg-string', action='append', nargs=2, default=[])
+    parser.add_argument('--arg-cflags', action='append', nargs=2, default=[])
+    args = parser.parse_args()
     write_gn_args(args)
 
 

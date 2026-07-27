@@ -21,16 +21,12 @@
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/CommandHandler.h>
-#include <app/ConcreteClusterPath.h>
 #include <app/clusters/identify-server/CodegenIntegration.h>
-#include <app/clusters/identify-server/IdentifyCluster.h>
 #include <app/reporting/reporting.h>
 #include <app/util/config.h>
 #include <credentials/GroupDataProvider.h>
-#include <data-model-providers/codegen/CodegenDataModelProvider.h>
 #include <inttypes.h>
 #include <lib/support/CodeUtils.h>
-#include <platform/PlatformManager.h>
 #include <tracing/macros.h>
 
 #ifdef MATTER_DM_PLUGIN_SCENES_MANAGEMENT
@@ -49,20 +45,7 @@ static bool emberAfIsDeviceIdentifying(EndpointId endpoint)
 {
 #ifdef ZCL_USING_IDENTIFY_CLUSTER_SERVER
     auto cluster = FindIdentifyClusterOnEndpoint(endpoint);
-    if (cluster != nullptr)
-    {
-        return cluster->GetIdentifyTime() > 0;
-    }
-
-    // Workaround - Code-driven implementation
-    chip::app::ServerClusterInterface * iface = chip::app::CodegenDataModelProvider::Instance().Registry().Get(
-        chip::app::ConcreteClusterPath(endpoint, chip::app::Clusters::Identify::Id));
-    if (iface != nullptr)
-    {
-        auto * idCluster = static_cast<chip::app::Clusters::IdentifyCluster *>(iface);
-        return idCluster->GetIdentifyTime() > 0;
-    }
-    return false;
+    return cluster != nullptr && cluster->GetIdentifyTime() > 0;
 #else
     return false;
 #endif

@@ -140,7 +140,7 @@ TEST_F(TestInetEndPoint, TestInetInterface)
     InterfaceAddressIterator addrIterator;
     char intName[InterfaceId::kMaxIfNameLength];
     InterfaceId intId;
-    IPAddress addr;
+    IPAddress addr{};
     InterfaceType intType;
     // 64 bit IEEE MAC address
     const uint8_t kMaxHardwareAddressSize = 8;
@@ -185,7 +185,8 @@ TEST_F(TestInetEndPoint, TestInetInterface)
                intName, intIterator.IsUp() ? "UP" : "DOWN", intIterator.SupportsMulticast() ? "supports" : "no",
                intIterator.HasBroadcastAddress() ? "has" : "no");
 
-        intId.GetLinkLocalAddr(&addr);
+        err = intId.GetLinkLocalAddr(&addr);
+        EXPECT_TRUE(err == CHIP_NO_ERROR || err == INET_ERROR_ADDRESS_NOT_FOUND);
         InterfaceId::MatchLocalIPv6Subnet(addr);
 
         // Not all platforms support getting interface type and hardware address
@@ -251,7 +252,7 @@ TEST_F(TestInetEndPoint, TestInetEndPointInternal)
 {
     CHIP_ERROR err;
     IPAddress addr_any = IPAddress::Any;
-    IPAddress addr;
+    IPAddress addr{};
 #if INET_CONFIG_ENABLE_IPV4
     IPAddress addr_v4;
 #endif // INET_CONFIG_ENABLE_IPV4

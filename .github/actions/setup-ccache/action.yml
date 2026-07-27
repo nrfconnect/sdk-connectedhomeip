@@ -22,17 +22,22 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Install ccache (Darwin)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        brew install ccache
     - name: Configure ccache
-      uses: pyTooling/Actions/with-post-step@v0.4.5
+      uses: pyTooling/Actions/with-post-step@0fe6a3930b63e09f63aead156904112934176598 # v7.10.1
       with:
         main: |
           mkdir -p .ccache
           echo "CCACHE_NOHASHDIR=1" >> $GITHUB_ENV
-          echo "CCACHE_BASEDIR=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "CCACHE_BASEDIR=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
           echo "CCACHE_NODIRECT=1" >> $GITHUB_ENV
-          echo "CCACHE_PREFIX_CPP=${{ github.workspace }}/scripts/helpers/ccache-prefix-cpp.sh" >> $GITHUB_ENV
+          echo "CCACHE_PREFIX_CPP=${GITHUB_WORKSPACE}/scripts/helpers/ccache-prefix-cpp.sh" >> $GITHUB_ENV
           echo "CCACHE_SLOPPINESS=time_macros" >> $GITHUB_ENV
-          echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
+          echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.ccache" >> $GITHUB_ENV
           echo "CCACHE_COMPILERCHECK=content" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=5G" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
@@ -63,7 +68,7 @@ runs:
     - name: Restore ccache
       if: ${{ inputs.disable != 'true' }}
       id: ccache-restore
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .ccache
         key: ${{ env.CCACHE_KEY }}

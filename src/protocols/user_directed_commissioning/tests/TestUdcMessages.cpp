@@ -9,6 +9,7 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPMemString.h>
 #include <lib/support/CodeUtils.h>
+#include <lib/support/tests/ExtraPwTestMacros.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/UDP.h>
@@ -47,7 +48,7 @@ public:
 
     void OnCommissionerPasscodeReady(UDCClientState state) {}
 
-    void FindCommissionableNode(char * instanceName)
+    void FindCommissionableNode(const char * instanceName)
     {
         mFindCommissionableNodeCalled = true;
         mInstanceName                 = instanceName;
@@ -55,7 +56,7 @@ public:
 
     // virtual ~UserConfirmationProvider() = default;
     UDCClientState mState;
-    char * mInstanceName;
+    const char * mInstanceName = nullptr;
 
     bool mOnUserDirectedCommissioningRequestCalled = false;
     bool mFindCommissionableNodeCalled             = false;
@@ -229,16 +230,16 @@ TEST_F(TestUdcMessages, TestUserDirectedCommissioningClientMessage)
     UserDirectedCommissioningClient udcClient;
 
     // obtain the UDC message
-    CHIP_ERROR err = udcClient.EncodeUDCMessage(payloadBuf);
+    EXPECT_SUCCESS(udcClient.EncodeUDCMessage(payloadBuf));
 
     // check the packet header fields
     PacketHeader packetHeader;
-    packetHeader.DecodeAndConsume(payloadBuf);
+    EXPECT_SUCCESS(packetHeader.DecodeAndConsume(payloadBuf));
     EXPECT_FALSE(packetHeader.IsEncrypted());
 
     // check the payload header fields
     PayloadHeader payloadHeader;
-    payloadHeader.DecodeAndConsume(payloadBuf);
+    EXPECT_SUCCESS(payloadHeader.DecodeAndConsume(payloadBuf));
     EXPECT_EQ(payloadHeader.GetMessageType(), to_underlying(MsgType::IdentificationDeclaration));
     EXPECT_EQ(payloadHeader.GetProtocolID(), Protocols::UserDirectedCommissioning::Id);
     EXPECT_FALSE(payloadHeader.NeedsAck());
@@ -247,13 +248,10 @@ TEST_F(TestUdcMessages, TestUserDirectedCommissioningClientMessage)
     // check the payload
     char instanceName[Dnssd::Commission::kInstanceNameMaxLength + 1];
     size_t instanceNameLength = std::min<size_t>(payloadBuf->DataLength(), Dnssd::Commission::kInstanceNameMaxLength);
-    payloadBuf->Read(Uint8::from_char(instanceName), instanceNameLength);
+    EXPECT_SUCCESS(payloadBuf->Read(Uint8::from_char(instanceName), instanceNameLength));
     instanceName[instanceNameLength] = '\0';
     ChipLogProgress(Inet, "UDC instance=%s", instanceName);
     EXPECT_STREQ(instanceName, nameBuffer);
-
-    // verify no errors
-    EXPECT_EQ(err, CHIP_NO_ERROR);
 }
 
 TEST_F(TestUdcMessages, TestUDCClients)
@@ -290,7 +288,7 @@ TEST_F(TestUdcMessages, TestUDCClients)
     EXPECT_EQ(nullptr, mUdcClients.FindUDCClientState(instanceName4));
 
     // test re-activation
-    EXPECT_EQ(CHIP_NO_ERROR, mUdcClients.CreateNewUDCClientState(instanceName4, &state));
+    ASSERT_EQ(CHIP_NO_ERROR, mUdcClients.CreateNewUDCClientState(instanceName4, &state));
     System::Clock::Timestamp expirationTime = state->GetExpirationTime();
     state->SetExpirationTime(expirationTime - System::Clock::Milliseconds64(1));
     EXPECT_EQ((expirationTime - System::Clock::Milliseconds64(1)), state->GetExpirationTime());
@@ -456,7 +454,7 @@ TEST_F(TestUdcMessages, TestUDCIdentificationDeclaration)
     id.WritePayload(idBuffer, sizeof(idBuffer));
 
     // next, parse this object
-    idOut.ReadPayload(idBuffer, sizeof(idBuffer));
+    EXPECT_SUCCESS(idOut.ReadPayload(idBuffer, sizeof(idBuffer)));
 
     EXPECT_TRUE(idOut.HasDiscoveryInfo());
     EXPECT_STREQ(idOut.GetInstanceName(), instanceName);
@@ -511,7 +509,7 @@ TEST_F(TestUdcMessages, TestUDCCommissionerDeclaration)
     id.WritePayload(idBuffer, sizeof(idBuffer));
 
     // next, parse this object
-    idOut.ReadPayload(idBuffer, sizeof(idBuffer));
+    EXPECT_SUCCESS(idOut.ReadPayload(idBuffer, sizeof(idBuffer)));
 
     EXPECT_EQ(errorCode, idOut.GetErrorCode());
     EXPECT_EQ(id.GetNeedsPasscode(), idOut.GetNeedsPasscode());

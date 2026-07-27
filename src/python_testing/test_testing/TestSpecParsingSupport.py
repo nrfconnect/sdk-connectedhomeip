@@ -22,8 +22,9 @@ from mobly import asserts
 
 import matter.clusters as Clusters
 from matter.testing.global_attribute_ids import GlobalAttributeIds
-from matter.testing.matter_testing import MatterBaseTest, default_matter_test_main
+from matter.testing.matter_testing import MatterBaseTest
 from matter.testing.problem_notices import ProblemNotice
+from matter.testing.runner import default_matter_test_main
 from matter.testing.spec_parsing import (ClusterParser, DataModelLevel, PrebuiltDataModelDirectory, XmlCluster,
                                          add_cluster_data_from_xml, build_xml_clusters, check_clusters_for_unknown_commands,
                                          combine_derived_clusters_with_base, get_data_model_directory)
@@ -93,6 +94,7 @@ def get_access_enum_from_string(access_str: str) -> Clusters.AccessControl.Enums
     if access_str is None:
         return Clusters.AccessControl.Enums.AccessControlEntryPrivilegeEnum.kUnknownEnumValue
     asserts.fail("Unknown access string")
+    return None
 
 
 BASE_CLUSTER_XML_STR = (
@@ -266,7 +268,7 @@ class TestSpecParsingSupport(MatterBaseTest):
         super().setup_class()
         # Latest fully certified build
         self.spec_xml_clusters, self.spec_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_4)
-        self.all_spec_clusters = {(id, c.name, c.pics) for id, c in self.spec_xml_clusters.items()}
+        self.all_spec_clusters = {(_id, c.name, c.pics) for _id, c in self.spec_xml_clusters.items()}
 
     def test_build_xml_override(self):
         one_two_clusters, one_two_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_2)
@@ -275,6 +277,8 @@ class TestSpecParsingSupport(MatterBaseTest):
         one_four_one_clusters, one_four_one_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_4_1)
         one_four_two_xml_clusters, one_four_two_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_4_2)
         one_five_xml_clusters, one_five_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_5)
+        one_five_one_xml_clusters, one_five_one_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_5_1)
+        one_six_xml_clusters, one_six_problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_6)
 
         # We know 1.2, 1.3, 1.4 and 1.4.1, 1.4.2 are clear of errors, ensure it stays that way.
         asserts.assert_equal(len(one_two_problems), 0, "Unexpected problems found on 1.2 cluster parsing")
@@ -285,6 +289,12 @@ class TestSpecParsingSupport(MatterBaseTest):
         for p in one_five_problems:
             print(p)
         asserts.assert_equal(len(one_five_problems), 0, "Unexpected problems found on 1.5 cluster parsing")
+        for p in one_five_one_problems:
+            print(p)
+        asserts.assert_equal(len(one_five_one_problems), 0, "Unexpected problems found on 1.5.1 cluster parsing")
+        for p in one_six_problems:
+            print(p)
+        asserts.assert_equal(len(one_six_problems), 0, "Unexpected problems found on 1.6 cluster parsing")
 
         asserts.assert_greater(len(set(one_four_two_xml_clusters.keys()) - set(one_two_clusters.keys())),
                                0, "1.2.2 dir does not contain any clusters not in 1.3")
@@ -298,6 +308,10 @@ class TestSpecParsingSupport(MatterBaseTest):
                              "1.4 and 1.4.1 do not contain the same clusters")
         asserts.assert_greater(len(set(one_five_xml_clusters.keys()) - set(one_four_two_xml_clusters.keys())),
                                0, "1.5 dir does not contain any clusters not in 1.4.2")
+        asserts.assert_greater_equal(len(set(one_five_one_xml_clusters.keys()) - set(one_five_xml_clusters.keys())),
+                                     0, "1.5.1 has fewer clusters than 1.5")
+        asserts.assert_greater_equal(len(set(one_six_xml_clusters.keys()) - set(one_five_one_xml_clusters.keys())),
+                                     0, "1.6 has fewer clusters than 1.5.1")
 
         # The following clusters were removed in 1.3: Scenes, Leaf Wetness Measurement, Soil Moisture Measurement
         one_two_removed = {0x0005, 0x0407, 0x0408}
@@ -331,7 +345,7 @@ class TestSpecParsingSupport(MatterBaseTest):
                 asserts.assert_is_not_none(xml_cluster.attributes, "No attributes found in cluster")
                 asserts.assert_is_not_none(xml_cluster.attribute_map, "No attribute map found in cluster")
                 asserts.assert_equal(len(xml_cluster.attributes), len(GlobalAttributeIds) + 1, "Unexpected number of attributes")
-                asserts.assert_true(ATTRIBUTE_ID in xml_cluster.attributes.keys(),
+                asserts.assert_true(ATTRIBUTE_ID in xml_cluster.attributes,
                                     "Did not find test attribute in XmlCluster.attributes")
                 asserts.assert_equal(xml_cluster.attributes[ATTRIBUTE_ID].read_access,
                                      get_access_enum_from_string(read), "Unexpected read access")
@@ -342,7 +356,7 @@ class TestSpecParsingSupport(MatterBaseTest):
             xml_cluster = parse_cluster(xml)
             asserts.assert_is_not_none(xml_cluster.accepted_commands, "No commands found in cluster")
             asserts.assert_is_not_none(xml_cluster.command_map, "No command map found in cluster")
-            asserts.assert_true(COMMAND_ID in xml_cluster.accepted_commands.keys(),
+            asserts.assert_true(COMMAND_ID in xml_cluster.accepted_commands,
                                 "Did not find test command in XmlCluster.accepted_commands")
             asserts.assert_equal(xml_cluster.accepted_commands[COMMAND_ID].privilege,
                                  get_access_enum_from_string(invoke), "Unexpected invoke privilege")
@@ -354,7 +368,7 @@ class TestSpecParsingSupport(MatterBaseTest):
             asserts.assert_is_not_none(xml_cluster.attributes, "No attributes found in cluster")
             asserts.assert_is_not_none(xml_cluster.attribute_map, "No attribute map found in cluster")
             asserts.assert_equal(len(xml_cluster.attributes), len(GlobalAttributeIds) + 1, "Unexpected number of attributes")
-            asserts.assert_true(ATTRIBUTE_ID in xml_cluster.attributes.keys(),
+            asserts.assert_true(ATTRIBUTE_ID in xml_cluster.attributes,
                                 "Did not find test attribute in XmlCluster.attributes")
             asserts.assert_equal(xml_cluster.attributes[ATTRIBUTE_ID].write_optional,
                                  write_support == 'optional', "Unexpected write_optional value")
@@ -447,7 +461,7 @@ class TestSpecParsingSupport(MatterBaseTest):
         asserts.assert_equal(len(pure_base_clusters), 0, "Unexpected number of pure base clusters")
         asserts.assert_equal(len(ids_by_name), 2, "Unexpected number of ids by name")
 
-        ids = [(id, c.name) for id, c in clusters.items()]
+        ids = [(_id, c.name) for _id, c in clusters.items()]
         asserts.assert_true((0xFFFE, 'Test Alias1') in ids, "Unable to find Test Alias1 cluster in parsed clusters")
         asserts.assert_true((0xFFFD, 'Test Alias2') in ids, "Unable to find Test Alias2 cluster in parsed clusters")
 
@@ -501,26 +515,26 @@ class TestSpecParsingSupport(MatterBaseTest):
         pure_base_clusters: dict[str, XmlCluster] = {}
         ids_by_name: dict[str, int] = {}
         problems: list[ProblemNotice] = []
-        id = 0x0001
+        cid = 0x0001
 
         environment = jinja2.Environment()
         template = environment.from_string(PROVISIONAL_CLUSTER_TEMPLATE)
 
-        provisional = template.render(provisional=True, id=id)
+        provisional = template.render(provisional=True, id=cid)
         cluster_xml = ElementTree.fromstring(provisional)
         add_cluster_data_from_xml(cluster_xml, clusters, pure_base_clusters, ids_by_name, problems)
 
         asserts.assert_equal(len(problems), 0, "Unexpected problems parsing provisional cluster")
-        asserts.assert_in(id, clusters.keys(), "Provisional cluster not parsed")
-        asserts.assert_true(clusters[id].is_provisional, "Provisional cluster not marked as provisional")
+        asserts.assert_in(cid, clusters.keys(), "Provisional cluster not parsed")
+        asserts.assert_true(clusters[cid].is_provisional, "Provisional cluster not marked as provisional")
 
-        non_provisional = template.render(provisional=False, id=id)
+        non_provisional = template.render(provisional=False, id=cid)
         cluster_xml = ElementTree.fromstring(non_provisional)
         add_cluster_data_from_xml(cluster_xml, clusters, pure_base_clusters, ids_by_name, problems)
 
         asserts.assert_equal(len(problems), 0, "Unexpected problems parsing non-provisional cluster")
-        asserts.assert_in(id, clusters.keys(), "Non-provisional cluster not parsed")
-        asserts.assert_false(clusters[id].is_provisional, "Non-provisional cluster marked as provisional")
+        asserts.assert_in(cid, clusters.keys(), "Non-provisional cluster not parsed")
+        asserts.assert_false(clusters[cid].is_provisional, "Non-provisional cluster marked as provisional")
 
     def test_atomic_thermostat(self):
         one_four_two_xml_clusters, problems = build_xml_clusters(PrebuiltDataModelDirectory.k1_4_2)

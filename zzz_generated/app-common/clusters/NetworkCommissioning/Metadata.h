@@ -102,10 +102,6 @@ namespace ReorderNetwork {
 inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry(ReorderNetwork::Id, BitFlags<DataModel::CommandQualityFlags>(),
                                                                 Access::Privilege::kAdminister);
 } // namespace ReorderNetwork
-namespace QueryIdentity {
-inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry(QueryIdentity::Id, BitFlags<DataModel::CommandQualityFlags>(),
-                                                                Access::Privilege::kAdminister);
-} // namespace QueryIdentity
 
 } // namespace Commands
 

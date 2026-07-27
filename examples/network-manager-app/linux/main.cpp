@@ -16,9 +16,15 @@
  */
 
 #include <AppMain.h>
+#include <app/clusters/network-identity-management-server/AuthenticatorDriver.h>
+#include <app/clusters/network-identity-management-server/DefaultNetworkIdentityStorage.h>
+#include <app/clusters/network-identity-management-server/NetworkIdentityManagementCluster.h>
+#include <app/clusters/network-identity-management-server/RawKeyNetworkIdentityKeystore.h>
 #include <app/clusters/thread-border-router-management-server/thread-border-router-management-server.h>
 #include <app/clusters/thread-network-directory-server/thread-network-directory-server.h>
 #include <app/clusters/wifi-network-management-server/wifi-network-management-server.h>
+#include <app/server-cluster/ServerClusterInterfaceRegistry.h>
+#include <data-model-providers/codegen/CodegenDataModelProvider.h>
 #include <lib/core/CHIPSafeCasts.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/Span.h>
@@ -33,6 +39,7 @@
 #include <optional>
 
 using namespace chip;
+using namespace chip::app;
 using namespace chip::app::Clusters;
 
 ByteSpan ByteSpanFromCharSpan(CharSpan span)
@@ -48,14 +55,14 @@ std::optional<DefaultThreadNetworkDirectoryServer> gThreadNetworkDirectoryServer
 void emberAfThreadNetworkDirectoryClusterInitCallback(EndpointId endpoint)
 {
     VerifyOrDie(!gThreadNetworkDirectoryServer);
-    gThreadNetworkDirectoryServer.emplace(endpoint).Init();
+    TEMPORARY_RETURN_IGNORED gThreadNetworkDirectoryServer.emplace(endpoint).Init();
 }
 
 std::optional<WiFiNetworkManagementServer> gWiFiNetworkManagementServer;
 void emberAfWiFiNetworkManagementClusterInitCallback(EndpointId endpoint)
 {
     VerifyOrDie(!gWiFiNetworkManagementServer);
-    gWiFiNetworkManagementServer.emplace(endpoint).Init();
+    TEMPORARY_RETURN_IGNORED gWiFiNetworkManagementServer.emplace(endpoint).Init();
 }
 
 std::optional<ThreadBorderRouterManagement::ServerInstance> gThreadBorderRouterManagementServer;
@@ -67,7 +74,30 @@ void emberAfThreadBorderRouterManagementClusterInitCallback(EndpointId endpoint)
 #else
     static FakeBorderRouterDelegate delegate{};
 #endif
-    gThreadBorderRouterManagementServer.emplace(endpoint, &delegate, Server::GetInstance().GetFailSafeContext()).Init();
+    TEMPORARY_RETURN_IGNORED gThreadBorderRouterManagementServer
+        .emplace(endpoint, &delegate, Server::GetInstance().GetFailSafeContext())
+        .Init();
+}
+
+// Null AuthenticatorDriver for standalone testing (no real authenticator).
+class NullAuthenticatorDriver : public NetworkIdentityManagement::AuthenticatorDriver
+{
+public:
+    void OnStartup(NetworkIdentityManagement::AuthenticatorDriverCallback &, ReadOnlyNetworkIdentityStorage &) override {}
+};
+
+std::optional<DefaultNetworkIdentityStorage> gNetworkIdentityStorage;
+Crypto::RawKeyNetworkIdentityKeystore gNetworkIdentityKeystore;
+NullAuthenticatorDriver gNullAuthenticatorDriver;
+LazyRegisteredServerCluster<NetworkIdentityManagementCluster> gNetworkIdentityManagementCluster;
+
+void emberAfNetworkIdentityManagementClusterInitCallback(EndpointId endpoint)
+{
+    VerifyOrDie(!gNetworkIdentityManagementCluster.IsConstructed());
+    gNetworkIdentityStorage.emplace(Server::GetInstance().GetPersistentStorage());
+    gNetworkIdentityManagementCluster.Create(endpoint, *gNetworkIdentityStorage, gNetworkIdentityKeystore,
+                                             gNullAuthenticatorDriver);
+    SuccessOrDie(CodegenDataModelProvider::Instance().Registry().Register(gNetworkIdentityManagementCluster.Registration()));
 }
 
 static void ApplicationEarlyInit()
@@ -79,8 +109,8 @@ static void ApplicationEarlyInit()
 
 void ApplicationInit()
 {
-    gWiFiNetworkManagementServer->SetNetworkCredentials(ByteSpanFromCharSpan("MatterAP"_span),
-                                                        ByteSpanFromCharSpan("Setec Astronomy"_span));
+    TEMPORARY_RETURN_IGNORED gWiFiNetworkManagementServer->SetNetworkCredentials(ByteSpanFromCharSpan("MatterAP"_span),
+                                                                                 ByteSpanFromCharSpan("Setec Astronomy"_span));
 }
 
 void ApplicationShutdown()

@@ -65,7 +65,9 @@ Davis, CA 95616, USA
     <revision revision="4" summary="Initial Matter revision"/>
   </revisionHistory>
   <clusterIds>
-    <clusterId id="0x0095" name="Commodity Price"/>
+    <clusterId id="0x0095" name="Commodity Price">
+      <provisionalConform/>
+    </clusterId>
   </clusterIds>
   <classification hierarchy="base" role="application" picsCode="SEPR" scope="Endpoint"/>
   <features>

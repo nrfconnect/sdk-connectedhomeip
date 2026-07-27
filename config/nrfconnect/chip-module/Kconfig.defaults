@@ -418,6 +418,9 @@ endif # CHIP_CRYPTO_PSA
 
 if !CHIP_CRYPTO_PSA
 
+config OBERON_BACKEND
+    default y
+
 config MBEDTLS_AES_C
     default y
 

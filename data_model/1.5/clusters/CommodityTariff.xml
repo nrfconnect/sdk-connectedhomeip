@@ -62,7 +62,9 @@ Davis, CA 95616, USA
     <revision revision="1" summary="Initial Matter revision"/>
   </revisionHistory>
   <clusterIds>
-    <clusterId id="0x0700" name="Commodity Tariff"/>
+    <clusterId id="0x0700" name="Commodity Tariff">
+      <provisionalConform/>
+    </clusterId>
   </clusterIds>
   <classification hierarchy="base" role="application" picsCode="SETRF" scope="Endpoint"/>
   <features>

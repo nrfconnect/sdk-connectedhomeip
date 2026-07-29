@@ -45,13 +45,39 @@ config CHIP_DEVICE_VENDOR_NAME
 
 # See config/common/cmake/Kconfig for full definition
 config CHIP_NFC_ONBOARDING_PAYLOAD
-	default n
 	imply NFC_T2T_NRFXLIB
 	imply NFC_NDEF
 	imply NFC_NDEF_MSG
 	imply NFC_NDEF_RECORD
 	imply NFC_NDEF_URI_REC
 	imply NFC_NDEF_URI_MSG
+
+# See config/common/cmake/Kconfig for full definition
+config CHIP_NFC_BASED_COMMISSIONING
+	depends on HAS_HW_NRF_NFCT
+	depends on !CHIP_NFC_ONBOARDING_PAYLOAD
+	imply NFC_T4T_NRFXLIB
+	imply NFC_THREAD_CALLBACK
+	imply NFC_OWN_THREAD
+	imply NFC_NDEF
+	imply NFC_NDEF_MSG
+	imply NFC_NDEF_RECORD
+	imply NFC_NDEF_URI_REC
+	imply NFC_NDEF_URI_MSG
+	help
+	  On nRF Connect platforms, only the Commissionee role is supported. The on-chip
+	  NFCT peripheral is used exclusively by NFCCommissioningManagerImpl, which computes
+	  and serves the device's own onboarding payload (setup code) as a standard NDEF Tag
+	  Application file alongside the Matter NTL application, both within the same raw
+	  ISO-DEP (Type 4A) session.
+
+config CHIP_NFC_BASED_COMMISSIONING_APDU_DEBUG
+	bool "NFC based commissioning APDU hex logging"
+	depends on CHIP_NFC_BASED_COMMISSIONING
+	depends on LOG
+	help
+	  Enables hex dump logging of received command APDUs. General NFC commissioning
+	  messages are logged via ChipLogDetail regardless of this option.
 
 choice CHIP_BOOTLOADER
 	prompt "Bootloader implementation for Matter purposes"

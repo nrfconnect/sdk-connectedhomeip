@@ -232,9 +232,11 @@ config MPSL_FEM_NRF21540_RUNTIME_PA_GAIN_CONTROL
 config CHIP_NFC_ONBOARDING_PAYLOAD
     default y
 
-# Disable not needed NFC callback to save flash
 config NFC_THREAD_CALLBACK
-    default n
+    default n if !CHIP_NFC_BASED_COMMISSIONING
+
+config NFC_THREAD_STACK_SIZE
+    default 2048 if CHIP_NFC_BASED_COMMISSIONING
 
 # ==============================================================================
 # DFU configuration

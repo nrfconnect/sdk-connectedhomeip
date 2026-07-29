@@ -462,6 +462,14 @@ config CHIP_NFC_ONBOARDING_PAYLOAD
 	help
 		Enables sharing onboarding payload in the NFC tag.
 
+config CHIP_NFC_BASED_COMMISSIONING
+	bool "Enable NFC-based commissioning (chip-over-NFC)"
+	help
+		Enables the NFC Transport Layer (NTL) allowing the device to be commissioned
+		over NFC. Depending on the platform, this may implement the Commissionee
+		(accessory/"NFC Listener") role, the Commissioner ("NFC Reader/Writer") role,
+		or both.
+
 # Thread network features
 
 if OPENTHREAD

@@ -1712,7 +1712,7 @@ cluster UserLabel = 65 {
 
 /** Attributes and commands for configuring the measurement of pressure, and reporting pressure measurements. */
 cluster PressureMeasurement = 1027 {
-  revision 3;
+  revision 5;
 
   bitmap Feature : bitmap32 {
     kExtended = 0x1;

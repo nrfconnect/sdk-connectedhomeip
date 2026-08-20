@@ -18,6 +18,7 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 #include <platform/internal/NFCCommissioningManager.h>
 
+#include <app/server/Server.h> // nogncheck
 #include <platform/nrfconnect/NFCCommissioningManagerImpl.h>
 
 #include <lib/support/CHIPMem.h>
@@ -113,6 +114,9 @@ size_t DecodeShortLe(uint8_t leByte)
     return (leByte == 0) ? 256 : leByte;
 }
 
+constexpr uint8_t kSecureSessionEstablishedTransportNfc = 5; // Transport::Type::kNfc
+constexpr uint8_t kSecureSessionEstablishedSessionPase  = 1; // Transport::SecureSession::Type::kPASE
+
 #ifdef CHIP_NFC_BASED_COMMISSIONING_APDU_DEBUG
 void LogApduHex(const char * label, const uint8_t * data, size_t dataLength)
 {
@@ -153,25 +157,102 @@ CHIP_ERROR NFCCommissioningManagerImpl::_Init()
     ChipLogDetail(DeviceLayer, "Initializing NFC Commissioning Manager");
 
     ResetSession();
-    StartRawIsoDepTagEmulation();
     ReturnErrorOnFailure(PlatformMgr().AddEventHandler(OnPlatformEvent, reinterpret_cast<intptr_t>(this)));
 
-    return mRawIsoDepStarted ? CHIP_NO_ERROR : CHIP_ERROR_INTERNAL;
+    return CHIP_NO_ERROR;
 }
 
 void NFCCommissioningManagerImpl::OnPlatformEvent(const ChipDeviceEvent * event, intptr_t arg)
 {
-    if (event->Type == DeviceEventType::kCommissioningComplete)
+    auto * self = reinterpret_cast<NFCCommissioningManagerImpl *>(arg);
+
+    switch (event->Type)
     {
-        reinterpret_cast<NFCCommissioningManagerImpl *>(arg)->HandleCommissioningComplete();
+    case DeviceEventType::kServerReady:
+    case DeviceEventType::kDnssdInitialized:
+        self->StartNfcCommissioning();
+        break;
+    case DeviceEventType::kCommissioningComplete:
+        self->HandleCommissioningComplete();
+        break;
+    case DeviceEventType::kFailSafeTimerExpired:
+        self->HandleFailSafeTimerExpired();
+        break;
+    case DeviceEventType::kSecureSessionEstablished:
+        self->HandleSecureSessionEstablished(event);
+        break;
+    default:
+        break;
+    }
+}
+
+void NFCCommissioningManagerImpl::ScheduledStartNfcCommissioning(intptr_t arg)
+{
+    auto * self = reinterpret_cast<NFCCommissioningManagerImpl *>(arg);
+    VerifyOrReturn(self != nullptr);
+    self->StartNfcCommissioning();
+}
+
+void NFCCommissioningManagerImpl::StartNfcCommissioning()
+{
+    VerifyOrReturn(!mRawIsoDepStarted);
+
+    if (Server::GetInstance().GetFabricTable().FabricCount() != 0)
+    {
+        ChipLogProgress(DeviceLayer, "Device already commissioned: NFC commissioning will stay disabled");
+        return;
+    }
+
+    StartRawIsoDepTagEmulation();
+    if (!mRawIsoDepStarted)
+    {
+        ChipLogError(DeviceLayer, "Failed to start NFC tag emulation for commissioning");
     }
 }
 
 void NFCCommissioningManagerImpl::HandleCommissioningComplete()
 {
+    mBlockMatterAidSelection        = false;
+    mNfcEmulationPausedForFailSafe  = false;
     ChipLogProgress(DeviceLayer, "Commissioning complete: stopping NFC commissioning");
-    PlatformMgr().RemoveEventHandler(OnPlatformEvent, reinterpret_cast<intptr_t>(this));
     NFCCommissioningMgr().Shutdown();
+}
+
+void NFCCommissioningManagerImpl::HandleFailSafeTimerExpired()
+{
+    VerifyOrReturn(mBlockMatterAidSelection || mNfcEmulationPausedForFailSafe);
+
+    mBlockMatterAidSelection       = false;
+    mNfcEmulationPausedForFailSafe = false;
+
+    if (Server::GetInstance().GetFabricTable().FabricCount() != 0)
+    {
+        return;
+    }
+
+    TEMPORARY_RETURN_IGNORED ConfigureOnboardingPayload();
+    ChipLogProgress(DeviceLayer, "Fail-safe expired: NFC commissioning is available again");
+}
+
+void NFCCommissioningManagerImpl::HandleSecureSessionEstablished(const ChipDeviceEvent * event)
+{
+    VerifyOrReturn(event != nullptr);
+
+    const auto & sessionEstablished = event->SecureSessionEstablished;
+    if (sessionEstablished.TransportType != kSecureSessionEstablishedTransportNfc)
+    {
+        return;
+    }
+
+    if (sessionEstablished.SecureSessionType != kSecureSessionEstablishedSessionPase)
+    {
+        return;
+    }
+
+    mBlockMatterAidSelection = true;
+    TEMPORARY_RETURN_IGNORED ClearOnboardingPayload();
+    ChipLogProgress(DeviceLayer,
+                    "NFC PASE session established: blocking NFC commissioning until fail-safe completes or commissioning succeeds");
 }
 
 CHIP_ERROR NFCCommissioningManagerImpl::ConfigureOnboardingPayload()
@@ -193,7 +274,14 @@ CHIP_ERROR NFCCommissioningManagerImpl::ConfigureOnboardingPayload()
     MutableCharSpan qrCode(qrCodeBuffer);
     ReturnErrorOnFailure(QRCodeBasicSetupPayloadGenerator(payload).payloadBase38Representation(qrCode));
 
-    return SetOnboardingPayload(qrCode.data(), qrCode.size());
+    ReturnErrorOnFailure(SetOnboardingPayload(qrCode.data(), qrCode.size()));
+
+    // ConfigureOnboardingPayload() runs before Server::Init(); defer NFC start until the fabric
+    // table is loaded. kServerReady is not reliable on all networking paths (e.g. Wi-Fi builds
+    // without an IPv6 mDNS listener at boot), so schedule an explicit start attempt as well.
+    TEMPORARY_RETURN_IGNORED PlatformMgr().ScheduleWork(ScheduledStartNfcCommissioning, reinterpret_cast<intptr_t>(this));
+
+    return CHIP_NO_ERROR;
 }
 
 void NFCCommissioningManagerImpl::StartRawIsoDepTagEmulation()
@@ -219,15 +307,35 @@ void NFCCommissioningManagerImpl::StartRawIsoDepTagEmulation()
     ChipLogProgress(DeviceLayer, "NFC NDEF Tag emulation started");
 }
 
+void NFCCommissioningManagerImpl::StopRawIsoDepTagEmulation()
+{
+    VerifyOrReturn(mRawIsoDepStarted);
+
+    nfc_t4t_emulation_stop();
+    nfc_t4t_done();
+    mRawIsoDepStarted = false;
+}
+
+void NFCCommissioningManagerImpl::PauseNfcTagEmulationForFailSafe()
+{
+    VerifyOrReturn(!mNfcEmulationPausedForFailSafe);
+
+    mNfcEmulationPausedForFailSafe = true;
+    StopRawIsoDepTagEmulation();
+    ChipLogProgress(DeviceLayer, "NFC tag emulation paused until fail-safe completes");
+}
+
+bool NFCCommissioningManagerImpl::IsSessionIdle() const
+{
+    return mSelectedApplication == SelectedApplication::kNone && !mOutgoingContinuationPending && mApduLength == 0 &&
+        mApduFragmentCount == 0 && !mAwaitingApplicationResponse && mOutgoingMessage.IsNull();
+}
+
 void NFCCommissioningManagerImpl::_Shutdown()
 {
     ChipLogDetail(DeviceLayer, "Shutting down NFC Commissioning Manager");
-    if (mRawIsoDepStarted)
-    {
-        nfc_t4t_emulation_stop();
-        nfc_t4t_done();
-        mRawIsoDepStarted = false;
-    }
+    PlatformMgr().RemoveEventHandler(OnPlatformEvent, reinterpret_cast<intptr_t>(this));
+    StopRawIsoDepTagEmulation();
     ResetSession(/* notifyAborted = */ true);
 }
 
@@ -378,6 +486,11 @@ void NFCCommissioningManagerImpl::OnT4TEvent(void * context, nfc_t4t_event_t eve
         return;
     }
 
+    if (self->mNfcEmulationPausedForFailSafe)
+    {
+        return;
+    }
+
     switch (event)
     {
     case NFC_T4T_EVENT_FIELD_ON:
@@ -399,17 +512,46 @@ void NFCCommissioningManagerImpl::OnT4TEvent(void * context, nfc_t4t_event_t eve
 
 void NFCCommissioningManagerImpl::HandleFieldOn()
 {
+    SessionLock lock;
+
+    if (mNfcEmulationPausedForFailSafe)
+    {
+        ChipLogDetail(DeviceLayer, "NFC field detected while fail-safe pause is active: ignoring");
+        return;
+    }
+
+    if (mBlockMatterAidSelection)
+    {
+        ChipLogProgress(DeviceLayer, "NFC field detected while fail-safe is active: pausing tag emulation");
+        ResetSessionState();
+        PauseNfcTagEmulationForFailSafe();
+        return;
+    }
+
     ChipLogDetail(DeviceLayer, "NFC field detected: an NFC Reader/Writer is polling");
     // A field-on event always precedes a fresh ISO-DEP activation: start with a clean slate.
-    SessionLock lock;
     ResetSessionState();
 }
 
 void NFCCommissioningManagerImpl::HandleFieldOff()
 {
-    ChipLogDetail(DeviceLayer, "NFC field lost: the NFC Reader/Writer moved away");
     SessionLock lock;
+
+    if (IsSessionIdle())
+    {
+        if (mNfcEmulationPausedForFailSafe || !mBlockMatterAidSelection)
+        {
+            return;
+        }
+    }
+
+    ChipLogDetail(DeviceLayer, "NFC field lost: the NFC Reader/Writer moved away");
     ResetSessionState(/* notifyAborted = */ true);
+
+    if (mBlockMatterAidSelection && mRawIsoDepStarted)
+    {
+        PauseNfcTagEmulationForFailSafe();
+    }
 }
 
 void NFCCommissioningManagerImpl::HandleDataTransmitted()
@@ -553,6 +695,17 @@ void NFCCommissioningManagerImpl::HandleSelectByNameCommand(const uint8_t * aid,
 
     if (aidLength == sizeof(kNdefAid) && memcmp(aid, kNdefAid, sizeof(kNdefAid)) == 0)
     {
+        if (mBlockMatterAidSelection)
+        {
+            mSelectedApplication = SelectedApplication::kNone;
+            mSelectedFile        = SelectedFile::kNone;
+            SendStatusResponse(kSwConditionsNotSatisfied1, kSwConditionsNotSatisfied2);
+            ChipLogProgress(DeviceLayer,
+                            "Rejecting NDEF Tag Application selection: commissioning fail-safe is active, waiting for fail-safe "
+                            "to complete");
+            return;
+        }
+
         mSelectedApplication = SelectedApplication::kNdef;
         SendStatusResponse(kSwSuccess1, kSwSuccess2);
         ChipLogProgress(DeviceLayer, "NDEF Tag Application selected");
@@ -594,6 +747,16 @@ void NFCCommissioningManagerImpl::HandleSelectByFileIdCommand(const uint8_t * fi
 
 void NFCCommissioningManagerImpl::HandleMatterAidSelected()
 {
+    if (mBlockMatterAidSelection)
+    {
+        mSelectedApplication = SelectedApplication::kNone;
+        mSelectedFile        = SelectedFile::kNone;
+        SendStatusResponse(kSwConditionsNotSatisfied1, kSwConditionsNotSatisfied2);
+        ChipLogProgress(DeviceLayer,
+                        "Rejecting Matter AID selection: commissioning fail-safe is active, waiting for fail-safe to complete");
+        return;
+    }
+
     mSelectedApplication = SelectedApplication::kMatter;
 
     uint16_t discriminator = 0;
@@ -634,6 +797,14 @@ void NFCCommissioningManagerImpl::HandleMatterAidSelected()
 
 void NFCCommissioningManagerImpl::HandleReadBinaryCommand(const uint8_t * apdu, size_t apduLength)
 {
+    if (mBlockMatterAidSelection)
+    {
+        SendStatusResponse(kSwConditionsNotSatisfied1, kSwConditionsNotSatisfied2);
+        ChipLogProgress(DeviceLayer,
+                        "Rejecting READ BINARY: commissioning fail-safe is active, waiting for fail-safe to complete");
+        return;
+    }
+
     if (mSelectedApplication != SelectedApplication::kNdef || mSelectedFile == SelectedFile::kNone)
     {
         SendStatusResponse(kSwConditionsNotSatisfied1, kSwConditionsNotSatisfied2);

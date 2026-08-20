@@ -61,7 +61,10 @@ public:
     void SetNFCBase(Transport::NFCBase * nfcBase) override;
     bool CanSendToPeer(const Transport::PeerAddress & address) override;
     CHIP_ERROR SendToNfcTag(const Transport::PeerAddress & address, System::PacketBufferHandle && msgBuf) override;
-    bool HasOnboardingPayload() const { return mHasOnboardingPayload; }
+    bool HasOnboardingPayload() const
+    {
+        return mHasOnboardingPayload && mRawIsoDepStarted && !mBlockMatterAidSelection && !mNfcEmulationPausedForFailSafe;
+    }
     CHIP_ERROR ConfigureOnboardingPayload();
 
     // Maximum size of the NDEF message (URI record) served by the NDEF Tag Application's NDEF
@@ -88,6 +91,17 @@ private:
 
     /** Stops NFC tag emulation once the device has been successfully commissioned. */
     void HandleCommissioningComplete();
+
+    /** Starts NFC tag emulation once the server is up and the device has no fabrics yet. */
+    void StartNfcCommissioning();
+
+    static void ScheduledStartNfcCommissioning(intptr_t arg);
+
+    /** Logs that NFC Matter transport can accept a new session after fail-safe expiry. */
+    void HandleFailSafeTimerExpired();
+
+    /** Blocks new Matter AID selection once an NFC PASE session is established. */
+    void HandleSecureSessionEstablished(const ChipDeviceEvent * event);
 
     // Grant header-local singleton accessors access to sInstance.
     friend NFCCommissioningManager & NFCCommissioningMgr();
@@ -122,6 +136,15 @@ private:
      * enabling the device to receive APDU commands from an external NFC reader.
      */
     void StartRawIsoDepTagEmulation();
+
+    /** Stops raw ISO-DEP tag emulation without removing the platform event handler. */
+    void StopRawIsoDepTagEmulation();
+
+    /** Stops tag emulation while fail-safe rollback is in progress. */
+    void PauseNfcTagEmulationForFailSafe();
+
+    /** Returns true when there is no in-flight ISO-DEP/Matter session state. */
+    bool IsSessionIdle() const;
 
     /**
      * Handles the event indicating that an NFC polling device (reader) field is present.
@@ -315,6 +338,15 @@ private:
 
     // Set once an incoming message has been fully reassembled and handed off to the Matter stack.
     bool mAwaitingApplicationResponse = false;
+
+    // While set, NDEF reads and new Matter AID selections are rejected, and the
+    // onboarding payload is cleared, so a second NFC tap cannot restart commissioning
+    // during fail-safe rollback.
+    bool mBlockMatterAidSelection = false;
+
+    // Set when tag emulation is stopped during fail-safe rollback. While set, all NFC
+    // callbacks are ignored to avoid corrupting the NFC platform ring buffer on re-tap.
+    bool mNfcEmulationPausedForFailSafe = false;
 };
 
 /**

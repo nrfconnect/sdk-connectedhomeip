@@ -24,9 +24,9 @@
 #pragma once
 
 #ifndef CONFIG_CHIP_DEVICE_SOFTWARE_VERSION
-#include "app_version.h"
+#include <zephyr/app_version.h>
 #endif
-#include "autoconf.h"
+#include <zephyr/autoconf.h>
 
 // ==================== Platform Adaptations ====================
 

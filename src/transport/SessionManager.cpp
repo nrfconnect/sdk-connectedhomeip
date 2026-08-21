@@ -73,6 +73,30 @@ void CorrectPeerAddressInterfaceID(Transport::PeerAddress & peerAddress)
     peerAddress.SetInterface(Inet::InterfaceId::Null());
 }
 
+// Only a groupcast sender holds a membership entry, which is what carries the multicast address
+// policy. Legacy group communication requires the sender to hold the group key alone, so a missing
+// entry there is not an error and the default address policy applies.
+CHIP_ERROR ResolveGroupMulticastAddress(Credentials::GroupDataProvider & groups, const FabricInfo & fabric,
+                                        const Transport::OutgoingGroupSession & session, Transport::PeerAddress & address)
+{
+    Credentials::GroupDataProvider::GroupInfo info;
+    CHIP_ERROR err = groups.GetGroupInfo(session.GetFabricIndex(), session.GetGroupId(), info);
+
+    if (err == CHIP_ERROR_NOT_FOUND && !groups.IsGroupcastEnabled())
+    {
+        info = Credentials::GroupDataProvider::GroupInfo();
+    }
+    else
+    {
+        ReturnErrorOnFailure(err);
+    }
+
+    address = info.UsePerGroupAddress()
+        ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric.GetFabricId(), session.GetGroupId())
+        : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
+    return CHIP_NO_ERROR;
+}
+
 } // namespace
 
 uint32_t EncryptedPacketBufferHandle::GetMessageCounter() const
@@ -225,11 +249,7 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
             return CHIP_ERROR_INTERNAL;
         }
 
-        Credentials::GroupDataProvider::GroupInfo info;
-        ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
-        destination_address = (info.UsePerGroupAddress())
-            ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId())
-            : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
+        ReturnErrorOnFailure(ResolveGroupMulticastAddress(*groups, *fabric, *groupSession, destination_address));
 
         Crypto::SymmetricKeyContext * keyContext =
             groups->GetKeyContext(groupSession->GetFabricIndex(), groupSession->GetGroupId());
@@ -428,12 +448,8 @@ CHIP_ERROR SessionManager::SendPreparedMessage(const SessionHandle & sessionHand
         auto * groups = Credentials::GetGroupDataProvider();
         VerifyOrReturnError(nullptr != groups, CHIP_ERROR_INTERNAL);
 
-        Credentials::GroupDataProvider::GroupInfo info;
-        ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
-        multicastAddress = (info.UsePerGroupAddress())
-            ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId())
-            : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
-        destination      = &multicastAddress;
+        ReturnErrorOnFailure(ResolveGroupMulticastAddress(*groups, *fabric, *groupSession, multicastAddress));
+        destination = &multicastAddress;
     }
     break;
     case Transport::Session::SessionType::kSecure: {

@@ -143,6 +143,14 @@ IdentifyCluster * FindIdentifyClusterOnEndpoint(EndpointId endpointId)
     {
         return &legacyInstance->mCluster.Cluster();
     }
+
+    ServerClusterInterface * registeredCluster =
+        CodegenDataModelProvider::Instance().Registry().Get({ endpointId, Clusters::Identify::Id });
+    if (registeredCluster != nullptr)
+    {
+        return static_cast<IdentifyCluster *>(registeredCluster);
+    }
+
     return nullptr;
 }
 

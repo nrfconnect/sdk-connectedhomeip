@@ -1,0 +1,51 @@
+name: Maximize runner disk
+description: Free up disk space on the github runner
+runs:
+  using: "composite"
+  steps:
+    - name: Free up disk space on the github runner
+      if: runner.os == 'Linux' && !env.ACT
+      shell: bash
+      run: |
+        # maximize-runner-disk
+        # Directories to prune to free up space
+        prune=(
+          /usr/share/dotnet              # ~1.6GB
+          /usr/local/lib/android         # ~8.9GB (entire Android SDK)
+          /usr/share/swift               # ~1.5GB
+          /usr/local/.ghcup              # ~2GB Haskell
+          /opt/hostedtoolcache           # ~5GB cached tools
+          /usr/local/share/powershell    # ~300MB
+          /usr/local/share/chromium      # ~300MB
+          /opt/ghc                        # Haskell compiler
+          /imagegeneration               # Image generation tools
+        )
+
+        if [[ "$UID" -eq 0 && -d /__w ]]; then
+          root=/runner-root-volume
+          if [[ ! -d "$root" ]]; then
+            echo "Unable to maximize disk space, job is running inside a container and $root is not mounted"
+            exit 0
+          fi
+          function sudo() { "$@"; } # we're already root (and sudo is probably unavailable)
+        elif [[ "$UID" -ne 0 && "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
+          root=
+        else
+          echo "Unable to maximize disk space, unknown runner environment"
+          exit 0
+        fi
+
+        echo "Freeing up runner disk space on ${root:-/}"
+        function avail() { df -k --output=avail "${root:-/}" | grep '^[0-9]*$'; }
+        function now() { date '+%s'; }
+        before="$(avail)" start="$(now)"
+        for dir in "${prune[@]}"; do
+          if [[ -d "${root}${dir}" ]]; then
+            echo "- $dir"
+            sudo rm -rf -- "${root}${dir}"
+          else
+            echo "- $dir (not found)"
+          fi
+        done
+        after="$(avail)" end="$(now)"
+        echo "Done, freed up $(( (after - before) / 1024 ))M of disk space in $(( end - start )) seconds."

@@ -38,9 +38,6 @@ if SPI_NOR
 config SPI_NOR_FLASH_LAYOUT_PAGE_SIZE
 	default 4096
 
-config PM_OVERRIDE_EXTERNAL_DRIVER_CHECK
-	default y
-
 endif # SPI_NOR
 
 config CHIP_MEMORY_PROFILING

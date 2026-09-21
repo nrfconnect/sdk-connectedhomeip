@@ -95,7 +95,7 @@ void ShareQRCodeOverNFC(chip::RendezvousInformationFlags aRendezvousFlags)
     char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
     chip::MutableCharSpan qrCode(payloadBuffer);
 
-    ReturnOnFailure(GetQRCode(qrCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)));
+    ReturnOnFailure(GetQRCode(qrCode, aRendezvousFlags));
 
     ReturnOnFailure(NFCOnboardingPayloadMgr().StartTagEmulation(qrCode.data(), qrCode.size()));
 }

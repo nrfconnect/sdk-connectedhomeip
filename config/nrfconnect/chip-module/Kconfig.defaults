@@ -238,6 +238,9 @@ config NFC_THREAD_CALLBACK
 config NFC_THREAD_STACK_SIZE
     default 2048 if CHIP_NFC_BASED_COMMISSIONING
 
+config NFC_RING_SIZE
+    default 4096 if CHIP_NFC_COMMISSIONING_MODE_POWERED
+
 # ==============================================================================
 # DFU configuration
 # ==============================================================================

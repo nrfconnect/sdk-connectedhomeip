@@ -28,12 +28,16 @@
 
 #include <platform/internal/NFCCommissioningManager.h>
 
-#include <transport/raw/NfcApplicationDelegate.h>
-
 #include <lib/core/Global.h>
 #include <system/SystemPacketBuffer.h>
 
+#include <transport/raw/NfcApplicationDelegate.h>
+
+#include "autoconf.h"
+
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 #include <nfc_t4t_lib.h>
+#endif
 
 #include <cstdint>
 
@@ -56,21 +60,26 @@ class NFCCommissioningManagerImpl final : public NFCCommissioningManager, privat
 public:
     NFCCommissioningManagerImpl() {}
 
-    // ===== Members that implement virtual methods on NfcApplicationDelegate.
-
     void SetNFCBase(Transport::NFCBase * nfcBase) override;
     bool CanSendToPeer(const Transport::PeerAddress & address) override;
     CHIP_ERROR SendToNfcTag(const Transport::PeerAddress & address, System::PacketBufferHandle && msgBuf) override;
+
     bool HasOnboardingPayload() const
     {
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
         return mHasOnboardingPayload && mRawIsoDepStarted && !mBlockMatterAidSelection && !mNfcEmulationPausedForFailSafe;
+#else
+        return false;
+#endif
     }
     CHIP_ERROR ConfigureOnboardingPayload();
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
     // Maximum size of the NDEF message (URI record) served by the NDEF Tag Application's NDEF
     // file, and total size of that file (message plus its 2-byte NLEN length header).
     static constexpr size_t kNdefMessageCapacity = 128;
     static constexpr size_t kNdefFileBufferSize  = kNdefMessageCapacity + 2;
+#endif
 
 private:
     // ===== Members that implement the NFCCommissioningManager internal interface.
@@ -103,26 +112,19 @@ private:
     /** Blocks new Matter AID selection once an NFC PASE session is established. */
     void HandleSecureSessionEstablished(const ChipDeviceEvent * event);
 
-    // Grant header-local singleton accessors access to sInstance.
-    friend NFCCommissioningManager & NFCCommissioningMgr();
-    friend NFCCommissioningManagerImpl & NFCCommissioningMgrImpl();
-
-    static Global<NFCCommissioningManagerImpl> sInstance;
-
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
     static constexpr size_t kMaxApduSize         = 261;
     static constexpr uint8_t kNtlProtocolVersion = 0x01;
 
     // Applications selectable within our single raw ISO-DEP session (see file header).
-    enum class SelectedApplication
-    {
+    enum class SelectedApplication{
         kNone,
         kMatter,
         kNdef,
     };
 
     // Elementary files selectable under the NDEF Tag Application, once selected.
-    enum class SelectedFile
-    {
+    enum class SelectedFile{
         kNone,
         kCapabilityContainer,
         kNdefFile,
@@ -347,6 +349,12 @@ private:
     // Set when tag emulation is stopped during fail-safe rollback. While set, all NFC
     // callbacks are ignored to avoid corrupting the NFC platform ring buffer on re-tap.
     bool mNfcEmulationPausedForFailSafe = false;
+#endif // CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
+
+    static Global<NFCCommissioningManagerImpl> sInstance;
+
+    friend NFCCommissioningManager & NFCCommissioningMgr();
+    friend NFCCommissioningManagerImpl & NFCCommissioningMgrImpl();
 };
 
 /**

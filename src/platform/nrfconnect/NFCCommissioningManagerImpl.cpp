@@ -34,8 +34,10 @@
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/SetupPayload.h>
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 #include <nfc/ndef/uri_msg.h>
 #include <nfc/ndef/uri_rec.h>
+#endif
 
 #include <algorithm>
 #include <cstring>
@@ -48,6 +50,7 @@ namespace chip {
 namespace DeviceLayer {
 namespace Internal {
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 namespace {
 
 // Matter Application Identifier (NTL, spec 4.21)
@@ -149,6 +152,7 @@ public:
 };
 
 } // namespace
+#endif // CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 
 Global<NFCCommissioningManagerImpl> NFCCommissioningManagerImpl::sInstance;
 
@@ -156,7 +160,9 @@ CHIP_ERROR NFCCommissioningManagerImpl::_Init()
 {
     ChipLogDetail(DeviceLayer, "Initializing NFC Commissioning Manager");
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
     ResetSession();
+#endif
     ReturnErrorOnFailure(PlatformMgr().AddEventHandler(OnPlatformEvent, reinterpret_cast<intptr_t>(this)));
 
     return CHIP_NO_ERROR;
@@ -170,17 +176,21 @@ void NFCCommissioningManagerImpl::OnPlatformEvent(const ChipDeviceEvent * event,
     {
     case DeviceEventType::kServerReady:
     case DeviceEventType::kDnssdInitialized:
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
         self->StartNfcCommissioning();
+#endif
         break;
     case DeviceEventType::kCommissioningComplete:
         self->HandleCommissioningComplete();
         break;
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
     case DeviceEventType::kFailSafeTimerExpired:
         self->HandleFailSafeTimerExpired();
         break;
     case DeviceEventType::kSecureSessionEstablished:
         self->HandleSecureSessionEstablished(event);
         break;
+#endif
     default:
         break;
     }
@@ -195,6 +205,9 @@ void NFCCommissioningManagerImpl::ScheduledStartNfcCommissioning(intptr_t arg)
 
 void NFCCommissioningManagerImpl::StartNfcCommissioning()
 {
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_UNPOWERED
+    return;
+#else
     VerifyOrReturn(!mRawIsoDepStarted);
 
     if (Server::GetInstance().GetFabricTable().FabricCount() != 0)
@@ -208,16 +221,20 @@ void NFCCommissioningManagerImpl::StartNfcCommissioning()
     {
         ChipLogError(DeviceLayer, "Failed to start NFC tag emulation for commissioning");
     }
+#endif // CONFIG_CHIP_NFC_COMMISSIONING_MODE_UNPOWERED
 }
 
 void NFCCommissioningManagerImpl::HandleCommissioningComplete()
 {
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
     mBlockMatterAidSelection       = false;
     mNfcEmulationPausedForFailSafe = false;
+#endif
     ChipLogProgress(DeviceLayer, "Commissioning complete: stopping NFC commissioning");
     NFCCommissioningMgr().Shutdown();
 }
 
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 void NFCCommissioningManagerImpl::HandleFailSafeTimerExpired()
 {
     VerifyOrReturn(mBlockMatterAidSelection || mNfcEmulationPausedForFailSafe);
@@ -255,9 +272,14 @@ void NFCCommissioningManagerImpl::HandleSecureSessionEstablished(const ChipDevic
     ChipLogProgress(DeviceLayer,
                     "NFC PASE session established: blocking NFC commissioning until fail-safe completes or commissioning succeeds");
 }
+#endif // CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 
 CHIP_ERROR NFCCommissioningManagerImpl::ConfigureOnboardingPayload()
 {
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_UNPOWERED
+    ChipLogDetail(DeviceLayer, "Unpowered NFC commissioning: skipping on-chip tag setup");
+    return CHIP_NO_ERROR;
+#else
     PayloadContents payload;
     payload.version = 0;
     payload.rendezvousInformation.SetValue(RendezvousInformationFlags(RendezvousInformationFlag::kNFC));
@@ -283,7 +305,10 @@ CHIP_ERROR NFCCommissioningManagerImpl::ConfigureOnboardingPayload()
     TEMPORARY_RETURN_IGNORED PlatformMgr().ScheduleWork(ScheduledStartNfcCommissioning, reinterpret_cast<intptr_t>(this));
 
     return CHIP_NO_ERROR;
+#endif // CONFIG_CHIP_NFC_COMMISSIONING_MODE_UNPOWERED
 }
+
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
 
 void NFCCommissioningManagerImpl::StartRawIsoDepTagEmulation()
 {
@@ -330,14 +355,6 @@ bool NFCCommissioningManagerImpl::IsSessionIdle() const
 {
     return mSelectedApplication == SelectedApplication::kNone && !mOutgoingContinuationPending && mApduLength == 0 &&
         mApduFragmentCount == 0 && !mAwaitingApplicationResponse && mOutgoingMessage.IsNull();
-}
-
-void NFCCommissioningManagerImpl::_Shutdown()
-{
-    ChipLogDetail(DeviceLayer, "Shutting down NFC Commissioning Manager");
-    PlatformMgr().RemoveEventHandler(OnPlatformEvent, reinterpret_cast<intptr_t>(this));
-    StopRawIsoDepTagEmulation();
-    ResetSession(/* notifyAborted = */ true);
 }
 
 void NFCCommissioningManagerImpl::ResetSession(bool notifyAborted)
@@ -1093,6 +1110,38 @@ void NFCCommissioningManagerImpl::DeliverIncomingMessage()
     }
 
     mAwaitingApplicationResponse = true;
+}
+
+#else // CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
+
+void NFCCommissioningManagerImpl::SetNFCBase(Transport::NFCBase * nfcBase)
+{
+    (void) nfcBase;
+}
+
+bool NFCCommissioningManagerImpl::CanSendToPeer(const Transport::PeerAddress & address)
+{
+    (void) address;
+    return false;
+}
+
+CHIP_ERROR NFCCommissioningManagerImpl::SendToNfcTag(const Transport::PeerAddress & address, System::PacketBufferHandle && msgBuf)
+{
+    (void) address;
+    (void) msgBuf;
+    return CHIP_ERROR_INCORRECT_STATE;
+}
+
+#endif // CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
+
+void NFCCommissioningManagerImpl::_Shutdown()
+{
+    ChipLogDetail(DeviceLayer, "Shutting down NFC Commissioning Manager");
+    PlatformMgr().RemoveEventHandler(OnPlatformEvent, reinterpret_cast<intptr_t>(this));
+#ifdef CONFIG_CHIP_NFC_COMMISSIONING_MODE_POWERED
+    StopRawIsoDepTagEmulation();
+    ResetSession(/* notifyAborted = */ true);
+#endif
 }
 
 } // namespace Internal

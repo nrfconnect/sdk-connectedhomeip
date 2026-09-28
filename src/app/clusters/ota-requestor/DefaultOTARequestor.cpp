@@ -31,6 +31,8 @@
 #include "BDXDownloader.h"
 #include "DefaultOTARequestor.h"
 
+#include <algorithm>
+
 namespace chip {
 
 using namespace app;
@@ -50,8 +52,26 @@ OTARequestorInterface * globalOTARequestorInstance = nullptr;
 // Global callback to call when globalOTARequestorInstance is set.
 void (*gInternalOnSetRequestorInstance)(OTARequestorInterface * instance) = nullptr;
 
-// Abort the QueryImage download request if there's been no progress for 5 minutes
-static constexpr System::Clock::Timeout kDownloadTimeoutSec = chip::System::Clock::Seconds32(5 * 60);
+// Maximum expected time for the provider to produce a BDX block.
+constexpr System::Clock::Timeout kExpectedProviderProcessingTime = System::Clock::Seconds16(2);
+
+// Number of round trips without any BDX progress that is treated as a stalled download.
+constexpr uint32_t kDownloadTimeoutRoundTrips = 2;
+
+// Lower bound on the download timeout.
+constexpr System::Clock::Timeout kMinDownloadTimeout = System::Clock::Seconds16(10);
+
+// Upper bound on the download timeout.
+constexpr System::Clock::Timeout kMaxDownloadTimeout = System::Clock::Seconds32(5 * 60);
+
+static System::Clock::Timeout ComputeDownloadTimeout(const SessionHandle & session)
+{
+    System::Clock::Timeout roundTrip = session->ComputeRoundTripTimeout(kExpectedProviderProcessingTime, true);
+    System::Clock::Timeout timeout =
+        std::clamp(roundTrip * kDownloadTimeoutRoundTrips, kMinDownloadTimeout, kMaxDownloadTimeout);
+
+    return timeout;
+}
 
 static void LogQueryImageResponse(const QueryImageResponse::DecodableType & response)
 {
@@ -831,7 +851,9 @@ CHIP_ERROR DefaultOTARequestor::StartDownload(Messaging::ExchangeManager & excha
     mBdxDownloader->SetMessageDelegate(&mBdxMessenger);
     mBdxDownloader->SetStateDelegate(this);
 
-    CHIP_ERROR err = mBdxDownloader->SetBDXParams(initOptions, kDownloadTimeoutSec);
+    const System::Clock::Timeout downloadTimeout = ComputeDownloadTimeout(sessionHandle);
+
+    CHIP_ERROR err = mBdxDownloader->SetBDXParams(initOptions, downloadTimeout);
     if (err == CHIP_NO_ERROR)
     {
         err = mBdxDownloader->BeginPrepareDownload();

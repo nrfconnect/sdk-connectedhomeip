@@ -153,7 +153,7 @@ CHIP_ERROR AppTask::Init()
     }
 
     sThreadNetworkDriver.Init();
-#elif !defined(CONFIG_WIFI_NRF70)
+#elif !defined(CONFIG_CHIP_WIFI)
     return CHIP_ERROR_INTERNAL;
 #endif
 

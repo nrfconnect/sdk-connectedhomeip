@@ -460,7 +460,8 @@ config CHIP_SYSTEM_PACKETBUFFER_POOL_SIZE
 
 # See config/common/cmake/Kconfig for full definition
 config CHIP_WIFI
-	select WIFI_NRF70
+	select WIFI_NRF70 if !DT_HAS_NORDIC_NRF7120_WIFI_ENABLED
+	select WIFI_NRF71 if DT_HAS_NORDIC_NRF7120_WIFI_ENABLED
 	select WIFI
 	select WIFI_NM_WPA_SUPPLICANT
 	select NETWORKING

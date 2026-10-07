@@ -17,7 +17,7 @@ namespace app {
 namespace Clusters {
 namespace TemperatureMeasurement {
 
-inline constexpr uint32_t kRevision = 6;
+inline constexpr uint32_t kRevision = 4;
 
 namespace Attributes {
 

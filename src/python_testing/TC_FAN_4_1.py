@@ -53,7 +53,6 @@
 
 import asyncio
 import logging
-from typing import Optional
 
 from mobly import asserts
 
@@ -61,13 +60,13 @@ import matter.clusters as Clusters
 from matter.interaction_model import Status
 from matter.testing.decorators import has_cluster, run_if_endpoint_matches
 from matter.testing.event_attribute_reporting import AttributeSubscriptionHandler
-from matter.testing.matter_testing import AttributeValue, MatterBaseTest
+from matter.testing.matter_testing import AttributeValue, MatterTestCommissionedDevice
 from matter.testing.runner import TestStep, default_matter_test_main
 
 log = logging.getLogger(__name__)
 
 
-class TC_FAN_4_1(MatterBaseTest):
+class TC_FAN_4_1(MatterTestCommissionedDevice):
     def desc_TC_FAN_4_1(self) -> str:
         return "[TC-FAN-4.1] Fan interaction with On/Off cluster"
 
@@ -239,7 +238,7 @@ class TC_FAN_4_1(MatterBaseTest):
         step_num = 16
         num_substeps = 7
 
-        async def verify_onoff_off(attr: Clusters.ClusterObjects.ClusterAttributeDescriptor, expected_mode: Clusters.FanControl.Enums.FanModeEnum, expected_percent_setting: Optional[int], expected_speed_setting: Optional[int]):
+        async def verify_onoff_off(attr: Clusters.ClusterObjects.ClusterAttributeDescriptor, expected_mode: Clusters.FanControl.Enums.FanModeEnum, expected_percent_setting: int | None, expected_speed_setting: int | None):
             """ Writes specified attribute and checks expected results for On/Off cluster in Off mode
                 None on PercentSetting or SpeedSetting just verifies the values are not 0.
             """

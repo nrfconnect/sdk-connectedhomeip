@@ -20,6 +20,7 @@ from builders.cc32xx import cc32xxApp, cc32xxBuilder
 from builders.cyw30739 import Cyw30739App, Cyw30739Board, Cyw30739Builder
 from builders.efr32 import Efr32App, Efr32Board, Efr32Builder
 from builders.esp32 import Esp32App, Esp32Board, Esp32Builder
+from builders.esp32_zephyr import Esp32ZephyrApp, Esp32ZephyrBoard, Esp32ZephyrBuilder
 from builders.genio import GenioApp, GenioBuilder
 from builders.host import HostApp, HostBoard, HostBuilder, HostCryptoLibrary, HostFuzzingType
 from builders.imx import IMXApp, IMXBuilder
@@ -45,18 +46,52 @@ from .target import BuildTarget, TargetPart
 _ALL_DEVICES_APP_DEVICES = [
     # keep-sorted: start
     'aggregator',
+    'air-purifier',
+    'ambient-context-sensor',
+    'bridged-node',
     'chime',
+    'color-temperature-light',
     'contact-sensor',
+    'cooktop',
+    'device-energy-management',
     'dimmable-light',
+    'dimmable-plug-in-unit',
+    'dishwasher',
+    'electrical-sensor',
+    'extended-color-light',
+    'extractor-hood',
     'fan',
+    'flow-sensor',
+    'generic-switch',
+    'humidity-conditioner',
+    'humidity-sensor',
+    'laundry-dryer',
+    'laundry-washer',
+    'light-sensor',
+    'microwave-oven',
+    'mode-select',
+    'mounted-dimmable-load-control',
+    'mounted-on-off-control',
     'occupancy-sensor',
     'on-off-light',
+    'on-off-light-switch',
+    'on-off-plug-in-unit',
+    'oven',
+    'power-source',
+    'pressure-sensor',
+    'proximity-ranger',
+    'rain-sensor',
+    'refrigerator',
+    'robotic-vacuum-cleaner',
+    'room-air-conditioner',
     'soil-sensor',
     'speaker',
     'temperature-sensor',
+    'thread-border-router',
+    'water-freeze-detector',
     'water-leak-detector',
-    'power-source',
-    'proximity-ranger',
+    'water-valve',
+    'window-covering',
     # keep-sorted: end
 ]
 
@@ -99,10 +134,9 @@ def BuildHostFakeTarget():
     target.AppendModifier("ubsan", use_ubsan=True)
     target.AppendModifier("libfuzzer", fuzzing_type=HostFuzzingType.LIB_FUZZER).OnlyIfRe(
         "-clang").ExceptIfRe('-ossfuzz')
-    target.AppendModifier("ossfuzz", fuzzing_type=HostFuzzingType.OSS_FUZZ).OnlyIfRe(
-        "-clang").ExceptIfRe('-libfuzzer')
+    target.AppendModifier("ossfuzz", pw_fuzz_libfuzzer_compat=True).OnlyIfRe("-pw-fuzztest")
     target.AppendModifier("pw-fuzztest", fuzzing_type=HostFuzzingType.PW_FUZZTEST).OnlyIfRe(
-        "-clang").ExceptIfRe('-(libfuzzer|ossfuzz|asan)')
+        "-clang").ExceptIfRe('-(libfuzzer|asan)')
     target.AppendModifier('coverage', use_coverage=True)
     target.AppendModifier('dmalloc', use_dmalloc=True)
     target.AppendModifier('clang', use_clang=True)
@@ -165,6 +199,7 @@ def BuildHostTarget():
         TargetPart('address-resolve-tool', app=HostApp.ADDRESS_RESOLVE),
         TargetPart('contact-sensor', app=HostApp.CONTACT_SENSOR),
         TargetPart('dishwasher', app=HostApp.DISHWASHER),
+        TargetPart('electrical-protection', app=HostApp.ELECTRICAL_PROTECTION),
         TargetPart('microwave-oven', app=HostApp.MICROWAVE_OVEN),
         TargetPart('refrigerator', app=HostApp.REFRIGERATOR),
         TargetPart('rvc', app=HostApp.RVC),
@@ -226,13 +261,12 @@ def BuildHostTarget():
     target.AppendModifier("tsan", use_tsan=True).ExceptIfRe("-asan")
     target.AppendModifier("ubsan", use_ubsan=True)
     target.AppendModifier("msan", use_msan=True).OnlyIfRe("-clang").OnlyIfRe("-x64").ExceptIfRe(
-        "-(asan|tsan|ubsan|libfuzzer|ossfuzz|pw-fuzztest)")
+        "-(asan|tsan|ubsan|ossfuzz)")
     target.AppendModifier("libfuzzer", fuzzing_type=HostFuzzingType.LIB_FUZZER).OnlyIfRe(
         "-clang").ExceptIfRe('-ossfuzz')
-    target.AppendModifier("ossfuzz", fuzzing_type=HostFuzzingType.OSS_FUZZ).OnlyIfRe(
-        "-clang").ExceptIfRe('-libfuzzer')
+    target.AppendModifier("ossfuzz", pw_fuzz_libfuzzer_compat=True).OnlyIfRe("-pw-fuzztest")
     target.AppendModifier("pw-fuzztest", fuzzing_type=HostFuzzingType.PW_FUZZTEST).OnlyIfRe(
-        "-clang").ExceptIfRe('-(libfuzzer|ossfuzz|asan)')
+        "-clang").ExceptIfRe('-(libfuzzer|asan)')
     target.AppendModifier('coverage', use_coverage=True)
     target.AppendModifier('dmalloc', use_dmalloc=True)
     target.AppendModifier('clang', use_clang=True)
@@ -274,6 +308,7 @@ def BuildEsp32Target():
     # boards
     target.AppendFixedTargets([
         TargetPart('m5stack', board=Esp32Board.M5Stack),
+        TargetPart('m5stack-cores3', board=Esp32Board.M5StackCoreS3),
         TargetPart('c3devkit', board=Esp32Board.C3DevKit),
         TargetPart('devkitc', board=Esp32Board.DevKitC),
         TargetPart('p4functionev', board=Esp32Board.P4FunctionEV),
@@ -313,6 +348,27 @@ def BuildEsp32Target():
     return target
 
 
+def BuildEsp32ZephyrTarget() -> BuildTarget:
+    """Create the ESP32 Zephyr build target."""
+    target = BuildTarget('esp32', Esp32ZephyrBuilder)
+
+    target.AppendFixedTargets([
+        TargetPart('zephyr'),
+    ])
+
+    # boards
+    target.AppendFixedTargets([
+        TargetPart('c6devkitc', board=Esp32ZephyrBoard.C6_DEVKITC),
+    ])
+
+    # applications
+    target.AppendFixedTargets([
+        TargetPart('light', app=Esp32ZephyrApp.LIGHT),
+    ])
+
+    return target
+
+
 def BuildEfr32Target():
     target = BuildTarget('efr32', Efr32Builder)
 
@@ -323,9 +379,6 @@ def BuildEfr32Target():
         TargetPart('brd4317a', board=Efr32Board.BRD4317A),
         TargetPart('brd4318a', board=Efr32Board.BRD4318A),
         TargetPart('brd4319a', board=Efr32Board.BRD4319A),
-        TargetPart('brd4186a', board=Efr32Board.BRD4186A),
-        TargetPart('brd4187a', board=Efr32Board.BRD4187A),
-        TargetPart('brd2601b', board=Efr32Board.BRD2601B),
         TargetPart('brd4187c', board=Efr32Board.BRD4187C),
         TargetPart('brd4186c', board=Efr32Board.BRD4186C),
         TargetPart('brd2703a', board=Efr32Board.BRD2703A),
@@ -374,7 +427,6 @@ def BuildEfr32Target():
     target.AppendModifier(
         'show-qr-code', show_qr_code=True).ExceptIfRe('-low-power')
     target.AppendModifier('wifi', enable_wifi=True)
-    target.AppendModifier('wf200', enable_wf200=True).OnlyIfRe('-wifi')
     target.AppendModifier('siwx917', enable_917_ncp=True).OnlyIfRe('-wifi')
     target.AppendModifier('ipv4', enable_wifi_ipv4=True).OnlyIfRe('-wifi')
     target.AppendModifier('additional-data-advertising',
@@ -593,7 +645,7 @@ def BuildNxpTarget():
     target.AppendModifier(name="dac-conversion", convert_dac_pk=True).OnlyIfRe('factory').ExceptIfRe('rw61x')
     target.AppendModifier(name="rotating-id", enable_rotating_id=True).ExceptIfRe('rw61x')
     target.AppendModifier(name="sw-v2", has_sw_version_2=True)
-    target.AppendModifier(name="ota", enable_ota=True).ExceptIfRe('zephyr')
+    target.AppendModifier(name="ota", enable_ota=True)
     target.AppendModifier(name="wifi", enable_wifi=True).OnlyIfRe('rt1060|rt1170|rw61x')
     target.AppendModifier(name="ethernet", enable_ethernet=True).OnlyIfRe('rw61x')
     target.AppendModifier(name="thread", enable_thread=True)
@@ -704,6 +756,7 @@ def BuildStm32Target():
     # board
     target.AppendFixedTargets([
         TargetPart('STM32WB5MM-DK', board=stm32Board.STM32WB55XX),
+        TargetPart('STM32WBA65I-DK1', board=stm32Board.STM32WBA6XX),
     ])
 
     # apps
@@ -751,26 +804,27 @@ def BuildBouffalolabTarget():
         TargetPart('BL602DK',
                    board=BouffalolabBoard.BL602DK, module_type="BL602"),
         TargetPart('BL616DK', board=BouffalolabBoard.BL616DK, module_type="BL616"),
+        TargetPart('BL616CLDK', board=BouffalolabBoard.BL616CLDK, module_type="BL616CL"),
         TargetPart('BL704LDK', board=BouffalolabBoard.BL704LDK, module_type="BL704L"),
         TargetPart('BL706DK',
                    board=BouffalolabBoard.BL706DK, module_type="BL706C-22"),
         TargetPart('BL602-NIGHT-LIGHT',
-                   board=BouffalolabBoard.BL602_NIGHT_LIGHT, module_type="BL602", enable_resetCnt=True),
+                   board=BouffalolabBoard.BL602_NIGHT_LIGHT, module_type="BL602"),
         TargetPart('BL706-NIGHT-LIGHT',
-                   board=BouffalolabBoard.BL706_NIGHT_LIGHT, module_type="BL706C-22", enable_resetCnt=True),
+                   board=BouffalolabBoard.BL706_NIGHT_LIGHT, module_type="BL706C-22"),
     ])
 
     target.AppendFixedTargets([
         TargetPart('light', app=BouffalolabApp.LIGHT),
-        TargetPart('contact-sensor', app=BouffalolabApp.CONTACT, enable_pds=True).OnlyIfRe('-(bl704l)'),
+        TargetPart('contact-sensor', app=BouffalolabApp.CONTACT, enable_pds=True),
     ])
 
     target.AppendFixedTargets([
-        TargetPart('ethernet', enable_ethernet=True).OnlyIfRe('-(bl616dk|bl706dk)'),
-        TargetPart('wifi', enable_wifi=True).OnlyIfRe('-(bl602dk|bl706dk|bl616dk)'),
-        TargetPart('thread', enable_thread_type=BouffalolabThreadType.THREAD_FTD).OnlyIfRe('-(bl616dk|bl704l|bl706dk)'),
-        TargetPart('thread-ftd', enable_thread_type=BouffalolabThreadType.THREAD_FTD).OnlyIfRe('-(bl616dk|bl704l|bl706dk)'),
-        TargetPart('thread-mtd', enable_thread_type=BouffalolabThreadType.THREAD_MTD).OnlyIfRe('-(bl616dk|bl704l|bl706dk)'),
+        TargetPart('ethernet', enable_ethernet=True).OnlyIfRe('-(bl616dk|bl616cldk|bl706dk)'),
+        TargetPart('wifi', enable_wifi=True).OnlyIfRe('-(bl602dk|bl706dk|bl616dk|bl616cldk)'),
+        TargetPart('thread', enable_thread_type=BouffalolabThreadType.THREAD_FTD).OnlyIfRe('-(bl616dk|bl616cldk|bl704l|bl706dk)'),
+        TargetPart('thread-ftd', enable_thread_type=BouffalolabThreadType.THREAD_FTD).OnlyIfRe('-(bl616dk|bl616cldk|bl704l|bl706dk)'),
+        TargetPart('thread-mtd', enable_thread_type=BouffalolabThreadType.THREAD_MTD).OnlyIfRe('-(bl616dk|bl616cldk|bl704l|bl706dk)'),
     ])
 
     target.AppendFixedTargets([
@@ -782,8 +836,7 @@ def BuildBouffalolabTarget():
     target.AppendModifier('mfd', enable_mfd=True)
     target.AppendModifier('rotating_device_id', enable_rotating_device_id=True)
     target.AppendModifier('rpc', enable_rpcs=True, baudrate=115200).OnlyIfRe('-(bl602dk|bl704ldk|bl706dk)')
-    target.AppendModifier('cdc', enable_cdc=True).OnlyIfRe('-(bl706dk)')
-    target.AppendModifier('mot', use_matter_openthread=True).OnlyIfRe('-(thread)')
+    target.AppendModifier('cdc', enable_cdc=True).OnlyIfRe('-(bl706dk)(?!.*-rpc)')
     target.AppendModifier('memmonitor', enable_heap_monitoring=True)
     target.AppendModifier('coredump', enable_debug_coredump=True)
 
@@ -824,9 +877,12 @@ def BuildTelinkTarget():
         TargetPart('tlsr9518adk80d', board=TelinkBoard.TLSR9518ADK80D),
         TargetPart('tlsr9528a', board=TelinkBoard.TLSR9528A),
         TargetPart('tlsr9528a_retention', board=TelinkBoard.TLSR9528A_RETENTION),
-        TargetPart('tl3218x', board=TelinkBoard.TL3218X),
-        TargetPart('tl3218x_ml3m', board=TelinkBoard.TL3218X_ML3M),
-        TargetPart('tl3218x_retention', board=TelinkBoard.TL3218X_RETENTION),
+        TargetPart('tl3228x', board=TelinkBoard.TL3228X),
+        TargetPart('tl3228x_retention', board=TelinkBoard.TL3228X_RETENTION),
+        TargetPart('tl3238x', board=TelinkBoard.TL3238X),
+        TargetPart('tl3238x_retention', board=TelinkBoard.TL3238X_RETENTION),
+        TargetPart('tl5218x', board=TelinkBoard.TL5218X),
+        TargetPart('tl5218x_retention', board=TelinkBoard.TL5218X_RETENTION),
         TargetPart('tl7218x', board=TelinkBoard.TL7218X),
         TargetPart('tl7218x_ml7g', board=TelinkBoard.TL7218X_ML7G),
         TargetPart('tl7218x_ml7m', board=TelinkBoard.TL7218X_ML7M),
@@ -873,6 +929,7 @@ def BuildTelinkTarget():
     target.AppendModifier('mars', mars_board_config=True)
     target.AppendModifier('usb', usb_board_config=True)
     target.AppendModifier('compress-lzma', compress_lzma_config=True)
+    target.AppendModifier('concurrent-connection', enable_concurrent_connection=True)
     target.AppendModifier('thread-analyzer', thread_analyzer_config=True)
     target.AppendModifier('precompiled-ot', precompiled_ot_config=True)
     target.AppendModifier('tflm', tflm_config=True)
@@ -918,6 +975,7 @@ BUILD_TARGETS = [
     BuildCyw30739Target(),
     BuildEfr32Target(),
     BuildEsp32Target(),
+    BuildEsp32ZephyrTarget(),
     BuildGenioTarget(),
     BuildHostFakeTarget(),
     BuildHostTarget(),

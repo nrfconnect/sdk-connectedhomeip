@@ -21,8 +21,9 @@
 # === BEGIN CI TEST ARGUMENTS ===
 # test-runner-runs:
 #   run1:
-#     app: ${ALL_CLUSTERS_APP}
+#     app: ${ALL_DEVICES_APP}
 #     app-args: >
+#       --device water-leak-detector:1
 #       --discriminator 1234
 #       --KVS kvs1
 #       --trace-to json:${TRACE_APP}.json
@@ -50,13 +51,13 @@ from mobly import asserts
 import matter.clusters as Clusters
 from matter.testing.decorators import has_cluster, run_if_endpoint_matches
 from matter.testing.event_attribute_reporting import AttributeSubscriptionHandler, EventSubscriptionHandler
-from matter.testing.matter_testing import MatterBaseTest, TestStep
+from matter.testing.matter_testing import MatterTestCommissionedDevice, TestStep
 from matter.testing.runner import default_matter_test_main
 
 logger = logging.getLogger(__name__)
 
 
-class TC_BOOL_2_2(MatterBaseTest):
+class TC_BOOL_2_2(MatterTestCommissionedDevice):
 
     def desc_TC_BOOL_2_2(self) -> str:
         return "[TC-BOOL-2.2] Primary Functionality with Server as DUT"

@@ -28,6 +28,7 @@
 #       --discriminator 1234
 #       --passcode 20202021
 #       --endpoint 1
+#       --PICS src/app/tests/suites/certification/ci-pics-values
 #       --trace-to json:${TRACE_TEST_JSON}.json
 #       --trace-to perfetto:${TRACE_TEST_PERFETTO}.perfetto
 #     factory-reset: true
@@ -45,7 +46,7 @@ import matter.clusters as Clusters
 from matter.clusters.Types import NullValue
 from matter.interaction_model import InteractionModelError, Status
 from matter.testing.decorators import async_test_body
-from matter.testing.matter_testing import MatterBaseTest
+from matter.testing.matter_testing import MatterTestCommissionedDevice
 from matter.testing.runner import TestStep, default_matter_test_main
 
 log = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ def get_epoch_utc_time():
     return int((datetime.now(UTC) - datetime(2000, 1, 1, 0, 0, 0, 0, UTC)).total_seconds())
 
 
-class TC_TSTAT_4_3(MatterBaseTest):
+class TC_TSTAT_4_3(MatterTestCommissionedDevice):
 
     # Command to send AddThermostatSuggestion command
     async def send_add_thermostat_suggestion_command(self,

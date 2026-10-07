@@ -54,7 +54,7 @@
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from mobly import asserts
 
@@ -62,13 +62,13 @@ import matter.clusters as Clusters
 from matter.interaction_model import Status
 from matter.testing.decorators import async_test_body
 from matter.testing.event_attribute_reporting import AttributeSubscriptionHandler, EventSubscriptionHandler
-from matter.testing.matter_testing import AttributeValue, MatterBaseTest
+from matter.testing.matter_testing import AttributeValue, MatterTestCommissionedDevice
 from matter.testing.runner import TestStep, default_matter_test_main
 
 log = logging.getLogger(__name__)
 
 
-class TC_OCC_3_1(MatterBaseTest):
+class TC_OCC_3_1(MatterTestCommissionedDevice):
     def setup_test(self):
         super().setup_test()
         self.is_ci = self.matter_test_config.global_test_params.get('simulate_occupancy', False)
@@ -78,7 +78,7 @@ class TC_OCC_3_1(MatterBaseTest):
         endpoint = self.get_endpoint()
         return await self.read_single_attribute_check_success(endpoint=endpoint, cluster=cluster, attribute=attribute)
 
-    async def write_hold_time(self, hold_time: Optional[Any]) -> Status:
+    async def write_hold_time(self, hold_time: Any | None) -> Status:
         dev_ctrl = self.default_controller
         node_id = self.dut_node_id
         endpoint = self.get_endpoint()

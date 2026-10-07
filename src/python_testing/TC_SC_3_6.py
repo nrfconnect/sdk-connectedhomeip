@@ -46,7 +46,7 @@ import matter.clusters as Clusters
 from matter.clusters import ClusterObjects as ClustersObjects
 from matter.clusters.Attribute import SubscriptionTransaction, TypedAttributePath
 from matter.testing.decorators import async_test_body
-from matter.testing.matter_testing import MatterBaseTest
+from matter.testing.matter_testing import MatterTestCommissionedDevice
 from matter.testing.runner import default_matter_test_main
 from matter.utils import CommissioningBuildingBlocks
 
@@ -100,14 +100,16 @@ class ResubscriptionCatcher:
         return self._got_resubscription_event.is_set()
 
 
-class TC_SC_3_6(MatterBaseTest):
+class TC_SC_3_6(MatterTestCommissionedDevice):
     def setup_class(self):
+        super().setup_class()
         self._subscriptions = []
 
     def teardown_class(self):
         log.info("Teardown: shutting down all subscription to avoid racy callbacks")
         for subscription in self._subscriptions:
             subscription.Shutdown()
+        super().teardown_class()
 
     @async_test_body
     async def test_TC_SC_3_6(self):
@@ -133,7 +135,7 @@ class TC_SC_3_6(MatterBaseTest):
         all_names = []
         for fabric_idx in range(num_fabrics_to_commission):
             for controller_idx in range(num_controllers_per_fabric):
-                all_names.append("RD%d%s" % (fabric_idx + 1, chr(ord('A') + controller_idx)))
+                all_names.append(f"RD{fabric_idx + 1}{chr(ord('A') + controller_idx)}")
         log.info("Client names that will be used: %s", all_names)
         client_list = []
 

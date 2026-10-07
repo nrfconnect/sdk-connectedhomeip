@@ -591,10 +591,6 @@ void TransferSession::HandleReceiveAccept(System::PacketBufferHandle msgData)
     // Verify that Accept parameters are compatible with the original proposed parameters
     ReturnOnFailure(VerifyProposedMode(rcvAcceptMsg.TransferCtlFlags));
 
-    // Per the BDX spec, the chosen Max Block Size SHALL be <= the proposed Max Block Size. Validate the received value
-    // rather than adopting it unconditionally.
-    VerifyOrReturn(rcvAcceptMsg.MaxBlockSize <= mMaxSupportedBlockSize, PrepareStatusReport(StatusCode::kBadMessageContents));
-
     mTransferMaxBlockSize = rcvAcceptMsg.MaxBlockSize;
     mStartOffset          = rcvAcceptMsg.StartOffset;
     mTransferLength       = rcvAcceptMsg.Length;
@@ -630,9 +626,6 @@ void TransferSession::HandleSendAccept(System::PacketBufferHandle msgData)
 
     // Verify that Accept parameters are compatible with the original proposed parameters
     ReturnOnFailure(VerifyProposedMode(sendAcceptMsg.TransferCtlFlags));
-
-    // Per the BDX spec, the chosen Max Block Size SHALL be <= the proposed Max Block Size. Validate the received value here too.
-    VerifyOrReturn(sendAcceptMsg.MaxBlockSize <= mMaxSupportedBlockSize, PrepareStatusReport(StatusCode::kBadMessageContents));
 
     // Note: if VerifyProposedMode() returned with no error, then mControlMode must match the proposed mode in the SendAccept
     // message

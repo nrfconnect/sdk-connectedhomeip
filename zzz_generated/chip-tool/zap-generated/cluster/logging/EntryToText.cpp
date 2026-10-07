@@ -5669,6 +5669,8 @@ char const * AcceptedCommandIdToText(chip::ClusterId cluster, chip::CommandId id
             return "ConnectNetwork";
         case chip::app::Clusters::NetworkCommissioning::Commands::ReorderNetwork::Id:
             return "ReorderNetwork";
+        case chip::app::Clusters::NetworkCommissioning::Commands::QueryIdentity::Id:
+            return "QueryIdentity";
         default:
             return "Unknown";
         }
@@ -7070,6 +7072,8 @@ char const * GeneratedCommandIdToText(chip::ClusterId cluster, chip::CommandId i
             return "NetworkConfigResponse";
         case chip::app::Clusters::NetworkCommissioning::Commands::ConnectNetworkResponse::Id:
             return "ConnectNetworkResponse";
+        case chip::app::Clusters::NetworkCommissioning::Commands::QueryIdentityResponse::Id:
+            return "QueryIdentityResponse";
         default:
             return "Unknown";
         }

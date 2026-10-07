@@ -10747,6 +10747,10 @@ NSString * MTRRequestCommandNameForID(MTRClusterIDType clusterID, MTRCommandIDTy
             result = @"ReorderNetwork";
             break;
 
+        case MTRCommandIDTypeClusterNetworkCommissioningCommandQueryIdentityID:
+            result = @"QueryIdentity";
+            break;
+
         default:
             result = [NSString stringWithFormat:@"<Unknown commandID %u>", commandID];
             break;
@@ -13737,6 +13741,10 @@ NSString * MTRResponseCommandNameForID(MTRClusterIDType clusterID, MTRCommandIDT
 
         case MTRCommandIDTypeClusterNetworkCommissioningCommandConnectNetworkResponseID:
             result = @"ConnectNetworkResponse";
+            break;
+
+        case MTRCommandIDTypeClusterNetworkCommissioningCommandQueryIdentityResponseID:
+            result = @"QueryIdentityResponse";
             break;
 
         default:

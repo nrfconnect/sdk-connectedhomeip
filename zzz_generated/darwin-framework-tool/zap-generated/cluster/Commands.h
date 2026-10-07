@@ -21656,6 +21656,7 @@ public:
 | * RemoveNetwork                                                     |   0x04 |
 | * ConnectNetwork                                                    |   0x06 |
 | * ReorderNetwork                                                    |   0x08 |
+| * QueryIdentity                                                     |   0x09 |
 |------------------------------------------------------------------------------|
 | Attributes:                                                         |        |
 | * MaxNetworks                                                       | 0x0000 |
@@ -21756,6 +21757,15 @@ public:
         AddArgument("Ssid", &mRequest.ssid);
         AddArgument("Credentials", &mRequest.credentials);
         AddArgument("Breadcrumb", 0, UINT64_MAX, &mRequest.breadcrumb);
+#if MTR_ENABLE_PROVISIONAL
+        AddArgument("NetworkIdentity", &mRequest.networkIdentity);
+#endif // MTR_ENABLE_PROVISIONAL
+#if MTR_ENABLE_PROVISIONAL
+        AddArgument("ClientIdentifier", &mRequest.clientIdentifier);
+#endif // MTR_ENABLE_PROVISIONAL
+#if MTR_ENABLE_PROVISIONAL
+        AddArgument("PossessionNonce", &mRequest.possessionNonce);
+#endif // MTR_ENABLE_PROVISIONAL
         ClusterCommand::AddArguments();
     }
 
@@ -21777,6 +21787,27 @@ public:
         } else {
             params.breadcrumb = nil;
         }
+#if MTR_ENABLE_PROVISIONAL
+        if (mRequest.networkIdentity.HasValue()) {
+            params.networkIdentity = [NSData dataWithBytes:mRequest.networkIdentity.Value().data() length:mRequest.networkIdentity.Value().size()];
+        } else {
+            params.networkIdentity = nil;
+        }
+#endif // MTR_ENABLE_PROVISIONAL
+#if MTR_ENABLE_PROVISIONAL
+        if (mRequest.clientIdentifier.HasValue()) {
+            params.clientIdentifier = [NSData dataWithBytes:mRequest.clientIdentifier.Value().data() length:mRequest.clientIdentifier.Value().size()];
+        } else {
+            params.clientIdentifier = nil;
+        }
+#endif // MTR_ENABLE_PROVISIONAL
+#if MTR_ENABLE_PROVISIONAL
+        if (mRequest.possessionNonce.HasValue()) {
+            params.possessionNonce = [NSData dataWithBytes:mRequest.possessionNonce.Value().data() length:mRequest.possessionNonce.Value().size()];
+        } else {
+            params.possessionNonce = nil;
+        }
+#endif // MTR_ENABLE_PROVISIONAL
         uint16_t repeatCount = mRepeatCount.ValueOr(1);
         uint16_t __block responsesNeeded = repeatCount;
         while (repeatCount--) {
@@ -22043,6 +22074,76 @@ public:
 private:
     chip::app::Clusters::NetworkCommissioning::Commands::ReorderNetwork::Type mRequest;
 };
+
+#if MTR_ENABLE_PROVISIONAL
+/*
+ * Command QueryIdentity
+ */
+class NetworkCommissioningQueryIdentity : public ClusterCommand {
+public:
+    NetworkCommissioningQueryIdentity()
+        : ClusterCommand("query-identity")
+    {
+#if MTR_ENABLE_PROVISIONAL
+        AddArgument("KeyIdentifier", &mRequest.keyIdentifier);
+#endif // MTR_ENABLE_PROVISIONAL
+#if MTR_ENABLE_PROVISIONAL
+        AddArgument("PossessionNonce", &mRequest.possessionNonce);
+#endif // MTR_ENABLE_PROVISIONAL
+        ClusterCommand::AddArguments();
+    }
+
+    CHIP_ERROR SendCommand(MTRBaseDevice * device, chip::EndpointId endpointId) override
+    {
+        constexpr chip::ClusterId clusterId = chip::app::Clusters::NetworkCommissioning::Id;
+        constexpr chip::CommandId commandId = chip::app::Clusters::NetworkCommissioning::Commands::QueryIdentity::Id;
+
+        ChipLogProgress(chipTool, "Sending cluster (0x%08" PRIX32 ") command (0x%08" PRIX32 ") on endpoint %u", clusterId, commandId, endpointId);
+
+        dispatch_queue_t callbackQueue = dispatch_queue_create("com.chip.command", DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL);
+        __auto_type * cluster = [[MTRBaseClusterNetworkCommissioning alloc] initWithDevice:device endpointID:@(endpointId) queue:callbackQueue];
+        __auto_type * params = [[MTRNetworkCommissioningClusterQueryIdentityParams alloc] init];
+        params.timedInvokeTimeoutMs = mTimedInteractionTimeoutMs.HasValue() ? [NSNumber numberWithUnsignedShort:mTimedInteractionTimeoutMs.Value()] : nil;
+#if MTR_ENABLE_PROVISIONAL
+        params.keyIdentifier = [NSData dataWithBytes:mRequest.keyIdentifier.data() length:mRequest.keyIdentifier.size()];
+#endif // MTR_ENABLE_PROVISIONAL
+#if MTR_ENABLE_PROVISIONAL
+        if (mRequest.possessionNonce.HasValue()) {
+            params.possessionNonce = [NSData dataWithBytes:mRequest.possessionNonce.Value().data() length:mRequest.possessionNonce.Value().size()];
+        } else {
+            params.possessionNonce = nil;
+        }
+#endif // MTR_ENABLE_PROVISIONAL
+        uint16_t repeatCount = mRepeatCount.ValueOr(1);
+        uint16_t __block responsesNeeded = repeatCount;
+        while (repeatCount--) {
+            [cluster queryIdentityWithParams:params completion:
+                    ^(MTRNetworkCommissioningClusterQueryIdentityResponseParams * _Nullable values, NSError * _Nullable error) {
+                        NSLog(@"Values: %@", values);
+                        if (error == nil) {
+                            constexpr chip::CommandId responseId = chip::app::Clusters::NetworkCommissioning::Commands::QueryIdentityResponse::Id;
+                            TEMPORARY_RETURN_IGNORED RemoteDataModelLogger::LogCommandAsJSON(@(endpointId), @(clusterId), @(responseId), values);
+                        }
+                        responsesNeeded--;
+                        if (error != nil) {
+                            mError = error;
+                            LogNSError("Error", error);
+                            constexpr chip::CommandId responseId = chip::app::Clusters::NetworkCommissioning::Commands::QueryIdentityResponse::Id;
+                            TEMPORARY_RETURN_IGNORED RemoteDataModelLogger::LogCommandErrorAsJSON(@(endpointId), @(clusterId), @(responseId), error);
+                        }
+                        if (responsesNeeded == 0) {
+                            SetCommandExitStatus(mError);
+                        }
+                    }];
+        }
+        return CHIP_NO_ERROR;
+    }
+
+private:
+    chip::app::Clusters::NetworkCommissioning::Commands::QueryIdentity::Type mRequest;
+};
+
+#endif // MTR_ENABLE_PROVISIONAL
 
 /*
  * Attribute MaxNetworks
@@ -208876,6 +208977,9 @@ void registerClusterNetworkCommissioning(Commands & commands)
         make_unique<NetworkCommissioningRemoveNetwork>(), //
         make_unique<NetworkCommissioningConnectNetwork>(), //
         make_unique<NetworkCommissioningReorderNetwork>(), //
+#if MTR_ENABLE_PROVISIONAL
+        make_unique<NetworkCommissioningQueryIdentity>(), //
+#endif // MTR_ENABLE_PROVISIONAL
         make_unique<ReadAttribute>(Id), //
         make_unique<WriteAttribute>(Id), //
         make_unique<SubscribeAttribute>(Id), //

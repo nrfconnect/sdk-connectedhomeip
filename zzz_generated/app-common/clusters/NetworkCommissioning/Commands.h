@@ -92,6 +92,16 @@ struct Type;
 struct DecodableType;
 } // namespace ReorderNetwork
 
+namespace QueryIdentity {
+struct Type;
+struct DecodableType;
+} // namespace QueryIdentity
+
+namespace QueryIdentityResponse {
+struct Type;
+struct DecodableType;
+} // namespace QueryIdentityResponse
+
 } // namespace Commands
 
 namespace Commands {
@@ -177,9 +187,12 @@ public:
 namespace AddOrUpdateWiFiNetwork {
 enum class Fields : uint8_t
 {
-    kSsid        = 0,
-    kCredentials = 1,
-    kBreadcrumb  = 2,
+    kSsid             = 0,
+    kCredentials      = 1,
+    kBreadcrumb       = 2,
+    kNetworkIdentity  = 3,
+    kClientIdentifier = 4,
+    kPossessionNonce  = 5,
 };
 
 struct Type
@@ -192,6 +205,9 @@ public:
     chip::ByteSpan ssid;
     chip::ByteSpan credentials;
     Optional<uint64_t> breadcrumb;
+    Optional<chip::ByteSpan> networkIdentity;
+    Optional<chip::ByteSpan> clientIdentifier;
+    Optional<chip::ByteSpan> possessionNonce;
 
     CHIP_ERROR Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const;
 
@@ -210,6 +226,9 @@ public:
     chip::ByteSpan ssid;
     chip::ByteSpan credentials;
     Optional<uint64_t> breadcrumb;
+    Optional<chip::ByteSpan> networkIdentity;
+    Optional<chip::ByteSpan> clientIdentifier;
+    Optional<chip::ByteSpan> possessionNonce;
 
     CHIP_ERROR Decode(TLV::TLVReader & reader);
 };
@@ -291,9 +310,11 @@ public:
 namespace NetworkConfigResponse {
 enum class Fields : uint8_t
 {
-    kNetworkingStatus = 0,
-    kDebugText        = 1,
-    kNetworkIndex     = 2,
+    kNetworkingStatus    = 0,
+    kDebugText           = 1,
+    kNetworkIndex        = 2,
+    kClientIdentity      = 3,
+    kPossessionSignature = 4,
 };
 
 struct Type
@@ -306,6 +327,8 @@ public:
     NetworkCommissioningStatusEnum networkingStatus = static_cast<NetworkCommissioningStatusEnum>(0);
     Optional<chip::CharSpan> debugText;
     Optional<uint8_t> networkIndex;
+    Optional<chip::ByteSpan> clientIdentity;
+    Optional<chip::ByteSpan> possessionSignature;
 
     CHIP_ERROR Encode(DataModel::FabricAwareTLVWriter & aWriter, TLV::Tag aTag) const;
 
@@ -323,6 +346,8 @@ public:
     NetworkCommissioningStatusEnum networkingStatus = static_cast<NetworkCommissioningStatusEnum>(0);
     Optional<chip::CharSpan> debugText;
     Optional<uint8_t> networkIndex;
+    Optional<chip::ByteSpan> clientIdentity;
+    Optional<chip::ByteSpan> possessionSignature;
 
     CHIP_ERROR Decode(TLV::TLVReader & reader);
 };
@@ -443,6 +468,79 @@ public:
     CHIP_ERROR Decode(TLV::TLVReader & reader);
 };
 }; // namespace ReorderNetwork
+namespace QueryIdentity {
+enum class Fields : uint8_t
+{
+    kKeyIdentifier   = 0,
+    kPossessionNonce = 1,
+};
+
+struct Type
+{
+public:
+    // Use GetCommandId instead of commandId directly to avoid naming conflict with CommandIdentification in ExecutionOfACommand
+    static constexpr CommandId GetCommandId() { return Commands::QueryIdentity::Id; }
+    static constexpr ClusterId GetClusterId() { return Clusters::NetworkCommissioning::Id; }
+
+    chip::ByteSpan keyIdentifier;
+    Optional<chip::ByteSpan> possessionNonce;
+
+    CHIP_ERROR Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const;
+
+    using ResponseType = Clusters::NetworkCommissioning::Commands::QueryIdentityResponse::DecodableType;
+
+    static constexpr bool MustUseTimedInvoke() { return false; }
+};
+
+struct DecodableType
+{
+public:
+    static constexpr CommandId GetCommandId() { return Commands::QueryIdentity::Id; }
+    static constexpr ClusterId GetClusterId() { return Clusters::NetworkCommissioning::Id; }
+    static constexpr bool kIsFabricScoped = false;
+
+    chip::ByteSpan keyIdentifier;
+    Optional<chip::ByteSpan> possessionNonce;
+
+    CHIP_ERROR Decode(TLV::TLVReader & reader);
+};
+}; // namespace QueryIdentity
+namespace QueryIdentityResponse {
+enum class Fields : uint8_t
+{
+    kIdentity            = 0,
+    kPossessionSignature = 1,
+};
+
+struct Type
+{
+public:
+    // Use GetCommandId instead of commandId directly to avoid naming conflict with CommandIdentification in ExecutionOfACommand
+    static constexpr CommandId GetCommandId() { return Commands::QueryIdentityResponse::Id; }
+    static constexpr ClusterId GetClusterId() { return Clusters::NetworkCommissioning::Id; }
+
+    chip::ByteSpan identity;
+    Optional<chip::ByteSpan> possessionSignature;
+
+    CHIP_ERROR Encode(DataModel::FabricAwareTLVWriter & aWriter, TLV::Tag aTag) const;
+
+    using ResponseType = DataModel::NullObjectType;
+
+    static constexpr bool MustUseTimedInvoke() { return false; }
+};
+
+struct DecodableType
+{
+public:
+    static constexpr CommandId GetCommandId() { return Commands::QueryIdentityResponse::Id; }
+    static constexpr ClusterId GetClusterId() { return Clusters::NetworkCommissioning::Id; }
+
+    chip::ByteSpan identity;
+    Optional<chip::ByteSpan> possessionSignature;
+
+    CHIP_ERROR Decode(TLV::TLVReader & reader);
+};
+}; // namespace QueryIdentityResponse
 } // namespace Commands
 } // namespace NetworkCommissioning
 } // namespace Clusters

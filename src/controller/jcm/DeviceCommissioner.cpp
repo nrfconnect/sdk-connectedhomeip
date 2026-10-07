@@ -421,6 +421,7 @@ TrustVerificationError DeviceCommissioner::PerformVendorIDVerificationProcedure(
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "Failed to send Verify VendorId: %s", ErrorStr(err));
+        ContinueAfterVendorIDVerification(err);
         return TrustVerificationError::kVendorIdVerificationFailed;
     }
 

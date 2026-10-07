@@ -272,11 +272,10 @@ CHIP_ERROR ReadRootCertificates(AttributeValueEncoder & aEncoder, FabricTable & 
     });
 }
 
-std::optional<DataModel::ActionReturnStatus>
-HandleCSRRequest(CommandHandler * commandObj, const ConcreteCommandPath & commandPath, TLV::TLVReader & input_arguments,
-                 FabricTable & fabricTable, FailSafeContext & failSafeContext,
-                 Credentials::DeviceAttestationCredentialsProvider & dacProvider,
-                 const ByteSpan (&vendorReserved)[OperationalCredentialsCluster::kMaxCSRVendorReservedFields])
+std::optional<DataModel::ActionReturnStatus> HandleCSRRequest(CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+                                                              TLV::TLVReader & input_arguments, FabricTable & fabricTable,
+                                                              FailSafeContext & failSafeContext,
+                                                              Credentials::DeviceAttestationCredentialsProvider & dacProvider)
 {
     MATTER_TRACE_SCOPE("CSRRequest", "OperationalCredentials");
     Commands::CSRRequest::DecodableType commandData;
@@ -313,6 +312,7 @@ HandleCSRRequest(CommandHandler * commandObj, const ConcreteCommandPath & comman
     {
         constexpr size_t csrLength = Crypto::kMIN_CSR_Buffer_Size;
         size_t nocsrLengthEstimate = 0;
+        ByteSpan kNoVendorReserved;
         Platform::ScopedMemoryBuffer<uint8_t> csr;
         MutableByteSpan csrSpan;
 
@@ -346,11 +346,10 @@ HandleCSRRequest(CommandHandler * commandObj, const ConcreteCommandPath & comman
         ChipLogProgress(Zcl, "OpCreds: AllocatePendingOperationalKey succeeded");
 
         // Encode the NOCSR elements with the CSR and Nonce
-        nocsrLengthEstimate = TLV::EstimateStructOverhead(csrSpan.size(),            // CSR buffer
-                                                          CSRNonce.size(),           // CSR Nonce
-                                                          vendorReserved[0].size(),  // vendor_reserved1
-                                                          vendorReserved[1].size(),  // vendor_reserved2
-                                                          vendorReserved[2].size()); // vendor_reserved3
+        nocsrLengthEstimate = TLV::EstimateStructOverhead(csrSpan.size(),  // CSR buffer
+                                                          CSRNonce.size(), // CSR Nonce
+                                                          0u               // no vendor reserved data
+        );
 
         if (!nocsrElements.Alloc(nocsrLengthEstimate + attestationChallenge.size()))
         {
@@ -362,8 +361,8 @@ HandleCSRRequest(CommandHandler * commandObj, const ConcreteCommandPath & comman
 
         VerifyOrExit(nocsrElementsSpan.size() >= nocsrLengthEstimate, errorStatus = Status::ConstraintError);
 
-        err = Credentials::ConstructNOCSRElements(ByteSpan{ csrSpan.data(), csrSpan.size() }, CSRNonce, vendorReserved[0],
-                                                  vendorReserved[1], vendorReserved[2], nocsrElementsSpan);
+        err = Credentials::ConstructNOCSRElements(ByteSpan{ csrSpan.data(), csrSpan.size() }, CSRNonce, kNoVendorReserved,
+                                                  kNoVendorReserved, kNoVendorReserved, nocsrElementsSpan);
         VerifyOrExit(err == CHIP_NO_ERROR, errorStatus = Status::Failure);
 
         // Append attestation challenge in the back of the reserved space for the signature
@@ -1038,18 +1037,6 @@ void OnPlatformEventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, in
 }
 } // anonymous namespace
 
-CHIP_ERROR OperationalCredentialsCluster::SetCSRVendorReserved(CSRVendorReservedField field, ByteSpan data)
-{
-    auto index = static_cast<size_t>(field);
-    VerifyOrReturnError(index < kMaxCSRVendorReservedFields, CHIP_ERROR_INVALID_ARGUMENT);
-
-    mCsrVendorReserved[index] = data;
-
-    ChipLogProgress(Zcl, "OpCreds: CSR vendor_reserved%u set (%u bytes)", static_cast<unsigned>(index + 1),
-                    static_cast<unsigned>(data.size()));
-    return CHIP_NO_ERROR;
-}
-
 void OperationalCredentialsCluster::FailSafeCleanup(const DeviceLayer::ChipDeviceEvent * event,
                                                     OperationalCredentialsCluster * cluster)
 {
@@ -1197,7 +1184,7 @@ std::optional<DataModel::ActionReturnStatus> OperationalCredentialsCluster::Invo
         return HandleCertificateChainRequest(handler, request.path, input_arguments, mOpCredsContext.dacProvider);
     case OperationalCredentials::Commands::CSRRequest::Id:
         return HandleCSRRequest(handler, request.path, input_arguments, mOpCredsContext.fabricTable,
-                                mOpCredsContext.failSafeContext, mOpCredsContext.dacProvider, mCsrVendorReserved);
+                                mOpCredsContext.failSafeContext, mOpCredsContext.dacProvider);
     case OperationalCredentials::Commands::AddNOC::Id: {
         bool reportChange = false;
         std::optional<DataModel::ActionReturnStatus> returnStatus =

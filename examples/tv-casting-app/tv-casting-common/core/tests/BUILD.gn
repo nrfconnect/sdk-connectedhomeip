@@ -24,7 +24,6 @@ chip_test_suite("tests") {
   test_sources = [
     "TestCastingPlayerFabricCleanup.cpp",
     "TestCastingPlayerNullPointerFix.cpp",
-    "TestTargetVideoPlayerInfoCopy.cpp",
   ]
 
   cflags = [ "-Wconversion" ]

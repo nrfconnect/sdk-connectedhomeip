@@ -225,19 +225,11 @@ CHIP_ERROR SessionManager::PrepareMessage(const SessionHandle & sessionHandle, P
             return CHIP_ERROR_INTERNAL;
         }
 
-        if (groups->IsGroupcastEnabled())
-        {
-            Credentials::GroupDataProvider::GroupInfo info;
-            ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
-            destination_address = (info.UsePerGroupAddress())
-                ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId())
-                : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
-        }
-        else
-        {
-            destination_address =
-                Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId());
-        }
+        Credentials::GroupDataProvider::GroupInfo info;
+        ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
+        destination_address = (info.UsePerGroupAddress())
+            ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId())
+            : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
 
         Crypto::SymmetricKeyContext * keyContext =
             groups->GetKeyContext(groupSession->GetFabricIndex(), groupSession->GetGroupId());
@@ -436,19 +428,11 @@ CHIP_ERROR SessionManager::SendPreparedMessage(const SessionHandle & sessionHand
         auto * groups = Credentials::GetGroupDataProvider();
         VerifyOrReturnError(nullptr != groups, CHIP_ERROR_INTERNAL);
 
-        if (groups->IsGroupcastEnabled())
-        {
-            Credentials::GroupDataProvider::GroupInfo info;
-            ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
-            multicastAddress = (info.UsePerGroupAddress())
-                ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId())
-                : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
-        }
-        else
-        {
-            multicastAddress =
-                Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId());
-        }
+        Credentials::GroupDataProvider::GroupInfo info;
+        ReturnErrorOnFailure(groups->GetGroupInfo(groupSession->GetFabricIndex(), groupSession->GetGroupId(), info));
+        multicastAddress = (info.UsePerGroupAddress())
+            ? Transport::PeerAddress::BuildMatterPerGroupMulticastAddress(fabric->GetFabricId(), groupSession->GetGroupId())
+            : Transport::PeerAddress::BuildMatterIanaMulticastAddress();
         destination      = &multicastAddress;
     }
     break;

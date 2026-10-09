@@ -54,8 +54,20 @@ config CHIP_NFC_ONBOARDING_PAYLOAD
 
 # See config/common/cmake/Kconfig for full definition
 config CHIP_NFC_BASED_COMMISSIONING
-	depends on HAS_HW_NRF_NFCT
+	help
+	  Enables Matter NFC-based commissioning. Use CHIP_NFC_COMMISSIONING_MODE to select
+	  powered (on-chip NFCT) or unpowered (external ST25DA-C) operation.
+
+if CHIP_NFC_BASED_COMMISSIONING
+
+choice CHIP_NFC_COMMISSIONING_MODE
+	prompt "NFC commissioning mode"
+	default CHIP_NFC_COMMISSIONING_MODE_POWERED
+
+config CHIP_NFC_COMMISSIONING_MODE_POWERED
+	bool "Powered (on-chip NFCT, live NTL session)"
 	depends on !CHIP_NFC_ONBOARDING_PAYLOAD
+	depends on HAS_HW_NRF_NFCT
 	imply NFC_T4T_NRFXLIB
 	imply NFC_THREAD_CALLBACK
 	imply NFC_OWN_THREAD
@@ -70,6 +82,17 @@ config CHIP_NFC_BASED_COMMISSIONING
 	  and serves the device's own onboarding payload (setup code) as a standard NDEF Tag
 	  Application file alongside the Matter NTL application, both within the same raw
 	  ISO-DEP (Type 4A) session.
+
+config CHIP_NFC_COMMISSIONING_MODE_UNPOWERED
+	bool "Unpowered (external ST25DA-C via I2C)"
+	help
+	  Commissioner writes commissioning data to an external ST25DA-C tag. The
+	  application reads the stored TLV over I2C (e.g. nfc commission shell) and
+	  completes Thread join and Matter fabric provisioning via nfctag.cpp.
+
+endchoice
+
+endif # CHIP_NFC_BASED_COMMISSIONING
 
 config CHIP_NFC_BASED_COMMISSIONING_APDU_DEBUG
 	bool "NFC based commissioning APDU hex logging"

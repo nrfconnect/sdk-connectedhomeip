@@ -27,6 +27,7 @@
 
 #include <inet/IPAddress.h>
 #include <lib/core/DataModelTypes.h>
+#include <lib/core/Optional.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -260,6 +261,12 @@ enum PublicEventTypes
      * Signals that factory reset has started.
      */
     kFactoryReset,
+
+    /**
+     * Signals to connect the device to the operational network using credentials
+     * received from unpowered NFC commissioning data.
+     */
+    kConnectToOperationalNetwork,
 };
 
 /**
@@ -566,6 +573,14 @@ struct ChipDeviceEvent final
         {
             OtaState newState;
         } OtaStateChanged;
+
+        struct
+        {
+            chip::ByteSpan *     pOperationalDataset;
+            Optional<uint64_t> * pBreadcrumb1;
+            chip::ByteSpan *     pNetworkID;
+            Optional<uint64_t> * pBreadcrumb2;
+        } ConnectToOperationalNetwork;
 
         struct
         {

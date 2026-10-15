@@ -969,6 +969,43 @@ void NetworkCommissioningCluster::OnPlatformEventHandler(const DeviceLayer::Chip
         // In Non-Concurrent mode connect the operational channel, as BLE has been stopped
         this_->HandleNonConcurrentConnectNetwork();
     }
+    else if (event->Type == DeviceLayer::DeviceEventType::kConnectToOperationalNetwork)
+    {
+        ChipLogProgress(Zcl, "Processing kConnectToOperationalNetwork");
+
+        MutableCharSpan debugText;
+#if CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE
+        char debugTextBuffer[CHIP_CONFIG_NETWORK_COMMISSIONING_DEBUG_TEXT_BUFFER_SIZE];
+        debugText = MutableCharSpan(debugTextBuffer);
+#endif
+        uint8_t outNetworkIndex                         = 0;
+        NetworkCommissioningStatusEnum networkingStatus = this_->mpDriver.Get<ThreadDriver *>()->AddOrUpdateNetwork(
+            *(event->ConnectToOperationalNetwork.pOperationalDataset), debugText, outNetworkIndex);
+
+        if (networkingStatus == NetworkCommissioningStatusEnum::kSuccess)
+        {
+            this_->UpdateBreadcrumb(*(event->ConnectToOperationalNetwork.pBreadcrumb1));
+        }
+        else
+        {
+            ChipLogError(Zcl, "AddOrUpdateNetwork failed with status 0x%x", static_cast<unsigned>(networkingStatus));
+        }
+
+        if (event->ConnectToOperationalNetwork.pNetworkID->size() > DeviceLayer::NetworkCommissioning::kMaxNetworkIDLen)
+        {
+            ChipLogError(Zcl, "Invalid networkID.size(): %u",
+                         static_cast<unsigned>(event->ConnectToOperationalNetwork.pNetworkID->size()));
+            return;
+        }
+
+        this_->mConnectingNetworkIDLen = static_cast<uint8_t>(event->ConnectToOperationalNetwork.pNetworkID->size());
+        memcpy(this_->mConnectingNetworkID, event->ConnectToOperationalNetwork.pNetworkID->data(), this_->mConnectingNetworkIDLen);
+        this_->mCurrentOperationBreadcrumb = *(event->ConnectToOperationalNetwork.pBreadcrumb2);
+
+        DeviceLayer::ThreadStackMgr().LockThreadStack();
+        this_->mpWirelessDriver->ConnectNetwork(*(event->ConnectToOperationalNetwork.pNetworkID), this_);
+        DeviceLayer::ThreadStackMgr().UnlockThreadStack();
+    }
 }
 
 void NetworkCommissioningCluster::OnCommissioningComplete()

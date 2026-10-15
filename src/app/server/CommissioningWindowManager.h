@@ -126,6 +126,12 @@ public:
 
     void OnPlatformEvent(const DeviceLayer::ChipDeviceEvent * event);
 
+    /**
+     * Called when unpowered NFC commissioning data has been imported and stage-2
+     * network join should proceed. PASE was completed on the external NFC tag.
+     */
+    void OnNfcBasedCommissioningStarting();
+
     // For tests only, allow overriding the spec-defined minimum value of the
     // commissioning window timeout.
     void OverrideMinCommissioningTimeout(System::Clock::Seconds32 timeout) { mMinCommissioningTimeoutOverride.SetValue(timeout); }

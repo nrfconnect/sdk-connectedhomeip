@@ -67,6 +67,7 @@ void CommissioningWindowManager::OnPlatformEvent(const DeviceLayer::ChipDeviceEv
     if (event->Type == DeviceLayer::DeviceEventType::kCommissioningComplete)
     {
         ChipLogProgress(AppServer, "Commissioning completed successfully");
+
         DeviceLayer::SystemLayer().CancelTimer(HandleCommissioningWindowTimeout, this);
         mCommissioningTimeoutTimerArmed = false;
         Cleanup();
@@ -250,6 +251,44 @@ void CommissioningWindowManager::OnSessionEstablished(const SessionHandle & sess
         TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().AddEventHandler(OnPlatformEventWrapper,
                                                                             reinterpret_cast<intptr_t>(this));
     }
+}
+
+void CommissioningWindowManager::OnNfcBasedCommissioningStarting()
+{
+    ChipLogProgress(AppServer, "OnNfcBasedCommissioningStarting");
+
+    DeviceLayer::SystemLayer().CancelTimer(HandleSessionEstablishmentTimeout, this);
+
+    if (mAppDelegate != nullptr)
+    {
+        mAppDelegate->OnCommissioningSessionStarted();
+    }
+
+    TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().AddEventHandler(OnPlatformEventWrapper, reinterpret_cast<intptr_t>(this));
+
+    TEMPORARY_RETURN_IGNORED StopAdvertisement(/* aShuttingDown = */ false);
+
+    auto & failSafeContext = Server::GetInstance().GetFailSafeContext();
+    CHIP_ERROR err           = CHIP_NO_ERROR;
+    if (failSafeContext.IsFailSafeArmed())
+    {
+        ChipLogError(AppServer, "Fail-safe is already armed when starting NFC-based commissioning");
+    }
+    else
+    {
+        err = failSafeContext.ArmFailSafe(kUndefinedFabricIndex,
+                                          System::Clock::Seconds16(CHIP_DEVICE_CONFIG_FAILSAFE_EXPIRY_LENGTH_SEC));
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(AppServer, "Error arming fail-safe for NFC-based commissioning");
+            HandleFailedAttempt(err);
+        }
+    }
+
+    // PASE was completed between the NFC tag and the commissioner.
+    mServer->GetSecureSessionManager().ExpireAllPASESessions();
+
+    ChipLogProgress(AppServer, "Device completed rendezvous process (unpowered NFC)");
 }
 
 CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow(Seconds32 commissioningTimeout)

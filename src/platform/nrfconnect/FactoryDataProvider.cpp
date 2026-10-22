@@ -26,10 +26,6 @@
 
 #include <lib/support/logging/CHIPLogging.h>
 
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-#include <cracen_psa_kmu.h>
-#endif
-
 #ifdef CONFIG_CHIP_CRYPTO_PSA
 #include <lib/support/ScopedMemoryBuffer.h>
 #include <psa/crypto.h>
@@ -85,6 +81,9 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::Init()
     }
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+    FallbackToItsIfNeeded();
+#endif
     VerifyOrDie(MoveDACPrivateKeyToSecureStorage(factoryData, factoryDataSize) == CHIP_NO_ERROR);
 #endif
 
@@ -123,17 +122,6 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
 
     uint8_t clearedDACPrivKey[kDACPrivateKeyLength];
     memset(clearedDACPrivKey, 0x00, sizeof(clearedDACPrivKey));
-
-// If key should be migrated to KMU save the KMU key slot to keyId.
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-    mDACPrivKeyId = static_cast<psa_key_id_t>(PSA_KEY_ID_FROM_CRACEN_KMU_SLOT(
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
-        CRACEN_KMU_KEY_USAGE_SCHEME_ENCRYPTED,
-#else
-        CRACEN_KMU_KEY_USAGE_SCHEME_RAW,
-#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
-        CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID));
-#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
 
     // Check if factory data contains DAC private key
     if (memcmp(mFactoryData.dac_priv_key.data, clearedDACPrivKey, kDACPrivateKeyLength) != 0)
@@ -220,6 +208,37 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
 
     return CHIP_NO_ERROR;
 }
+
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+template <class FlashFactoryData>
+void FactoryDataProvider<FlashFactoryData>::FallbackToItsIfNeeded()
+{
+    const psa_key_id_t itsDacKeyId = to_underlying(chip::Crypto::KeyIdBase::DACPrivKey);
+
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    const psa_status_t status       = psa_get_key_attributes(itsDacKeyId, &attributes);
+
+    psa_reset_key_attributes(&attributes);
+
+    if (status == PSA_SUCCESS)
+    {
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+        ChipLogProgress(DeviceLayer,
+                        "Warning: DAC private key found in PSA ITS while CRACEN KMU storage is configured. "
+                        "Using the ITS key for attestation signing. Automatic migration from ITS to KMU is "
+                        "not supported; re-provision the device to move the key to KMU.");
+        mDACPrivKeyId = itsDacKeyId;
+#else
+        ChipLogError(DeviceLayer,
+                     "DAC private key found in PSA ITS while CRACEN KMU storage is configured. "
+                     "Automatic migration from ITS to KMU is not supported. "
+                     "Re-provision the device or set the :kconfig:option:`CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK` "
+                     "Kconfig option to `y`.");
+        VerifyOrDie(false);
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+    }
+}
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
 #endif // CONFIG_CHIP_CRYPTO_PSA
 
 template <class FlashFactoryData>

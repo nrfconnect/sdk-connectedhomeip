@@ -153,6 +153,10 @@ public:
     CHIP_ERROR MoveDACPrivateKeyToSecureStorage(uint8_t * factoryDataPartition, size_t factoryDataSize);
 #endif
 
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+    void FallbackToItsIfNeeded();
+#endif // CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+
     // ===== Members functions that implement the DeviceAttestationCredentialsProvider
     CHIP_ERROR GetCertificationDeclaration(MutableByteSpan & outBuffer) override;
     CHIP_ERROR GetFirmwareInformation(MutableByteSpan & out_firmware_info_buffer) override;
@@ -200,6 +204,9 @@ private:
     FlashFactoryData mFlashFactoryData;
 #ifdef CONFIG_CHIP_CRYPTO_PSA
     psa_key_id_t mDACPrivKeyId = to_underlying(chip::Crypto::KeyIdBase::DACPrivKey);
+#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK)
+    bool mUseDacPrivKeyFromIts = false;
+#endif
 #endif
 };
 

@@ -85,6 +85,9 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::Init()
     }
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+    FallbackToItsIfNeeded();
+#endif
     VerifyOrDie(MoveDACPrivateKeyToSecureStorage(factoryData, factoryDataSize) == CHIP_NO_ERROR);
 #endif
 
@@ -125,7 +128,7 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
     memset(clearedDACPrivKey, 0x00, sizeof(clearedDACPrivKey));
 
 // If key should be migrated to KMU save the KMU key slot to keyId.
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) && !defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK)
     mDACPrivKeyId = static_cast<psa_key_id_t>(PSA_KEY_ID_FROM_CRACEN_KMU_SLOT(
 #ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
         CRACEN_KMU_KEY_USAGE_SCHEME_ENCRYPTED,
@@ -133,6 +136,17 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
         CRACEN_KMU_KEY_USAGE_SCHEME_RAW,
 #endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
         CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID));
+#elif defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK)
+    if (!mUseDacPrivKeyFromIts)
+    {
+        mDACPrivKeyId = static_cast<psa_key_id_t>(PSA_KEY_ID_FROM_CRACEN_KMU_SLOT(
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
+            CRACEN_KMU_KEY_USAGE_SCHEME_ENCRYPTED,
+#else
+            CRACEN_KMU_KEY_USAGE_SCHEME_RAW,
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
+            CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID));
+    }
 #endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
 
     // Check if factory data contains DAC private key
@@ -220,6 +234,37 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
 
     return CHIP_NO_ERROR;
 }
+
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+template <class FlashFactoryData>
+void FactoryDataProvider<FlashFactoryData>::FallbackToItsIfNeeded()
+{
+    const psa_key_id_t itsDacKeyId = to_underlying(chip::Crypto::KeyIdBase::DACPrivKey);
+
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    const psa_status_t status       = psa_get_key_attributes(itsDacKeyId, &attributes);
+
+    psa_reset_key_attributes(&attributes);
+
+    if (status == PSA_SUCCESS)
+    {
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+        ChipLogProgress(DeviceLayer,
+                        "Warning: DAC private key found in PSA ITS while CRACEN KMU storage is configured. "
+                        "Using the ITS key for attestation signing. Automatic migration from ITS to KMU is "
+                        "not supported; re-provision the device to move the key to KMU.");
+        mUseDacPrivKeyFromIts = true;
+        mDACPrivKeyId         = itsDacKeyId;
+#else
+        ChipLogError(DeviceLayer,
+                     "DAC private key found in PSA ITS while CRACEN KMU storage is configured. "
+                     "Automatic migration from ITS to KMU is not supported. "
+                     "Re-provision the device.");
+        VerifyOrDie(false);
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+    }
+}
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
 #endif // CONFIG_CHIP_CRYPTO_PSA
 
 template <class FlashFactoryData>
@@ -288,7 +333,15 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::SignWithDeviceAttestationKey(c
 #ifdef CONFIG_CHIP_CRYPTO_PSA
     size_t outputLen = 0;
 
-    psa_status_t err = psa_sign_message(mDACPrivKeyId, PSA_ALG_ECDSA(PSA_ALG_SHA_256), messageToSign.data(), messageToSign.size(),
+    psa_key_id_t dacPrivKeyId = mDACPrivKeyId;
+#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK)
+    if (mUseDacPrivKeyFromIts)
+    {
+        dacPrivKeyId = static_cast<psa_key_id_t>(to_underlying(chip::Crypto::KeyIdBase::DACPrivKey));
+    }
+#endif
+
+    psa_status_t err = psa_sign_message(dacPrivKeyId, PSA_ALG_ECDSA(PSA_ALG_SHA_256), messageToSign.data(), messageToSign.size(),
                                         signature.Bytes(), signature.Capacity(), &outputLen);
 
     VerifyOrReturnError(!err, CHIP_ERROR_INTERNAL);

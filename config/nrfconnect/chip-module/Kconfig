@@ -319,7 +319,7 @@ endif # CHIP_FACTORY_DATA_NRFCONNECT_BACKEND
 
 # See config/zephyr/Kconfig for full definition
 config CHIP_FACTORY_RESET_ERASE_SETTINGS
-	depends on !CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+	depends on !CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK
 	default y if !CHIP_CRYPTO_PSA_DAC_PRIV_KEY_ITS || BUILD_WITH_TFM
 
 config CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
@@ -354,9 +354,17 @@ config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
 
 endchoice
 
+config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK
+	bool "Fallback to legacy key for attestation signing"
+	default y
+	depends on CRACEN_KMU || CRACEN_LIB_KMU
+	help
+	  Allows the device to sign attestation certificates with the legacy key when the key is stored
+	  in a different storage than currently selected.
+
 config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID
 	int "Destination DAC private key slot ID inside CRACEN KMU"
-	depends on CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+	depends on CRACEN_KMU || CRACEN_LIB_KMU
 	range 0 179 # Allow using the application usage space only
 	default 176 if CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
 	default 178
@@ -364,20 +372,9 @@ config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID
 config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
 	bool "Encrypt DAC private key in CRACEN KMU"
 	default y
-	depends on CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+	depends on CRACEN_KMU || CRACEN_LIB_KMU
 	help
 	  Encrypt the DAC private key in the CRACEN KMU secure storage.
-
-config CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
-	bool "Use DAC private key from PSA ITS when KMU migration is configured"
-	depends on CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-	default y
-	help
-	  When CRACEN KMU is selected as the DAC private key migration destination but
-	  the key is still stored in PSA ITS (for example after switching the migration
-	  destination from ITS to KMU), allow the device to boot by signing with the
-	  ITS key and logging a warning instead of aborting. Automatic migration from
-	  ITS to KMU is not supported, re-provision the device to move the key to KMU.
 
 endif # CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 
@@ -403,7 +400,7 @@ config CHIP_KMU_SLOT_RANGE_START
 
 config CHIP_KMU_SLOT_RANGE_END
 	int "Last available KMU slot for Matter crypto materials"
-	default 175 if CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+	default 175 if CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU || CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK
 	default 180
 	help
 	  Defines the last available KMU slot for storing Matter-related keys.

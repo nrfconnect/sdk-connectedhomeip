@@ -46,7 +46,8 @@
     PSA_KEY_ID_FROM_CRACEN_KMU_SLOT(CRACEN_KMU_KEY_USAGE_SCHEME_RAW, (KMU_ICD_SLOT_START + KMU_SLOTS_ICD_MAX_NUMBER))
 
 // Check whether the DAC KMU slot does not overlap with the KMU slots dedicated for Matter core.
-#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) &&                                                                            \
+// The slot is also checked when KMU is only the legacy storage used by the DAC private key fallback.
+#if (defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) || defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK)) &&                 \
     (CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID >= CONFIG_CHIP_KMU_SLOT_RANGE_START &&                                        \
      CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID <= CONFIG_CHIP_KMU_SLOT_RANGE_END)
 #error "CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID cannot overlap with KMU slots dedicated for Matter core"

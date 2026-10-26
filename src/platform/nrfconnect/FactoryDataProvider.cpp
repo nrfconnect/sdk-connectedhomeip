@@ -81,8 +81,8 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::Init()
     }
 
 #ifdef CONFIG_CHIP_CRYPTO_PSA
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-    FallbackToItsIfNeeded();
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+    FallbackToLegacyKeyIfNeeded();
 #endif
     VerifyOrDie(MoveDACPrivateKeyToSecureStorage(factoryData, factoryDataSize) == CHIP_NO_ERROR);
 #endif
@@ -209,36 +209,52 @@ CHIP_ERROR FactoryDataProvider<FlashFactoryData>::MoveDACPrivateKeyToSecureStora
     return CHIP_NO_ERROR;
 }
 
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 template <class FlashFactoryData>
-void FactoryDataProvider<FlashFactoryData>::FallbackToItsIfNeeded()
+void FactoryDataProvider<FlashFactoryData>::FallbackToLegacyKeyIfNeeded()
 {
-    const psa_key_id_t itsDacKeyId = to_underlying(chip::Crypto::KeyIdBase::DACPrivKey);
+#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU)
+    const psa_key_id_t legacyKeyId = kITSDacPrivKeyId;
+#elif defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_ITS) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID)
+    const psa_key_id_t legacyKeyId = kKMUDacPrivKeyId;
+#endif
 
+#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU) ||                                                                            \
+    (defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_ITS) && defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID))
     psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
-    const psa_status_t status       = psa_get_key_attributes(itsDacKeyId, &attributes);
 
+    // The key in the selected storage always takes precedence, so a stale key in the other storage cannot override it.
+    const psa_status_t selectedStatus = psa_get_key_attributes(mDACPrivKeyId, &attributes);
+    psa_reset_key_attributes(&attributes);
+    VerifyOrReturn(selectedStatus != PSA_SUCCESS);
+
+    const psa_status_t status = psa_get_key_attributes(legacyKeyId, &attributes);
     psa_reset_key_attributes(&attributes);
 
     if (status == PSA_SUCCESS)
     {
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK
+#if defined(CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU)
+        const char * legacyStorageName = "ITS";
+#else
+        const char * legacyStorageName = "KMU";
+#endif
         ChipLogProgress(DeviceLayer,
-                        "Warning: DAC private key found in PSA ITS while CRACEN KMU storage is configured. "
-                        "Using the ITS key for attestation signing. Automatic migration from ITS to KMU is "
-                        "not supported; re-provision the device to move the key to KMU.");
-        mDACPrivKeyId = itsDacKeyId;
+                        "Warning: DAC private key found in a different storage than currently selected. "
+                        "Using the key from %s for attestation signing.",
+                        legacyStorageName);
+        mDACPrivKeyId = legacyKeyId;
 #else
         ChipLogError(DeviceLayer,
-                     "DAC private key found in PSA ITS while CRACEN KMU storage is configured. "
-                     "Automatic migration from ITS to KMU is not supported. "
-                     "Re-provision the device or set the :kconfig:option:`CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK` "
-                     "Kconfig option to `y`.");
+                     "DAC private key found in a different storage than currently selected. "
+                     "Set the CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK Kconfig option to y "
+                     "to allow the device to sign with the legacy key.");
         VerifyOrDie(false);
-#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ITS_FALLBACK
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_FALLBACK
     }
+#endif
 }
-#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+#endif // CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
 #endif // CONFIG_CHIP_CRYPTO_PSA
 
 template <class FlashFactoryData>

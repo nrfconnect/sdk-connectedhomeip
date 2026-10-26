@@ -27,7 +27,7 @@
 #include <crypto/CHIPCryptoPALPSA.h>
 #endif
 
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID
 #include <cracen_psa_kmu.h>
 #endif
 
@@ -155,11 +155,10 @@ public:
     CHIP_ERROR Init() override;
 #ifdef CONFIG_CHIP_CRYPTO_PSA
     CHIP_ERROR MoveDACPrivateKeyToSecureStorage(uint8_t * factoryDataPartition, size_t factoryDataSize);
-#endif
-
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-    void FallbackToItsIfNeeded();
-#endif // CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+#ifdef CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+    void FallbackToLegacyKeyIfNeeded();
+#endif // CONFIG_CHIP_CRYPTO_PSA_MIGRATE_DAC_PRIV_KEY
+#endif // CONFIG_CHIP_CRYPTO_PSA
 
     // ===== Members functions that implement the DeviceAttestationCredentialsProvider
     CHIP_ERROR GetCertificationDeclaration(MutableByteSpan & outBuffer) override;
@@ -206,20 +205,26 @@ private:
 
     struct FactoryData mFactoryData;
     FlashFactoryData mFlashFactoryData;
+
 #ifdef CONFIG_CHIP_CRYPTO_PSA
-#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-    // The DAC private key is stored in KMU. FallbackToItsIfNeeded() overrides the ID if the key is found in ITS.
-    psa_key_id_t mDACPrivKeyId = static_cast<psa_key_id_t>(PSA_KEY_ID_FROM_CRACEN_KMU_SLOT(
+    constexpr static psa_key_id_t kITSDacPrivKeyId = to_underlying(chip::Crypto::KeyIdBase::DACPrivKey);
+
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID
+    constexpr static psa_key_id_t kKMUDacPrivKeyId = static_cast<psa_key_id_t>(PSA_KEY_ID_FROM_CRACEN_KMU_SLOT(
 #ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
         CRACEN_KMU_KEY_USAGE_SCHEME_ENCRYPTED,
 #else
         CRACEN_KMU_KEY_USAGE_SCHEME_RAW,
 #endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_ENCRYPTED
         CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID));
+#endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU_SLOT_ID
+
+#ifdef CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
+    psa_key_id_t mDACPrivKeyId = kKMUDacPrivKeyId;
 #else
-    psa_key_id_t mDACPrivKeyId = to_underlying(chip::Crypto::KeyIdBase::DACPrivKey);
+    psa_key_id_t mDACPrivKeyId = kITSDacPrivKeyId;
 #endif // CONFIG_CHIP_CRYPTO_PSA_DAC_PRIV_KEY_KMU
-#endif
+#endif // CONFIG_CHIP_CRYPTO_PSA
 };
 
 } // namespace DeviceLayer
